@@ -10,10 +10,12 @@ import {
   User,
   Users,
 } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import logo from '@/assets/brand/symbol-white.svg'
 import { LanguageSwitcher } from '@/layouts/LanguageSwitcher'
+import { api } from '@/services/api'
 import { ROUTES } from '@/shared/constants/routes'
+import { useApiQuery } from '@/shared/hooks/useApiQuery'
 
 interface NavItem {
   label: string
@@ -66,6 +68,7 @@ function SidebarLink({ label, icon: Icon, to, badge }: NavItem) {
       {badge ? (
         <span className="flex size-5 items-center justify-center rounded-full bg-danger text-xs font-bold text-white">
           {badge}
+          <span className="sr-only"> новых</span>
         </span>
       ) : null}
     </NavLink>
@@ -73,6 +76,14 @@ function SidebarLink({ label, icon: Icon, to, badge }: NavItem) {
 }
 
 export function Sidebar() {
+  // Refresh counters on navigation, so actions on other pages are reflected.
+  const { pathname } = useLocation()
+  const { data: counters } = useApiQuery(() => api.getSidebarCounters(), [pathname])
+  const badges: Partial<Record<string, number>> = {
+    [ROUTES.moderation]: counters?.newComplaints,
+    [ROUTES.verification]: counters?.pendingVerifications,
+  }
+
   return (
     <aside className="sticky top-0 hidden h-screen w-62 shrink-0 flex-col border-r border-border bg-white px-4 pt-5 pb-6 lg:flex">
       <NavLink to={ROUTES.dashboard} className="flex items-center gap-3 px-2">
@@ -94,7 +105,7 @@ export function Sidebar() {
             <ul className="flex flex-col">
               {section.items.map((item) => (
                 <li key={item.to}>
-                  <SidebarLink {...item} />
+                  <SidebarLink {...item} badge={badges[item.to]} />
                 </li>
               ))}
             </ul>
