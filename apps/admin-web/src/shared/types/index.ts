@@ -1,0 +1,6 @@
+export type * from '@/shared/types/agrochemist'
+export type * from '@/shared/types/common'
+export type * from '@/shared/types/community'
+export type * from '@/shared/types/disease'
+export type * from '@/shared/types/stats'
+export type * from '@/shared/types/user'
