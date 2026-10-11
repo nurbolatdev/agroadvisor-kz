@@ -1,6 +1,7 @@
 export { Badge, type BadgeProps, type BadgeTone } from '@/components/ui/Badge'
 export { Button, type ButtonProps } from '@/components/ui/Button'
 export { Card, CardHeader, type CardHeaderProps, type CardProps } from '@/components/ui/Card'
+export { Chip, type ChipProps } from '@/components/ui/Chip'
 export { DataTable, type DataTableColumn, type DataTableProps } from '@/components/ui/DataTable'
 export { EmptyState, type EmptyStateProps } from '@/components/ui/EmptyState'
 export { Field, type FieldProps } from '@/components/ui/Field'
