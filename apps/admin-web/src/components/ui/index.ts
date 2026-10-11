@@ -9,5 +9,10 @@ export { Loader, type LoaderProps } from '@/components/ui/Loader'
 export { Modal, type ModalProps } from '@/components/ui/Modal'
 export { PageHeader, type PageHeaderProps } from '@/components/ui/PageHeader'
 export { SearchBar, type SearchBarProps } from '@/components/ui/SearchBar'
+export {
+  SegmentedControl,
+  type SegmentedControlProps,
+  type SegmentedOption,
+} from '@/components/ui/SegmentedControl'
 export { Select, type SelectOption, type SelectProps } from '@/components/ui/Select'
 export { StatCard, type StatCardProps } from '@/components/ui/StatCard'

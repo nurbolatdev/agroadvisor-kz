@@ -17,6 +17,9 @@
   --color-danger-soft: #fbe7e1;
   --color-info: #2a6592;
   --color-info-soft: #e2edf6;
+  --color-chart-secondary: #a8d08d; /* second data series: agrochemists, answers */
+  --color-chart-light: #6aa75a; /* lower funnel steps */
+  --color-track: #eef1ec; /* progress bar track */
 
   /* Typography — Inter */
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
