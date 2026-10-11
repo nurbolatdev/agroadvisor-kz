@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { ComplaintCard } from '@/features/moderation/components/ComplaintCard'
+import { ComplaintDetailsPanel } from '@/features/moderation/components/ComplaintDetailsPanel'
 import {
   ComplaintFilters,
   type ComplaintFilterValue,
@@ -23,6 +24,8 @@ export function ModerationPage() {
 
   const visible = complaints?.filter((item) => item.status === filters.status) ?? []
   const newCount = complaints?.filter((item) => item.status === 'new').length ?? 0
+  // The first complaint is open by default, as in the mockup.
+  const selected = visible.find((item) => item.id === selectedId) ?? visible[0]
 
   return (
     <>
@@ -50,19 +53,25 @@ export function ModerationPage() {
               <ComplaintCard
                 key={complaint.id}
                 complaint={complaint}
-                selected={complaint.id === selectedId}
+                selected={complaint.id === selected?.id}
                 onSelect={() => setSelectedId(complaint.id)}
               />
             ))
           )}
         </section>
-        <Card className="lg:sticky lg:top-8">
-          <EmptyState
-            icon={MousePointerClick}
-            title="Выберите жалобу"
-            description="Детали жалобы и действия появятся здесь."
-          />
-        </Card>
+        <div className="lg:sticky lg:top-8">
+          {selected ? (
+            <ComplaintDetailsPanel complaint={selected} />
+          ) : (
+            <Card>
+              <EmptyState
+                icon={MousePointerClick}
+                title="Выберите жалобу"
+                description="Детали жалобы и действия появятся здесь."
+              />
+            </Card>
+          )}
+        </div>
       </div>
     </>
   )

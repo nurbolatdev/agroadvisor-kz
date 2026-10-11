@@ -17,6 +17,25 @@ export const formatShortDate = (date: IsoDateTime | Date) =>
 /** "14:02". */
 export const formatTime = (date: IsoDateTime | Date) => timeFormat.format(new Date(date))
 
+const dayMonthLongFormat = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'long' })
+
+/** "с мая 2026" — month in the genitive case, as Russian needs after "с". */
+export function formatSince(date: IsoDateTime | Date) {
+  const value = new Date(date)
+  const month = dayMonthLongFormat.format(value).replace(/^\d+\s/, '')
+  return `с ${month} ${value.getFullYear()}`
+}
+
+/** "сегодня 14:02", "вчера 09:15" or "24 сент". */
+export function formatDayAndTime(date: IsoDateTime | Date, now: Date = new Date()) {
+  const value = new Date(date)
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (value.toDateString() === now.toDateString()) return `сегодня ${formatTime(value)}`
+  if (value.toDateString() === yesterday.toDateString()) return `вчера ${formatTime(value)}`
+  return formatShortDate(value)
+}
+
 const isSameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString()
 
 /**
