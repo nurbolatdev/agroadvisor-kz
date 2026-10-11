@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import logo from '@/assets/brand/symbol-white.svg'
+import { LanguageSwitcher } from '@/layouts/LanguageSwitcher'
 import { ROUTES } from '@/shared/constants/routes'
 
 interface NavItem {
@@ -101,7 +102,10 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <SidebarLink {...SETTINGS_ITEM} />
+      <div className="flex flex-col gap-3">
+        <LanguageSwitcher />
+        <SidebarLink {...SETTINGS_ITEM} />
+      </div>
     </aside>
   )
 }
