@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/brand/svg/logo-horizontal.svg" alt="AgroAdvisor KZ" width="420" />
+</p>
+
 # AgroAdvisor KZ
 
 AI-powered plant disease diagnosis and agronomic advisory platform for farmers in Kazakhstan.
@@ -37,3 +41,4 @@ International University of Information Technologies (IITU), Almaty.
 - [System architecture](docs/architecture.md)
 - [Git workflow](docs/git-workflow.md)
 - [Contributing](CONTRIBUTING.md)
+- [Brand kit](docs/brand/README.md)
