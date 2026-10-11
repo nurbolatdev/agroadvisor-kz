@@ -1,0 +1,45 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+
+@theme {
+  /* Colors — "AgroAdvisor · Цвета" collection in Figma */
+  --color-primary: #2d6a3e;
+  --color-primary-dark: #1e4d2b;
+  --color-primary-soft: #e4f0e5;
+  --color-text: #1c2620;
+  --color-text-muted: #46564b;
+  --color-bg: #f4f6f2;
+  --color-border: #dce3dc;
+  --color-warning: #e3a82b;
+  --color-warning-soft: #fbefd2;
+  --color-danger: #b0412a;
+  --color-danger-soft: #fbe7e1;
+  --color-info: #2a6592;
+  --color-info-soft: #e2edf6;
+
+  /* Typography — Inter */
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --text-display: 28px;
+  --text-display--line-height: 34px;
+  --text-display--font-weight: 700;
+  --text-h1: 22px;
+  --text-h1--line-height: 28px;
+  --text-h1--font-weight: 700;
+  --text-h2: 18px;
+  --text-h2--line-height: 24px;
+  --text-h2--font-weight: 600;
+  --text-body: 16px;
+  --text-body--line-height: 24px;
+  --text-small: 14px;
+  --text-small--line-height: 20px;
+  --text-caption: 13px;
+  --text-caption--line-height: 18px;
+  --text-caption--font-weight: 500;
+}
+
+@layer base {
+  body {
+    @apply bg-bg font-sans text-body text-text antialiased;
+  }
+}
