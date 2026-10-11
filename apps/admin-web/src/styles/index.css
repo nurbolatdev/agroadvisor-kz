@@ -17,6 +17,7 @@
   --color-danger-soft: #fbe7e1;
   --color-info: #2a6592;
   --color-info-soft: #e2edf6;
+  --color-chart-secondary: #a8d08d; /* second data series: agrochemists, answers */
 
   /* Typography — Inter */
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;

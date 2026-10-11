@@ -7,6 +7,7 @@ import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SegmentedControl, type SegmentedOption } from '@/components/ui/SegmentedControl'
 import { DiagnosesByDayChart } from '@/features/dashboard/components/DiagnosesByDayChart'
+import { NewUsersChart } from '@/features/dashboard/components/NewUsersChart'
 import { OverviewKpis } from '@/features/dashboard/components/OverviewKpis'
 import { api } from '@/services/api'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
@@ -68,6 +69,7 @@ export function DashboardPage() {
           <OverviewKpis stats={data} />
           <div className="grid gap-4 lg:grid-cols-[592fr_360fr]">
             <DiagnosesByDayChart stats={data} />
+            <NewUsersChart stats={data} />
           </div>
         </div>
       ) : (
