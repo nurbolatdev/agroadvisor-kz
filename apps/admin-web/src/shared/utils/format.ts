@@ -49,3 +49,16 @@ export function formatDuration(totalMinutes: number) {
 /** Signed change: 12 → "+12", -3 → "−3" (typographic minus, as in the mockups). */
 export const formatSigned = (value: number) =>
   value > 0 ? `+${formatNumber(value)}` : value < 0 ? `−${formatNumber(-value)}` : '0'
+
+/** Russian plural form: pluralize(3, ['жалоба', 'жалобы', 'жалоб']) → "3 жалобы". */
+export function pluralize(count: number, [one, few, many]: [string, string, string]) {
+  const mod10 = count % 10
+  const mod100 = count % 100
+  const word =
+    mod10 === 1 && mod100 !== 11
+      ? one
+      : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
+        ? few
+        : many
+  return `${formatNumber(count)} ${word}`
+}
