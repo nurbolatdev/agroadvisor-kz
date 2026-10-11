@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SegmentedControl, type SegmentedOption } from '@/components/ui/SegmentedControl'
+import { DiagnosesByDayChart } from '@/features/dashboard/components/DiagnosesByDayChart'
 import { OverviewKpis } from '@/features/dashboard/components/OverviewKpis'
 import { api } from '@/services/api'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
@@ -60,8 +61,14 @@ export function DashboardPage() {
           />
         </Card>
       ) : data ? (
-        <div aria-busy={isLoading} className={cn('transition-opacity', isLoading && 'opacity-60')}>
+        <div
+          aria-busy={isLoading}
+          className={cn('flex flex-col gap-4 transition-opacity', isLoading && 'opacity-60')}
+        >
           <OverviewKpis stats={data} />
+          <div className="grid gap-4 lg:grid-cols-[592fr_360fr]">
+            <DiagnosesByDayChart stats={data} />
+          </div>
         </div>
       ) : (
         <Loader />
