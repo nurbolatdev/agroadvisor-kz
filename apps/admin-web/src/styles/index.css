@@ -12,6 +12,7 @@
   --color-border: #dce3dc;
   --color-warning: #e3a82b;
   --color-warning-soft: #fbefd2;
+  --color-warning-strong: #8a5b0b; /* text on warning-soft, AA contrast */
   --color-danger: #b0412a;
   --color-danger-soft: #fbe7e1;
   --color-info: #2a6592;
