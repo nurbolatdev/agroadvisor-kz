@@ -1,5 +1,8 @@
+import { RouterProvider } from 'react-router-dom'
+import { router } from '@/app/router'
+
 function App() {
-  return <h1 className="p-6 text-display text-primary-dark">AgroAdvisor KZ — Admin</h1>
+  return <RouterProvider router={router} future={{ v7_startTransition: true }} />
 }
 
 export default App
