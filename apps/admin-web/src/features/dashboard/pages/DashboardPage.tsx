@@ -7,6 +7,7 @@ import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SegmentedControl, type SegmentedOption } from '@/components/ui/SegmentedControl'
 import { DiagnosesByDayChart } from '@/features/dashboard/components/DiagnosesByDayChart'
+import { FarmerFunnel } from '@/features/dashboard/components/FarmerFunnel'
 import { NewUsersChart } from '@/features/dashboard/components/NewUsersChart'
 import { OverviewKpis } from '@/features/dashboard/components/OverviewKpis'
 import { api } from '@/services/api'
@@ -71,6 +72,7 @@ export function DashboardPage() {
             <DiagnosesByDayChart stats={data} />
             <NewUsersChart stats={data} />
           </div>
+          <FarmerFunnel stats={data} />
         </div>
       ) : (
         <Loader />
