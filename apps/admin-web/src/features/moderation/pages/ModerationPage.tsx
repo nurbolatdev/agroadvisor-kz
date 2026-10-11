@@ -13,11 +13,12 @@ import {
 import { ModerationKpis } from '@/features/moderation/components/ModerationKpis'
 import { api } from '@/services/api'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
+import { notifyDataChanged } from '@/shared/utils/dataEvents'
 
 export function ModerationPage() {
   const [filters, setFilters] = useState<ComplaintFilterValue>({ status: 'new' })
   const [selectedId, setSelectedId] = useState<string>()
-  const { data: complaints } = useApiQuery(
+  const { data: complaints, reload } = useApiQuery(
     () => api.getComplaints({ kind: filters.kind, reason: filters.reason }),
     [filters.kind, filters.reason],
   )
@@ -61,7 +62,13 @@ export function ModerationPage() {
         </section>
         <div className="lg:sticky lg:top-8">
           {selected ? (
-            <ComplaintDetailsPanel complaint={selected} />
+            <ComplaintDetailsPanel
+              complaint={selected}
+              onResolved={() => {
+                reload()
+                notifyDataChanged()
+              }}
+            />
           ) : (
             <Card>
               <EmptyState

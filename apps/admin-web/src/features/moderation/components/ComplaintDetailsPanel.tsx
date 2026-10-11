@@ -1,6 +1,7 @@
 import { EyeOff } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
+import { ComplaintActions } from '@/features/moderation/components/ComplaintActions'
 import { mainReason, POST_KINDS, REASONS, totalReports } from '@/features/moderation/complaints'
 import type { ComplaintDetails } from '@/services/api'
 import { CROP_LABELS } from '@/shared/constants/crops'
@@ -8,6 +9,7 @@ import { formatDayAndTime, formatSince, pluralize } from '@/shared/utils/format'
 
 interface ComplaintDetailsPanelProps {
   complaint: ComplaintDetails
+  onResolved: () => void
 }
 
 const initials = (name: string) =>
@@ -18,7 +20,7 @@ const initials = (name: string) =>
     .slice(0, 2)
     .toUpperCase()
 
-export function ComplaintDetailsPanel({ complaint }: ComplaintDetailsPanelProps) {
+export function ComplaintDetailsPanel({ complaint, onResolved }: ComplaintDetailsPanelProps) {
   const { post, author } = complaint
   const reason = REASONS[mainReason(complaint)]
   const kind = POST_KINDS[post.kind].label.toLowerCase()
@@ -85,6 +87,8 @@ export function ComplaintDetailsPanel({ complaint }: ComplaintDetailsPanelProps)
           </ul>
         </section>
       </div>
+
+      <ComplaintActions key={complaint.id} complaint={complaint} onResolved={onResolved} />
     </Card>
   )
 }

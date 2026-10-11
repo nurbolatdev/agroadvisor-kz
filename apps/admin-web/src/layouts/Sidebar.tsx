@@ -10,12 +10,14 @@ import {
   User,
   Users,
 } from 'lucide-react'
+import { useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import logo from '@/assets/brand/symbol-white.svg'
 import { LanguageSwitcher } from '@/layouts/LanguageSwitcher'
 import { api } from '@/services/api'
 import { ROUTES } from '@/shared/constants/routes'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
+import { onDataChanged } from '@/shared/utils/dataEvents'
 
 interface NavItem {
   label: string
@@ -76,9 +78,10 @@ function SidebarLink({ label, icon: Icon, to, badge }: NavItem) {
 }
 
 export function Sidebar() {
-  // Refresh counters on navigation, so actions on other pages are reflected.
+  // Refresh counters on navigation and after actions such as resolving a complaint.
   const { pathname } = useLocation()
-  const { data: counters } = useApiQuery(() => api.getSidebarCounters(), [pathname])
+  const { data: counters, reload } = useApiQuery(() => api.getSidebarCounters(), [pathname])
+  useEffect(() => onDataChanged(reload), [reload])
   const badges: Partial<Record<string, number>> = {
     [ROUTES.moderation]: counters?.newComplaints,
     [ROUTES.verification]: counters?.pendingVerifications,
