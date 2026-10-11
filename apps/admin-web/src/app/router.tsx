@@ -5,17 +5,23 @@ import { DiseaseDetailPage } from '@/features/diseases/pages/DiseaseDetailPage'
 import { DiseasesPage } from '@/features/diseases/pages/DiseasesPage'
 import { ModerationPage } from '@/features/moderation/pages/ModerationPage'
 import { UsersPage } from '@/features/users/pages/UsersPage'
+import { MainLayout } from '@/layouts/MainLayout'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ROUTES } from '@/shared/constants/routes'
 
 export const router = createBrowserRouter(
   [
-    { path: ROUTES.dashboard, element: <DashboardPage /> },
-    { path: ROUTES.moderation, element: <ModerationPage /> },
-    { path: ROUTES.agrochemists, element: <AgrochemistsPage /> },
-    { path: ROUTES.diseases, element: <DiseasesPage /> },
-    { path: ROUTES.diseaseDetail, element: <DiseaseDetailPage /> },
-    { path: ROUTES.users, element: <UsersPage /> },
+    {
+      element: <MainLayout />,
+      children: [
+        { path: ROUTES.dashboard, element: <DashboardPage /> },
+        { path: ROUTES.moderation, element: <ModerationPage /> },
+        { path: ROUTES.agrochemists, element: <AgrochemistsPage /> },
+        { path: ROUTES.diseases, element: <DiseasesPage /> },
+        { path: ROUTES.diseaseDetail, element: <DiseaseDetailPage /> },
+        { path: ROUTES.users, element: <UsersPage /> },
+      ],
+    },
     { path: ROUTES.notFound, element: <NotFoundPage /> },
   ],
   {
