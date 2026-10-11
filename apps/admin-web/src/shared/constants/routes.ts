@@ -1,10 +1,14 @@
 export const ROUTES = {
   dashboard: '/',
+  aiQuality: '/ai-quality',
+  community: '/community',
   moderation: '/moderation',
-  agrochemists: '/agrochemists',
+  verification: '/verification',
+  users: '/users',
+  shops: '/shops',
   diseases: '/diseases',
   diseaseDetail: '/diseases/:id',
-  users: '/users',
+  settings: '/settings',
   notFound: '*',
 } as const
 
