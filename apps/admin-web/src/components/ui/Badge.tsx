@@ -14,7 +14,7 @@ const TONE_CLASSES: Record<BadgeTone, string> = {
   success: 'bg-primary-soft text-primary',
   warning: 'bg-warning-soft text-warning-strong',
   danger: 'bg-danger-soft text-danger',
-  neutral: 'bg-bg text-text-muted',
+  neutral: 'bg-bg text-text-muted ring-1 ring-border ring-inset',
   info: 'bg-info-soft text-info',
 }
 
