@@ -22,37 +22,37 @@ export function OverviewKpis({ stats }: OverviewKpisProps) {
         label="Активные пользователи"
         value={formatNumber(activeUsers.value)}
         change={`${formatSigned(activeUsers.changePercent)}% к прошлому периоду`}
-        changeTone={activeUsers.changePercent >= 0 ? 'positive' : 'negative'}
+        trend={activeUsers.changePercent >= 0 ? 'good' : 'bad'}
       />
       <StatCard
         label="Диагнозов"
         value={formatNumber(diagnoses.value)}
         change={`${formatSigned(diagnoses.changePercent)}%`}
-        changeTone={diagnoses.changePercent >= 0 ? 'positive' : 'negative'}
+        trend={diagnoses.changePercent >= 0 ? 'good' : 'bad'}
       />
       <StatCard
         label="Средняя уверенность"
         value={`${avgConfidence.percent}%`}
         change={`${formatSigned(avgConfidence.changePoints)} п. п.`}
-        changeTone={avgConfidence.changePoints >= 0 ? 'positive' : 'negative'}
+        trend={avgConfidence.changePoints >= 0 ? 'good' : 'bad'}
       />
       <StatCard
         label="Неуверенных (<70%)"
         value={`${lowConfidenceShare.percent}%`}
         change={`${formatSigned(lowConfidenceShare.changePoints)} п. п.`}
-        changeTone={lowConfidenceShare.changePoints <= 0 ? 'positive' : 'negative'}
+        trend={lowConfidenceShare.changePoints <= 0 ? 'good' : 'bad'}
       />
       <StatCard
         label="Открытые жалобы"
         value={formatNumber(openComplaints.value)}
         change={`${formatSigned(openComplaints.changeToday)} за сутки`}
-        changeTone={openComplaints.changeToday > 0 ? 'negative' : 'positive'}
+        trend={openComplaints.changeToday > 0 ? 'bad' : 'good'}
       />
       <StatCard
         label="На верификации"
         value={formatNumber(pendingVerifications)}
         change={pendingVerifications > 0 ? 'нужно действие' : 'все проверены'}
-        changeTone={pendingVerifications > 0 ? 'negative' : 'positive'}
+        trend={pendingVerifications > 0 ? 'bad' : 'good'}
       />
     </div>
   )

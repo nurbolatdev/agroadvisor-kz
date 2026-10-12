@@ -1,5 +1,6 @@
 import { mockAgrochemists } from '@/mocks/agrochemists'
 import { buildTrainingSamples, mockAiQualityStats } from '@/mocks/aiQuality'
+import { mockCommunityStats, mockUnansweredQuestions } from '@/mocks/community'
 import { mockDiseases } from '@/mocks/diseases'
 import { mockComplaints, mockPosts } from '@/mocks/posts'
 import { mockModerationStats, mockOverviewStats, mockVerificationStats } from '@/mocks/stats'
@@ -22,6 +23,7 @@ const db = {
   posts: structuredClone(mockPosts),
   complaints: structuredClone(mockComplaints),
   agrochemists: structuredClone(mockAgrochemists),
+  unanswered: structuredClone(mockUnansweredQuestions),
 }
 
 const matches = (value: string, search?: string) =>
@@ -58,6 +60,19 @@ export const mockApi: AdminApi = {
   getAiQualityStats: (period) => respond(mockAiQualityStats[period]),
 
   getTrainingSamples: () => respond(buildTrainingSamples()),
+
+  getCommunityStats: (period) =>
+    respond({ ...mockCommunityStats[period], unanswered: db.unanswered }),
+
+  inviteAgrochemist: (questionId, agrochemistId) => {
+    const question = db.unanswered.find((item) => item.id === questionId)
+    const agrochemist = db.agrochemists.find(
+      (item) => item.id === agrochemistId && item.status === 'approved',
+    )
+    if (!question || !agrochemist) return fail('Вопрос или агрохимик не найдены')
+    question.invitedAgrochemist = { id: agrochemist.id, name: agrochemist.name }
+    return respond(question)
+  },
 
   getModerationStats: () => respond(mockModerationStats),
 

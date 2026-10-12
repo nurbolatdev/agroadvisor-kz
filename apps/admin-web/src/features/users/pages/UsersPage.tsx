@@ -1,5 +1,6 @@
 import { CircleCheck, Ban } from 'lucide-react'
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Chip } from '@/components/ui/Chip'
@@ -94,7 +95,9 @@ const COLUMNS: DataTableColumn<User>[] = [
 
 export function UsersPage() {
   const [role, setRole] = useState<UserRole>()
-  const [search, setSearch] = useState('')
+  // `?search=` lets other pages link to a person, e.g. the community's most active members.
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get('search') ?? '')
   const { data: users } = useApiQuery(() => api.getUsers({ role, search }), [role, search])
 
   return (
