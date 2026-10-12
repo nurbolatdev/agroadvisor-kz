@@ -50,7 +50,7 @@ export function Modal({ open, onClose, title, children, footer, className }: Mod
             type="button"
             aria-label="Закрыть"
             onClick={onClose}
-            className="-m-2 flex size-10 shrink-0 items-center justify-center rounded-xl text-text-muted transition-colors hover:bg-bg hover:text-text"
+            className="-m-2 flex size-10 shrink-0 items-center justify-center rounded-xl text-text-muted transition-colors hover:bg-bg hover:text-text focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
           >
             <X size={20} strokeWidth={2} aria-hidden="true" />
           </button>

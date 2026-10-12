@@ -22,4 +22,6 @@ export interface Agrochemist {
   submittedAt: IsoDateTime
   reviewedAt?: IsoDateTime
   rejectionReason?: string
+  /** When the admin asked the applicant to upload documents. */
+  documentsRequestedAt?: IsoDateTime
 }

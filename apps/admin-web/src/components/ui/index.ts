@@ -1,3 +1,4 @@
+export { Avatar, type AvatarProps } from '@/components/ui/Avatar'
 export { Badge, type BadgeProps, type BadgeTone } from '@/components/ui/Badge'
 export { Button, type ButtonProps } from '@/components/ui/Button'
 export { Card, CardHeader, type CardHeaderProps, type CardProps } from '@/components/ui/Card'
