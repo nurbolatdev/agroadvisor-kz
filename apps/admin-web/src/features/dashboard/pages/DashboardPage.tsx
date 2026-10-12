@@ -13,15 +13,17 @@ import { OverviewKpis } from '@/features/dashboard/components/OverviewKpis'
 import { api } from '@/services/api'
 import { PERIOD_OPTIONS, PERIOD_SUFFIX } from '@/shared/constants/periods'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
+import { useSettings } from '@/shared/settings/settingsContext'
 import type { StatsPeriod } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
 import { formatTime } from '@/shared/utils/format'
 
 export function DashboardPage() {
-  const [period, setPeriod] = useState<StatsPeriod>('30d')
+  const { settings } = useSettings()
+  const [period, setPeriod] = useState<StatsPeriod>(settings.defaultPeriod)
   const { data, error, isLoading, reload } = useApiQuery(
-    () => api.getOverviewStats(period),
-    [period],
+    () => api.getOverviewStats(period, settings.confidenceThreshold),
+    [period, settings.confidenceThreshold],
   )
 
   return (
@@ -61,7 +63,7 @@ export function DashboardPage() {
           aria-busy={isLoading}
           className={cn('flex flex-col gap-4 transition-opacity', isLoading && 'opacity-60')}
         >
-          <OverviewKpis stats={data} />
+          <OverviewKpis stats={data} threshold={settings.confidenceThreshold} />
           <div className="grid gap-4 lg:grid-cols-[592fr_360fr]">
             <DiagnosesByDayChart stats={data} />
             <NewUsersChart stats={data} />

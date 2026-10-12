@@ -12,14 +12,15 @@ import { MismatchesCard } from '@/features/ai-quality/components/MismatchesCard'
 import { TopDiseasesCard } from '@/features/ai-quality/components/TopDiseasesCard'
 import { TrainingDataCard } from '@/features/ai-quality/components/TrainingDataCard'
 import { api } from '@/services/api'
-import { DEFAULT_CONFIDENCE_THRESHOLD } from '@/shared/constants/ai'
 import { PERIOD_OPTIONS } from '@/shared/constants/periods'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
+import { useSettings } from '@/shared/settings/settingsContext'
 import type { StatsPeriod } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
 
 export function AiQualityPage() {
-  const [period, setPeriod] = useState<StatsPeriod>('30d')
+  const { settings } = useSettings()
+  const [period, setPeriod] = useState<StatsPeriod>(settings.defaultPeriod)
   const { data, error, isLoading, reload } = useApiQuery(
     () => api.getAiQualityStats(period),
     [period],
@@ -61,7 +62,7 @@ export function AiQualityPage() {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <ConfidenceHistogram
               buckets={data.confidenceHistogram}
-              threshold={DEFAULT_CONFIDENCE_THRESHOLD}
+              threshold={settings.confidenceThreshold}
             />
             <TopDiseasesCard diseases={data.topDiseases} period={period} />
             <TrainingDataCard data={data.trainingData} />
