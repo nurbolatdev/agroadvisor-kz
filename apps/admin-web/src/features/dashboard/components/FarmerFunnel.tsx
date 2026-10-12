@@ -44,10 +44,13 @@ export function FarmerFunnel({ stats }: FarmerFunnelProps) {
           return (
             <li
               key={step}
-              className="grid grid-cols-[minmax(0,13rem)_1fr_4rem_3rem] items-center gap-4 text-small"
+              className="grid grid-cols-[minmax(0,1fr)_4rem_3rem] items-center gap-x-4 gap-y-1.5 text-small sm:grid-cols-[minmax(0,13rem)_1fr_4rem_3rem]"
             >
               <span className="truncate text-text">{STEP_LABELS[step]}</span>
-              <span aria-hidden="true" className="h-6 overflow-hidden rounded-full bg-track">
+              <span
+                aria-hidden="true"
+                className="order-last col-span-3 h-6 overflow-hidden rounded-full bg-track sm:order-none sm:col-span-1"
+              >
                 <span
                   className={cn(
                     'block h-full rounded-full',
