@@ -2,6 +2,7 @@ import { mockApi } from '@/services/mockApi'
 import type {
   Agrochemist,
   AiQualityStats,
+  CommunityStats,
   CommunityPost,
   Complaint,
   ComplaintReason,
@@ -14,6 +15,7 @@ import type {
   PostKind,
   StatsPeriod,
   TrainingSample,
+  UnansweredQuestion,
   User,
   UserRole,
   VerificationStats,
@@ -48,6 +50,9 @@ export interface AdminApi {
   getAiQualityStats(period: StatsPeriod): Promise<AiQualityStats>
   /** Labeled photos confirmed by experts, for retraining the model. */
   getTrainingSamples(): Promise<TrainingSample[]>
+
+  getCommunityStats(period: StatsPeriod): Promise<CommunityStats>
+  inviteAgrochemist(questionId: string, agrochemistId: string): Promise<UnansweredQuestion>
 
   getModerationStats(): Promise<ModerationStats>
   getComplaints(filters?: ComplaintFilters): Promise<ComplaintDetails[]>

@@ -17,6 +17,8 @@ export interface Agrochemist {
   specialization: string
   region: string
   experienceYears: number
+  /** Average farmer rating of consultations, 1–5; only for approved agrochemists. */
+  rating?: number
   documents: AgrochemistDocument[]
   status: VerificationStatus
   submittedAt: IsoDateTime

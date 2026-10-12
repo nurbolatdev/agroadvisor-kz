@@ -85,6 +85,7 @@ export const mockAgrochemists: Agrochemist[] = [
     specialization: 'Овощеводство',
     region: 'Алматинская',
     experienceYears: 12,
+    rating: 4.8,
     documents: [
       {
         kind: 'diploma',
@@ -104,6 +105,7 @@ export const mockAgrochemists: Agrochemist[] = [
     specialization: 'Зерновые культуры',
     region: 'Акмолинская',
     experienceYears: 8,
+    rating: 4.6,
     documents: [
       {
         kind: 'diploma',
@@ -116,6 +118,26 @@ export const mockAgrochemists: Agrochemist[] = [
     status: 'approved',
     submittedAt: '2026-02-09T09:00:00.000Z',
     reviewedAt: '2026-02-10T15:45:00.000Z',
+  },
+  {
+    id: 'a-aigul-sarsenova',
+    name: 'Айгуль Сарсенова',
+    specialization: 'Фитопатология',
+    region: 'Алматинская',
+    experienceYears: 10,
+    rating: 4.9,
+    documents: [
+      {
+        kind: 'diploma',
+        title: 'Диплом магистра, «Защита и карантин растений»',
+        issuer: 'Казахский национальный аграрный исследовательский университет',
+        year: 2015,
+        fileUrl: '/mock-documents/aigul-sarsenova-diploma.pdf',
+      },
+    ],
+    status: 'approved',
+    submittedAt: '2026-03-02T09:00:00.000Z',
+    reviewedAt: '2026-03-03T10:10:00.000Z',
   },
   {
     id: 'a-daniyar-seitkali',
