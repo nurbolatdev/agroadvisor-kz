@@ -19,7 +19,7 @@ const HISTOGRAMS: Record<StatsPeriod, number[]> = {
 const topDiseases = (counts: number[]): TopDisease[] =>
   [
     { name: 'Фитофтороз томата', diseaseId: 'tomato-late-blight' },
-    { name: 'Жёлтая ржавчина' },
+    { name: 'Жёлтая ржавчина', diseaseId: 'wheat-yellow-rust' },
     { name: 'Септориоз', diseaseId: 'wheat-septoria' },
     { name: 'Мучнистая роса' },
     { name: 'Альтернариоз' },
