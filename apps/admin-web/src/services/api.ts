@@ -51,7 +51,8 @@ export interface SidebarCounters {
  * can be replaced by an HTTP client without touching them.
  */
 export interface AdminApi {
-  getOverviewStats(period: StatsPeriod): Promise<OverviewStats>
+  /** `confidenceThreshold` (%) defines which diagnoses count as uncertain. */
+  getOverviewStats(period: StatsPeriod, confidenceThreshold: number): Promise<OverviewStats>
   getSidebarCounters(): Promise<SidebarCounters>
 
   getAiQualityStats(period: StatsPeriod): Promise<AiQualityStats>

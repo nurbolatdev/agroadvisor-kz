@@ -53,9 +53,18 @@ const decidedSinceLoad = (status: 'approved' | 'rejected') =>
   countByStatus(db.agrochemists, status) - countByStatus(mockAgrochemists, status)
 
 export const mockApi: AdminApi = {
-  getOverviewStats: (period) =>
+  getOverviewStats: (period, confidenceThreshold) =>
     respond({
       ...mockOverviewStats[period],
+      // Same histogram as the AI quality page, so both screens agree for any threshold.
+      lowConfidenceShare: {
+        ...mockOverviewStats[period].lowConfidenceShare,
+        percent: Math.round(
+          mockAiQualityStats[period].confidenceHistogram
+            .filter((_, index) => index * 10 < confidenceThreshold)
+            .reduce((sum, share) => sum + share, 0),
+        ),
+      },
       openComplaints: { ...mockOverviewStats[period].openComplaints, value: countNewComplaints() },
       pendingVerifications: countPending(),
     }),

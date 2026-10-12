@@ -4,9 +4,11 @@ import { formatNumber, formatSigned } from '@/shared/utils/format'
 
 interface OverviewKpisProps {
   stats: OverviewStats
+  /** Confidence threshold (%) from the settings, shown in the uncertain diagnoses label. */
+  threshold: number
 }
 
-export function OverviewKpis({ stats }: OverviewKpisProps) {
+export function OverviewKpis({ stats, threshold }: OverviewKpisProps) {
   const {
     activeUsers,
     diagnoses,
@@ -37,7 +39,7 @@ export function OverviewKpis({ stats }: OverviewKpisProps) {
         trend={avgConfidence.changePoints >= 0 ? 'good' : 'bad'}
       />
       <StatCard
-        label="Неуверенных (<70%)"
+        label={`Неуверенных (<${threshold}%)`}
         value={`${lowConfidenceShare.percent}%`}
         change={`${formatSigned(lowConfidenceShare.changePoints)} п. п.`}
         trend={lowConfidenceShare.changePoints <= 0 ? 'good' : 'bad'}

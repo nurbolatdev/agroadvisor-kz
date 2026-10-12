@@ -14,11 +14,13 @@ import { UnansweredCard } from '@/features/community/components/UnansweredCard'
 import { api } from '@/services/api'
 import { PERIOD_OPTIONS } from '@/shared/constants/periods'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
+import { useSettings } from '@/shared/settings/settingsContext'
 import type { StatsPeriod } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
 
 export function CommunityPage() {
-  const [period, setPeriod] = useState<StatsPeriod>('30d')
+  const { settings } = useSettings()
+  const [period, setPeriod] = useState<StatsPeriod>(settings.defaultPeriod)
   const { data, error, isLoading, reload } = useApiQuery(
     () => api.getCommunityStats(period),
     [period],
