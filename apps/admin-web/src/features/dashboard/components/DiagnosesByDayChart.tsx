@@ -9,17 +9,12 @@ import {
 } from 'recharts'
 import { Badge } from '@/components/ui/Badge'
 import { Card, CardHeader } from '@/components/ui/Card'
-import type { OverviewStats, StatsPeriod } from '@/shared/types'
+import { PERIOD_SUFFIX } from '@/shared/constants/periods'
+import type { OverviewStats } from '@/shared/types'
 import { formatNumber, formatShortDate, formatSigned } from '@/shared/utils/format'
 
 interface DiagnosesByDayChartProps {
   stats: OverviewStats
-}
-
-const PERIOD_TEXT: Record<StatsPeriod, string> = {
-  '7d': 'за 7 дней',
-  '30d': 'за 30 дней',
-  season: 'за сезон',
 }
 
 const AXIS_TICK = { fontSize: 12, fill: 'var(--color-text-muted)' }
@@ -42,7 +37,7 @@ export function DiagnosesByDayChart({ stats }: DiagnosesByDayChartProps) {
     <Card className="flex h-67 flex-col">
       <CardHeader
         title={isWeekly ? 'Диагнозы по неделям' : 'Диагнозы по дням'}
-        subtitle={`${formatNumber(diagnoses.value)} ${PERIOD_TEXT[period]} · в среднем ${formatNumber(average)} ${isWeekly ? 'в неделю' : 'в день'}`}
+        subtitle={`${formatNumber(diagnoses.value)} ${PERIOD_SUFFIX[period]} · в среднем ${formatNumber(average)} ${isWeekly ? 'в неделю' : 'в день'}`}
         action={
           <Badge tone={diagnoses.changePercent >= 0 ? 'success' : 'danger'}>
             {formatSigned(diagnoses.changePercent)}%
