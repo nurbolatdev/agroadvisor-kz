@@ -7,6 +7,8 @@ import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { ConfidenceHistogram } from '@/features/ai-quality/components/ConfidenceHistogram'
+import { TopDiseasesCard } from '@/features/ai-quality/components/TopDiseasesCard'
+import { TrainingDataCard } from '@/features/ai-quality/components/TrainingDataCard'
 import { api } from '@/services/api'
 import { DEFAULT_CONFIDENCE_THRESHOLD } from '@/shared/constants/ai'
 import { PERIOD_OPTIONS } from '@/shared/constants/periods'
@@ -59,6 +61,8 @@ export function AiQualityPage() {
               buckets={data.confidenceHistogram}
               threshold={DEFAULT_CONFIDENCE_THRESHOLD}
             />
+            <TopDiseasesCard diseases={data.topDiseases} period={period} />
+            <TrainingDataCard data={data.trainingData} />
           </div>
         </div>
       ) : (
