@@ -1,4 +1,5 @@
 import { mockAgrochemists } from '@/mocks/agrochemists'
+import { buildTrainingSamples, mockAiQualityStats } from '@/mocks/aiQuality'
 import { mockDiseases } from '@/mocks/diseases'
 import { mockComplaints, mockPosts } from '@/mocks/posts'
 import { mockModerationStats, mockOverviewStats, mockVerificationStats } from '@/mocks/stats'
@@ -53,6 +54,10 @@ export const mockApi: AdminApi = {
 
   getSidebarCounters: () =>
     respond({ newComplaints: countNewComplaints(), pendingVerifications: countPending() }),
+
+  getAiQualityStats: (period) => respond(mockAiQualityStats[period]),
+
+  getTrainingSamples: () => respond(buildTrainingSamples()),
 
   getModerationStats: () => respond(mockModerationStats),
 

@@ -1,6 +1,7 @@
 import { mockApi } from '@/services/mockApi'
 import type {
   Agrochemist,
+  AiQualityStats,
   CommunityPost,
   Complaint,
   ComplaintReason,
@@ -12,6 +13,7 @@ import type {
   OverviewStats,
   PostKind,
   StatsPeriod,
+  TrainingSample,
   User,
   UserRole,
   VerificationStats,
@@ -42,6 +44,10 @@ export interface SidebarCounters {
 export interface AdminApi {
   getOverviewStats(period: StatsPeriod): Promise<OverviewStats>
   getSidebarCounters(): Promise<SidebarCounters>
+
+  getAiQualityStats(period: StatsPeriod): Promise<AiQualityStats>
+  /** Labeled photos confirmed by experts, for retraining the model. */
+  getTrainingSamples(): Promise<TrainingSample[]>
 
   getModerationStats(): Promise<ModerationStats>
   getComplaints(filters?: ComplaintFilters): Promise<ComplaintDetails[]>
