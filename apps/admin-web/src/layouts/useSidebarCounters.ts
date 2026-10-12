@@ -17,5 +17,6 @@ export function useSidebarCounters(): SidebarBadges {
   return {
     [ROUTES.moderation]: counters?.newComplaints,
     [ROUTES.verification]: counters?.pendingVerifications,
+    [ROUTES.shops]: counters?.newShopRequests,
   }
 }
