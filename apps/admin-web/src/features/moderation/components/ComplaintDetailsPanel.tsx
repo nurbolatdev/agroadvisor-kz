@@ -1,4 +1,5 @@
 import { EyeOff } from 'lucide-react'
+import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { ComplaintActions } from '@/features/moderation/components/ComplaintActions'
@@ -11,14 +12,6 @@ interface ComplaintDetailsPanelProps {
   complaint: ComplaintDetails
   onResolved: () => void
 }
-
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
 
 export function ComplaintDetailsPanel({ complaint, onResolved }: ComplaintDetailsPanelProps) {
   const { post, author } = complaint
@@ -36,12 +29,7 @@ export function ComplaintDetailsPanel({ complaint, onResolved }: ComplaintDetail
 
       <article className="rounded-2xl border border-border bg-bg/40 p-4">
         <header className="mb-3 flex items-center gap-3">
-          <span
-            aria-hidden="true"
-            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary"
-          >
-            {initials(author.name)}
-          </span>
+          <Avatar name={author.name} />
           <div className="min-w-0">
             <p className="text-small font-semibold text-text">{author.name}</p>
             <p className="text-caption font-normal text-text-muted">
