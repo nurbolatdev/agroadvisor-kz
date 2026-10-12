@@ -1,3 +1,13 @@
+import { Store } from 'lucide-react'
+import { SectionPlaceholder } from '@/pages/SectionPlaceholder'
+
 export function ShopsPage() {
-  return <h1 className="text-h1 text-primary-dark">Shops</h1>
+  return (
+    <SectionPlaceholder
+      title="Агромагазины"
+      subtitle="Магазины, к которым фермеры строят маршрут в 2GIS и Yandex Maps"
+      icon={Store}
+      description="Здесь появится справочник агромагазинов: адреса, часы работы и препараты в наличии."
+    />
+  )
 }
