@@ -1,14 +1,16 @@
 import { createBrowserRouter } from 'react-router-dom'
-import { AgrochemistsPage } from '@/features/agrochemists/pages/AgrochemistsPage'
-import { AiQualityPage } from '@/features/ai-quality/pages/AiQualityPage'
-import { CommunityPage } from '@/features/community/pages/CommunityPage'
-import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
-import { DiseaseDetailPage } from '@/features/diseases/pages/DiseaseDetailPage'
-import { DiseasesPage } from '@/features/diseases/pages/DiseasesPage'
-import { ModerationPage } from '@/features/moderation/pages/ModerationPage'
-import { SettingsPage } from '@/features/settings/pages/SettingsPage'
-import { ShopsPage } from '@/features/shops/pages/ShopsPage'
-import { UsersPage } from '@/features/users/pages/UsersPage'
+import {
+  AgrochemistsPage,
+  AiQualityPage,
+  CommunityPage,
+  DashboardPage,
+  DiseaseDetailPage,
+  DiseasesPage,
+  ModerationPage,
+  SettingsPage,
+  ShopsPage,
+  UsersPage,
+} from '@/app/pages'
 import { MainLayout } from '@/layouts/MainLayout'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ROUTES } from '@/shared/constants/routes'
