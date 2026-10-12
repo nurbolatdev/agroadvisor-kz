@@ -7,6 +7,7 @@ import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { ConfidenceHistogram } from '@/features/ai-quality/components/ConfidenceHistogram'
+import { DiseaseGeographyCard } from '@/features/ai-quality/components/DiseaseGeographyCard'
 import { MismatchesCard } from '@/features/ai-quality/components/MismatchesCard'
 import { TopDiseasesCard } from '@/features/ai-quality/components/TopDiseasesCard'
 import { TrainingDataCard } from '@/features/ai-quality/components/TrainingDataCard'
@@ -67,6 +68,7 @@ export function AiQualityPage() {
           </div>
           <div className="grid items-start gap-4 xl:grid-cols-2">
             <MismatchesCard mismatches={data.mismatches} />
+            <DiseaseGeographyCard geography={data.geography} />
           </div>
         </div>
       ) : (
