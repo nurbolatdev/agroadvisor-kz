@@ -7,6 +7,7 @@ import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { CommunityKpis } from '@/features/community/components/CommunityKpis'
+import { ConsultationsCard } from '@/features/community/components/ConsultationsCard'
 import { QaActivityChart } from '@/features/community/components/QaActivityChart'
 import { TopMembersCard } from '@/features/community/components/TopMembersCard'
 import { UnansweredCard } from '@/features/community/components/UnansweredCard'
@@ -63,6 +64,7 @@ export function CommunityPage() {
           </div>
           <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,592fr)_minmax(0,360fr)]">
             <UnansweredCard questions={data.unanswered} onInvited={reload} />
+            <ConsultationsCard consultations={data.consultations} />
           </div>
         </div>
       ) : (
