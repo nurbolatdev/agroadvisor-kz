@@ -20,7 +20,7 @@ export function ComplaintDetailsPanel({ complaint, onResolved }: ComplaintDetail
 
   return (
     <Card className="flex flex-col gap-5 p-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <h2 className="text-h2 text-text">Жалоба на {kind}</h2>
         <Badge tone={reason.tone}>
           {reason.label} · {pluralize(totalReports(complaint), ['жалоба', 'жалобы', 'жалоб'])}
