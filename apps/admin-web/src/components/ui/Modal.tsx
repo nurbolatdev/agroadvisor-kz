@@ -39,9 +39,13 @@ export function Modal({ open, onClose, title, children, footer, className }: Mod
         // A click on the dialog element itself means the backdrop was clicked.
         if (event.target === event.currentTarget) onClose()
       }}
-      className="m-auto w-full max-w-lg bg-transparent p-4 backdrop:bg-text/40 backdrop:backdrop-blur-sm"
+      className="m-auto max-h-dvh w-full max-w-lg overflow-hidden bg-transparent p-4 backdrop:bg-text/40 backdrop:backdrop-blur-sm"
     >
-      <Card glass className={cn('bg-white/85 p-6', className)}>
+      {/* Long content scrolls inside; the title and the actions stay visible. */}
+      <Card
+        glass
+        className={cn('flex max-h-[calc(100dvh-2rem)] flex-col bg-white/85 p-6', className)}
+      >
         <div className="mb-4 flex items-start justify-between gap-4">
           <h2 id={titleId} className="text-h2 text-text">
             {title}
@@ -55,7 +59,9 @@ export function Modal({ open, onClose, title, children, footer, className }: Mod
             <X size={20} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
-        <div className="text-small text-text">{children}</div>
+        <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 py-1 text-small text-text">
+          {children}
+        </div>
         {footer ? <div className="mt-6 flex justify-end gap-3">{footer}</div> : null}
       </Card>
     </dialog>
