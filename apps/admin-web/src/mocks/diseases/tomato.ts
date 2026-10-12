@@ -87,4 +87,85 @@ export const tomatoDiseases: Disease[] = [
     ],
     prevention: ['Протравливание семян', 'Работа с растениями только в сухую погоду'],
   },
+  {
+    id: 'tomato-leaf-mold',
+    crop: 'tomato',
+    name: 'Кладоспориоз томата',
+    latinName: 'Passalora fulva',
+    kind: 'fungal',
+    severity: 'medium',
+    symptoms: [
+      'Жёлтые пятна на верхней стороне листа',
+      'Оливково-бурый бархатистый налёт снизу листа',
+    ],
+    conditions: 'Теплицы с влажностью выше 85 % и плохим проветриванием',
+    chemicalTreatment: [
+      {
+        name: 'Абига-Пик',
+        activeIngredient: 'хлорокись меди',
+        dosage: 'по инструкции производителя',
+      },
+    ],
+    biologicalTreatment: [
+      {
+        name: 'Фитоспорин-М',
+        activeIngredient: 'Bacillus subtilis',
+        dosage: 'по инструкции производителя',
+      },
+    ],
+    prevention: ['Проветривание теплиц', 'Устойчивые гибриды'],
+  },
+  {
+    id: 'tomato-mosaic',
+    crop: 'tomato',
+    name: 'Мозаика томата',
+    latinName: 'Tomato mosaic virus (ToMV)',
+    kind: 'viral',
+    severity: 'medium',
+    symptoms: [
+      'Мозаичная светло- и тёмно-зелёная окраска листьев',
+      'Нитевидные и деформированные листья',
+      'Мелкие плоды с неравномерным окрашиванием',
+    ],
+    conditions: 'Передача через семена, руки и инструмент при пасынковании',
+    chemicalTreatment: [
+      {
+        name: 'Не применяется',
+        activeIngredient: '—',
+        dosage: 'химических средств против вирусов нет',
+      },
+    ],
+    biologicalTreatment: [
+      {
+        name: 'Фармайод',
+        activeIngredient: 'йод (дезинфекция инструмента)',
+        dosage: 'по инструкции производителя',
+      },
+    ],
+    prevention: ['Протравливание семян', 'Удаление больных растений', 'Дезинфекция инструмента'],
+  },
+  {
+    id: 'tomato-whitefly',
+    crop: 'tomato',
+    name: 'Тепличная белокрылка',
+    latinName: 'Trialeurodes vaporariorum',
+    kind: 'pest',
+    severity: 'medium',
+    symptoms: [
+      'Мелкие белые бабочки на нижней стороне листьев',
+      'Липкий налёт и сажистый грибок на листьях',
+    ],
+    conditions: 'Тёплые теплицы 22–28 °C, загущённые посадки',
+    chemicalTreatment: [
+      { name: 'Актара', activeIngredient: 'тиаметоксам', dosage: 'по инструкции производителя' },
+    ],
+    biologicalTreatment: [
+      {
+        name: 'Энкарзия',
+        activeIngredient: 'Encarsia formosa',
+        dosage: 'выпуск паразита по рекомендации',
+      },
+    ],
+    prevention: ['Жёлтые клеевые ловушки', 'Удаление сорняков вокруг теплиц'],
+  },
 ]
