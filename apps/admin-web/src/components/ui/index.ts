@@ -10,6 +10,7 @@ export { Input, type InputProps } from '@/components/ui/Input'
 export { Loader, type LoaderProps } from '@/components/ui/Loader'
 export { Modal, type ModalProps } from '@/components/ui/Modal'
 export { PageHeader, type PageHeaderProps } from '@/components/ui/PageHeader'
+export { Pagination, type PaginationProps } from '@/components/ui/Pagination'
 export { SearchBar, type SearchBarProps } from '@/components/ui/SearchBar'
 export {
   SegmentedControl,
