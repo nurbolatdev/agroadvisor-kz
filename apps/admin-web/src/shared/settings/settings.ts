@@ -3,6 +3,13 @@ import type { StatsPeriod } from '@/shared/types'
 
 export type Language = 'ru' | 'kk' | 'en'
 
+/** Options for the language switchers in the sidebar and on the settings page. */
+export const LANGUAGE_OPTIONS: { value: Language; label: string; title: string }[] = [
+  { value: 'ru', label: 'RU', title: 'Русский' },
+  { value: 'kk', label: 'KK', title: 'Қазақша' },
+  { value: 'en', label: 'EN', title: 'English' },
+]
+
 export interface AdminSettings {
   profileName: string
   language: Language

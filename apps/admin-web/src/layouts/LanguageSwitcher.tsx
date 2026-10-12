@@ -1,23 +1,17 @@
-import { useState } from 'react'
-import { SegmentedControl, type SegmentedOption } from '@/components/ui/SegmentedControl'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { LANGUAGE_OPTIONS } from '@/shared/settings/settings'
+import { useSettings } from '@/shared/settings/settingsContext'
 
-type Language = 'ru' | 'kk' | 'en'
-
-const LANGUAGES: SegmentedOption<Language>[] = [
-  { value: 'ru', label: 'RU', title: 'Русский' },
-  { value: 'kk', label: 'KK', title: 'Қазақша' },
-  { value: 'en', label: 'EN', title: 'English' },
-]
-
+/** Applies right away and is the same setting as "Язык" on the settings page. */
 export function LanguageSwitcher() {
-  const [language, setLanguage] = useState<Language>('ru')
+  const { settings, updateSettings } = useSettings()
 
   return (
     <SegmentedControl
       label="Язык интерфейса"
-      options={LANGUAGES}
-      value={language}
-      onChange={setLanguage}
+      options={LANGUAGE_OPTIONS}
+      value={settings.language}
+      onChange={(language) => updateSettings({ language })}
       fullWidth
     />
   )
