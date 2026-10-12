@@ -1,4 +1,5 @@
 export type * from '@/shared/types/agrochemist'
+export type * from '@/shared/types/aiQuality'
 export type * from '@/shared/types/common'
 export type * from '@/shared/types/community'
 export type * from '@/shared/types/disease'

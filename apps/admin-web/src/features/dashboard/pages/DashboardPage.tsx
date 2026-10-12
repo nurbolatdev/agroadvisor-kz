@@ -5,28 +5,17 @@ import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { SegmentedControl, type SegmentedOption } from '@/components/ui/SegmentedControl'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { DiagnosesByDayChart } from '@/features/dashboard/components/DiagnosesByDayChart'
 import { FarmerFunnel } from '@/features/dashboard/components/FarmerFunnel'
 import { NewUsersChart } from '@/features/dashboard/components/NewUsersChart'
 import { OverviewKpis } from '@/features/dashboard/components/OverviewKpis'
 import { api } from '@/services/api'
+import { PERIOD_OPTIONS, PERIOD_SUFFIX } from '@/shared/constants/periods'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
 import type { StatsPeriod } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
 import { formatTime } from '@/shared/utils/format'
-
-const PERIODS: SegmentedOption<StatsPeriod>[] = [
-  { value: '7d', label: '7 дней' },
-  { value: '30d', label: '30 дней' },
-  { value: 'season', label: 'Сезон' },
-]
-
-const PERIOD_TEXT: Record<StatsPeriod, string> = {
-  '7d': 'Данные за 7 дней',
-  '30d': 'Данные за 30 дней',
-  season: 'Данные за сезон',
-}
 
 export function DashboardPage() {
   const [period, setPeriod] = useState<StatsPeriod>('30d')
@@ -41,11 +30,16 @@ export function DashboardPage() {
         title="Обзор"
         subtitle={
           data
-            ? `${PERIOD_TEXT[period]} · обновлено сегодня в ${formatTime(data.updatedAt)}`
-            : PERIOD_TEXT[period]
+            ? `Данные ${PERIOD_SUFFIX[period]} · обновлено сегодня в ${formatTime(data.updatedAt)}`
+            : `Данные ${PERIOD_SUFFIX[period]}`
         }
         actions={
-          <SegmentedControl label="Период" options={PERIODS} value={period} onChange={setPeriod} />
+          <SegmentedControl
+            label="Период"
+            options={PERIOD_OPTIONS}
+            value={period}
+            onChange={setPeriod}
+          />
         }
       />
 
