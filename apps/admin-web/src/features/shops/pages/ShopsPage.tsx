@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { DistrictCoverageCard } from '@/features/shops/components/DistrictCoverageCard'
 import { ShopFilters, type ShopFilterValue } from '@/features/shops/components/ShopFilters'
 import { ShopKpis } from '@/features/shops/components/ShopKpis'
 import { ShopsTable } from '@/features/shops/components/ShopsTable'
@@ -14,6 +15,8 @@ export function ShopsPage() {
     status: undefined,
   })
   const stats = useApiQuery(() => api.getShopStats(), [])
+  // Unfiltered list for the coverage card, independent of the table filters.
+  const allShops = useApiQuery(() => api.getShops(), [])
   const shops = useApiQuery(
     () =>
       api.getShops({
@@ -41,6 +44,7 @@ export function ShopsPage() {
               <Loader />
             )}
           </section>
+          {allShops.data ? <DistrictCoverageCard shops={allShops.data} /> : <Loader />}
         </div>
       </div>
     </>
