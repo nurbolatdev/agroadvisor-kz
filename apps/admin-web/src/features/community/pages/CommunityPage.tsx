@@ -9,6 +9,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { CommunityKpis } from '@/features/community/components/CommunityKpis'
 import { QaActivityChart } from '@/features/community/components/QaActivityChart'
 import { TopMembersCard } from '@/features/community/components/TopMembersCard'
+import { UnansweredCard } from '@/features/community/components/UnansweredCard'
 import { api } from '@/services/api'
 import { PERIOD_OPTIONS } from '@/shared/constants/periods'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
@@ -59,6 +60,9 @@ export function CommunityPage() {
           <div className="grid gap-4 lg:grid-cols-[minmax(0,592fr)_minmax(0,360fr)]">
             <QaActivityChart stats={data} />
             <TopMembersCard stats={data} />
+          </div>
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,592fr)_minmax(0,360fr)]">
+            <UnansweredCard questions={data.unanswered} onInvited={reload} />
           </div>
         </div>
       ) : (
