@@ -17,6 +17,8 @@ export interface ShopFormTarget {
   initial?: Partial<ShopInput>
   /** Farmer's comment shown above the form. */
   note?: string
+  /** Farmer's request that is resolved once the form is saved. */
+  requestId?: string
 }
 
 interface ShopFormModalProps {
