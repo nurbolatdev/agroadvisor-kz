@@ -1,3 +1,4 @@
+import { extraAgrochemists } from '@/mocks/agrochemistsExtra'
 import type { Agrochemist } from '@/shared/types'
 
 export const mockAgrochemists: Agrochemist[] = [
@@ -159,4 +160,5 @@ export const mockAgrochemists: Agrochemist[] = [
     reviewedAt: '2026-10-03T09:30:00.000Z',
     rejectionReason: 'Нет диплома о профильном образовании',
   },
+  ...extraAgrochemists,
 ]

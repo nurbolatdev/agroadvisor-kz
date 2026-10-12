@@ -1,4 +1,5 @@
 import { daysAgo, hoursAgo, minutesAgo } from '@/mocks/time'
+import { extraUsers } from '@/mocks/usersExtra'
 import type { User } from '@/shared/types'
 
 export const mockUsers: User[] = [
@@ -184,4 +185,5 @@ export const mockUsers: User[] = [
     postsCount: 35,
     warningsCount: 0,
   },
+  ...extraUsers,
 ]

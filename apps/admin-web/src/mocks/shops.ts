@@ -1,4 +1,5 @@
 import { daysAgo } from '@/mocks/time'
+import { extraShops } from '@/mocks/shopsExtra'
 import type { Shop, ShopCategory } from '@/shared/types'
 
 const shop = (
@@ -42,7 +43,7 @@ export const mockShops: Shop[] = [
     [43.2004, 76.6213],
     WEEKDAYS,
     ['fungicides', 'insecticides', 'fertilizers'],
-    92,
+    76,
   ),
   shop(
     's-2',
@@ -52,7 +53,7 @@ export const mockShops: Shop[] = [
     [43.3701, 76.6228],
     DAILY,
     ['seeds', 'fertilizers'],
-    48,
+    42,
   ),
   shop(
     's-3',
@@ -62,7 +63,7 @@ export const mockShops: Shop[] = [
     [43.2706, 76.7735],
     WEEKDAYS,
     ['herbicides', 'fungicides'],
-    37,
+    32,
   ),
   shop(
     's-4',
@@ -82,7 +83,7 @@ export const mockShops: Shop[] = [
     [43.3036, 77.2397],
     WEEKDAYS,
     ['fungicides', 'insecticides', 'herbicides'],
-    104,
+    86,
   ),
   shop(
     's-6',
@@ -92,7 +93,7 @@ export const mockShops: Shop[] = [
     [43.3021, 77.0832],
     DAILY,
     ['seeds', 'fertilizers', 'equipment'],
-    66,
+    55,
   ),
   shop(
     's-7',
@@ -102,7 +103,7 @@ export const mockShops: Shop[] = [
     [43.3412, 77.1508],
     DAILY,
     ['seeds', 'fertilizers'],
-    29,
+    26,
   ),
   shop(
     's-8',
@@ -122,7 +123,7 @@ export const mockShops: Shop[] = [
     [43.4189, 77.0198],
     WEEKDAYS,
     ['fungicides', 'fertilizers'],
-    73,
+    61,
   ),
   shop(
     's-10',
@@ -132,7 +133,7 @@ export const mockShops: Shop[] = [
     [43.3527, 76.8541],
     DAILY,
     ['herbicides', 'insecticides'],
-    55,
+    47,
   ),
   shop(
     's-11',
@@ -142,7 +143,7 @@ export const mockShops: Shop[] = [
     [43.4573, 76.9542],
     WEEKDAYS,
     ['seeds', 'fertilizers'],
-    26,
+    23,
   ),
   shop(
     's-12',
@@ -162,7 +163,7 @@ export const mockShops: Shop[] = [
     [43.3567, 77.4518],
     WEEKDAYS,
     ['seeds', 'fertilizers', 'fungicides'],
-    88,
+    73,
   ),
   shop(
     's-14',
@@ -172,7 +173,7 @@ export const mockShops: Shop[] = [
     [43.5966, 78.2539],
     DAILY,
     ['fungicides', 'insecticides', 'herbicides'],
-    61,
+    51,
   ),
   shop(
     's-15',
@@ -203,7 +204,7 @@ export const mockShops: Shop[] = [
     [43.2214, 76.3089],
     WEEKDAYS,
     ['fungicides', 'seeds', 'fertilizers'],
-    51,
+    44,
   ),
   shop(
     's-18',
@@ -216,6 +217,7 @@ export const mockShops: Shop[] = [
     0,
     'hidden',
   ),
+  ...extraShops,
 ]
 
 /** Stats from the spec that the list alone cannot give. */

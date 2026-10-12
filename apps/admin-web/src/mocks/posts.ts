@@ -1,3 +1,4 @@
+import { extraComplaints, extraPosts } from '@/mocks/complaintsExtra'
 import { daysAgo, hoursAgo, minutesAgo } from '@/mocks/time'
 import type { CommunityPost, Complaint } from '@/shared/types'
 
@@ -68,6 +69,7 @@ export const mockPosts: CommunityPost[] = [
     createdAt: daysAgo(5),
     hidden: true,
   },
+  ...extraPosts,
 ]
 
 export const mockComplaints: Complaint[] = [
@@ -126,4 +128,5 @@ export const mockComplaints: Complaint[] = [
       resolvedAt: daysAgo(5),
     },
   },
+  ...extraComplaints,
 ]

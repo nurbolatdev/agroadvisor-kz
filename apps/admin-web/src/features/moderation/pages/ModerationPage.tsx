@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { Pagination } from '@/components/ui/Pagination'
 import { ComplaintCard } from '@/features/moderation/components/ComplaintCard'
 import { ComplaintDetailsPanel } from '@/features/moderation/components/ComplaintDetailsPanel'
 import {
@@ -14,6 +15,7 @@ import {
 import { ModerationKpis } from '@/features/moderation/components/ModerationKpis'
 import { api } from '@/services/api'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
+import { usePagination } from '@/shared/hooks/usePagination'
 import { cn } from '@/shared/utils/cn'
 import { notifyDataChanged } from '@/shared/utils/dataEvents'
 
@@ -29,8 +31,9 @@ export function ModerationPage() {
 
   const visible = complaints?.filter((item) => item.status === filters.status) ?? []
   const newCount = complaints?.filter((item) => item.status === 'new').length ?? 0
-  // The first complaint is open by default, as in the mockup.
-  const selected = visible.find((item) => item.id === selectedId) ?? visible[0]
+  const pages = usePagination(visible)
+  // The first complaint of the page is open by default, as in the mockup.
+  const selected = pages.pageItems.find((item) => item.id === selectedId) ?? pages.pageItems[0]
 
   return (
     <>
@@ -43,6 +46,7 @@ export function ModerationPage() {
         value={filters}
         onChange={(value) => {
           setFilters(value)
+          pages.resetPage()
           setShowDetailsOnMobile(false)
         }}
         newCount={newCount}
@@ -64,7 +68,7 @@ export function ModerationPage() {
               />
             </Card>
           ) : (
-            visible.map((complaint) => (
+            pages.pageItems.map((complaint) => (
               <ComplaintCard
                 key={complaint.id}
                 complaint={complaint}
@@ -76,6 +80,13 @@ export function ModerationPage() {
               />
             ))
           )}
+          <Pagination
+            page={pages.page}
+            pageSize={pages.pageSize}
+            total={pages.total}
+            onPageChange={pages.setPage}
+            onPageSizeChange={pages.setPageSize}
+          />
         </section>
         <div className={cn('lg:sticky lg:top-8', !showDetailsOnMobile && 'hidden lg:block')}>
           <Button

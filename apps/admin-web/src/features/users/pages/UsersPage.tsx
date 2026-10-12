@@ -11,6 +11,7 @@ import { SearchBar } from '@/components/ui/SearchBar'
 import { api } from '@/services/api'
 import { CROP_LABELS } from '@/shared/constants/crops'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
+import { usePageParam } from '@/shared/hooks/usePagination'
 import type { User, UserRole } from '@/shared/types'
 import { formatNumber, formatRelativeTime, formatShortDate, pluralize } from '@/shared/utils/format'
 
@@ -98,6 +99,7 @@ export function UsersPage() {
   // `?search=` lets other pages link to a person, e.g. the community's most active members.
   const [searchParams] = useSearchParams()
   const [search, setSearch] = useState(searchParams.get('search') ?? '')
+  const { page, setPage, resetPage } = usePageParam()
   const { data: users } = useApiQuery(() => api.getUsers({ role, search }), [role, search])
 
   return (
@@ -114,7 +116,10 @@ export function UsersPage() {
             label="Поиск по имени"
             placeholder="Поиск по имени"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value)
+              resetPage()
+            }}
             containerClassName="w-72"
           />
         }
@@ -124,7 +129,10 @@ export function UsersPage() {
           <Chip
             key={filter.label}
             selected={role === filter.value}
-            onClick={() => setRole(filter.value)}
+            onClick={() => {
+              setRole(filter.value)
+              resetPage()
+            }}
           >
             {filter.label}
           </Chip>
@@ -135,6 +143,8 @@ export function UsersPage() {
           columns={COLUMNS}
           data={users}
           getRowKey={(user) => user.id}
+          page={page}
+          onPageChange={setPage}
           empty="Никого не нашли"
         />
       ) : (

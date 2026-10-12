@@ -86,4 +86,89 @@ export const potatoDiseases: Disease[] = [
     ],
     prevention: ['Ручной сбор жуков и яйцекладок', 'Ранняя посадка и севооборот'],
   },
+  {
+    id: 'potato-rhizoctonia',
+    crop: 'potato',
+    name: 'Ризоктониоз картофеля',
+    latinName: 'Rhizoctonia solani',
+    kind: 'fungal',
+    severity: 'medium',
+    symptoms: [
+      'Чёрные корочки (склероции) на кожуре клубней',
+      'Бурые язвы на ростках, изреженные всходы',
+      'Белый войлочный налёт у основания стебля',
+    ],
+    conditions: 'Холодная влажная почва при посадке, ранние сроки посадки',
+    chemicalTreatment: [
+      {
+        name: 'Максим',
+        activeIngredient: 'флудиоксонил',
+        dosage: 'протравливание клубней, по инструкции производителя',
+      },
+    ],
+    biologicalTreatment: [
+      {
+        name: 'Триходермин',
+        activeIngredient: 'Trichoderma harzianum',
+        dosage: 'по инструкции производителя',
+      },
+    ],
+    prevention: ['Здоровый семенной картофель', 'Посадка в прогретую почву'],
+  },
+  {
+    id: 'potato-common-scab',
+    crop: 'potato',
+    name: 'Парша обыкновенная',
+    latinName: 'Streptomyces scabies',
+    kind: 'bacterial',
+    severity: 'low',
+    symptoms: [
+      'Шершавые коричневые язвы на кожуре клубней',
+      'Пробковые пятна, иногда глубокие ямки',
+    ],
+    conditions: 'Сухая щелочная почва в период клубнеобразования, свежий навоз',
+    chemicalTreatment: [
+      {
+        name: 'Максим',
+        activeIngredient: 'флудиоксонил',
+        dosage: 'протравливание клубней, по инструкции производителя',
+      },
+    ],
+    biologicalTreatment: [
+      {
+        name: 'Фитоспорин-М',
+        activeIngredient: 'Bacillus subtilis',
+        dosage: 'по инструкции производителя',
+      },
+    ],
+    prevention: [
+      'Полив в период клубнеобразования',
+      'Не вносить свежий навоз и известь перед посадкой',
+    ],
+  },
+  {
+    id: 'potato-wireworm',
+    crop: 'potato',
+    name: 'Проволочник',
+    latinName: 'Agriotes spp.',
+    kind: 'pest',
+    severity: 'medium',
+    symptoms: ['Узкие извилистые ходы в клубнях', 'Жёлтые жёсткие личинки в почве и клубнях'],
+    conditions: 'Пырейные залежи, кислая почва, монокультура',
+    chemicalTreatment: [
+      {
+        name: 'Престиж',
+        activeIngredient: 'имидаклоприд + пенцикурон',
+        dosage: 'обработка клубней, по инструкции производителя',
+      },
+    ],
+    biologicalTreatment: [
+      {
+        name: 'Метаризин',
+        activeIngredient: 'Metarhizium anisopliae',
+        dosage: 'по инструкции производителя',
+      },
+    ],
+    prevention: ['Уничтожение пырея', 'Севооборот с бобовыми', 'Приманки из нарезанного картофеля'],
+  },
 ]

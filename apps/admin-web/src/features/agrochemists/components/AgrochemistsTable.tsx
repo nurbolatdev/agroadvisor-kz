@@ -13,6 +13,8 @@ interface AgrochemistsTableProps {
   /** Extra columns appended on the right, e.g. actions. */
   extraColumns?: DataTableColumn<Agrochemist>[]
   empty?: ReactNode
+  page?: number
+  onPageChange?: (page: number) => void
 }
 
 const columns = (
@@ -60,6 +62,8 @@ export function AgrochemistsTable({
   onOpenDocuments,
   extraColumns = [],
   empty,
+  page,
+  onPageChange,
 }: AgrochemistsTableProps) {
   return (
     <DataTable
@@ -67,6 +71,8 @@ export function AgrochemistsTable({
       data={agrochemists}
       getRowKey={(row) => row.id}
       empty={empty}
+      page={page}
+      onPageChange={onPageChange}
     />
   )
 }

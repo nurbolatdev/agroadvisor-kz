@@ -4,11 +4,13 @@ import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { Pagination } from '@/components/ui/Pagination'
 import { SearchBar } from '@/components/ui/SearchBar'
 import { CropFilter } from '@/features/diseases/components/CropFilter'
 import { DiseaseCard } from '@/features/diseases/components/DiseaseCard'
 import { api } from '@/services/api'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
+import { usePagination } from '@/shared/hooks/usePagination'
 import type { CropId } from '@/shared/types'
 import { pluralize } from '@/shared/utils/format'
 
@@ -25,6 +27,8 @@ export function DiseasesPage() {
         disease.name.toLowerCase().includes(query) ||
         disease.latinName.toLowerCase().includes(query),
     ) ?? []
+  // Catalog cards come in rows of 3, so pages hold 12 (section 5b).
+  const pages = usePagination(visible, 12)
 
   return (
     <>
@@ -40,12 +44,21 @@ export function DiseasesPage() {
             label="Поиск болезни"
             placeholder="Название или латынь"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value)
+              pages.resetPage()
+            }}
             containerClassName="w-72"
           />
         }
       />
-      <CropFilter value={crop} onChange={setCrop} />
+      <CropFilter
+        value={crop}
+        onChange={(next) => {
+          setCrop(next)
+          pages.resetPage()
+        }}
+      />
 
       <div className="mt-4">
         {!diseases ? (
@@ -59,11 +72,22 @@ export function DiseasesPage() {
             />
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {visible.map((disease) => (
-              <DiseaseCard key={disease.id} disease={disease} />
-            ))}
-          </div>
+          <>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {pages.pageItems.map((disease) => (
+                <DiseaseCard key={disease.id} disease={disease} />
+              ))}
+            </div>
+            <Pagination
+              page={pages.page}
+              pageSize={pages.pageSize}
+              total={pages.total}
+              onPageChange={pages.setPage}
+              onPageSizeChange={pages.setPageSize}
+              pageSizeOptions={[12, 24, 48]}
+              className="mt-4"
+            />
+          </>
         )}
       </div>
     </>

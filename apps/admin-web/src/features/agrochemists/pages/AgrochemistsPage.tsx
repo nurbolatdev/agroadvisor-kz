@@ -12,6 +12,7 @@ import { VerificationKpis } from '@/features/agrochemists/components/Verificatio
 import { useVerificationDecisions } from '@/features/agrochemists/useVerificationDecisions'
 import { api } from '@/services/api'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
+import { usePageParam } from '@/shared/hooks/usePagination'
 import type { Agrochemist, VerificationStatus } from '@/shared/types'
 
 export function AgrochemistsPage() {
@@ -19,6 +20,7 @@ export function AgrochemistsPage() {
   const [search, setSearch] = useState('')
   const [viewing, setViewing] = useState<Agrochemist>()
   const [rejecting, setRejecting] = useState<Agrochemist>()
+  const { page, setPage, resetPage } = usePageParam()
   const stats = useApiQuery(() => api.getVerificationStats(), [])
   const list = useApiQuery(() => api.getAgrochemists({ status, search }), [status, search])
   const decisions = useVerificationDecisions(() => {
@@ -44,13 +46,23 @@ export function AgrochemistsPage() {
             label="Поиск по имени"
             placeholder="Поиск по имени"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value)
+              resetPage()
+            }}
             containerClassName="w-72"
           />
         }
       />
       <div className="flex flex-col gap-4">
-        <VerificationKpis stats={stats.data} status={status} onStatusChange={setStatus} />
+        <VerificationKpis
+          stats={stats.data}
+          status={status}
+          onStatusChange={(next) => {
+            setStatus(next)
+            resetPage()
+          }}
+        />
         {decisions.error ? (
           <p role="alert" className="text-small text-danger">
             {decisions.error}
@@ -60,6 +72,8 @@ export function AgrochemistsPage() {
           <AgrochemistsTable
             agrochemists={list.data}
             onOpenDocuments={setViewing}
+            page={page}
+            onPageChange={setPage}
             empty={search ? 'Никого не нашли по этому имени' : 'Заявок нет'}
             extraColumns={[
               {
