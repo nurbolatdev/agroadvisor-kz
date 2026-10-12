@@ -3,9 +3,12 @@ import { buildTrainingSamples, mockAiQualityStats } from '@/mocks/aiQuality'
 import { mockCommunityStats, mockUnansweredQuestions } from '@/mocks/community'
 import { mockDiseases } from '@/mocks/diseases'
 import { mockComplaints, mockPosts } from '@/mocks/posts'
+import { mockShopRequests } from '@/mocks/shopRequests'
+import { mockShops, mockShopStatsBase } from '@/mocks/shops'
 import { mockModerationStats, mockOverviewStats, mockVerificationStats } from '@/mocks/stats'
 import { mockUsers } from '@/mocks/users'
 import type { AdminApi, ComplaintDetails } from '@/services/api'
+import { SHOP_DISTRICTS } from '@/shared/constants/districts'
 import type { Complaint } from '@/shared/types'
 
 const DELAY_MS = 400
@@ -24,6 +27,8 @@ const db = {
   complaints: structuredClone(mockComplaints),
   agrochemists: structuredClone(mockAgrochemists),
   unanswered: structuredClone(mockUnansweredQuestions),
+  shops: structuredClone(mockShops),
+  shopRequests: structuredClone(mockShopRequests),
 }
 
 const matches = (value: string, search?: string) =>
@@ -39,6 +44,7 @@ const withDetails = (complaint: Complaint): ComplaintDetails => {
 }
 
 const countNewComplaints = () => db.complaints.filter((item) => item.status === 'new').length
+const countNewShopRequests = () => db.shopRequests.filter((item) => item.status === 'new').length
 const countPending = () => db.agrochemists.filter((item) => item.status === 'pending').length
 const countByStatus = (list: typeof mockAgrochemists, status: string) =>
   list.filter((item) => item.status === status).length
@@ -55,7 +61,11 @@ export const mockApi: AdminApi = {
     }),
 
   getSidebarCounters: () =>
-    respond({ newComplaints: countNewComplaints(), pendingVerifications: countPending() }),
+    respond({
+      newComplaints: countNewComplaints(),
+      pendingVerifications: countPending(),
+      newShopRequests: countNewShopRequests(),
+    }),
 
   getAiQualityStats: (period) => respond(mockAiQualityStats[period]),
 
@@ -144,6 +154,69 @@ export const mockApi: AdminApi = {
         .filter((item) => !filters.role || item.role === filters.role)
         .filter((item) => matches(item.name, filters.search)),
     ),
+
+  getShopStats: () => {
+    const active = db.shops.filter((item) => item.status === 'active')
+    return respond({
+      total: db.shops.length,
+      addedThisMonth: mockShopStatsBase.addedThisMonth + db.shops.length - mockShops.length,
+      routes30d: active.reduce((sum, item) => sum + item.routes30d, 0),
+      routesChangePercent: mockShopStatsBase.routesChangePercent,
+      districtsWithoutShop: SHOP_DISTRICTS.filter(
+        (district) => !active.some((item) => item.district === district),
+      ).length,
+      pendingRequests: countNewShopRequests(),
+    })
+  },
+
+  getShops: (filters = {}) =>
+    respond(
+      db.shops
+        .filter((item) => !filters.status || item.status === filters.status)
+        .filter((item) => !filters.district || item.district === filters.district)
+        .filter((item) => matches(`${item.name} ${item.address}`, filters.search))
+        .sort((a, b) => b.routes30d - a.routes30d),
+    ),
+
+  saveShop: (input, id) => {
+    const updatedAt = new Date().toISOString()
+    if (id) {
+      const existing = db.shops.find((item) => item.id === id)
+      if (!existing) return fail('Магазин не найден')
+      Object.assign(existing, input, { updatedAt })
+      return respond(existing)
+    }
+    const created = {
+      ...input,
+      id: `s-${Date.now()}`,
+      status: 'active' as const,
+      routes30d: 0,
+      updatedAt,
+    }
+    db.shops.push(created)
+    return respond(created)
+  },
+
+  setShopStatus: (id, status) => {
+    const existing = db.shops.find((item) => item.id === id)
+    if (!existing) return fail('Магазин не найден')
+    Object.assign(existing, { status, updatedAt: new Date().toISOString() })
+    return respond(existing)
+  },
+
+  getShopRequests: () =>
+    respond(
+      db.shopRequests
+        .filter((item) => item.status === 'new')
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    ),
+
+  resolveShopRequest: (id, status) => {
+    const request = db.shopRequests.find((item) => item.id === id)
+    if (!request) return fail('Заявка не найдена')
+    request.status = status
+    return respond(request)
+  },
 
   getDiseases: (filters = {}) =>
     respond(mockDiseases.filter((item) => !filters.crop || item.crop === filters.crop)),
