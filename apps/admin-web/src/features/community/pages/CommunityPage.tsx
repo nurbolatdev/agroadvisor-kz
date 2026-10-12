@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { CommunityKpis } from '@/features/community/components/CommunityKpis'
 import { QaActivityChart } from '@/features/community/components/QaActivityChart'
+import { TopMembersCard } from '@/features/community/components/TopMembersCard'
 import { api } from '@/services/api'
 import { PERIOD_OPTIONS } from '@/shared/constants/periods'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
@@ -57,6 +58,7 @@ export function CommunityPage() {
           <CommunityKpis stats={data} />
           <div className="grid gap-4 lg:grid-cols-[minmax(0,592fr)_minmax(0,360fr)]">
             <QaActivityChart stats={data} />
+            <TopMembersCard stats={data} />
           </div>
         </div>
       ) : (
