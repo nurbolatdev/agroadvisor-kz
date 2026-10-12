@@ -9,12 +9,15 @@ import { formatShortDate } from '@/shared/utils/format'
 
 interface AgrochemistsTableProps {
   agrochemists: Agrochemist[]
+  onOpenDocuments: (agrochemist: Agrochemist) => void
   /** Extra columns appended on the right, e.g. actions. */
   extraColumns?: DataTableColumn<Agrochemist>[]
   empty?: ReactNode
 }
 
-const COLUMNS: DataTableColumn<Agrochemist>[] = [
+const columns = (
+  onOpenDocuments: AgrochemistsTableProps['onOpenDocuments'],
+): DataTableColumn<Agrochemist>[] => [
   {
     key: 'name',
     header: 'Специалист',
@@ -32,10 +35,14 @@ const COLUMNS: DataTableColumn<Agrochemist>[] = [
     header: 'Документы',
     render: (row) =>
       row.documents.length > 0 ? (
-        <span className="inline-flex items-center gap-1.5 font-semibold text-primary">
+        <button
+          type="button"
+          onClick={() => onOpenDocuments(row)}
+          className="inline-flex items-center gap-1.5 rounded-md text-left font-semibold text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
+        >
           <FileText size={18} aria-hidden="true" className="shrink-0" />
           {documentsSummary(row)}
-        </span>
+        </button>
       ) : (
         <Badge tone="danger">Не загружены</Badge>
       ),
@@ -50,12 +57,13 @@ const COLUMNS: DataTableColumn<Agrochemist>[] = [
 
 export function AgrochemistsTable({
   agrochemists,
+  onOpenDocuments,
   extraColumns = [],
   empty,
 }: AgrochemistsTableProps) {
   return (
     <DataTable
-      columns={[...COLUMNS, ...extraColumns]}
+      columns={[...columns(onOpenDocuments), ...extraColumns]}
       data={agrochemists}
       getRowKey={(row) => row.id}
       empty={empty}

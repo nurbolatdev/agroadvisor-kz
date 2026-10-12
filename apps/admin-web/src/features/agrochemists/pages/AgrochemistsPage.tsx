@@ -3,14 +3,16 @@ import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SearchBar } from '@/components/ui/SearchBar'
 import { AgrochemistsTable } from '@/features/agrochemists/components/AgrochemistsTable'
+import { CertificateModal } from '@/features/agrochemists/components/CertificateModal'
 import { VerificationKpis } from '@/features/agrochemists/components/VerificationKpis'
 import { api } from '@/services/api'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
-import type { VerificationStatus } from '@/shared/types'
+import type { Agrochemist, VerificationStatus } from '@/shared/types'
 
 export function AgrochemistsPage() {
   const [status, setStatus] = useState<VerificationStatus>('pending')
   const [search, setSearch] = useState('')
+  const [viewing, setViewing] = useState<Agrochemist>()
   const { data: stats } = useApiQuery(() => api.getVerificationStats(), [])
   const { data: agrochemists } = useApiQuery(
     () => api.getAgrochemists({ status, search }),
@@ -37,12 +39,14 @@ export function AgrochemistsPage() {
         {agrochemists ? (
           <AgrochemistsTable
             agrochemists={agrochemists}
+            onOpenDocuments={setViewing}
             empty={search ? 'Никого не нашли по этому имени' : 'Заявок нет'}
           />
         ) : (
           <Loader />
         )}
       </div>
+      <CertificateModal agrochemist={viewing} onClose={() => setViewing(undefined)} />
     </>
   )
 }
