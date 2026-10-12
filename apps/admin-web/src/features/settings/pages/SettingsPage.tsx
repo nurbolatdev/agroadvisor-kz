@@ -1,3 +1,13 @@
+import { Settings } from 'lucide-react'
+import { SectionPlaceholder } from '@/pages/SectionPlaceholder'
+
 export function SettingsPage() {
-  return <h1 className="text-h1 text-primary-dark">Settings</h1>
+  return (
+    <SectionPlaceholder
+      title="Настройки"
+      subtitle="Профиль администратора и параметры платформы"
+      icon={Settings}
+      description="Здесь появятся профиль администратора, язык интерфейса по умолчанию и правила модерации."
+    />
+  )
 }
