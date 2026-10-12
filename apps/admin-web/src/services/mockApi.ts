@@ -37,6 +37,11 @@ const withDetails = (complaint: Complaint): ComplaintDetails => {
 
 const countNewComplaints = () => db.complaints.filter((item) => item.status === 'new').length
 const countPending = () => db.agrochemists.filter((item) => item.status === 'pending').length
+const countByStatus = (list: typeof mockAgrochemists, status: string) =>
+  list.filter((item) => item.status === status).length
+/** Stats come from the mockup (38 / 2); decisions made in this session are added on top. */
+const decidedSinceLoad = (status: 'approved' | 'rejected') =>
+  countByStatus(db.agrochemists, status) - countByStatus(mockAgrochemists, status)
 
 export const mockApi: AdminApi = {
   getOverviewStats: (period) =>
@@ -73,7 +78,12 @@ export const mockApi: AdminApi = {
     return respond(withDetails(complaint))
   },
 
-  getVerificationStats: () => respond({ ...mockVerificationStats, pending: countPending() }),
+  getVerificationStats: () =>
+    respond({
+      pending: countPending(),
+      approved: mockVerificationStats.approved + decidedSinceLoad('approved'),
+      rejectedThisMonth: mockVerificationStats.rejectedThisMonth + decidedSinceLoad('rejected'),
+    }),
 
   getAgrochemists: (filters = {}) =>
     respond(
@@ -98,6 +108,13 @@ export const mockApi: AdminApi = {
       reviewedAt: new Date().toISOString(),
       rejectionReason: reason,
     })
+    return respond(agrochemist)
+  },
+
+  requestDocuments: (id) => {
+    const agrochemist = db.agrochemists.find((item) => item.id === id)
+    if (!agrochemist) return fail('Заявка не найдена')
+    agrochemist.documentsRequestedAt = new Date().toISOString()
     return respond(agrochemist)
   },
 

@@ -54,6 +54,7 @@ export interface AdminApi {
   }): Promise<Agrochemist[]>
   approveAgrochemist(id: string): Promise<Agrochemist>
   rejectAgrochemist(id: string, reason: string): Promise<Agrochemist>
+  requestDocuments(id: string): Promise<Agrochemist>
 
   getUsers(filters?: { role?: UserRole; search?: string }): Promise<User[]>
 
