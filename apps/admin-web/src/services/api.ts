@@ -11,6 +11,12 @@ import type {
   Disease,
   ModerationAction,
   ModerationStats,
+  Shop,
+  ShopInput,
+  ShopRequest,
+  ShopRequestStatus,
+  ShopStats,
+  ShopStatus,
   OverviewStats,
   PostKind,
   StatsPeriod,
@@ -37,6 +43,7 @@ export interface ComplaintFilters {
 export interface SidebarCounters {
   newComplaints: number
   pendingVerifications: number
+  newShopRequests: number
 }
 
 /**
@@ -68,6 +75,15 @@ export interface AdminApi {
   requestDocuments(id: string): Promise<Agrochemist>
 
   getUsers(filters?: { role?: UserRole; search?: string }): Promise<User[]>
+
+  getShopStats(): Promise<ShopStats>
+  getShops(filters?: { search?: string; district?: string; status?: ShopStatus }): Promise<Shop[]>
+  /** Creates a shop, or updates it when `id` is given. */
+  saveShop(input: ShopInput, id?: string): Promise<Shop>
+  setShopStatus(id: string, status: ShopStatus): Promise<Shop>
+  /** New requests from farmers. */
+  getShopRequests(): Promise<ShopRequest[]>
+  resolveShopRequest(id: string, status: Exclude<ShopRequestStatus, 'new'>): Promise<ShopRequest>
 
   getDiseases(filters?: { crop?: CropId }): Promise<Disease[]>
   getDisease(id: string): Promise<Disease | null>
