@@ -10,6 +10,8 @@ interface ShopsTableProps {
   /** Extra columns on the right, e.g. the edit action. */
   extraColumns?: DataTableColumn<Shop>[]
   empty?: ReactNode
+  page?: number
+  onPageChange?: (page: number) => void
 }
 
 const COLUMNS: DataTableColumn<Shop>[] = [
@@ -56,13 +58,21 @@ const COLUMNS: DataTableColumn<Shop>[] = [
   },
 ]
 
-export function ShopsTable({ shops, extraColumns = [], empty }: ShopsTableProps) {
+export function ShopsTable({
+  shops,
+  extraColumns = [],
+  empty,
+  page,
+  onPageChange,
+}: ShopsTableProps) {
   return (
     <DataTable
       columns={[...COLUMNS, ...extraColumns]}
       data={shops}
       getRowKey={(shop) => shop.id}
       empty={empty}
+      page={page}
+      onPageChange={onPageChange}
     />
   )
 }

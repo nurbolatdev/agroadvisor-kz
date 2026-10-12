@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { Pagination } from '@/components/ui/Pagination'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { DistrictCoverageCard } from '@/features/shops/components/DistrictCoverageCard'
 import { ShopFilters, type ShopFilterValue } from '@/features/shops/components/ShopFilters'
@@ -14,6 +15,7 @@ import { ShopRequestCard } from '@/features/shops/components/ShopRequestCard'
 import { ShopsTable } from '@/features/shops/components/ShopsTable'
 import { api } from '@/services/api'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
+import { usePageParam, usePagination } from '@/shared/hooks/usePagination'
 import type { ShopRequest } from '@/shared/types'
 import { notifyDataChanged } from '@/shared/utils/dataEvents'
 
@@ -42,6 +44,9 @@ export function ShopsPage() {
     [filters.search, filters.district, filters.status],
   )
   const requests = useApiQuery(() => api.getShopRequests(), [])
+  // One `?page=` for the active tab: the shops table or the requests list.
+  const requestPages = usePagination(requests.data ?? [])
+  const tablePage = usePageParam()
   const pending = stats.data?.pendingRequests
 
   const refresh = () => {
@@ -101,7 +106,10 @@ export function ShopsPage() {
         <SegmentedControl
           label="Раздел"
           value={tab}
-          onChange={setTab}
+          onChange={(next) => {
+            setTab(next)
+            requestPages.resetPage()
+          }}
           options={[
             { value: 'directory', label: 'Справочник' },
             { value: 'requests', label: pending ? `Заявки · ${pending}` : 'Заявки' },
@@ -126,7 +134,7 @@ export function ShopsPage() {
                 />
               </Card>
             ) : (
-              requests.data.map((request) => (
+              requestPages.pageItems.map((request) => (
                 <ShopRequestCard
                   key={request.id}
                   request={request}
@@ -137,14 +145,29 @@ export function ShopsPage() {
                 />
               ))
             )}
+            <Pagination
+              page={requestPages.page}
+              pageSize={requestPages.pageSize}
+              total={requestPages.total}
+              onPageChange={requestPages.setPage}
+              onPageSizeChange={requestPages.setPageSize}
+            />
           </section>
         ) : (
           <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,640fr)_minmax(0,312fr)]">
             <section aria-label="Справочник" className="flex min-w-0 flex-col gap-3">
-              <ShopFilters value={filters} onChange={setFilters} />
+              <ShopFilters
+                value={filters}
+                onChange={(next) => {
+                  setFilters(next)
+                  requestPages.resetPage()
+                }}
+              />
               {shops.data ? (
                 <ShopsTable
                   shops={shops.data}
+                  page={tablePage.page}
+                  onPageChange={tablePage.setPage}
                   empty="Магазинов не найдено"
                   extraColumns={[
                     {
