@@ -17,4 +17,4 @@ export {
   type SegmentedOption,
 } from '@/components/ui/SegmentedControl'
 export { Select, type SelectOption, type SelectProps } from '@/components/ui/Select'
-export { StatCard, type StatCardProps } from '@/components/ui/StatCard'
+export { StatCard, type StatCardProps, type StatTrend } from '@/components/ui/StatCard'
