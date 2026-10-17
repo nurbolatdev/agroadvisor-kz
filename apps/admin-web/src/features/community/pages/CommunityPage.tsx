@@ -22,7 +22,7 @@ import { cn } from '@/shared/utils/cn'
 export function CommunityPage() {
   const { settings } = useSettings()
   const periodOptions = usePeriodOptions()
-  const { t } = useTranslation()
+  const { t } = useTranslation(['community', 'common'])
   const [period, setPeriod] = useState<StatsPeriod>(settings.defaultPeriod)
   const { data, error, isLoading, reload } = useApiQuery(
     () => api.getCommunityStats(period),
@@ -32,11 +32,11 @@ export function CommunityPage() {
   return (
     <>
       <PageHeader
-        title="Сообщество"
-        subtitle="Активность сообщества фермеров и консультаций агрохимиков"
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <SegmentedControl
-            label={t('period')}
+            label={t('common:period')}
             options={periodOptions}
             value={period}
             onChange={setPeriod}
@@ -48,11 +48,11 @@ export function CommunityPage() {
         <Card>
           <EmptyState
             icon={TriangleAlert}
-            title="Не удалось загрузить данные"
+            title={t('common:states.loadError')}
             description={error.message}
             action={
               <Button size="sm" variant="secondary" icon={RefreshCw} onClick={reload}>
-                Повторить
+                {t('common:actions.retry')}
               </Button>
             }
           />
