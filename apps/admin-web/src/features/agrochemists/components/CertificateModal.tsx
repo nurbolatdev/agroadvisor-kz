@@ -1,9 +1,9 @@
 import { Award, GraduationCap } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Avatar } from '@/components/ui/Avatar'
 import { Modal } from '@/components/ui/Modal'
 import type { Agrochemist } from '@/shared/types'
-import { pluralize } from '@/shared/utils/format'
 
 interface CertificateModalProps {
   agrochemist: Agrochemist | undefined
@@ -15,13 +15,9 @@ interface CertificateModalProps {
 const DOCUMENT_ICONS = { diploma: GraduationCap, certificate: Award }
 
 export function CertificateModal({ agrochemist, onClose, footer }: CertificateModalProps) {
+  const { t } = useTranslation('agrochemists', { keyPrefix: 'documentsModal' })
   return (
-    <Modal
-      open={agrochemist !== undefined}
-      onClose={onClose}
-      title="Документы специалиста"
-      footer={footer}
-    >
+    <Modal open={agrochemist !== undefined} onClose={onClose} title={t('title')} footer={footer}>
       {agrochemist ? (
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
@@ -30,7 +26,7 @@ export function CertificateModal({ agrochemist, onClose, footer }: CertificateMo
               <p className="font-semibold text-text">{agrochemist.name}</p>
               <p className="text-caption font-normal text-text-muted">
                 {agrochemist.specialization} · {agrochemist.region} ·{' '}
-                {pluralize(agrochemist.experienceYears, ['год', 'года', 'лет'])} опыта
+                {t('experience', { count: agrochemist.experienceYears })}
               </p>
             </div>
           </div>
@@ -54,9 +50,7 @@ export function CertificateModal({ agrochemist, onClose, footer }: CertificateMo
               )
             })}
           </ul>
-          <p className="text-caption font-normal text-text-muted">
-            Сканы документов появятся после подключения файлового хранилища.
-          </p>
+          <p className="text-caption font-normal text-text-muted">{t('scansNote')}</p>
         </div>
       ) : null}
     </Modal>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '@/services/api'
 import type { Agrochemist } from '@/shared/types'
 import { notifyDataChanged } from '@/shared/utils/dataEvents'
@@ -7,6 +8,7 @@ type Decision = 'approve' | 'reject' | 'request'
 
 /** Runs approve / reject / request-documents calls and tracks which row is busy. */
 export function useVerificationDecisions(onChanged: () => void) {
+  const { t } = useTranslation('agrochemists')
   const [busyId, setBusyId] = useState<string>()
   const [error, setError] = useState<string>()
 
@@ -21,7 +23,7 @@ export function useVerificationDecisions(onChanged: () => void) {
       notifyDataChanged()
       return true
     } catch (reasonError) {
-      setError(reasonError instanceof Error ? reasonError.message : 'Не удалось сохранить решение')
+      setError(reasonError instanceof Error ? reasonError.message : t('decision.saveError'))
       return false
     } finally {
       setBusyId(undefined)
