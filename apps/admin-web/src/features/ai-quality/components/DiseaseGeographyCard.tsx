@@ -1,10 +1,11 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/Badge'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { districtLevel, LEVELS, outbreakLevel } from '@/features/ai-quality/outbreaks'
 import type { DiseaseGeography } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
-import { pluralize } from '@/shared/utils/format'
+import { formatNumber } from '@/shared/utils/format'
 
 interface DiseaseGeographyCardProps {
   geography: DiseaseGeography
@@ -22,10 +23,8 @@ const SHAPES: Record<string, { points: string; label: [number, number]; short?: 
   },
 }
 
-const formatGrowth = (growth: number | null) =>
-  growth === null ? 'рост —' : `рост ×${growth.toLocaleString('ru-RU')}`
-
 export function DiseaseGeographyCard({ geography }: DiseaseGeographyCardProps) {
+  const { t } = useTranslation('aiQuality', { keyPrefix: 'geography' })
   const [activeDistrict, setActiveDistrict] = useState<string>()
   const { outbreaks, districts } = geography
   const alerts = outbreaks.filter((outbreak) => outbreakLevel(outbreak) !== 'calm').length
@@ -34,19 +33,15 @@ export function DiseaseGeographyCard({ geography }: DiseaseGeographyCardProps) {
   return (
     <Card>
       <CardHeader
-        title="География болезней"
-        subtitle={`${geography.region} · ${pluralize(geography.days, ['день', 'дня', 'дней'])}`}
-        action={
-          alerts > 0 ? (
-            <Badge tone="danger">{pluralize(alerts, ['вспышка', 'вспышки', 'вспышек'])}</Badge>
-          ) : null
-        }
+        title={t('title')}
+        subtitle={`${geography.region} · ${t('days', { count: geography.days })}`}
+        action={alerts > 0 ? <Badge tone="danger">{t('alerts', { count: alerts })}</Badge> : null}
       />
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <svg
           viewBox="0 0 260 220"
           role="group"
-          aria-label="Схема районов"
+          aria-label={t('scheme')}
           className="w-full rounded-xl bg-bg"
         >
           {districts.map((district) => {
@@ -60,7 +55,10 @@ export function DiseaseGeographyCard({ geography }: DiseaseGeographyCardProps) {
                 // Focus or hover highlights the district's rows; a tap does the same on touch screens.
                 role="img"
                 tabIndex={0}
-                aria-label={`${district.name} район: ${LEVELS[level].label}`}
+                aria-label={t('districtLevel', {
+                  district: district.name,
+                  level: t(`levels.${level}`),
+                })}
                 onMouseEnter={() => setActiveDistrict(district.id)}
                 onMouseLeave={() => setActiveDistrict(undefined)}
                 onFocus={() => setActiveDistrict(district.id)}
@@ -87,7 +85,7 @@ export function DiseaseGeographyCard({ geography }: DiseaseGeographyCardProps) {
         </svg>
 
         <div>
-          <h3 className="mb-1 text-caption font-normal text-text-muted">Активные вспышки</h3>
+          <h3 className="mb-1 text-caption font-normal text-text-muted">{t('active')}</h3>
           <ul>
             {outbreaks.map((outbreak) => {
               const level = LEVELS[outbreakLevel(outbreak)]
@@ -104,10 +102,13 @@ export function DiseaseGeographyCard({ geography }: DiseaseGeographyCardProps) {
                 >
                   <span className="flex items-start justify-between gap-2">
                     <span className="text-small font-semibold text-text">{outbreak.disease}</span>
-                    <Badge tone={level.tone}>{outbreak.cases} сл.</Badge>
+                    <Badge tone={level.tone}>{t('cases', { count: outbreak.cases })}</Badge>
                   </span>
                   <span className="text-caption font-normal text-text-muted">
-                    {districtName(outbreak.districtId)} р-н · {formatGrowth(outbreak.growth)}
+                    {t('district', { district: districtName(outbreak.districtId) })} ·{' '}
+                    {outbreak.growth === null
+                      ? t('noGrowth')
+                      : t('growth', { value: formatNumber(outbreak.growth) })}
                   </span>
                 </li>
               )

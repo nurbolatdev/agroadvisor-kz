@@ -1,5 +1,7 @@
+import { useTranslation } from 'react-i18next'
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { Card, CardHeader } from '@/components/ui/Card'
+import { formatNumber } from '@/shared/utils/format'
 
 interface ConfidenceHistogramProps {
   /** Share of diagnoses (%) in 10 buckets of 10 %. */
@@ -7,9 +9,9 @@ interface ConfidenceHistogramProps {
   threshold: number
 }
 
-const formatShare = (value: number) => `${value.toLocaleString('ru-RU')} %`
-
 export function ConfidenceHistogram({ buckets, threshold }: ConfidenceHistogramProps) {
+  const { t } = useTranslation('aiQuality')
+  const formatShare = (value: number) => t('percent', { value: formatNumber(value) })
   const data = buckets.map((share, index) => ({ from: index * 10, share }))
   const belowThreshold = data
     .filter((bucket) => bucket.from < threshold)
@@ -18,7 +20,7 @@ export function ConfidenceHistogram({ buckets, threshold }: ConfidenceHistogramP
 
   return (
     <Card className="flex flex-col">
-      <CardHeader title="Уверенность модели" subtitle="распределение диагнозов, %" />
+      <CardHeader title={t('confidence.title')} subtitle={t('confidence.subtitle')} />
       <div className="h-40">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -28,10 +30,10 @@ export function ConfidenceHistogram({ buckets, threshold }: ConfidenceHistogramP
           >
             <Tooltip
               cursor={{ fill: 'var(--color-bg)' }}
-              formatter={(value) => [formatShare(Number(value)), 'Доля диагнозов']}
+              formatter={(value) => [formatShare(Number(value)), t('confidence.tooltipValue')]}
               labelFormatter={(_, payload) => {
                 const from = payload?.[0]?.payload?.from ?? 0
-                return `Уверенность ${from}–${from + 10} %`
+                return t('confidence.tooltipLabel', { from, to: from + 10 })
               }}
               contentStyle={{ borderRadius: 12, borderColor: 'var(--color-border)', fontSize: 13 }}
             />
@@ -60,7 +62,10 @@ export function ConfidenceHistogram({ buckets, threshold }: ConfidenceHistogramP
       </div>
       <p className="mt-3 flex items-center gap-1.5 text-caption font-normal text-text-muted">
         <span aria-hidden="true" className="size-2.5 rounded-sm bg-warning" />
-        ниже порога {threshold} % · {formatShare(Math.round(belowThreshold * 10) / 10)}
+        {t('confidence.belowThreshold', {
+          threshold,
+          share: formatShare(Math.round(belowThreshold * 10) / 10),
+        })}
       </p>
     </Card>
   )

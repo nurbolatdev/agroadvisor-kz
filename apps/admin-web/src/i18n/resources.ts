@@ -1,13 +1,16 @@
+import enAiQuality from '@/i18n/locales/en/aiQuality'
 import enCommon from '@/i18n/locales/en/common'
 import enDashboard from '@/i18n/locales/en/dashboard'
 import enFormat from '@/i18n/locales/en/format'
 import enLayout from '@/i18n/locales/en/layout'
 import enUi from '@/i18n/locales/en/ui'
+import kkAiQuality from '@/i18n/locales/kk/aiQuality'
 import kkCommon from '@/i18n/locales/kk/common'
 import kkDashboard from '@/i18n/locales/kk/dashboard'
 import kkFormat from '@/i18n/locales/kk/format'
 import kkLayout from '@/i18n/locales/kk/layout'
 import kkUi from '@/i18n/locales/kk/ui'
+import ruAiQuality from '@/i18n/locales/ru/aiQuality'
 import ruCommon from '@/i18n/locales/ru/common'
 import ruDashboard from '@/i18n/locales/ru/dashboard'
 import ruFormat from '@/i18n/locales/ru/format'
@@ -16,9 +19,30 @@ import ruUi from '@/i18n/locales/ru/ui'
 
 /** Namespaces per language; Russian is the reference for keys and types. */
 export const resources = {
-  ru: { common: ruCommon, dashboard: ruDashboard, format: ruFormat, layout: ruLayout, ui: ruUi },
-  kk: { common: kkCommon, dashboard: kkDashboard, format: kkFormat, layout: kkLayout, ui: kkUi },
-  en: { common: enCommon, dashboard: enDashboard, format: enFormat, layout: enLayout, ui: enUi },
+  ru: {
+    aiQuality: ruAiQuality,
+    common: ruCommon,
+    dashboard: ruDashboard,
+    format: ruFormat,
+    layout: ruLayout,
+    ui: ruUi,
+  },
+  kk: {
+    aiQuality: kkAiQuality,
+    common: kkCommon,
+    dashboard: kkDashboard,
+    format: kkFormat,
+    layout: kkLayout,
+    ui: kkUi,
+  },
+  en: {
+    aiQuality: enAiQuality,
+    common: enCommon,
+    dashboard: enDashboard,
+    format: enFormat,
+    layout: enLayout,
+    ui: enUi,
+  },
 } as const
 
 export const defaultNS = 'common'

@@ -1,12 +1,13 @@
 import { Download } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { api } from '@/services/api'
 import type { AiQualityStats } from '@/shared/types'
 import { toCsv, downloadTextFile } from '@/shared/utils/csv'
-import { formatNumber, pluralize } from '@/shared/utils/format'
+import { formatNumber } from '@/shared/utils/format'
 
 interface TrainingDataCardProps {
   data: AiQualityStats['trainingData']
@@ -23,6 +24,7 @@ const CSV_HEADER = [
 ]
 
 export function TrainingDataCard({ data }: TrainingDataCardProps) {
+  const { t } = useTranslation('aiQuality', { keyPrefix: 'trainingData' })
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState<string>()
 
@@ -45,7 +47,7 @@ export function TrainingDataCard({ data }: TrainingDataCardProps) {
       )
       downloadTextFile(`agroadvisor-dataset-${new Date().toISOString().slice(0, 10)}.csv`, csv)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Не удалось подготовить файл')
+      setError(reason instanceof Error ? reason.message : t('exportError'))
     } finally {
       setIsExporting(false)
     }
@@ -53,15 +55,12 @@ export function TrainingDataCard({ data }: TrainingDataCardProps) {
 
   return (
     <Card className="flex flex-col">
-      <CardHeader
-        title="Данные для дообучения"
-        subtitle="случаи, подтверждённые агрохимиком или сообществом"
-      />
+      <CardHeader title={t('title')} subtitle={t('subtitle')} />
       <p className="text-[40px] leading-12 font-bold text-primary">{formatNumber(data.labeled)}</p>
-      <p className="text-small text-text-muted">размеченных фото готовы к экспорту</p>
+      <p className="text-small text-text-muted">{t('ready')}</p>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Badge tone="success">+{formatNumber(data.addedThisWeek)} за неделю</Badge>
-        <Badge tone="neutral">{pluralize(data.classes, ['класс', 'класса', 'классов'])}</Badge>
+        <Badge tone="success">{t('perWeek', { value: formatNumber(data.addedThisWeek) })}</Badge>
+        <Badge tone="neutral">{t('classes', { count: data.classes })}</Badge>
       </div>
       <Button
         icon={Download}
@@ -69,7 +68,7 @@ export function TrainingDataCard({ data }: TrainingDataCardProps) {
         onClick={exportDataset}
         className="mt-auto w-full"
       >
-        {isExporting ? 'Готовим файл…' : 'Экспорт датасета'}
+        {isExporting ? t('exporting') : t('export')}
       </Button>
       {error ? (
         <p role="alert" className="mt-2 text-small text-danger">
