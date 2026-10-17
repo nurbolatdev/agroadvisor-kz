@@ -1,0 +1,100 @@
+const moderation = {
+  title: 'Модерация',
+  subtitle: 'Жалобы пользователей на посты и ответы в сообществе',
+  kpi: {
+    today: 'Жалоб сегодня',
+    avgResolution: 'Среднее время решения',
+    resolvedWeek: 'Решено за неделю',
+  },
+  reasons: {
+    ads: 'Реклама',
+    misinformation: 'Недостоверный совет',
+    spam: 'Спам',
+    abuse: 'Оскорбление',
+  },
+  statuses: {
+    new: 'Новая',
+    in_progress: 'В работе',
+    resolved: 'Решена',
+  },
+  statusFilters: {
+    new: 'Новые',
+    in_progress: 'В работе',
+    resolved: 'Решённые',
+  },
+  kinds: {
+    post: 'Пост',
+    answer: 'Ответ',
+  },
+  kindFilters: {
+    post: 'Посты',
+    answer: 'Ответы',
+  },
+  filters: {
+    label: 'Фильтры жалоб',
+    reason: 'Причина жалобы',
+    allReasons: 'Все причины',
+  },
+  list: {
+    label: 'Список жалоб',
+    empty: 'Жалоб нет',
+    emptyDescription: 'По этим фильтрам ничего не найдено.',
+    back: 'К списку',
+    selectTitle: 'Выберите жалобу',
+    selectDescription: 'Детали жалобы и действия появятся здесь.',
+  },
+  reports_one: '{{count}} жалоба',
+  reports_few: '{{count}} жалобы',
+  reports_many: '{{count}} жалоб',
+  reports_other: '{{count}} жалобы',
+  details: {
+    title: {
+      post: 'Жалоба на пост',
+      answer: 'Жалоба на ответ',
+    },
+    hidden: 'Скрыт',
+    reasons: 'Причины жалоб',
+    history: 'История автора',
+    onPlatform: 'На платформе {{since}}',
+    posts_one: '{{count}} публикация',
+    posts_few: '{{count}} публикации',
+    posts_many: '{{count}} публикаций',
+    posts_other: '{{count}} публикации',
+    warnings_one: '{{count}} предупреждение',
+    warnings_few: '{{count}} предупреждения',
+    warnings_many: '{{count}} предупреждений',
+    warnings_other: '{{count}} предупреждения',
+    noWarnings: 'Без предупреждений',
+    blocked: 'Заблокирован',
+  },
+  actions: {
+    decisionLabel: 'Причина решения',
+    decisions: {
+      ads: 'Реклама и продажа товаров запрещены правилами',
+      misinformation: 'Опасный или недостоверный совет',
+      spam: 'Спам и повторяющиеся сообщения',
+      abuse: 'Оскорбления и грубость',
+    },
+    keepComment: 'Нарушений не найдено',
+    results: {
+      keep: 'Публикация оставлена',
+      hide: 'Публикация скрыта',
+      block: 'Публикация скрыта, автор заблокирован',
+    },
+    keep: 'Оставить',
+    saving: 'Сохраняем…',
+    hide: {
+      post: 'Скрыть пост',
+      answer: 'Скрыть ответ',
+    },
+    hiding: 'Скрываем…',
+    block: 'Заблокировать',
+    blocking: 'Блокируем…',
+    saveError: 'Не удалось сохранить решение',
+    confirmTitle: 'Заблокировать {{name}}?',
+    confirmText:
+      'Публикация будет скрыта, а автор больше не сможет писать в сообществе. Причина: {{reason}}.',
+  },
+}
+
+export default moderation
