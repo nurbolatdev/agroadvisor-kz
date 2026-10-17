@@ -1,7 +1,7 @@
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
 import { Card, CardHeader } from '@/components/ui/Card'
 import type { OverviewStats } from '@/shared/types'
-import { formatNumber } from '@/shared/utils/format'
+import { formatBucket, formatNumber } from '@/shared/utils/format'
 
 interface NewUsersChartProps {
   stats: OverviewStats
@@ -14,6 +14,8 @@ const SERIES = [
 
 export function NewUsersChart({ stats }: NewUsersChartProps) {
   const isMonthly = stats.period === 'season'
+  const bucketLabel = (bucket: unknown) =>
+    formatBucket(isMonthly ? 'month' : 'week', Number(bucket))
 
   return (
     <Card className="flex h-67 flex-col">
@@ -33,17 +35,19 @@ export function NewUsersChart({ stats }: NewUsersChartProps) {
       <div className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
-            data={stats.newUsersByWeek}
+            data={stats.newUsers}
             barGap={4}
             margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
           >
             <XAxis
-              dataKey="week"
+              dataKey="bucket"
+              tickFormatter={bucketLabel}
               tick={{ fontSize: 12, fill: 'var(--color-text-muted)' }}
               tickLine={false}
               axisLine={false}
             />
             <Tooltip
+              labelFormatter={bucketLabel}
               cursor={{ fill: 'var(--color-bg)' }}
               formatter={(value, name) => [
                 formatNumber(Number(value)),

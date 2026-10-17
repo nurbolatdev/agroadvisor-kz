@@ -16,7 +16,8 @@ export interface OverviewStats {
   openComplaints: { value: number; changeToday: number }
   pendingVerifications: number
   diagnosesByDay: { date: string; count: number }[]
-  newUsersByWeek: { week: string; farmers: number; agrochemists: number }[]
+  /** Weeks (number from 1) for 7 and 30 days, months (0 = January) for the season. */
+  newUsers: { bucket: number; farmers: number; agrochemists: number }[]
   funnel: { step: FunnelStep; count: number }[]
   avgMinutesToFirstAdvice: number
 }

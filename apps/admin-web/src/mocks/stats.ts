@@ -20,20 +20,20 @@ const toSeries = (counts: number[], stepDays: number) =>
   }))
 
 const WEEKS = [
-  { week: '1 нед', farmers: 98, agrochemists: 4 },
-  { week: '2 нед', farmers: 112, agrochemists: 6 },
-  { week: '3 нед', farmers: 128, agrochemists: 3 },
-  { week: '4 нед', farmers: 146, agrochemists: 7 },
-  { week: '5 нед', farmers: 160, agrochemists: 5 },
+  { bucket: 1, farmers: 98, agrochemists: 4 },
+  { bucket: 2, farmers: 112, agrochemists: 6 },
+  { bucket: 3, farmers: 128, agrochemists: 3 },
+  { bucket: 4, farmers: 146, agrochemists: 7 },
+  { bucket: 5, farmers: 160, agrochemists: 5 },
 ]
 
 const MONTHS = [
-  { week: 'Апр', farmers: 210, agrochemists: 9 },
-  { week: 'Май', farmers: 380, agrochemists: 14 },
-  { week: 'Июн', farmers: 450, agrochemists: 12 },
-  { week: 'Июл', farmers: 410, agrochemists: 10 },
-  { week: 'Авг', farmers: 470, agrochemists: 15 },
-  { week: 'Сен', farmers: 560, agrochemists: 21 },
+  { bucket: 3, farmers: 210, agrochemists: 9 },
+  { bucket: 4, farmers: 380, agrochemists: 14 },
+  { bucket: 5, farmers: 450, agrochemists: 12 },
+  { bucket: 6, farmers: 410, agrochemists: 10 },
+  { bucket: 7, farmers: 470, agrochemists: 15 },
+  { bucket: 8, farmers: 560, agrochemists: 21 },
 ]
 
 /** Funnel shares from admin-01: 100 / 96 / 70 / 30 / 21 %. */
@@ -64,7 +64,7 @@ export const mockOverviewStats: Record<StatsPeriod, OverviewStats> = {
     openComplaints: { value: 3, changeToday: 1 },
     pendingVerifications: 4,
     diagnosesByDay: toSeries(DAILY_DIAGNOSES.slice(-7), 1),
-    newUsersByWeek: WEEKS,
+    newUsers: WEEKS,
     funnel: funnel(sum(DAILY_DIAGNOSES.slice(-7))),
     avgMinutesToFirstAdvice: 205,
   },
@@ -78,7 +78,7 @@ export const mockOverviewStats: Record<StatsPeriod, OverviewStats> = {
     openComplaints: { value: 3, changeToday: 1 },
     pendingVerifications: 4,
     diagnosesByDay: toSeries(DAILY_DIAGNOSES, 1),
-    newUsersByWeek: WEEKS,
+    newUsers: WEEKS,
     funnel: funnel(sum(DAILY_DIAGNOSES)),
     avgMinutesToFirstAdvice: 220,
   },
@@ -92,7 +92,7 @@ export const mockOverviewStats: Record<StatsPeriod, OverviewStats> = {
     openComplaints: { value: 3, changeToday: 1 },
     pendingVerifications: 4,
     diagnosesByDay: toSeries(WEEKLY_DIAGNOSES_SEASON, 7),
-    newUsersByWeek: MONTHS,
+    newUsers: MONTHS,
     funnel: funnel(sum(WEEKLY_DIAGNOSES_SEASON)),
     avgMinutesToFirstAdvice: 245,
   },

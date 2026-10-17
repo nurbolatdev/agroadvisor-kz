@@ -1,7 +1,7 @@
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
 import { Card, CardHeader } from '@/components/ui/Card'
 import type { CommunityStats, StatsPeriod } from '@/shared/types'
-import { formatNumber } from '@/shared/utils/format'
+import { type ChartBucketUnit, formatBucket, formatNumber } from '@/shared/utils/format'
 
 interface QaActivityChartProps {
   stats: CommunityStats
@@ -12,6 +12,8 @@ const SERIES = [
   { key: 'answers', label: 'ответы', color: 'var(--color-chart-secondary)' },
 ] as const
 
+const UNIT: Record<StatsPeriod, ChartBucketUnit> = { '7d': 'day', '30d': 'week', season: 'month' }
+
 const BUCKET: Record<StatsPeriod, string> = {
   '7d': 'по дням',
   '30d': 'по неделям',
@@ -19,6 +21,8 @@ const BUCKET: Record<StatsPeriod, string> = {
 }
 
 export function QaActivityChart({ stats }: QaActivityChartProps) {
+  const bucketLabel = (bucket: unknown) => formatBucket(UNIT[stats.period], Number(bucket))
+
   return (
     <Card className="flex min-h-70 flex-col">
       <CardHeader title="Вопросы и ответы" subtitle={BUCKET[stats.period]} className="mb-3" />
@@ -38,12 +42,14 @@ export function QaActivityChart({ stats }: QaActivityChartProps) {
             margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
           >
             <XAxis
-              dataKey="label"
+              dataKey="bucket"
+              tickFormatter={bucketLabel}
               tick={{ fontSize: 12, fill: 'var(--color-text-muted)' }}
               tickLine={false}
               axisLine={false}
             />
             <Tooltip
+              labelFormatter={bucketLabel}
               cursor={{ fill: 'var(--color-bg)' }}
               formatter={(value, name) => [
                 formatNumber(Number(value)),

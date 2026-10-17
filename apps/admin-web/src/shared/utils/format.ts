@@ -81,6 +81,14 @@ export function formatRelativeTime(date: IsoDateTime | Date, now: Date = new Dat
   return formatShortDate(value)
 }
 
+export type ChartBucketUnit = 'day' | 'week' | 'month'
+
+/** Chart axis label: weekday (0 = Monday) → "Пн", week number → "2 нед", month (0 = January) → "Апр". */
+export function formatBucket(unit: ChartBucketUnit, bucket: number) {
+  if (unit === 'week') return t('weekShort', { week: bucket })
+  return t(unit === 'day' ? 'weekdaysShort' : 'monthsAxis').split(',')[bucket]
+}
+
 /** 220 → "3 ч 40 мин", 45 → "45 мин", 120 → "2 ч". */
 export function formatDuration(totalMinutes: number) {
   const hours = Math.floor(totalMinutes / 60)
