@@ -21,6 +21,7 @@ const common: Translation<typeof ru> = {
     loadError: 'Деректерді жүктеу мүмкін болмады',
     saveError: 'Сақтау мүмкін болмады',
   },
+  period: 'Кезең',
   periods: {
     '7d': '7 күн',
     '30d': '30 күн',

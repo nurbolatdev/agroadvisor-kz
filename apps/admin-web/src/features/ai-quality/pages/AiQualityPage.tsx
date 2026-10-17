@@ -1,5 +1,6 @@
 import { RefreshCw, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -12,14 +13,16 @@ import { MismatchesCard } from '@/features/ai-quality/components/MismatchesCard'
 import { TopDiseasesCard } from '@/features/ai-quality/components/TopDiseasesCard'
 import { TrainingDataCard } from '@/features/ai-quality/components/TrainingDataCard'
 import { api } from '@/services/api'
-import { PERIOD_OPTIONS } from '@/shared/constants/periods'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
+import { usePeriodOptions } from '@/shared/hooks/usePeriodOptions'
 import { useSettings } from '@/shared/settings/settingsContext'
 import type { StatsPeriod } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
 
 export function AiQualityPage() {
   const { settings } = useSettings()
+  const periodOptions = usePeriodOptions()
+  const { t } = useTranslation()
   const [period, setPeriod] = useState<StatsPeriod>(settings.defaultPeriod)
   const { data, error, isLoading, reload } = useApiQuery(
     () => api.getAiQualityStats(period),
@@ -33,8 +36,8 @@ export function AiQualityPage() {
         subtitle="Качество модели на реальных данных и распространение болезней по районам"
         actions={
           <SegmentedControl
-            label="Период"
-            options={PERIOD_OPTIONS}
+            label={t('period')}
+            options={periodOptions}
             value={period}
             onChange={setPeriod}
           />

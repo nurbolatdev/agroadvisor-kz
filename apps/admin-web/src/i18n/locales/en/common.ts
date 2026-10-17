@@ -21,6 +21,7 @@ const common: Translation<typeof ru> = {
     loadError: 'Could not load the data',
     saveError: 'Could not save',
   },
+  period: 'Period',
   periods: {
     '7d': '7 days',
     '30d': '30 days',

@@ -1,5 +1,6 @@
 import { RefreshCw, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -11,8 +12,9 @@ import { FarmerFunnel } from '@/features/dashboard/components/FarmerFunnel'
 import { NewUsersChart } from '@/features/dashboard/components/NewUsersChart'
 import { OverviewKpis } from '@/features/dashboard/components/OverviewKpis'
 import { api } from '@/services/api'
-import { PERIOD_OPTIONS, PERIOD_SUFFIX } from '@/shared/constants/periods'
+import { PERIOD_SUFFIX } from '@/shared/constants/periods'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
+import { usePeriodOptions } from '@/shared/hooks/usePeriodOptions'
 import { useSettings } from '@/shared/settings/settingsContext'
 import type { StatsPeriod } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
@@ -20,6 +22,8 @@ import { formatTime } from '@/shared/utils/format'
 
 export function DashboardPage() {
   const { settings } = useSettings()
+  const periodOptions = usePeriodOptions()
+  const { t } = useTranslation()
   const [period, setPeriod] = useState<StatsPeriod>(settings.defaultPeriod)
   const { data, error, isLoading, reload } = useApiQuery(
     () => api.getOverviewStats(period, settings.confidenceThreshold),
@@ -37,8 +41,8 @@ export function DashboardPage() {
         }
         actions={
           <SegmentedControl
-            label="Период"
-            options={PERIOD_OPTIONS}
+            label={t('period')}
+            options={periodOptions}
             value={period}
             onChange={setPeriod}
           />
