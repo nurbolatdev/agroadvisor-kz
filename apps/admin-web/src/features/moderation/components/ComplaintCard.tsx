@@ -1,14 +1,14 @@
+import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/Badge'
 import {
   mainReason,
-  POST_KINDS,
-  REASONS,
-  STATUSES,
+  REASON_TONES,
+  STATUS_TONES,
   totalReports,
 } from '@/features/moderation/complaints'
 import type { ComplaintDetails } from '@/services/api'
 import { cn } from '@/shared/utils/cn'
-import { formatRelativeTime, pluralize } from '@/shared/utils/format'
+import { formatRelativeTime } from '@/shared/utils/format'
 
 interface ComplaintCardProps {
   complaint: ComplaintDetails
@@ -17,8 +17,8 @@ interface ComplaintCardProps {
 }
 
 export function ComplaintCard({ complaint, selected, onSelect }: ComplaintCardProps) {
-  const reason = REASONS[mainReason(complaint)]
-  const status = STATUSES[complaint.status]
+  const { t } = useTranslation('moderation')
+  const reason = mainReason(complaint)
 
   return (
     <button
@@ -32,16 +32,18 @@ export function ComplaintCard({ complaint, selected, onSelect }: ComplaintCardPr
       )}
     >
       <span className="mb-2 flex items-center justify-between gap-2">
-        <Badge tone={reason.tone}>{reason.label}</Badge>
-        <Badge tone={status.tone}>{status.label}</Badge>
+        <Badge tone={REASON_TONES[reason]}>{t(`reasons.${reason}`)}</Badge>
+        <Badge tone={STATUS_TONES[complaint.status]}>{t(`statuses.${complaint.status}`)}</Badge>
       </span>
       <span className="block truncate text-[15px] leading-5 font-semibold text-text">
-        {POST_KINDS[complaint.post.kind].label} · {complaint.post.title}
+        {t(`kinds.${complaint.post.kind}`)} · {complaint.post.title}
       </span>
       <span className="mt-1 block text-caption font-normal text-text-muted">
-        {complaint.author.name} ·{' '}
-        {pluralize(totalReports(complaint), ['жалоба', 'жалобы', 'жалоб'])} ·{' '}
-        {formatRelativeTime(complaint.createdAt)}
+        {[
+          complaint.author.name,
+          t('reports', { count: totalReports(complaint) }),
+          formatRelativeTime(complaint.createdAt),
+        ].join(' · ')}
       </span>
     </button>
   )

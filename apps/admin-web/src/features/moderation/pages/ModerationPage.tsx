@@ -1,5 +1,6 @@
 import { ArrowLeft, Inbox, MousePointerClick } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -20,6 +21,7 @@ import { cn } from '@/shared/utils/cn'
 import { notifyDataChanged } from '@/shared/utils/dataEvents'
 
 export function ModerationPage() {
+  const { t } = useTranslation('moderation')
   const [filters, setFilters] = useState<ComplaintFilterValue>({ status: 'new' })
   const [selectedId, setSelectedId] = useState<string>()
   // Below 1024 px the list and the details are separate screens (section 5a).
@@ -37,11 +39,7 @@ export function ModerationPage() {
 
   return (
     <>
-      <PageHeader
-        title="Модерация"
-        subtitle="Жалобы пользователей на посты и ответы в сообществе"
-        actions={<ModerationKpis />}
-      />
+      <PageHeader title={t('title')} subtitle={t('subtitle')} actions={<ModerationKpis />} />
       <ComplaintFilters
         value={filters}
         onChange={(value) => {
@@ -54,7 +52,7 @@ export function ModerationPage() {
 
       <div className="mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,400fr)_minmax(0,552fr)]">
         <section
-          aria-label="Список жалоб"
+          aria-label={t('list.label')}
           className={cn('flex flex-col gap-3', showDetailsOnMobile && 'hidden lg:flex')}
         >
           {!complaints ? (
@@ -63,8 +61,8 @@ export function ModerationPage() {
             <Card>
               <EmptyState
                 icon={Inbox}
-                title="Жалоб нет"
-                description="По этим фильтрам ничего не найдено."
+                title={t('list.empty')}
+                description={t('list.emptyDescription')}
               />
             </Card>
           ) : (
@@ -96,7 +94,7 @@ export function ModerationPage() {
             onClick={() => setShowDetailsOnMobile(false)}
             className="mb-3 -ml-2 lg:hidden"
           >
-            К списку
+            {t('list.back')}
           </Button>
           {selected ? (
             <ComplaintDetailsPanel
@@ -111,8 +109,8 @@ export function ModerationPage() {
             <Card>
               <EmptyState
                 icon={MousePointerClick}
-                title="Выберите жалобу"
-                description="Детали жалобы и действия появятся здесь."
+                title={t('list.selectTitle')}
+                description={t('list.selectDescription')}
               />
             </Card>
           )}

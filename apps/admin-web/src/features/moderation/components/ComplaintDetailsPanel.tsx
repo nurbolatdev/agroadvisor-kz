@@ -1,12 +1,12 @@
 import { EyeOff } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { ComplaintActions } from '@/features/moderation/components/ComplaintActions'
-import { mainReason, POST_KINDS, REASONS, totalReports } from '@/features/moderation/complaints'
+import { mainReason, REASON_TONES, totalReports } from '@/features/moderation/complaints'
 import type { ComplaintDetails } from '@/services/api'
-import { CROP_LABELS } from '@/shared/constants/crops'
-import { formatDayAndTime, formatSince, pluralize } from '@/shared/utils/format'
+import { formatDayAndTime, formatSince } from '@/shared/utils/format'
 
 interface ComplaintDetailsPanelProps {
   complaint: ComplaintDetails
@@ -15,15 +15,15 @@ interface ComplaintDetailsPanelProps {
 
 export function ComplaintDetailsPanel({ complaint, onResolved }: ComplaintDetailsPanelProps) {
   const { post, author } = complaint
-  const reason = REASONS[mainReason(complaint)]
-  const kind = POST_KINDS[post.kind].label.toLowerCase()
+  const { t } = useTranslation(['moderation', 'common'])
+  const reason = mainReason(complaint)
 
   return (
     <Card className="flex flex-col gap-5 p-6">
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <h2 className="text-h2 text-text">Жалоба на {kind}</h2>
-        <Badge tone={reason.tone}>
-          {reason.label} · {pluralize(totalReports(complaint), ['жалоба', 'жалобы', 'жалоб'])}
+        <h2 className="text-h2 text-text">{t(`details.title.${post.kind}`)}</h2>
+        <Badge tone={REASON_TONES[reason]}>
+          {t(`reasons.${reason}`)} · {t('reports', { count: totalReports(complaint) })}
         </Badge>
       </div>
 
@@ -33,12 +33,13 @@ export function ComplaintDetailsPanel({ complaint, onResolved }: ComplaintDetail
           <div className="min-w-0">
             <p className="text-small font-semibold text-text">{author.name}</p>
             <p className="text-caption font-normal text-text-muted">
-              {CROP_LABELS[post.crop]} · {post.district} · {formatDayAndTime(post.createdAt)}
+              {t(`common:crops.${post.crop}`)} · {post.district} ·{' '}
+              {formatDayAndTime(post.createdAt)}
             </p>
           </div>
           {post.hidden ? (
             <Badge tone="neutral" icon={EyeOff} className="ml-auto">
-              Скрыт
+              {t('details.hidden')}
             </Badge>
           ) : null}
         </header>
@@ -48,30 +49,28 @@ export function ComplaintDetailsPanel({ complaint, onResolved }: ComplaintDetail
 
       <div className="grid gap-4 sm:grid-cols-2">
         <section>
-          <h3 className="mb-2 text-small text-text-muted">Причины жалоб</h3>
+          <h3 className="mb-2 text-small text-text-muted">{t('details.reasons')}</h3>
           <ul className="flex flex-col gap-1 text-body text-text">
             {complaint.reports.map((report) => (
               <li key={report.reason}>
-                {REASONS[report.reason].label} · {report.count}
+                {t(`reasons.${report.reason}`)} · {report.count}
               </li>
             ))}
           </ul>
         </section>
         <section>
-          <h3 className="mb-2 text-small text-text-muted">История автора</h3>
+          <h3 className="mb-2 text-small text-text-muted">{t('details.history')}</h3>
           <ul className="flex flex-col gap-1 text-body text-text">
-            <li>На платформе {formatSince(author.registeredAt)}</li>
-            <li>{pluralize(author.postsCount, ['публикация', 'публикации', 'публикаций'])}</li>
+            <li>{t('details.onPlatform', { since: formatSince(author.registeredAt) })}</li>
+            <li>{t('details.posts', { count: author.postsCount })}</li>
             <li className={author.warningsCount > 0 ? 'text-danger' : undefined}>
               {author.warningsCount > 0
-                ? pluralize(author.warningsCount, [
-                    'предупреждение',
-                    'предупреждения',
-                    'предупреждений',
-                  ])
-                : 'Без предупреждений'}
+                ? t('details.warnings', { count: author.warningsCount })
+                : t('details.noWarnings')}
             </li>
-            {author.status === 'blocked' ? <li className="text-danger">Заблокирован</li> : null}
+            {author.status === 'blocked' ? (
+              <li className="text-danger">{t('details.blocked')}</li>
+            ) : null}
           </ul>
         </section>
       </div>
