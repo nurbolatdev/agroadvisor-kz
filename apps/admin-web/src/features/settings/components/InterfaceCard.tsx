@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { usePeriodOptions } from '@/shared/hooks/usePeriodOptions'
@@ -18,33 +19,30 @@ export function InterfaceCard({
   onPeriodChange,
 }: InterfaceCardProps) {
   const periodOptions = usePeriodOptions()
+  const { t } = useTranslation('settings', { keyPrefix: 'interface' })
   return (
     <Card>
-      <CardHeader title="Интерфейс" subtitle="Язык и период, с которого открывается аналитика" />
+      <CardHeader title={t('title')} subtitle={t('subtitle')} />
       <div className="flex flex-col gap-5">
         <div>
-          <p className="mb-2 text-small font-medium text-text">Язык</p>
+          <p className="mb-2 text-small font-medium text-text">{t('language')}</p>
           <SegmentedControl
-            label="Язык интерфейса"
+            label={t('languageLabel')}
             options={LANGUAGE_OPTIONS}
             value={language}
             onChange={onLanguageChange}
           />
-          <p className="mt-1.5 text-caption font-normal text-text-muted">
-            Тот же выбор, что в меню. Переводы kk и en подключаются после v0.1.0.
-          </p>
+          <p className="mt-1.5 text-caption font-normal text-text-muted">{t('languageHint')}</p>
         </div>
         <div>
-          <p className="mb-2 text-small font-medium text-text">Период по умолчанию</p>
+          <p className="mb-2 text-small font-medium text-text">{t('period')}</p>
           <SegmentedControl
-            label="Период по умолчанию"
+            label={t('period')}
             options={periodOptions}
             value={defaultPeriod}
             onChange={onPeriodChange}
           />
-          <p className="mt-1.5 text-caption font-normal text-text-muted">
-            С него открываются Обзор, Качество ИИ и Сообщество.
-          </p>
+          <p className="mt-1.5 text-caption font-normal text-text-muted">{t('periodHint')}</p>
         </div>
       </div>
     </Card>
