@@ -8,7 +8,11 @@ const format: Translation<typeof ru> = {
   yesterday: 'yesterday',
   todayAt: 'today {{time}}',
   yesterdayAt: 'yesterday {{time}}',
-  since: 'since {{date}}',
+  since: 'since {{month}} {{year}}',
+  shortDate: '{{month}} {{day}}',
+  monthsShort: 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec',
+  monthsSince:
+    'January,February,March,April,May,June,July,August,September,October,November,December',
   minutes: '{{minutes}} min',
   hours: '{{hours}} h',
   hoursMinutes: '{{hours}} h {{minutes}} min',

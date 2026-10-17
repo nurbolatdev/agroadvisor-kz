@@ -33,27 +33,23 @@ function intl<T extends Intl.NumberFormat | Intl.DateTimeFormat>(
 /** 3860 → "3 860" (ru, kk) or "3,860" (en). */
 export const formatNumber = (value: number) => intl<Intl.NumberFormat>('number').format(value)
 
-/** "24 сент", "24 қыр", "Sep 24" — without the trailing dot of abbreviated months. */
-export const formatShortDate = (date: IsoDateTime | Date) =>
-  intl<Intl.DateTimeFormat>('date', { day: 'numeric', month: 'short' })
-    .format(new Date(date))
-    .replace('.', '')
+const month = (list: 'monthsShort' | 'monthsSince', date: Date) =>
+  t(list).split(',')[date.getMonth()]
+
+/** "24 сент", "24 қыр", "Sep 24". */
+export const formatShortDate = (date: IsoDateTime | Date) => {
+  const value = new Date(date)
+  return t('shortDate', { day: value.getDate(), month: month('monthsShort', value) })
+}
 
 /** "14:02" (en: "02:02 PM"). */
 export const formatTime = (date: IsoDateTime | Date) =>
   intl<Intl.DateTimeFormat>('date', { hour: '2-digit', minute: '2-digit' }).format(new Date(date))
 
-/** "с мая 2026", "2026 ж. мамыр бастап", "since May 2026". */
+/** "с мая 2026", "2026 ж. мамыр айынан бастап", "since May 2026". */
 export function formatSince(date: IsoDateTime | Date) {
   const value = new Date(date)
-  // Russian needs the genitive month after "с"; Intl gives it only together with the day.
-  const monthYear =
-    language() === 'ru'
-      ? `${intl<Intl.DateTimeFormat>('date', { day: 'numeric', month: 'long' })
-          .format(value)
-          .replace(/^\d+\s/, '')} ${value.getFullYear()}`
-      : intl<Intl.DateTimeFormat>('date', { month: 'long', year: 'numeric' }).format(value)
-  return t('since', { date: monthYear })
+  return t('since', { month: month('monthsSince', value), year: value.getFullYear() })
 }
 
 /** "сегодня 14:02", "вчера 09:15" or a short date. */

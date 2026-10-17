@@ -20,5 +20,8 @@ export const resources = {
 
 export const defaultNS = 'common'
 
-/** `Intl` locale for each interface language. */
-export const INTL_LOCALES = { ru: 'ru-RU', kk: 'kk-KZ', en: 'en-US' } as const
+/**
+ * `Intl` locale for numbers and times. Browsers report `kk-KZ` as supported but format it
+ * as "3,860.5" and "M09"; Kazakh shares Russian separators and the 24-hour clock.
+ */
+export const INTL_LOCALES = { ru: 'ru-RU', kk: 'ru-RU', en: 'en-US' } as const
