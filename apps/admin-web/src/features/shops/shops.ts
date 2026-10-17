@@ -1,19 +1,20 @@
 import type { BadgeTone } from '@/components/ui/Badge'
 import type { Shop, ShopCategory, ShopRequestType } from '@/shared/types'
 
-export const SHOP_CATEGORIES: Record<ShopCategory, string> = {
-  fungicides: 'Фунгициды',
-  insecticides: 'Инсектициды',
-  herbicides: 'Гербициды',
-  fertilizers: 'Удобрения',
-  seeds: 'Семена',
-  equipment: 'Инвентарь',
-}
+/** Order of the category chips; labels are in the `shops` translations. */
+export const SHOP_CATEGORIES: ShopCategory[] = [
+  'fungicides',
+  'insecticides',
+  'herbicides',
+  'fertilizers',
+  'seeds',
+  'equipment',
+]
 
-export const REQUEST_TYPES: Record<ShopRequestType, { label: string; tone: BadgeTone }> = {
-  new_shop: { label: 'Новый магазин', tone: 'info' },
-  wrong_info: { label: 'Ошибка в данных', tone: 'warning' },
-  closed: { label: 'Магазин закрыт', tone: 'danger' },
+export const REQUEST_TYPE_TONES: Record<ShopRequestType, BadgeTone> = {
+  new_shop: 'info',
+  wrong_info: 'warning',
+  closed: 'danger',
 }
 
 /** Links that open the shop in external navigators, built from coordinates. */

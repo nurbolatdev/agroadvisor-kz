@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { THRESHOLD_RANGE } from '@/shared/settings/settings'
@@ -10,11 +11,12 @@ interface AiModelCardProps {
 }
 
 export function AiModelCard({ value, onChange, error }: AiModelCardProps) {
+  const { t } = useTranslation('settings', { keyPrefix: 'aiModel' })
   return (
     <Card>
-      <CardHeader title="Модель ИИ" subtitle="Когда диагноз считается неуверенным" />
+      <CardHeader title={t('title')} subtitle={t('subtitle')} />
       <Input
-        label="Порог уверенности, %"
+        label={t('threshold')}
         type="number"
         inputMode="numeric"
         min={THRESHOLD_RANGE.min}
@@ -25,10 +27,7 @@ export function AiModelCard({ value, onChange, error }: AiModelCardProps) {
         error={error}
         containerClassName="max-w-48"
       />
-      <p className="mt-3 text-small text-text-muted">
-        Диагнозы ниже порога считаются неуверенными: фермеру предлагается спросить агрохимика. Порог
-        используется в гистограмме «Качество ИИ» и в KPI «Неуверенных» на Обзоре.
-      </p>
+      <p className="mt-3 text-small text-text-muted">{t('hint')}</p>
     </Card>
   )
 }

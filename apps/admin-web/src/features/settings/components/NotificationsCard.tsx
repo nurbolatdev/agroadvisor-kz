@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Switch } from '@/components/ui/Switch'
 import type { AdminSettings } from '@/shared/settings/settings'
@@ -9,37 +10,26 @@ interface NotificationsCardProps {
   onChange: (value: Notifications) => void
 }
 
-const ITEMS: { key: keyof Notifications; label: string; description: string }[] = [
-  { key: 'complaints', label: 'Новые жалобы', description: 'На посты и ответы в сообществе' },
-  {
-    key: 'verifications',
-    label: 'Заявки агрохимиков на верификацию',
-    description: 'Новые дипломы и сертификаты',
-  },
-  {
-    key: 'shopRequests',
-    label: 'Заявки по агромагазинам',
-    description: 'Новые магазины и ошибки в данных',
-  },
-  {
-    key: 'weeklyReport',
-    label: 'Еженедельный отчёт на email',
-    description: 'Сводка по понедельникам',
-  },
+const ITEMS: (keyof Notifications)[] = [
+  'complaints',
+  'verifications',
+  'shopRequests',
+  'weeklyReport',
 ]
 
 export function NotificationsCard({ value, onChange }: NotificationsCardProps) {
+  const { t } = useTranslation('settings', { keyPrefix: 'notifications' })
   return (
     <Card>
-      <CardHeader title="Уведомления" subtitle="О чём сообщать администратору" />
+      <CardHeader title={t('title')} subtitle={t('subtitle')} />
       <div className="divide-y divide-border">
-        {ITEMS.map((item) => (
+        {ITEMS.map((key) => (
           <Switch
-            key={item.key}
-            label={item.label}
-            description={item.description}
-            checked={value[item.key]}
-            onChange={(checked) => onChange({ ...value, [item.key]: checked })}
+            key={key}
+            label={t(`items.${key}.label`)}
+            description={t(`items.${key}.description`)}
+            checked={value[key]}
+            onChange={(checked) => onChange({ ...value, [key]: checked })}
           />
         ))}
       </div>

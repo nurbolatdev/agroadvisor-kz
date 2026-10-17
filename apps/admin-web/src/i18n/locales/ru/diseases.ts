@@ -1,0 +1,45 @@
+const diseases = {
+  title: 'Болезни и препараты',
+  subtitle: 'Справочник для MVP-культур',
+  summary: 'Справочник для MVP-культур · {{entries}}',
+  entries_one: '{{count}} запись',
+  entries_few: '{{count}} записи',
+  entries_many: '{{count}} записей',
+  entries_other: '{{count}} записи',
+  searchLabel: 'Поиск болезни',
+  searchPlaceholder: 'Название или латынь',
+  cropFilter: 'Культура',
+  allCrops: 'Все культуры',
+  notFound: 'Ничего не найдено',
+  notFoundDescription: 'Попробуйте другое название или выберите все культуры.',
+  more: 'Подробнее',
+  kinds: {
+    fungal: 'Грибное',
+    bacterial: 'Бактериальное',
+    viral: 'Вирусное',
+    pest: 'Вредитель',
+  },
+  severities: {
+    high: 'Высокая опасность',
+    medium: 'Средняя опасность',
+    low: 'Низкая опасность',
+  },
+  detail: {
+    back: 'Все болезни',
+    missing: 'Болезнь не найдена',
+    missingDescription: 'Возможно, запись удалили или в адресе опечатка.',
+    symptoms: 'Симптомы',
+    conditions: 'Условия развития',
+    chemical: 'Химическая защита',
+    chemicalNote: 'Нормы демонстрационные — сверяйтесь с инструкцией препарата',
+    biological: 'Биологическая защита',
+    prevention: 'Профилактика',
+  },
+  treatments: {
+    product: 'Препарат',
+    ingredient: 'Действующее вещество',
+    dosage: 'Норма',
+  },
+}
+
+export default diseases

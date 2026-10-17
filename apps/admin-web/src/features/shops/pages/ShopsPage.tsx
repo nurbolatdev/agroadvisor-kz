@@ -1,5 +1,6 @@
 import { Inbox, Plus } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -22,6 +23,7 @@ import { notifyDataChanged } from '@/shared/utils/dataEvents'
 type Tab = 'directory' | 'requests'
 
 export function ShopsPage() {
+  const { t } = useTranslation(['shops', 'common'])
   const [filters, setFilters] = useState<ShopFilterValue>({
     search: '',
     district: '',
@@ -69,7 +71,7 @@ export function ShopsPage() {
       await api.resolveShopRequest(request.id, status)
       refresh()
     } catch (reason) {
-      setRequestError(reason instanceof Error ? reason.message : 'Не удалось обработать заявку')
+      setRequestError(reason instanceof Error ? reason.message : t('requests.error'))
     } finally {
       setBusyRequestId(undefined)
     }
@@ -93,31 +95,34 @@ export function ShopsPage() {
   return (
     <>
       <PageHeader
-        title="Агромагазины"
-        subtitle="Справочник магазинов, к которым фермеры строят маршрут в 2GIS и Yandex Maps"
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <Button icon={Plus} onClick={() => setFormTarget({})}>
-            Добавить магазин
+            {t('add')}
           </Button>
         }
       />
       <div className="flex flex-col gap-4">
         <ShopKpis stats={stats.data} />
         <SegmentedControl
-          label="Раздел"
+          label={t('tabs.label')}
           value={tab}
           onChange={(next) => {
             setTab(next)
             requestPages.resetPage()
           }}
           options={[
-            { value: 'directory', label: 'Справочник' },
-            { value: 'requests', label: pending ? `Заявки · ${pending}` : 'Заявки' },
+            { value: 'directory', label: t('tabs.directory') },
+            {
+              value: 'requests',
+              label: pending ? t('tabs.requestsCount', { count: pending }) : t('tabs.requests'),
+            },
           ]}
           className="self-start"
         />
         {tab === 'requests' ? (
-          <section aria-label="Заявки фермеров" className="flex max-w-3xl flex-col gap-3">
+          <section aria-label={t('requests.label')} className="flex max-w-3xl flex-col gap-3">
             {requestError ? (
               <p role="alert" className="text-small text-danger">
                 {requestError}
@@ -129,8 +134,8 @@ export function ShopsPage() {
               <Card>
                 <EmptyState
                   icon={Inbox}
-                  title="Новых заявок нет"
-                  description="Здесь появятся заявки фермеров: новые магазины, ошибки в данных и закрытые магазины."
+                  title={t('requests.empty')}
+                  description={t('requests.emptyDescription')}
                 />
               </Card>
             ) : (
@@ -155,7 +160,7 @@ export function ShopsPage() {
           </section>
         ) : (
           <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,640fr)_minmax(0,312fr)]">
-            <section aria-label="Справочник" className="flex min-w-0 flex-col gap-3">
+            <section aria-label={t('tabs.directory')} className="flex min-w-0 flex-col gap-3">
               <ShopFilters
                 value={filters}
                 onChange={(next) => {
@@ -168,7 +173,7 @@ export function ShopsPage() {
                   shops={shops.data}
                   page={tablePage.page}
                   onPageChange={tablePage.setPage}
-                  empty="Магазинов не найдено"
+                  empty={t('table.empty')}
                   extraColumns={[
                     {
                       key: 'edit',
@@ -176,7 +181,7 @@ export function ShopsPage() {
                       align: 'right',
                       render: (shop) => (
                         <Button size="sm" variant="ghost" onClick={() => setFormTarget({ shop })}>
-                          Изменить
+                          {t('common:actions.edit')}
                         </Button>
                       ),
                     },

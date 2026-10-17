@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Card, CardHeader } from '@/components/ui/Card'
@@ -12,24 +13,26 @@ interface ProfileCardProps {
 const ADMIN_EMAIL = 'admin@agroadvisor.kz'
 
 export function ProfileCard({ name, onNameChange, error }: ProfileCardProps) {
+  const { t } = useTranslation(['settings', 'common'])
+  const shownName = name.trim() || t('profile.noName')
   return (
     <Card>
-      <CardHeader title="Профиль" subtitle="Как вас видят другие администраторы" />
+      <CardHeader title={t('profile.title')} subtitle={t('profile.subtitle')} />
       <div className="mb-4 flex items-center gap-3">
-        <Avatar name={name.trim() || 'А'} size="md" />
+        <Avatar name={shownName} size="md" />
         <div>
-          <p className="font-semibold text-text">{name.trim() || 'Без имени'}</p>
-          <Badge tone="success">Администратор</Badge>
+          <p className="font-semibold text-text">{shownName}</p>
+          <Badge tone="success">{t('common:role.admin')}</Badge>
         </div>
       </div>
       <div className="flex flex-col gap-4">
         <Input
-          label="Имя"
+          label={t('profile.name')}
           value={name}
           onChange={(event) => onNameChange(event.target.value)}
           error={error}
         />
-        <Input label="Email" value={ADMIN_EMAIL} readOnly disabled />
+        <Input label={t('profile.email')} value={ADMIN_EMAIL} readOnly disabled />
       </div>
     </Card>
   )

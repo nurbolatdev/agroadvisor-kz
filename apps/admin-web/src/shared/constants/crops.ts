@@ -1,10 +1,4 @@
 import type { CropId } from '@/shared/types'
 
-export const CROP_LABELS: Record<CropId, string> = {
-  potato: 'Картофель',
-  tomato: 'Томат',
-  corn: 'Кукуруза',
-  wheat: 'Пшеница',
-}
-
-export const CROP_IDS = Object.keys(CROP_LABELS) as CropId[]
+/** MVP crops in display order; names are in the `common.crops` translations. */
+export const CROP_IDS: CropId[] = ['potato', 'tomato', 'corn', 'wheat']
