@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react'
 import { forwardRef, type InputHTMLAttributes } from 'react'
+import { useTranslation } from 'react-i18next'
 import { fieldClasses } from '@/components/ui/fieldClasses'
 import { cn } from '@/shared/utils/cn'
 
@@ -10,9 +11,10 @@ export interface SearchBarProps extends Omit<InputHTMLAttributes<HTMLInputElemen
 }
 
 export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(function SearchBar(
-  { label = 'Поиск', placeholder = 'Поиск', className, containerClassName, ...props },
+  { label, placeholder, className, containerClassName, ...props },
   ref,
 ) {
+  const { t } = useTranslation('ui')
   return (
     <div role="search" className={cn('relative', containerClassName)}>
       <Search
@@ -24,8 +26,8 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(function S
       <input
         ref={ref}
         type="search"
-        aria-label={label}
-        placeholder={placeholder}
+        aria-label={label ?? t('search')}
+        placeholder={placeholder ?? t('search')}
         className={cn(fieldClasses(false), 'h-12 pl-12', className)}
         {...props}
       />

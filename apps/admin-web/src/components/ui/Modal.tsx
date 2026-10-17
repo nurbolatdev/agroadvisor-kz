@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import { type ReactNode, useEffect, useId, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/ui/Card'
 import { cn } from '@/shared/utils/cn'
 
@@ -17,6 +18,7 @@ export interface ModalProps {
  * Built on the native <dialog>: the browser handles the top layer, focus trapping and Esc.
  */
 export function Modal({ open, onClose, title, children, footer, className }: ModalProps) {
+  const { t } = useTranslation()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const titleId = useId()
 
@@ -52,7 +54,7 @@ export function Modal({ open, onClose, title, children, footer, className }: Mod
           </h2>
           <button
             type="button"
-            aria-label="Закрыть"
+            aria-label={t('actions.close')}
             onClick={onClose}
             className="-m-2 flex size-10 shrink-0 items-center justify-center rounded-xl text-text-muted transition-colors hover:bg-bg hover:text-text focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
           >

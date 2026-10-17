@@ -1,4 +1,5 @@
 import { type Key, type ReactNode, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Pagination } from '@/components/ui/Pagination'
 import { cn } from '@/shared/utils/cn'
 
@@ -39,6 +40,7 @@ export function DataTable<T>({
   onPageChange,
   onPageSizeChange,
 }: DataTableProps<T>) {
+  const { t } = useTranslation()
   const [ownPage, setOwnPage] = useState(1)
   const [ownPageSize, setOwnPageSize] = useState(pageSizeProp ?? 10)
   const pageSize = onPageSizeChange ? (pageSizeProp ?? 10) : ownPageSize
@@ -79,7 +81,7 @@ export function DataTable<T>({
             {data.length === 0 ? (
               <tr className="border-t border-border">
                 <td colSpan={columns.length} className="px-4 py-8 text-center text-text-muted">
-                  {empty ?? 'Нет данных'}
+                  {empty ?? t('states.noData')}
                 </td>
               </tr>
             ) : (

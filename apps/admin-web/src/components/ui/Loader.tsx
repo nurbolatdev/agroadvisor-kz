@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import logo from '@/assets/brand/symbol-color.svg'
 import { cn } from '@/shared/utils/cn'
 
@@ -6,7 +7,8 @@ export interface LoaderProps {
   className?: string
 }
 
-export function Loader({ label = 'Загрузка…', className }: LoaderProps) {
+export function Loader({ label, className }: LoaderProps) {
+  const { t } = useTranslation()
   return (
     <div
       role="status"
@@ -14,7 +16,7 @@ export function Loader({ label = 'Загрузка…', className }: LoaderProps
       className={cn('flex flex-col items-center justify-center gap-3 py-12', className)}
     >
       <img src={logo} alt="" className="size-12 motion-safe:animate-pulse" />
-      <span className="text-small text-text-muted">{label}</span>
+      <span className="text-small text-text-muted">{label ?? t('states.loading')}</span>
     </div>
   )
 }
