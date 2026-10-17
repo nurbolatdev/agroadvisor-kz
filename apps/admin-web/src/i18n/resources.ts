@@ -1,3 +1,4 @@
+import enAgrochemists from '@/i18n/locales/en/agrochemists'
 import enAiQuality from '@/i18n/locales/en/aiQuality'
 import enCommon from '@/i18n/locales/en/common'
 import enCommunity from '@/i18n/locales/en/community'
@@ -6,6 +7,7 @@ import enFormat from '@/i18n/locales/en/format'
 import enLayout from '@/i18n/locales/en/layout'
 import enModeration from '@/i18n/locales/en/moderation'
 import enUi from '@/i18n/locales/en/ui'
+import kkAgrochemists from '@/i18n/locales/kk/agrochemists'
 import kkAiQuality from '@/i18n/locales/kk/aiQuality'
 import kkCommon from '@/i18n/locales/kk/common'
 import kkCommunity from '@/i18n/locales/kk/community'
@@ -14,6 +16,7 @@ import kkFormat from '@/i18n/locales/kk/format'
 import kkLayout from '@/i18n/locales/kk/layout'
 import kkModeration from '@/i18n/locales/kk/moderation'
 import kkUi from '@/i18n/locales/kk/ui'
+import ruAgrochemists from '@/i18n/locales/ru/agrochemists'
 import ruAiQuality from '@/i18n/locales/ru/aiQuality'
 import ruCommon from '@/i18n/locales/ru/common'
 import ruCommunity from '@/i18n/locales/ru/community'
@@ -26,6 +29,7 @@ import ruUi from '@/i18n/locales/ru/ui'
 /** Namespaces per language; Russian is the reference for keys and types. */
 export const resources = {
   ru: {
+    agrochemists: ruAgrochemists,
     aiQuality: ruAiQuality,
     common: ruCommon,
     community: ruCommunity,
@@ -36,6 +40,7 @@ export const resources = {
     ui: ruUi,
   },
   kk: {
+    agrochemists: kkAgrochemists,
     aiQuality: kkAiQuality,
     common: kkCommon,
     community: kkCommunity,
@@ -46,6 +51,7 @@ export const resources = {
     ui: kkUi,
   },
   en: {
+    agrochemists: enAgrochemists,
     aiQuality: enAiQuality,
     common: enCommon,
     community: enCommunity,
