@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Card, CardHeader } from '@/components/ui/Card'
 import type { AiMismatch } from '@/shared/types'
 import { formatNumber } from '@/shared/utils/format'
@@ -7,24 +8,22 @@ interface MismatchesCardProps {
 }
 
 export function MismatchesCard({ mismatches }: MismatchesCardProps) {
+  const { t } = useTranslation('aiQuality', { keyPrefix: 'mismatches' })
   return (
     <Card>
-      <CardHeader
-        title="Расхождения ИИ и экспертов"
-        subtitle="ИИ поставил один диагноз, эксперт подтвердил другой"
-      />
+      <CardHeader title={t('title')} subtitle={t('subtitle')} />
       <div className="overflow-x-auto">
         <table className="w-full text-left text-small">
           <thead className="text-caption font-normal text-text-muted">
             <tr>
               <th scope="col" className="pb-2 font-normal">
-                Диагноз ИИ
+                {t('aiLabel')}
               </th>
               <th scope="col" className="pb-2 font-normal">
-                Подтверждено
+                {t('confirmed')}
               </th>
               <th scope="col" className="pb-2 text-right font-normal">
-                Случаев
+                {t('cases')}
               </th>
             </tr>
           </thead>

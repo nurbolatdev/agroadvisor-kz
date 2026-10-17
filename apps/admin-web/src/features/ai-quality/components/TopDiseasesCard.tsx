@@ -1,6 +1,6 @@
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Card, CardHeader } from '@/components/ui/Card'
-import { PERIOD_SUFFIX } from '@/shared/constants/periods'
 import { getDiseaseDetailPath } from '@/shared/constants/routes'
 import type { StatsPeriod, TopDisease } from '@/shared/types'
 import { formatNumber } from '@/shared/utils/format'
@@ -11,11 +11,15 @@ interface TopDiseasesCardProps {
 }
 
 export function TopDiseasesCard({ diseases, period }: TopDiseasesCardProps) {
+  const { t } = useTranslation(['aiQuality', 'common'])
   const max = Math.max(...diseases.map((disease) => disease.count), 1)
 
   return (
     <Card>
-      <CardHeader title="Топ болезней" subtitle={`число диагнозов ${PERIOD_SUFFIX[period]}`} />
+      <CardHeader
+        title={t('topDiseases.title')}
+        subtitle={t('topDiseases.subtitle', { period: t(`common:periodSuffix.${period}`) })}
+      />
       <ul className="flex flex-col gap-2.5">
         {diseases.map((disease) => {
           const content = (
@@ -37,7 +41,7 @@ export function TopDiseasesCard({ diseases, period }: TopDiseasesCardProps) {
               {disease.diseaseId ? (
                 <Link
                   to={getDiseaseDetailPath(disease.diseaseId)}
-                  title="Открыть в справочнике"
+                  title={t('topDiseases.openInCatalog')}
                   className="block rounded-md hover:[&_span.truncate]:text-primary hover:[&_span.truncate]:underline focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
                 >
                   {content}

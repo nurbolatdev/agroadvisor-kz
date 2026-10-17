@@ -1,5 +1,6 @@
 import { RefreshCw, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -12,14 +13,16 @@ import { QaActivityChart } from '@/features/community/components/QaActivityChart
 import { TopMembersCard } from '@/features/community/components/TopMembersCard'
 import { UnansweredCard } from '@/features/community/components/UnansweredCard'
 import { api } from '@/services/api'
-import { PERIOD_OPTIONS } from '@/shared/constants/periods'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
+import { usePeriodOptions } from '@/shared/hooks/usePeriodOptions'
 import { useSettings } from '@/shared/settings/settingsContext'
 import type { StatsPeriod } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
 
 export function CommunityPage() {
   const { settings } = useSettings()
+  const periodOptions = usePeriodOptions()
+  const { t } = useTranslation(['community', 'common'])
   const [period, setPeriod] = useState<StatsPeriod>(settings.defaultPeriod)
   const { data, error, isLoading, reload } = useApiQuery(
     () => api.getCommunityStats(period),
@@ -29,12 +32,12 @@ export function CommunityPage() {
   return (
     <>
       <PageHeader
-        title="Сообщество"
-        subtitle="Активность сообщества фермеров и консультаций агрохимиков"
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <SegmentedControl
-            label="Период"
-            options={PERIOD_OPTIONS}
+            label={t('common:period')}
+            options={periodOptions}
             value={period}
             onChange={setPeriod}
           />
@@ -45,11 +48,11 @@ export function CommunityPage() {
         <Card>
           <EmptyState
             icon={TriangleAlert}
-            title="Не удалось загрузить данные"
+            title={t('common:states.loadError')}
             description={error.message}
             action={
               <Button size="sm" variant="secondary" icon={RefreshCw} onClick={reload}>
-                Повторить
+                {t('common:actions.retry')}
               </Button>
             }
           />

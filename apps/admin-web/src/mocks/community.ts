@@ -81,8 +81,12 @@ const members = (answers: number[]): PeriodStats['topMembers'] => [
   { name: 'Болат Мусин', role: 'farmer', answers: answers[3] },
 ]
 
-const activity = (labels: string[], questions: number[], answers: number[]) =>
-  labels.map((label, index) => ({ label, questions: questions[index], answers: answers[index] }))
+const activity = (first: number, questions: number[], answers: number[]) =>
+  questions.map((count, index) => ({
+    bucket: first + index,
+    questions: count,
+    answers: answers[index],
+  }))
 
 export const mockCommunityStats: Record<StatsPeriod, PeriodStats> = {
   '7d': {
@@ -91,11 +95,7 @@ export const mockCommunityStats: Record<StatsPeriod, PeriodStats> = {
     firstAnswerMinutes: { value: 150, changeMinutes: -15 },
     resolvedShare: { percent: 66, changePoints: 2 },
     unansweredOver24h: UNANSWERED,
-    activity: activity(
-      ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
-      [11, 13, 12, 15, 14, 16, 17],
-      [25, 30, 27, 35, 33, 38, 41],
-    ),
+    activity: activity(0, [11, 13, 12, 15, 14, 16, 17], [25, 30, 27, 35, 33, 38, 41]),
     topMembers: members([18, 14, 9, 7]),
     consultations: { requests: 44, closed: 40, avgResponseMinutes: 35, avgRating: 4.8 },
   },
@@ -105,11 +105,7 @@ export const mockCommunityStats: Record<StatsPeriod, PeriodStats> = {
     firstAnswerMinutes: { value: 135, changeMinutes: -40 },
     resolvedShare: { percent: 68, changePoints: 6 },
     unansweredOver24h: UNANSWERED,
-    activity: activity(
-      ['1 нед', '2 нед', '3 нед', '4 нед'],
-      [84, 92, 104, 132],
-      [196, 228, 251, 297],
-    ),
+    activity: activity(1, [84, 92, 104, 132], [196, 228, 251, 297]),
     topMembers: members([64, 51, 33, 27]),
     consultations: { requests: 186, closed: 171, avgResponseMinutes: 38, avgRating: 4.7 },
   },
@@ -119,11 +115,7 @@ export const mockCommunityStats: Record<StatsPeriod, PeriodStats> = {
     firstAnswerMinutes: { value: 160, changeMinutes: -55 },
     resolvedShare: { percent: 63, changePoints: 11 },
     unansweredOver24h: UNANSWERED,
-    activity: activity(
-      ['Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен'],
-      [150, 260, 330, 360, 340, 420],
-      [330, 610, 790, 860, 820, 1010],
-    ),
+    activity: activity(3, [150, 260, 330, 360, 340, 420], [330, 610, 790, 860, 820, 1010]),
     topMembers: members([280, 231, 140, 118]),
     consultations: { requests: 812, closed: 779, avgResponseMinutes: 41, avgRating: 4.6 },
   },

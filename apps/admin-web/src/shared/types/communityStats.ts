@@ -20,8 +20,11 @@ export interface CommunityStats {
   resolvedShare: { percent: number; changePoints: number }
   /** Current number of questions without an answer for more than 24 hours. */
   unansweredOver24h: { value: number; change: number }
-  /** Questions and answers per bucket: days for 7 days, weeks for 30 days, months for the season. */
-  activity: { label: string; questions: number; answers: number }[]
+  /**
+   * Questions and answers per bucket: weekdays (0 = Monday) for 7 days, weeks (number from 1)
+   * for 30 days, months (0 = January) for the season.
+   */
+  activity: { bucket: number; questions: number; answers: number }[]
   topMembers: { name: string; role: UserRole; answers: number }[]
   unanswered: UnansweredQuestion[]
   consultations: { requests: number; closed: number; avgResponseMinutes: number; avgRating: number }

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { StatCard } from '@/components/ui/StatCard'
 import type { OverviewStats } from '@/shared/types'
 import { formatNumber, formatSigned } from '@/shared/utils/format'
@@ -9,6 +10,7 @@ interface OverviewKpisProps {
 }
 
 export function OverviewKpis({ stats, threshold }: OverviewKpisProps) {
+  const { t } = useTranslation('dashboard', { keyPrefix: 'kpi' })
   const {
     activeUsers,
     diagnoses,
@@ -21,39 +23,39 @@ export function OverviewKpis({ stats, threshold }: OverviewKpisProps) {
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
       <StatCard
-        label="Активные пользователи"
+        label={t('activeUsers')}
         value={formatNumber(activeUsers.value)}
-        change={`${formatSigned(activeUsers.changePercent)}% к прошлому периоду`}
+        change={t('vsPrevious', { change: formatSigned(activeUsers.changePercent) })}
         trend={activeUsers.changePercent >= 0 ? 'good' : 'bad'}
       />
       <StatCard
-        label="Диагнозов"
+        label={t('diagnoses')}
         value={formatNumber(diagnoses.value)}
         change={`${formatSigned(diagnoses.changePercent)}%`}
         trend={diagnoses.changePercent >= 0 ? 'good' : 'bad'}
       />
       <StatCard
-        label="Средняя уверенность"
+        label={t('avgConfidence')}
         value={`${avgConfidence.percent}%`}
-        change={`${formatSigned(avgConfidence.changePoints)} п. п.`}
+        change={t('points', { change: formatSigned(avgConfidence.changePoints) })}
         trend={avgConfidence.changePoints >= 0 ? 'good' : 'bad'}
       />
       <StatCard
-        label={`Неуверенных (<${threshold}%)`}
+        label={t('lowConfidence', { threshold })}
         value={`${lowConfidenceShare.percent}%`}
-        change={`${formatSigned(lowConfidenceShare.changePoints)} п. п.`}
+        change={t('points', { change: formatSigned(lowConfidenceShare.changePoints) })}
         trend={lowConfidenceShare.changePoints <= 0 ? 'good' : 'bad'}
       />
       <StatCard
-        label="Открытые жалобы"
+        label={t('openComplaints')}
         value={formatNumber(openComplaints.value)}
-        change={`${formatSigned(openComplaints.changeToday)} за сутки`}
+        change={t('perDay', { change: formatSigned(openComplaints.changeToday) })}
         trend={openComplaints.changeToday > 0 ? 'bad' : 'good'}
       />
       <StatCard
-        label="На верификации"
+        label={t('pendingVerifications')}
         value={formatNumber(pendingVerifications)}
-        change={pendingVerifications > 0 ? 'нужно действие' : 'все проверены'}
+        change={pendingVerifications > 0 ? t('actionNeeded') : t('allVerified')}
         trend={pendingVerifications > 0 ? 'bad' : 'good'}
       />
     </div>

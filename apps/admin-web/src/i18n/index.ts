@@ -12,4 +12,9 @@ i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 })
 
+// "{{period, capitalize}}" — for languages where an inserted phrase starts the sentence.
+i18n.services.formatter?.add('capitalize', (value: string) =>
+  value ? value.charAt(0).toLocaleUpperCase() + value.slice(1) : value,
+)
+
 export default i18n

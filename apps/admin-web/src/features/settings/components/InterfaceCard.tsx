@@ -1,6 +1,6 @@
 import { Card, CardHeader } from '@/components/ui/Card'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { PERIOD_OPTIONS } from '@/shared/constants/periods'
+import { usePeriodOptions } from '@/shared/hooks/usePeriodOptions'
 import { type Language, LANGUAGE_OPTIONS } from '@/shared/settings/settings'
 import type { StatsPeriod } from '@/shared/types'
 
@@ -17,6 +17,7 @@ export function InterfaceCard({
   onLanguageChange,
   onPeriodChange,
 }: InterfaceCardProps) {
+  const periodOptions = usePeriodOptions()
   return (
     <Card>
       <CardHeader title="Интерфейс" subtitle="Язык и период, с которого открывается аналитика" />
@@ -37,7 +38,7 @@ export function InterfaceCard({
           <p className="mb-2 text-small font-medium text-text">Период по умолчанию</p>
           <SegmentedControl
             label="Период по умолчанию"
-            options={PERIOD_OPTIONS}
+            options={periodOptions}
             value={defaultPeriod}
             onChange={onPeriodChange}
           />

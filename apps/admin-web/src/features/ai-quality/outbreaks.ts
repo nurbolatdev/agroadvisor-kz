@@ -20,19 +20,16 @@ export function districtLevel(outbreaks: DistrictOutbreak[], districtId: string)
     .reduce<OutbreakLevel>((max, level) => (RANK[level] > RANK[max] ? level : max), 'calm')
 }
 
-export const LEVELS: Record<OutbreakLevel, { label: string; tone: BadgeTone; shape: string }> = {
+export const LEVELS: Record<OutbreakLevel, { tone: BadgeTone; shape: string }> = {
   outbreak: {
-    label: 'вспышка',
     tone: 'danger',
     shape: 'fill-danger-soft stroke-danger [&+text]:fill-danger',
   },
   growth: {
-    label: 'рост',
     tone: 'warning',
     shape: 'fill-warning-soft stroke-warning [&+text]:fill-warning-strong',
   },
   calm: {
-    label: 'спокойно',
     tone: 'neutral',
     shape: 'fill-primary-soft stroke-primary [&+text]:fill-primary-dark',
   },
