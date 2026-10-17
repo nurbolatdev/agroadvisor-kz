@@ -10,54 +10,67 @@ import {
   User,
   Users,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router-dom'
 import { BrandLink } from '@/layouts/BrandLink'
 import { LanguageSwitcher } from '@/layouts/LanguageSwitcher'
 import type { SidebarBadges } from '@/layouts/useSidebarCounters'
 import { ROUTES } from '@/shared/constants/routes'
 
+type NavKey =
+  | 'dashboard'
+  | 'aiQuality'
+  | 'community'
+  | 'moderation'
+  | 'verification'
+  | 'users'
+  | 'shops'
+  | 'diseases'
+  | 'settings'
+
 interface NavItem {
-  label: string
+  labelKey: NavKey
   icon: LucideIcon
   to: string
   badge?: number
 }
 
 interface NavSection {
-  title: string
+  titleKey: 'analytics' | 'management'
   items: NavItem[]
 }
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    title: 'Аналитика',
+    titleKey: 'analytics',
     items: [
-      { label: 'Обзор', icon: LayoutGrid, to: ROUTES.dashboard },
-      { label: 'Качество ИИ', icon: Cpu, to: ROUTES.aiQuality },
-      { label: 'Сообщество', icon: Users, to: ROUTES.community },
+      { labelKey: 'dashboard', icon: LayoutGrid, to: ROUTES.dashboard },
+      { labelKey: 'aiQuality', icon: Cpu, to: ROUTES.aiQuality },
+      { labelKey: 'community', icon: Users, to: ROUTES.community },
     ],
   },
   {
-    title: 'Управление',
+    titleKey: 'management',
     items: [
-      { label: 'Модерация', icon: Flag, to: ROUTES.moderation },
-      { label: 'Верификация', icon: ShieldCheck, to: ROUTES.verification },
-      { label: 'Пользователи', icon: User, to: ROUTES.users },
-      { label: 'Агромагазины', icon: Store, to: ROUTES.shops },
-      { label: 'Болезни и препараты', icon: Leaf, to: ROUTES.diseases },
+      { labelKey: 'moderation', icon: Flag, to: ROUTES.moderation },
+      { labelKey: 'verification', icon: ShieldCheck, to: ROUTES.verification },
+      { labelKey: 'users', icon: User, to: ROUTES.users },
+      { labelKey: 'shops', icon: Store, to: ROUTES.shops },
+      { labelKey: 'diseases', icon: Leaf, to: ROUTES.diseases },
     ],
   },
 ]
 
-const SETTINGS_ITEM: NavItem = { label: 'Настройки', icon: Settings, to: ROUTES.settings }
+const SETTINGS_ITEM: NavItem = { labelKey: 'settings', icon: Settings, to: ROUTES.settings }
 
 function SidebarLink({
-  label,
+  labelKey,
   icon: Icon,
   to,
   badge,
   onNavigate,
 }: NavItem & { onNavigate?: () => void }) {
+  const { t } = useTranslation('layout')
   return (
     <NavLink
       to={to}
@@ -70,11 +83,11 @@ function SidebarLink({
       }
     >
       <Icon size={20} strokeWidth={2} aria-hidden="true" className="shrink-0" />
-      <span className="flex-1 whitespace-nowrap">{label}</span>
+      <span className="flex-1 whitespace-nowrap">{t(`nav.${labelKey}`)}</span>
       {badge ? (
         <span className="flex size-5 items-center justify-center rounded-full bg-danger text-xs font-bold text-white">
           {badge}
-          <span className="sr-only"> новых</span>
+          <span className="sr-only"> {t('nav.newItems')}</span>
         </span>
       ) : null}
     </NavLink>
@@ -89,15 +102,16 @@ interface SidebarNavProps {
 
 /** Menu content shared by the desktop sidebar and the mobile drawer. */
 export function SidebarNav({ badges, onNavigate }: SidebarNavProps) {
+  const { t } = useTranslation('layout')
   return (
     <>
       <BrandLink onNavigate={onNavigate} />
 
-      <nav aria-label="Основная навигация" className="mt-3 flex flex-1 flex-col overflow-y-auto">
+      <nav aria-label={t('nav.label')} className="mt-3 flex flex-1 flex-col overflow-y-auto">
         {NAV_SECTIONS.map((section) => (
-          <div key={section.title} className="mt-3">
+          <div key={t(`nav.groups.${section.titleKey}`)} className="mt-3">
             <p className="mb-1 px-3 text-xs tracking-[0.04em] text-text-muted uppercase">
-              {section.title}
+              {t(`nav.groups.${section.titleKey}`)}
             </p>
             <ul className="flex flex-col">
               {section.items.map((item) => (

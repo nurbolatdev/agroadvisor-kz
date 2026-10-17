@@ -1,5 +1,6 @@
 import { Menu, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { BrandLink } from '@/layouts/BrandLink'
 import { SidebarNav } from '@/layouts/SidebarNav'
 import type { SidebarBadges } from '@/layouts/useSidebarCounters'
@@ -13,6 +14,7 @@ interface MobileMenuProps {
  * sliding over the content on a glass surface, so focus trapping and Esc come for free.
  */
 export function MobileMenu({ badges }: MobileMenuProps) {
+  const { t } = useTranslation('layout')
   const [open, setOpen] = useState(false)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const menuId = useId()
@@ -32,7 +34,7 @@ export function MobileMenu({ badges }: MobileMenuProps) {
         <BrandLink />
         <button
           type="button"
-          aria-label="Открыть меню"
+          aria-label={t('menu.open')}
           aria-expanded={open}
           aria-controls={menuId}
           onClick={() => setOpen(true)}
@@ -41,7 +43,7 @@ export function MobileMenu({ badges }: MobileMenuProps) {
           <Menu size={24} aria-hidden="true" />
           {hasCounters ? (
             <span className="absolute top-2.5 right-2.5 size-2.5 rounded-full bg-danger ring-2 ring-white">
-              <span className="sr-only">Есть новые задачи</span>
+              <span className="sr-only">{t('menu.hasTasks')}</span>
             </span>
           ) : null}
         </button>
@@ -50,7 +52,7 @@ export function MobileMenu({ badges }: MobileMenuProps) {
       <dialog
         ref={dialogRef}
         id={menuId}
-        aria-label="Меню"
+        aria-label={t('menu.title')}
         onCancel={(event) => {
           event.preventDefault()
           close()
@@ -63,7 +65,7 @@ export function MobileMenu({ badges }: MobileMenuProps) {
         <div className="relative flex h-full flex-col border-r border-white/40 bg-white/80 px-4 pt-5 pb-6 backdrop-blur-md">
           <button
             type="button"
-            aria-label="Закрыть меню"
+            aria-label={t('menu.close')}
             onClick={close}
             className="absolute top-4 right-3 flex size-10 items-center justify-center rounded-xl text-text-muted hover:bg-bg hover:text-text focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
           >
