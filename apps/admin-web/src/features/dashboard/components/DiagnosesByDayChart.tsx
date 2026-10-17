@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import {
   Area,
   AreaChart,
@@ -9,7 +10,6 @@ import {
 } from 'recharts'
 import { Badge } from '@/components/ui/Badge'
 import { Card, CardHeader } from '@/components/ui/Card'
-import { PERIOD_SUFFIX } from '@/shared/constants/periods'
 import type { OverviewStats } from '@/shared/types'
 import { formatNumber, formatShortDate, formatSigned } from '@/shared/utils/format'
 
@@ -27,6 +27,8 @@ function yTicks(max: number) {
 }
 
 export function DiagnosesByDayChart({ stats }: DiagnosesByDayChartProps) {
+  const { t } = useTranslation('dashboard', { keyPrefix: 'diagnosesChart' })
+  const { t: tCommon } = useTranslation()
   const { diagnoses, diagnosesByDay, period } = stats
   const isWeekly = period === 'season'
   const average = Math.round(diagnoses.value / diagnosesByDay.length)
@@ -36,8 +38,12 @@ export function DiagnosesByDayChart({ stats }: DiagnosesByDayChartProps) {
   return (
     <Card className="flex h-67 flex-col">
       <CardHeader
-        title={isWeekly ? 'Диагнозы по неделям' : 'Диагнозы по дням'}
-        subtitle={`${formatNumber(diagnoses.value)} ${PERIOD_SUFFIX[period]} · в среднем ${formatNumber(average)} ${isWeekly ? 'в неделю' : 'в день'}`}
+        title={isWeekly ? t('titleWeekly') : t('titleDaily')}
+        subtitle={t(isWeekly ? 'subtitleWeekly' : 'subtitleDaily', {
+          total: formatNumber(diagnoses.value),
+          period: tCommon(`periodSuffix.${period}`),
+          average: formatNumber(average),
+        })}
         action={
           <Badge tone={diagnoses.changePercent >= 0 ? 'success' : 'danger'}>
             {formatSigned(diagnoses.changePercent)}%
@@ -67,7 +73,7 @@ export function DiagnosesByDayChart({ stats }: DiagnosesByDayChartProps) {
               width={48}
             />
             <Tooltip
-              formatter={(value) => [formatNumber(Number(value)), 'Диагнозов']}
+              formatter={(value) => [formatNumber(Number(value)), t('tooltip')]}
               labelFormatter={(date) => formatShortDate(String(date))}
               contentStyle={{ borderRadius: 12, borderColor: 'var(--color-border)', fontSize: 13 }}
             />
