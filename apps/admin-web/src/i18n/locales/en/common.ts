@@ -21,6 +21,12 @@ const common: Translation<typeof ru> = {
     loadError: 'Could not load the data',
     saveError: 'Could not save',
   },
+  crops: {
+    potato: 'Potato',
+    tomato: 'Tomato',
+    corn: 'Corn',
+    wheat: 'Wheat',
+  },
   period: 'Period',
   periodSuffix: {
     '7d': 'over 7 days',

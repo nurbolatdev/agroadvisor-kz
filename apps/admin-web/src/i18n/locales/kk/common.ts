@@ -21,6 +21,12 @@ const common: Translation<typeof ru> = {
     loadError: 'Деректерді жүктеу мүмкін болмады',
     saveError: 'Сақтау мүмкін болмады',
   },
+  crops: {
+    potato: 'Картоп',
+    tomato: 'Қызанақ',
+    corn: 'Жүгері',
+    wheat: 'Бидай',
+  },
   period: 'Кезең',
   periodSuffix: {
     '7d': 'соңғы 7 күнде',

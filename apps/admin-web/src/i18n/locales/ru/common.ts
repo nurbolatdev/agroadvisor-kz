@@ -18,6 +18,12 @@ const common = {
     loadError: 'Не удалось загрузить данные',
     saveError: 'Не удалось сохранить',
   },
+  crops: {
+    potato: 'Картофель',
+    tomato: 'Томат',
+    corn: 'Кукуруза',
+    wheat: 'Пшеница',
+  },
   period: 'Период',
   /** "за 30 дней" — inserted into subtitles as {{period}}. */
   periodSuffix: {
