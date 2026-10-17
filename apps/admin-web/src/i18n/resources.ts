@@ -7,6 +7,7 @@ import enFormat from '@/i18n/locales/en/format'
 import enLayout from '@/i18n/locales/en/layout'
 import enModeration from '@/i18n/locales/en/moderation'
 import enUi from '@/i18n/locales/en/ui'
+import enUsers from '@/i18n/locales/en/users'
 import kkAgrochemists from '@/i18n/locales/kk/agrochemists'
 import kkAiQuality from '@/i18n/locales/kk/aiQuality'
 import kkCommon from '@/i18n/locales/kk/common'
@@ -16,6 +17,7 @@ import kkFormat from '@/i18n/locales/kk/format'
 import kkLayout from '@/i18n/locales/kk/layout'
 import kkModeration from '@/i18n/locales/kk/moderation'
 import kkUi from '@/i18n/locales/kk/ui'
+import kkUsers from '@/i18n/locales/kk/users'
 import ruAgrochemists from '@/i18n/locales/ru/agrochemists'
 import ruAiQuality from '@/i18n/locales/ru/aiQuality'
 import ruCommon from '@/i18n/locales/ru/common'
@@ -25,6 +27,7 @@ import ruFormat from '@/i18n/locales/ru/format'
 import ruLayout from '@/i18n/locales/ru/layout'
 import ruModeration from '@/i18n/locales/ru/moderation'
 import ruUi from '@/i18n/locales/ru/ui'
+import ruUsers from '@/i18n/locales/ru/users'
 
 /** Namespaces per language; Russian is the reference for keys and types. */
 export const resources = {
@@ -38,6 +41,7 @@ export const resources = {
     layout: ruLayout,
     moderation: ruModeration,
     ui: ruUi,
+    users: ruUsers,
   },
   kk: {
     agrochemists: kkAgrochemists,
@@ -49,6 +53,7 @@ export const resources = {
     layout: kkLayout,
     moderation: kkModeration,
     ui: kkUi,
+    users: kkUsers,
   },
   en: {
     agrochemists: enAgrochemists,
@@ -60,6 +65,7 @@ export const resources = {
     layout: enLayout,
     moderation: enModeration,
     ui: enUi,
+    users: enUsers,
   },
 } as const
 

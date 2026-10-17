@@ -1,5 +1,6 @@
 import { CircleCheck, Ban } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
@@ -9,92 +10,15 @@ import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SearchBar } from '@/components/ui/SearchBar'
 import { api } from '@/services/api'
-import { CROP_LABELS } from '@/shared/constants/crops'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
 import { usePageParam } from '@/shared/hooks/usePagination'
 import type { User, UserRole } from '@/shared/types'
-import { formatNumber, formatRelativeTime, formatShortDate, pluralize } from '@/shared/utils/format'
+import { formatNumber, formatRelativeTime, formatShortDate } from '@/shared/utils/format'
 
-const ROLE_FILTERS: { value: UserRole | undefined; label: string }[] = [
-  { value: undefined, label: 'Все' },
-  { value: 'farmer', label: 'Фермеры' },
-  { value: 'agrochemist', label: 'Агрохимики' },
-]
-
-const COLUMNS: DataTableColumn<User>[] = [
-  {
-    key: 'name',
-    header: 'Пользователь',
-    render: (user) => (
-      <span className="flex items-center gap-3">
-        <Avatar name={user.name} size="md" />
-        <span>
-          <span className="block font-semibold">{user.name}</span>
-          <span className="block text-caption font-normal text-text-muted">
-            {user.district}, {user.region}
-          </span>
-        </span>
-      </span>
-    ),
-  },
-  {
-    key: 'role',
-    header: 'Роль',
-    render: (user) =>
-      user.role === 'agrochemist' ? (
-        <Badge tone="info">Агрохимик</Badge>
-      ) : (
-        <Badge tone="success">Фермер</Badge>
-      ),
-  },
-  {
-    key: 'crops',
-    header: 'Культуры',
-    render: (user) => user.crops.map((crop) => CROP_LABELS[crop]).join(', '),
-  },
-  {
-    key: 'activity',
-    header: 'Активность',
-    className: 'whitespace-nowrap',
-    render: (user) => (
-      <span className="text-text-muted">
-        {user.role === 'farmer'
-          ? pluralize(user.diagnosesCount, ['диагноз', 'диагноза', 'диагнозов'])
-          : pluralize(user.postsCount, ['ответ', 'ответа', 'ответов'])}
-      </span>
-    ),
-  },
-  {
-    key: 'status',
-    header: 'Статус',
-    className: 'whitespace-nowrap',
-    render: (user) =>
-      user.status === 'active' ? (
-        <Badge tone="success" icon={CircleCheck}>
-          Активен
-        </Badge>
-      ) : (
-        <Badge tone="danger" icon={Ban}>
-          Заблокирован
-        </Badge>
-      ),
-  },
-  {
-    key: 'dates',
-    header: 'Регистрация',
-    className: 'whitespace-nowrap',
-    render: (user) => (
-      <span>
-        <span className="block">{formatShortDate(user.registeredAt)}</span>
-        <span className="block text-caption font-normal text-text-muted">
-          в сети {formatRelativeTime(user.lastActiveAt)}
-        </span>
-      </span>
-    ),
-  },
-]
+const ROLE_FILTERS: (UserRole | undefined)[] = [undefined, 'farmer', 'agrochemist']
 
 export function UsersPage() {
+  const { t } = useTranslation(['users', 'common'])
   const [role, setRole] = useState<UserRole>()
   // `?search=` lets other pages link to a person, e.g. the community's most active members.
   const [searchParams] = useSearchParams()
@@ -102,19 +26,94 @@ export function UsersPage() {
   const { page, setPage, resetPage } = usePageParam()
   const { data: users } = useApiQuery(() => api.getUsers({ role, search }), [role, search])
 
+  const columns: DataTableColumn<User>[] = [
+    {
+      key: 'name',
+      header: t('columns.user'),
+      render: (user) => (
+        <span className="flex items-center gap-3">
+          <Avatar name={user.name} size="md" />
+          <span>
+            <span className="block font-semibold">{user.name}</span>
+            <span className="block text-caption font-normal text-text-muted">
+              {user.district}, {user.region}
+            </span>
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: 'role',
+      header: t('columns.role'),
+      render: (user) => (
+        <Badge tone={user.role === 'agrochemist' ? 'info' : 'success'}>
+          {t(`roles.${user.role}`)}
+        </Badge>
+      ),
+    },
+    {
+      key: 'crops',
+      header: t('columns.crops'),
+      render: (user) => user.crops.map((crop) => t(`common:crops.${crop}`)).join(', '),
+    },
+    {
+      key: 'activity',
+      header: t('columns.activity'),
+      className: 'whitespace-nowrap',
+      render: (user) => (
+        <span className="text-text-muted">
+          {user.role === 'farmer'
+            ? t('diagnoses', { count: user.diagnosesCount })
+            : t('answers', { count: user.postsCount })}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: t('columns.status'),
+      className: 'whitespace-nowrap',
+      render: (user) =>
+        user.status === 'active' ? (
+          <Badge tone="success" icon={CircleCheck}>
+            {t('statuses.active')}
+          </Badge>
+        ) : (
+          <Badge tone="danger" icon={Ban}>
+            {t('statuses.blocked')}
+          </Badge>
+        ),
+    },
+    {
+      key: 'dates',
+      header: t('columns.registered'),
+      className: 'whitespace-nowrap',
+      render: (user) => (
+        <span>
+          <span className="block">{formatShortDate(user.registeredAt)}</span>
+          <span className="block text-caption font-normal text-text-muted">
+            {t('lastActive', { time: formatRelativeTime(user.lastActiveAt) })}
+          </span>
+        </span>
+      ),
+    },
+  ]
+
   return (
     <>
       <PageHeader
-        title="Пользователи"
+        title={t('title')}
         subtitle={
           users
-            ? `${pluralize(users.length, ['пользователь', 'пользователя', 'пользователей'])} · заблокировано: ${formatNumber(users.filter((user) => user.status === 'blocked').length)}`
-            : 'Фермеры и агрохимики платформы'
+            ? t('summary', {
+                users: t('count', { count: users.length }),
+                blocked: formatNumber(users.filter((user) => user.status === 'blocked').length),
+              })
+            : t('subtitle')
         }
         actions={
           <SearchBar
-            label="Поиск по имени"
-            placeholder="Поиск по имени"
+            label={t('search')}
+            placeholder={t('search')}
             value={search}
             onChange={(event) => {
               setSearch(event.target.value)
@@ -124,28 +123,28 @@ export function UsersPage() {
           />
         }
       />
-      <div role="toolbar" aria-label="Роль" className="mb-4 flex flex-wrap gap-2">
-        {ROLE_FILTERS.map((filter) => (
+      <div role="toolbar" aria-label={t('roleFilter')} className="mb-4 flex flex-wrap gap-2">
+        {ROLE_FILTERS.map((value) => (
           <Chip
-            key={filter.label}
-            selected={role === filter.value}
+            key={value ?? 'all'}
+            selected={role === value}
             onClick={() => {
-              setRole(filter.value)
+              setRole(value)
               resetPage()
             }}
           >
-            {filter.label}
+            {t(`filters.${value ?? 'all'}`)}
           </Chip>
         ))}
       </div>
       {users ? (
         <DataTable
-          columns={COLUMNS}
+          columns={columns}
           data={users}
           getRowKey={(user) => user.id}
           page={page}
           onPageChange={setPage}
-          empty="Никого не нашли"
+          empty={t('empty')}
         />
       ) : (
         <Loader />
