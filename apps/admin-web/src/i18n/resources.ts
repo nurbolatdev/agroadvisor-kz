@@ -8,6 +8,7 @@ import enFormat from '@/i18n/locales/en/format'
 import enLayout from '@/i18n/locales/en/layout'
 import enModeration from '@/i18n/locales/en/moderation'
 import enSettings from '@/i18n/locales/en/settings'
+import enShops from '@/i18n/locales/en/shops'
 import enUi from '@/i18n/locales/en/ui'
 import enUsers from '@/i18n/locales/en/users'
 import kkAgrochemists from '@/i18n/locales/kk/agrochemists'
@@ -20,6 +21,7 @@ import kkFormat from '@/i18n/locales/kk/format'
 import kkLayout from '@/i18n/locales/kk/layout'
 import kkModeration from '@/i18n/locales/kk/moderation'
 import kkSettings from '@/i18n/locales/kk/settings'
+import kkShops from '@/i18n/locales/kk/shops'
 import kkUi from '@/i18n/locales/kk/ui'
 import kkUsers from '@/i18n/locales/kk/users'
 import ruAgrochemists from '@/i18n/locales/ru/agrochemists'
@@ -32,6 +34,7 @@ import ruFormat from '@/i18n/locales/ru/format'
 import ruLayout from '@/i18n/locales/ru/layout'
 import ruModeration from '@/i18n/locales/ru/moderation'
 import ruSettings from '@/i18n/locales/ru/settings'
+import ruShops from '@/i18n/locales/ru/shops'
 import ruUi from '@/i18n/locales/ru/ui'
 import ruUsers from '@/i18n/locales/ru/users'
 
@@ -48,6 +51,7 @@ export const resources = {
     layout: ruLayout,
     moderation: ruModeration,
     settings: ruSettings,
+    shops: ruShops,
     ui: ruUi,
     users: ruUsers,
   },
@@ -62,6 +66,7 @@ export const resources = {
     layout: kkLayout,
     moderation: kkModeration,
     settings: kkSettings,
+    shops: kkShops,
     ui: kkUi,
     users: kkUsers,
   },
@@ -76,6 +81,7 @@ export const resources = {
     layout: enLayout,
     moderation: enModeration,
     settings: enSettings,
+    shops: enShops,
     ui: enUi,
     users: enUsers,
   },
