@@ -16,7 +16,7 @@ export interface StatCardProps {
   change?: ReactNode
   /**
    * Whether the change is good or bad news, not its direction:
-   * "−40 мин" to the first answer is good, "+2" unanswered questions is bad.
+   * "−40 min" to the first answer is good, "+2" unanswered questions is bad.
    */
   trend?: StatTrend
   className?: string

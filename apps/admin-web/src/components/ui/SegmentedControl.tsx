@@ -11,7 +11,7 @@ export interface SegmentedControlProps<T extends string> {
   options: SegmentedOption<T>[]
   value: T
   onChange: (value: T) => void
-  /** Accessible name of the group, e.g. "Период". */
+  /** Accessible name of the group, e.g. "Period". */
   label: string
   /** Stretch segments to fill the container width. */
   fullWidth?: boolean

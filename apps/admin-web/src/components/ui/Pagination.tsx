@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/shared/utils/cn'
 import { formatNumber } from '@/shared/utils/format'
 import { pageItems } from '@/shared/utils/pagination'
@@ -26,6 +27,7 @@ export function Pagination({
   pageSizeOptions = [10, 20, 50],
   className,
 }: PaginationProps) {
+  const { t } = useTranslation('ui')
   // Nothing to paginate: a short list needs neither buttons nor the size selector.
   if (total <= Math.min(pageSize, ...pageSizeOptions)) return null
 
@@ -40,7 +42,7 @@ export function Pagination({
     return (
       <button
         type="button"
-        aria-label={direction === 'prev' ? 'Предыдущая страница' : 'Следующая страница'}
+        aria-label={direction === 'prev' ? t('pagination.previous') : t('pagination.next')}
         disabled={target < 1 || target > totalPages}
         onClick={() => onPageChange(target)}
         className={cn(squareButton, 'text-text hover:bg-bg')}
@@ -52,18 +54,22 @@ export function Pagination({
 
   return (
     <nav
-      aria-label="Пагинация"
+      aria-label={t('pagination.label')}
       className={cn('flex flex-wrap items-center justify-between gap-x-4 gap-y-2', className)}
     >
       <p className="hidden text-caption font-normal text-text-muted sm:block">
-        Показано {formatNumber(from)}–{formatNumber(to)} из {formatNumber(total)}
+        {t('pagination.shown', {
+          from: formatNumber(from),
+          to: formatNumber(to),
+          total: formatNumber(total),
+        })}
       </p>
 
       <div className="flex items-center gap-1">
         {arrow('prev')}
-        {/* Mobile: compact "Стр. 2 из 5" instead of page numbers. */}
+        {/* Mobile: compact "Page 2 of 5" instead of page numbers. */}
         <span className="px-2 text-small text-text sm:hidden">
-          Стр. {current} из {totalPages}
+          {t('pagination.compact', { page: current, pages: totalPages })}
         </span>
         <ul className="hidden items-center gap-1 sm:flex">
           {pageItems(current, totalPages).map((item, index) =>
@@ -79,7 +85,7 @@ export function Pagination({
               <li key={item}>
                 <button
                   type="button"
-                  aria-label={`Страница ${item}`}
+                  aria-label={t('pagination.page', { page: item })}
                   aria-current={item === current ? 'page' : undefined}
                   onClick={() => onPageChange(item)}
                   className={cn(
@@ -98,7 +104,7 @@ export function Pagination({
 
       {onPageSizeChange ? (
         <label className="relative hidden sm:block">
-          <span className="sr-only">Записей на странице</span>
+          <span className="sr-only">{t('pagination.pageSize')}</span>
           <select
             value={pageSize}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
@@ -106,7 +112,7 @@ export function Pagination({
           >
             {pageSizeOptions.map((option) => (
               <option key={option} value={option}>
-                {option} на странице
+                {t('pagination.perPage', { count: option })}
               </option>
             ))}
           </select>
