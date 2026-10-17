@@ -1,5 +1,6 @@
 import { Eye, EyeOff, ExternalLink, Save } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
 import { Chip } from '@/components/ui/Chip'
 import { Input } from '@/components/ui/Input'
@@ -37,6 +38,7 @@ const inRange = (value: number, [min, max]: readonly [number, number]) =>
   Number.isFinite(value) && value >= min && value <= max
 
 export function ShopFormModal({ target, onClose, onSaved }: ShopFormModalProps) {
+  const { t } = useTranslation(['shops', 'common'])
   const source = { ...target?.initial, ...target?.shop }
   const [name, setName] = useState(source.name ?? '')
   const [district, setDistrict] = useState(source.district ?? '')
@@ -58,11 +60,13 @@ export function ShopFormModal({ target, onClose, onSaved }: ShopFormModalProps) 
 
   const validate = () => {
     const next: Partial<Record<Field, string>> = {}
-    if (!name.trim()) next.name = 'Укажите название'
-    if (!district) next.district = 'Выберите район'
-    if (!address.trim()) next.address = 'Укажите адрес'
-    if (!inRange(latNumber, LAT_RANGE)) next.lat = `Широта от ${LAT_RANGE[0]} до ${LAT_RANGE[1]}`
-    if (!inRange(lngNumber, LNG_RANGE)) next.lng = `Долгота от ${LNG_RANGE[0]} до ${LNG_RANGE[1]}`
+    if (!name.trim()) next.name = t('form.errors.name')
+    if (!district) next.district = t('form.errors.district')
+    if (!address.trim()) next.address = t('form.errors.address')
+    if (!inRange(latNumber, LAT_RANGE))
+      next.lat = t('form.errors.lat', { min: LAT_RANGE[0], max: LAT_RANGE[1] })
+    if (!inRange(lngNumber, LNG_RANGE))
+      next.lng = t('form.errors.lng', { min: LNG_RANGE[0], max: LNG_RANGE[1] })
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -73,7 +77,7 @@ export function ShopFormModal({ target, onClose, onSaved }: ShopFormModalProps) 
     try {
       onSaved(await action())
     } catch (reason) {
-      setSaveError(reason instanceof Error ? reason.message : 'Не удалось сохранить')
+      setSaveError(reason instanceof Error ? reason.message : t('common:states.saveError'))
     } finally {
       setIsSaving(false)
     }
@@ -106,7 +110,7 @@ export function ShopFormModal({ target, onClose, onSaved }: ShopFormModalProps) 
     <Modal
       open={target !== undefined}
       onClose={onClose}
-      title={shop ? 'Изменить магазин' : 'Добавить магазин'}
+      title={shop ? t('form.titleEdit') : t('form.titleAdd')}
       footer={
         <>
           {shop ? (
@@ -122,47 +126,47 @@ export function ShopFormModal({ target, onClose, onSaved }: ShopFormModalProps) 
               }
               className="mr-auto"
             >
-              {shop.status === 'active' ? 'Скрыть из приложения' : 'Показать в приложении'}
+              {shop.status === 'active' ? t('form.hide') : t('form.show')}
             </Button>
           ) : null}
           <Button size="sm" variant="ghost" onClick={onClose}>
-            Отмена
+            {t('common:actions.cancel')}
           </Button>
           <Button size="sm" icon={Save} type="submit" form="shop-form" disabled={isSaving}>
-            {isSaving ? 'Сохраняем…' : 'Сохранить'}
+            {isSaving ? t('form.saving') : t('common:actions.save')}
           </Button>
         </>
       }
     >
       {target?.note ? (
         <p className="mb-4 rounded-xl bg-warning-soft p-3 text-warning-strong">
-          Комментарий фермера: {target.note}
+          {t('form.note', { comment: target.note })}
         </p>
       ) : null}
       <form id="shop-form" noValidate onSubmit={submit} className="flex flex-col gap-4">
         <Input
-          label="Название *"
+          label={t('form.name')}
           value={name}
           onChange={(event) => setName(event.target.value)}
           error={errors.name}
         />
         <Select
-          label="Район *"
-          placeholder="Выберите район"
+          label={t('form.district')}
+          placeholder={t('form.districtPlaceholder')}
           value={district}
           onChange={(event) => setDistrict(event.target.value)}
           error={errors.district}
           options={SHOP_DISTRICTS.map((item) => ({ value: item, label: item }))}
         />
         <Input
-          label="Адрес *"
+          label={t('form.address')}
           value={address}
           onChange={(event) => setAddress(event.target.value)}
           error={errors.address}
         />
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
-            label="Широта *"
+            label={t('form.lat')}
             inputMode="decimal"
             placeholder="43.2389"
             value={lat}
@@ -170,7 +174,7 @@ export function ShopFormModal({ target, onClose, onSaved }: ShopFormModalProps) 
             error={errors.lat}
           />
           <Input
-            label="Долгота *"
+            label={t('form.lng')}
             inputMode="decimal"
             placeholder="76.8897"
             value={lng}
@@ -186,7 +190,7 @@ export function ShopFormModal({ target, onClose, onSaved }: ShopFormModalProps) 
               rel="noreferrer"
               className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
             >
-              Проверить в 2GIS <ExternalLink size={14} aria-hidden="true" />
+              {t('form.check2gis')} <ExternalLink size={14} aria-hidden="true" />
             </a>
             <a
               href={links.yandex}
@@ -194,38 +198,38 @@ export function ShopFormModal({ target, onClose, onSaved }: ShopFormModalProps) 
               rel="noreferrer"
               className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
             >
-              Проверить в Яндекс Картах <ExternalLink size={14} aria-hidden="true" />
+              {t('form.checkYandex')} <ExternalLink size={14} aria-hidden="true" />
             </a>
           </p>
         ) : null}
         <Input
-          label="Часы работы"
-          placeholder="Пн–Сб 08:00–19:00"
+          label={t('form.hours')}
+          placeholder={t('form.hoursPlaceholder')}
           value={hours}
           onChange={(event) => setHours(event.target.value)}
         />
         <div>
           <Input
-            label="Телефон"
+            label={t('form.phone')}
             type="tel"
             value={phone}
             onChange={(event) => setPhone(event.target.value)}
             aria-describedby="shop-phone-hint"
           />
           <p id="shop-phone-hint" className="mt-1.5 text-caption font-normal text-text-muted">
-            Виден только администраторам — у фермеров нет кнопки звонка
+            {t('form.phoneHint')}
           </p>
         </div>
         <fieldset>
-          <legend className="mb-2 text-small font-medium text-text">Категории</legend>
+          <legend className="mb-2 text-small font-medium text-text">{t('form.categories')}</legend>
           <div className="flex flex-wrap gap-2">
-            {(Object.keys(SHOP_CATEGORIES) as ShopCategory[]).map((category) => (
+            {SHOP_CATEGORIES.map((category) => (
               <Chip
                 key={category}
                 selected={categories.includes(category)}
                 onClick={() => toggleCategory(category)}
               >
-                {SHOP_CATEGORIES[category]}
+                {t(`categories.${category}`)}
               </Chip>
             ))}
           </div>
