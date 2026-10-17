@@ -1,6 +1,7 @@
 import { ChevronDown } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Chip } from '@/components/ui/Chip'
-import { POST_KINDS, REASONS, STATUSES } from '@/features/moderation/complaints'
+import { REASON_ORDER } from '@/features/moderation/complaints'
 import type { ComplaintReason, ComplaintStatus, PostKind } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
 
@@ -20,15 +21,16 @@ const STATUS_ORDER: ComplaintStatus[] = ['new', 'in_progress', 'resolved']
 const KIND_ORDER: PostKind[] = ['post', 'answer']
 
 export function ComplaintFilters({ value, onChange, newCount }: ComplaintFiltersProps) {
+  const { t } = useTranslation('moderation')
   return (
-    <div role="toolbar" aria-label="Фильтры жалоб" className="flex flex-wrap gap-2">
+    <div role="toolbar" aria-label={t('filters.label')} className="flex flex-wrap gap-2">
       {STATUS_ORDER.map((status) => (
         <Chip
           key={status}
           selected={value.status === status}
           onClick={() => onChange({ ...value, status })}
         >
-          {STATUSES[status].filter}
+          {t(`statusFilters.${status}`)}
           {status === 'new' ? ` · ${newCount}` : null}
         </Chip>
       ))}
@@ -38,11 +40,11 @@ export function ComplaintFilters({ value, onChange, newCount }: ComplaintFilters
           selected={value.kind === kind}
           onClick={() => onChange({ ...value, kind: value.kind === kind ? undefined : kind })}
         >
-          {POST_KINDS[kind].filter}
+          {t(`kindFilters.${kind}`)}
         </Chip>
       ))}
       <label className="relative">
-        <span className="sr-only">Причина жалобы</span>
+        <span className="sr-only">{t('filters.reason')}</span>
         <select
           value={value.reason ?? ''}
           onChange={(event) =>
@@ -56,10 +58,10 @@ export function ComplaintFilters({ value, onChange, newCount }: ComplaintFilters
               : 'border-border bg-white text-text hover:bg-bg',
           )}
         >
-          <option value="">Все причины</option>
-          {Object.entries(REASONS).map(([reason, meta]) => (
+          <option value="">{t('filters.allReasons')}</option>
+          {REASON_ORDER.map((reason) => (
             <option key={reason} value={reason}>
-              {meta.label}
+              {t(`reasons.${reason}`)}
             </option>
           ))}
         </select>

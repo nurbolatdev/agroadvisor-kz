@@ -1,5 +1,6 @@
 import { Check, X } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
 import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -16,6 +17,7 @@ import { usePageParam } from '@/shared/hooks/usePagination'
 import type { Agrochemist, VerificationStatus } from '@/shared/types'
 
 export function AgrochemistsPage() {
+  const { t } = useTranslation(['agrochemists', 'common'])
   const [status, setStatus] = useState<VerificationStatus>('pending')
   const [search, setSearch] = useState('')
   const [viewing, setViewing] = useState<Agrochemist>()
@@ -39,12 +41,12 @@ export function AgrochemistsPage() {
   return (
     <>
       <PageHeader
-        title="Верификация агрохимиков"
-        subtitle="Проверьте документы перед публикацией профиля"
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={
           <SearchBar
-            label="Поиск по имени"
-            placeholder="Поиск по имени"
+            label={t('search')}
+            placeholder={t('search')}
             value={search}
             onChange={(event) => {
               setSearch(event.target.value)
@@ -74,7 +76,7 @@ export function AgrochemistsPage() {
             onOpenDocuments={setViewing}
             page={page}
             onPageChange={setPage}
-            empty={search ? 'Никого не нашли по этому имени' : 'Заявок нет'}
+            empty={search ? t('table.notFound') : t('table.empty')}
             extraColumns={[
               {
                 key: 'decision',
@@ -104,7 +106,7 @@ export function AgrochemistsPage() {
           viewing?.status === 'pending' ? (
             <>
               <Button size="sm" variant="secondary" icon={X} onClick={() => startReject(viewing)}>
-                Отклонить
+                {t('common:actions.reject')}
               </Button>
               <Button
                 size="sm"
@@ -112,7 +114,7 @@ export function AgrochemistsPage() {
                 disabled={decisions.busyId === viewing.id}
                 onClick={() => approve(viewing)}
               >
-                Подтвердить
+                {t('common:actions.approve')}
               </Button>
             </>
           ) : undefined
