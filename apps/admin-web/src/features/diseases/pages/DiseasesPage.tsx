@@ -1,5 +1,6 @@
 import { SearchX } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Loader } from '@/components/ui/Loader'
@@ -12,9 +13,9 @@ import { api } from '@/services/api'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
 import { usePagination } from '@/shared/hooks/usePagination'
 import type { CropId } from '@/shared/types'
-import { pluralize } from '@/shared/utils/format'
 
 export function DiseasesPage() {
+  const { t } = useTranslation('diseases')
   const [crop, setCrop] = useState<CropId>()
   const [search, setSearch] = useState('')
   const { data: diseases } = useApiQuery(() => api.getDiseases({ crop }), [crop])
@@ -33,16 +34,16 @@ export function DiseasesPage() {
   return (
     <>
       <PageHeader
-        title="Болезни и препараты"
+        title={t('title')}
         subtitle={
           diseases
-            ? `Справочник для MVP-культур · ${pluralize(visible.length, ['запись', 'записи', 'записей'])}`
-            : 'Справочник для MVP-культур'
+            ? t('summary', { entries: t('entries', { count: visible.length }) })
+            : t('subtitle')
         }
         actions={
           <SearchBar
-            label="Поиск болезни"
-            placeholder="Название или латынь"
+            label={t('searchLabel')}
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(event) => {
               setSearch(event.target.value)
@@ -67,8 +68,8 @@ export function DiseasesPage() {
           <Card>
             <EmptyState
               icon={SearchX}
-              title="Ничего не найдено"
-              description="Попробуйте другое название или выберите все культуры."
+              title={t('notFound')}
+              description={t('notFoundDescription')}
             />
           </Card>
         ) : (

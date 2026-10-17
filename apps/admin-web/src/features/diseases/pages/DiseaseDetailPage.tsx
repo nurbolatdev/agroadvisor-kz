@@ -1,4 +1,5 @@
 import { ArrowLeft, FlaskConical, Leaf, SearchX, ShieldCheck, Thermometer } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { Card, CardHeader } from '@/components/ui/Card'
@@ -6,9 +7,8 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { TreatmentTable } from '@/features/diseases/components/TreatmentTable'
-import { DISEASE_KINDS, SEVERITIES } from '@/features/diseases/diseases'
+import { SEVERITY_TONES } from '@/features/diseases/diseases'
 import { api } from '@/services/api'
-import { CROP_LABELS } from '@/shared/constants/crops'
 import { ROUTES } from '@/shared/constants/routes'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
 
@@ -16,15 +16,17 @@ const BACK_LINK_CLASSES =
   'mb-4 inline-flex items-center gap-1.5 rounded-md text-small font-semibold text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none'
 
 function BackLink() {
+  const { t } = useTranslation('diseases')
   return (
     <Link to={ROUTES.diseases} className={BACK_LINK_CLASSES}>
       <ArrowLeft size={16} aria-hidden="true" />
-      Все болезни
+      {t('detail.back')}
     </Link>
   )
 }
 
 export function DiseaseDetailPage() {
+  const { t } = useTranslation(['diseases', 'common'])
   const { id = '' } = useParams()
   const { data: disease, isLoading } = useApiQuery(() => api.getDisease(id), [id])
 
@@ -37,15 +39,13 @@ export function DiseaseDetailPage() {
         <Card>
           <EmptyState
             icon={SearchX}
-            title="Болезнь не найдена"
-            description="Возможно, запись удалили или в адресе опечатка."
+            title={t('detail.missing')}
+            description={t('detail.missingDescription')}
           />
         </Card>
       </>
     )
   }
-
-  const severity = SEVERITIES[disease.severity]
 
   return (
     <>
@@ -55,9 +55,11 @@ export function DiseaseDetailPage() {
         subtitle={<span className="italic">{disease.latinName}</span>}
         actions={
           <span className="flex flex-wrap gap-2">
-            <Badge tone="success">{CROP_LABELS[disease.crop]}</Badge>
-            <Badge tone="neutral">{DISEASE_KINDS[disease.kind]}</Badge>
-            <Badge tone={severity.tone}>{severity.label}</Badge>
+            <Badge tone="success">{t(`common:crops.${disease.crop}`)}</Badge>
+            <Badge tone="neutral">{t(`kinds.${disease.kind}`)}</Badge>
+            <Badge tone={SEVERITY_TONES[disease.severity]}>
+              {t(`severities.${disease.severity}`)}
+            </Badge>
           </span>
         }
       />
@@ -65,7 +67,7 @@ export function DiseaseDetailPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader
-            title="Симптомы"
+            title={t('detail.symptoms')}
             action={<Leaf size={20} aria-hidden="true" className="text-primary" />}
           />
           <ul className="flex list-disc flex-col gap-1.5 pl-5 text-body text-text">
@@ -76,29 +78,29 @@ export function DiseaseDetailPage() {
         </Card>
         <Card>
           <CardHeader
-            title="Условия развития"
+            title={t('detail.conditions')}
             action={<Thermometer size={20} aria-hidden="true" className="text-primary" />}
           />
           <p className="text-body text-text">{disease.conditions}</p>
         </Card>
         <Card>
           <CardHeader
-            title="Химическая защита"
-            subtitle="Нормы демонстрационные — сверяйтесь с инструкцией препарата"
+            title={t('detail.chemical')}
+            subtitle={t('detail.chemicalNote')}
             action={<FlaskConical size={20} aria-hidden="true" className="text-primary" />}
           />
           <TreatmentTable treatments={disease.chemicalTreatment} />
         </Card>
         <Card>
           <CardHeader
-            title="Биологическая защита"
+            title={t('detail.biological')}
             action={<Leaf size={20} aria-hidden="true" className="text-primary" />}
           />
           <TreatmentTable treatments={disease.biologicalTreatment} />
         </Card>
         <Card className="lg:col-span-2">
           <CardHeader
-            title="Профилактика"
+            title={t('detail.prevention')}
             action={<ShieldCheck size={20} aria-hidden="true" className="text-primary" />}
           />
           <ul className="flex list-disc flex-col gap-1.5 pl-5 text-body text-text">

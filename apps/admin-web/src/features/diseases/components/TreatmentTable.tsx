@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { Treatment } from '@/shared/types'
 
 interface TreatmentTableProps {
@@ -5,18 +6,19 @@ interface TreatmentTableProps {
 }
 
 export function TreatmentTable({ treatments }: TreatmentTableProps) {
+  const { t } = useTranslation('diseases', { keyPrefix: 'treatments' })
   return (
     <table className="w-full text-left text-small">
       <thead className="text-text-muted">
         <tr>
           <th scope="col" className="pb-2 font-medium">
-            Препарат
+            {t('product')}
           </th>
           <th scope="col" className="pb-2 font-medium">
-            Действующее вещество
+            {t('ingredient')}
           </th>
           <th scope="col" className="pb-2 text-right font-medium">
-            Норма
+            {t('dosage')}
           </th>
         </tr>
       </thead>

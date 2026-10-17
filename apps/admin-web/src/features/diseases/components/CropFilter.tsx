@@ -1,5 +1,6 @@
+import { useTranslation } from 'react-i18next'
 import { Chip } from '@/components/ui/Chip'
-import { CROP_IDS, CROP_LABELS } from '@/shared/constants/crops'
+import { CROP_IDS } from '@/shared/constants/crops'
 import type { CropId } from '@/shared/types'
 
 interface CropFilterProps {
@@ -8,14 +9,15 @@ interface CropFilterProps {
 }
 
 export function CropFilter({ value, onChange }: CropFilterProps) {
+  const { t } = useTranslation(['diseases', 'common'])
   return (
-    <div role="toolbar" aria-label="Культура" className="flex flex-wrap gap-2">
+    <div role="toolbar" aria-label={t('cropFilter')} className="flex flex-wrap gap-2">
       <Chip selected={value === undefined} onClick={() => onChange(undefined)}>
-        Все культуры
+        {t('allCrops')}
       </Chip>
       {CROP_IDS.map((crop) => (
         <Chip key={crop} selected={value === crop} onClick={() => onChange(crop)}>
-          {CROP_LABELS[crop]}
+          {t(`common:crops.${crop}`)}
         </Chip>
       ))}
     </div>
