@@ -34,6 +34,8 @@ export function DiagnosesByDayChart({ stats }: DiagnosesByDayChartProps) {
   const average = Math.round(diagnoses.value / diagnosesByDay.length)
   const lastIndex = diagnosesByDay.length - 1
   const ticks = yTicks(Math.max(...diagnosesByDay.map((point) => point.count)))
+  // Four-digit ticks ("1 000" in the season view) need a wider axis.
+  const yAxisWidth = ticks[ticks.length - 1] >= 1000 ? 60 : 48
 
   return (
     <Card className="flex h-67 flex-col">
@@ -70,7 +72,8 @@ export function DiagnosesByDayChart({ stats }: DiagnosesByDayChartProps) {
               tick={AXIS_TICK}
               tickLine={false}
               axisLine={false}
-              width={48}
+              width={yAxisWidth}
+              tickFormatter={(value: number) => formatNumber(value)}
             />
             <Tooltip
               formatter={(value) => [formatNumber(Number(value)), t('tooltip')]}
