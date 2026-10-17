@@ -22,6 +22,11 @@ const common: Translation<typeof ru> = {
     saveError: 'Сақтау мүмкін болмады',
   },
   period: 'Кезең',
+  periodSuffix: {
+    '7d': 'соңғы 7 күнде',
+    '30d': 'соңғы 30 күнде',
+    season: 'маусымда',
+  },
   periods: {
     '7d': '7 күн',
     '30d': '30 күн',

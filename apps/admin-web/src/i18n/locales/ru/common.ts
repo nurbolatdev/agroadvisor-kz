@@ -19,6 +19,12 @@ const common = {
     saveError: 'Не удалось сохранить',
   },
   period: 'Период',
+  /** "за 30 дней" — inserted into subtitles as {{period}}. */
+  periodSuffix: {
+    '7d': 'за 7 дней',
+    '30d': 'за 30 дней',
+    season: 'за сезон',
+  },
   periods: {
     '7d': '7 дней',
     '30d': '30 дней',
