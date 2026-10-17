@@ -22,6 +22,11 @@ const layout: Translation<typeof ru> = {
     close: 'Мәзірді жабу',
     hasTasks: 'Жаңа тапсырмалар бар',
   },
+  notFound: {
+    title: 'Бет табылмады',
+    description: 'Мұндай бет жоқ немесе ол басқа жерге көшірілген.',
+    action: 'Басты бетке',
+  },
   language: 'Интерфейс тілі',
 }
 
