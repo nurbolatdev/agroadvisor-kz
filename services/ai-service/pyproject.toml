@@ -13,6 +13,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "pydantic-settings>=2.4",
     "pillow>=10.4",
+    "pyyaml>=6.0",
     "torch>=2.4",
     "torchvision>=0.19",
 ]
@@ -25,7 +26,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["app*"]
+include = ["app*", "ml*"]
 
 [tool.ruff]
 line-length = 100
