@@ -1,0 +1,135 @@
+# Disease class registry — single source of truth for the AI service.
+#
+# Model head, crop masks, dataset folders and tests are built from this file.
+# Index order is NOT taken from here: it is saved with the weights in
+# class_index.json. Rules for adding classes and crops: docs/ai/classes.md.
+#
+# status: active | planned | deprecated
+#   active     — predicted by the current model and returned by GET /classes
+#   planned    — reserved code, not in the model yet
+#   deprecated — no longer predicted; kept because stored diagnoses reference it
+# Never delete or rename a class code — deprecate it instead.
+
+version: 1
+
+crops:
+  - code: tomato
+    names: { ru: Томат, kk: Қызанақ, en: Tomato }
+  - code: potato
+    names: { ru: Картофель, kk: Картоп, en: Potato }
+  - code: corn
+    names: { ru: Кукуруза, kk: Жүгері, en: Corn }
+  - code: wheat
+    names: { ru: Пшеница, kk: Бидай, en: Wheat }
+
+classes:
+  # Tomato
+  - code: tomato__late_blight
+    crop: tomato
+    names: { ru: Фитофтороз, kk: Фитофтороз, en: Late blight }
+    status: active
+    added_in: 1
+  - code: tomato__early_blight
+    crop: tomato
+    names: { ru: Альтернариоз, kk: Альтернариоз, en: Early blight }
+    status: active
+    added_in: 1
+  - code: tomato__septoria_leaf_spot
+    crop: tomato
+    names: { ru: Септориоз, kk: Септориоз, en: Septoria leaf spot }
+    status: active
+    added_in: 1
+  - code: tomato__bacterial_spot
+    crop: tomato
+    names: { ru: Бактериальная пятнистость, kk: Бактериялық дақ, en: Bacterial spot }
+    status: active
+    added_in: 1
+  - code: tomato__leaf_mold
+    crop: tomato
+    names: { ru: Кладоспориоз, kk: Кладоспориоз, en: Leaf mold }
+    status: active
+    added_in: 1
+  - code: tomato__mosaic_virus
+    crop: tomato
+    names: { ru: Мозаика, kk: Мозаика вирусы, en: Mosaic virus }
+    status: active
+    added_in: 1
+  - code: tomato__healthy
+    crop: tomato
+    names: { ru: Здоровое растение, kk: Сау өсімдік, en: Healthy }
+    status: active
+    added_in: 1
+
+  # Potato
+  - code: potato__late_blight
+    crop: potato
+    names: { ru: Фитофтороз, kk: Фитофтороз, en: Late blight }
+    status: active
+    added_in: 1
+  - code: potato__early_blight
+    crop: potato
+    names: { ru: Альтернариоз, kk: Альтернариоз, en: Early blight }
+    status: active
+    added_in: 1
+  - code: potato__healthy
+    crop: potato
+    names: { ru: Здоровое растение, kk: Сау өсімдік, en: Healthy }
+    status: active
+    added_in: 1
+
+  # Corn
+  - code: corn__common_rust
+    crop: corn
+    names: { ru: Ржавчина, kk: Тат, en: Common rust }
+    status: active
+    added_in: 1
+  - code: corn__northern_leaf_blight
+    crop: corn
+    names: { ru: Гельминтоспориоз, kk: Гельминтоспориоз, en: Northern leaf blight }
+    status: active
+    added_in: 1
+  - code: corn__gray_leaf_spot
+    crop: corn
+    names: { ru: Церкоспороз, kk: Церкоспороз, en: Gray leaf spot }
+    status: active
+    added_in: 1
+  - code: corn__healthy
+    crop: corn
+    names: { ru: Здоровое растение, kk: Сау өсімдік, en: Healthy }
+    status: active
+    added_in: 1
+
+  # Wheat — if a class has fewer than ~300 photos after dataset collection,
+  # switch septoria and powdery_mildew to planned.
+  - code: wheat__leaf_rust
+    crop: wheat
+    names: { ru: Бурая ржавчина, kk: Қоңыр тат, en: Leaf rust }
+    status: active
+    added_in: 1
+  - code: wheat__stripe_rust
+    crop: wheat
+    names: { ru: Жёлтая ржавчина, kk: Сары тат, en: Stripe rust }
+    status: active
+    added_in: 1
+  - code: wheat__septoria
+    crop: wheat
+    names: { ru: Септориоз, kk: Септориоз, en: Septoria }
+    status: active
+    added_in: 1
+  - code: wheat__powdery_mildew
+    crop: wheat
+    names: { ru: Мучнистая роса, kk: Ақ ұнтақ, en: Powdery mildew }
+    status: active
+    added_in: 1
+  - code: wheat__healthy
+    crop: wheat
+    names: { ru: Здоровое растение, kk: Сау өсімдік, en: Healthy }
+    status: active
+    added_in: 1
+
+  # Not a plant, wrong crop or not recognized
+  - code: unknown
+    crop: null
+    names: { ru: Не распознано, kk: Анықталмады, en: Not recognized }
+    status: active
+    added_in: 1
