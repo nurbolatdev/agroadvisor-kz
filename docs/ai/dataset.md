@@ -20,6 +20,36 @@ Which source folder becomes which class is configured in [`services/ai-service/m
 
 Kaggle downloads work without an account for public datasets. If Kaggle starts requiring authentication, put an API token in `~/.kaggle/access_token` or the `KAGGLE_API_TOKEN` variable.
 
+## Split
+
+```bash
+python -m ml.splits   # after build_dataset; about a minute
+```
+
+Writes two files next to the manifest:
+
+- `splits.csv` — `file, class, group, split` with `train` / `val` / `test` = 70 / 15 / 15 %;
+- `class_index.json` — class order of the model head (active classes of the registry). After training it is saved next to the weights and the service reads it from there.
+
+**No leakage between parts.** Several photos of one leaf would make test accuracy look better than it is, so images are grouped and every group goes to one part as a whole:
+
+1. by file name — PlantVillage names repeated shots of one leaf alike: `GHLB Leaf 1 Day 6` and `GHLB Leaf 1.1 Day 12`, `R.S_HL 8315 copy 2`;
+2. by content — a 64-bit perceptual hash (dHash); photos of the same class that differ in at most 4 bits are near-identical copies (resized or recompressed).
+
+On v1 this gives 23 666 groups from 25 352 images; the largest group has 16 photos, so groups do not chain into large clusters.
+
+**Stratified.** Groups are split separately for every class and photo kind (lab / field), so each part keeps the class balance and its share of field photos: test has 1 095 field photos. The split is reproducible (seed 42).
+
+## Data loading
+
+`ml/data.py` provides `PlantDataset(dataset_dir, split, transform)` and `make_loaders(dataset_dir, batch_size, num_workers)`.
+
+- **Train augmentations** imitate field conditions: random crop of 60–100 % of the image, horizontal and vertical flips, rotation up to 30°, brightness / contrast / saturation jitter, occasional blur. Input is 224 × 224, normalized with ImageNet statistics.
+- **Val / test**: resize to 256 and center crop 224, no augmentation.
+- **Class balance**: the train loader draws every class equally often (`WeightedRandomSampler`), so small classes such as `potato__healthy` are not ignored.
+
+On macOS the loader workers are started with `spawn`: scripts that use `num_workers > 0` must have an `if __name__ == "__main__":` guard.
+
 ## Sources
 
 | Source | Kind | Images used | License | Used for |
@@ -71,5 +101,5 @@ Every class has at least 100 images; every wheat class has more than 300, so all
 
 - **Few field photos for tomato, potato and corn** — 54–190 per class against ~1 000 lab photos. Accuracy on lab images will overstate real-world accuracy: evaluation must report field photos separately and include our own photos (task A6).
 - **`potato__healthy` and `corn__healthy` have no field photos**, and `potato__healthy` is the smallest class (152). The model may learn "plain background → healthy". Mitigation: class weights or oversampling, strong background augmentation, and own field photos as soon as possible.
-- **Class imbalance** — 152 to 2 237 images per class; the data pipeline (A4) should use weighted sampling or class weights.
+- **Class imbalance** — 152 to 2 237 images per class; the train loader samples classes equally (see Data loading).
 - **Kazakhstan conditions** — no source is from Kazakhstan. Photos confirmed by agrochemists in the app go into the next dataset version (see extension rules in [`classes.md`](classes.md)).
