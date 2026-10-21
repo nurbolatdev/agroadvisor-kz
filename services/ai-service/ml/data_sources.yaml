@@ -1,0 +1,136 @@
+# Dataset sources and how their folders map to registry class codes.
+#
+# Folder names are matched case-insensitively, with spaces and dashes treated as
+# underscores and a trailing "_test" suffix ignored (so "Brown Rust" and
+# "brown_rust_test" both match "brown_rust"). Folders that are not listed are skipped.
+#
+# classes: source folder -> class code from ml/classes.yaml
+# unknown: folders that go into the unknown class (other plants, non-plant objects);
+#          unknown_limit caps how many images this source adds to unknown.
+# Details and licenses: docs/ai/dataset.md
+
+version: 1
+
+sources:
+  plantvillage:
+    kind: lab
+    license: CC0 1.0
+    url: https://github.com/spMohanty/PlantVillage-Dataset
+    download:
+      type: git
+      repo: https://github.com/spMohanty/PlantVillage-Dataset.git
+      paths: [raw/color]
+    classes:
+      Tomato___Late_blight: tomato__late_blight
+      Tomato___Early_blight: tomato__early_blight
+      Tomato___Septoria_leaf_spot: tomato__septoria_leaf_spot
+      Tomato___Bacterial_spot: tomato__bacterial_spot
+      Tomato___Leaf_Mold: tomato__leaf_mold
+      Tomato___Tomato_mosaic_virus: tomato__mosaic_virus
+      Tomato___healthy: tomato__healthy
+      Potato___Late_blight: potato__late_blight
+      Potato___Early_blight: potato__early_blight
+      Potato___healthy: potato__healthy
+      Corn_(maize)___Common_rust_: corn__common_rust
+      Corn_(maize)___Northern_Leaf_Blight: corn__northern_leaf_blight
+      Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot: corn__gray_leaf_spot
+      Corn_(maize)___healthy: corn__healthy
+    unknown:
+      - Apple___Apple_scab
+      - Apple___Black_rot
+      - Apple___Cedar_apple_rust
+      - Apple___healthy
+      - Blueberry___healthy
+      - Cherry_(including_sour)___Powdery_mildew
+      - Cherry_(including_sour)___healthy
+      - Grape___Black_rot
+      - Grape___Esca_(Black_Measles)
+      - Grape___Leaf_blight_(Isariopsis_Leaf_Spot)
+      - Grape___healthy
+      - Orange___Haunglongbing_(Citrus_greening)
+      - Peach___Bacterial_spot
+      - Peach___healthy
+      - Pepper,_bell___Bacterial_spot
+      - Pepper,_bell___healthy
+      - Raspberry___healthy
+      - Soybean___healthy
+      - Squash___Powdery_mildew
+      - Strawberry___Leaf_scorch
+      - Strawberry___healthy
+    unknown_limit: 800
+    # Not used: Tomato___Target_Spot, Tomato___Tomato_Yellow_Leaf_Curl_Virus,
+    # Tomato___Spider_mites (candidates for the next registry version)
+
+  plantdoc:
+    kind: field
+    license: CC BY 4.0
+    url: https://github.com/pratikkayal/PlantDoc-Dataset
+    download:
+      type: git
+      repo: https://github.com/pratikkayal/PlantDoc-Dataset.git
+      paths: [train, test]
+    classes:
+      Tomato leaf late blight: tomato__late_blight
+      Tomato Early blight leaf: tomato__early_blight
+      Tomato Septoria leaf spot: tomato__septoria_leaf_spot
+      Tomato leaf bacterial spot: tomato__bacterial_spot
+      Tomato mold leaf: tomato__leaf_mold
+      Tomato leaf mosaic virus: tomato__mosaic_virus
+      Tomato leaf: tomato__healthy
+      Potato leaf late blight: potato__late_blight
+      Potato leaf early blight: potato__early_blight
+      Corn rust leaf: corn__common_rust
+      Corn leaf blight: corn__northern_leaf_blight
+      Corn Gray leaf spot: corn__gray_leaf_spot
+    unknown:
+      - Apple Scab Leaf
+      - Apple leaf
+      - Apple rust leaf
+      - Bell_pepper leaf spot
+      - Bell_pepper leaf
+      - Blueberry leaf
+      - Cherry leaf
+      - Peach leaf
+      - Raspberry leaf
+      - Soyabean leaf
+      - Squash Powdery mildew leaf
+      - Strawberry leaf
+      - grape leaf black rot
+      - grape leaf
+    unknown_limit: 800
+    # Not used: Tomato leaf yellow virus, Tomato two spotted spider mites leaf
+
+  wheat_kaggle:
+    kind: field
+    license: CC0 1.0
+    url: https://www.kaggle.com/datasets/kushagra3204/wheat-plant-diseases
+    download:
+      type: kaggle
+      ref: kushagra3204/wheat-plant-diseases
+    classes:
+      brown_rust: wheat__leaf_rust
+      yellow_rust: wheat__stripe_rust
+      septoria: wheat__septoria
+      mildew: wheat__powdery_mildew
+      healthy: wheat__healthy
+    # Not used: other wheat diseases and pests — a wheat photo must not be labeled unknown
+
+  caltech101:
+    kind: other
+    license: CC BY 4.0
+    url: https://data.caltech.edu/records/mzrjq-6wc02
+    download:
+      type: url
+      url: https://data.caltech.edu/records/mzrjq-6wc02/files/caltech-101.zip?download=1
+      md5: 3138e1922a9193bfa496528edbbc45d0
+    # Every category goes to unknown except the excluded plant-like ones below
+    unknown: ["*"]
+    exclude:
+      - BACKGROUND_Google
+      - bonsai
+      - joshua_tree
+      - lotus
+      - strawberry
+      - sunflower
+      - water_lilly
+    unknown_limit: 1500
