@@ -6,7 +6,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: none # schema is managed by migrations in db/migration
+      ddl-auto: validate # schema is owned by Flyway migrations in db/migration
 
 app:
   version: '@project.version@'
