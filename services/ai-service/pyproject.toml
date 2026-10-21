@@ -9,6 +9,7 @@ description = "Plant disease recognition service for AgroAdvisor KZ"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
+    "httpx>=0.27",
     "uvicorn[standard]>=0.30",
     "python-multipart>=0.0.9",
     "pydantic-settings>=2.4",
@@ -21,7 +22,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3",
-    "httpx>=0.27",
     "ruff>=0.6",
 ]
 
