@@ -1,0 +1,4 @@
+# Tests start their own PostgreSQL in a container (Testcontainers) — no local stack needed.
+spring:
+  jpa:
+    show-sql: false
