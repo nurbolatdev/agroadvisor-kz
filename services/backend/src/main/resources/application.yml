@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: agroadvisor-backend
+  profiles:
+    default: local
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none # schema is managed by migrations in db/migration
+
+server:
+  port: ${SERVER_PORT:8080}
