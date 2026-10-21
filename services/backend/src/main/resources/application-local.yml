@@ -7,3 +7,8 @@ spring:
     url: jdbc:postgresql://${DB_HOST:localhost}:${POSTGRES_PORT:5433}/${POSTGRES_DB:agroadvisor}
     username: ${POSTGRES_USER:agroadvisor}
     password: ${POSTGRES_PASSWORD}
+
+management:
+  endpoint:
+    health:
+      show-details: always
