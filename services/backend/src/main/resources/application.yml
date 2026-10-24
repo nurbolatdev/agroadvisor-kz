@@ -10,6 +10,10 @@ spring:
 
 app:
   version: '@project.version@'
+  security:
+    jwt:
+      # Base64, at least 32 random bytes (openssl rand -base64 48). Kept outside git; startup fails without it.
+      secret: ${JWT_SECRET:}
 
 management:
   endpoints:
