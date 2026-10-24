@@ -32,7 +32,7 @@ class MigrationsTest {
         List<String> versions = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class);
-        assertThat(versions).containsExactly("1", "2", "3", "4", "5");
+        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6");
     }
 
     @Test
@@ -116,6 +116,40 @@ class MigrationsTest {
 
         assertThatThrownBy(() -> insertDiagnosis(user, "ok", "potato__healthy", "tomato"))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void refreshTokensAreDeletedWithTheirUser() {
+        UUID id = insertUser("+77010000008", null);
+        insertRefreshToken(id, "a".repeat(64));
+
+        jdbc.update("DELETE FROM users WHERE id = ?", id);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM refresh_tokens", Integer.class)).isZero();
+    }
+
+    @Test
+    void refreshTokenHashIsUnique() {
+        UUID id = insertUser("+77010000009", null);
+        insertRefreshToken(id, "b".repeat(64));
+
+        assertThatThrownBy(() -> insertRefreshToken(id, "b".repeat(64)))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void refreshTokenHashMustBeHex() {
+        UUID id = insertUser("+77010000010", null);
+
+        assertThatThrownBy(() -> insertRefreshToken(id, "z".repeat(64)))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    private void insertRefreshToken(UUID user, String hash) {
+        jdbc.update("""
+                INSERT INTO refresh_tokens (user_id, family_id, token_hash, expires_at)
+                VALUES (?, gen_random_uuid(), ?, now() + interval '7 days')
+                """, user, hash);
     }
 
     private UUID insertUser(String phone, String email) {

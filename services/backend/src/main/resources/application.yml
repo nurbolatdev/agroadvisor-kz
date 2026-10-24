@@ -10,6 +10,10 @@ spring:
 
 app:
   version: '@project.version@'
+  security:
+    jwt:
+      # Base64, at least 32 random bytes (openssl rand -base64 48). Kept outside git; startup fails without it.
+      secret: ${JWT_SECRET:}
 
 management:
   endpoints:
@@ -21,8 +25,12 @@ management:
       probes:
         enabled: true
 
+# API docs are off unless a profile turns them on (local, test); they are not served in production
 springdoc:
+  api-docs:
+    enabled: false
   swagger-ui:
+    enabled: false
     path: /swagger-ui.html
 
 server:
