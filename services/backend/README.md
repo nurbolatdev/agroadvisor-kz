@@ -36,6 +36,20 @@ The default profile is `local`: it connects to PostgreSQL on `localhost:5433` an
 
 Settings can be overridden with environment variables: `SERVER_PORT`, `DB_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`.
 
+### Authentication
+
+The API is protected by Bearer JWT (HS256) and denies everything that is not listed as public in `SecurityConfig`. Set `JWT_SECRET` (in `infra/.env` or the environment) to a Base64 string of at least 32 random bytes — `openssl rand -base64 48`. The application does not start without it. Never commit it.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /api/auth/register` | Sign up as `farmer` (default) or `agrochemist`; `admin` is rejected |
+| `POST /api/auth/login` | Phone or e-mail plus password |
+| `POST /api/auth/refresh` | Rotate the refresh token (7 days); reusing a used token revokes the whole session family |
+| `POST /api/auth/logout` | End this session |
+| `POST /api/auth/logout-all` | End all sessions (needs an access token) |
+
+Access tokens live 15 minutes and carry only the user id. Status and roles are read from the database on every request, so blocking a user or changing roles applies immediately.
+
 ## Test
 
 ```bash
