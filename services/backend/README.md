@@ -38,7 +38,7 @@ Settings can be overridden with environment variables: `SERVER_PORT`, `DB_HOST`,
 
 ### Authentication
 
-The API is protected by Bearer JWT (HS256) and denies everything that is not listed as public in `SecurityConfig`. Set `JWT_SECRET` (in `infra/.env` or the environment) to a Base64 string of at least 32 random bytes — `openssl rand -base64 48`. The application does not start without it. Never commit it.
+The API is protected by Bearer JWT (HS256) and denies everything that is not listed as public in `SecurityConfig`. Set `JWT_SECRET` (in `infra/.env` or the environment) to a Base64 string of at least 32 random bytes — `openssl rand -base64 48`. The application does not start without it. Never commit it. Swagger UI and `/v3/api-docs` are served only in the `local` and `test` profiles (`springdoc.*.enabled`); elsewhere they are off and not public.
 
 | Endpoint | Purpose |
 | --- | --- |

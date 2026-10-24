@@ -25,8 +25,12 @@ management:
       probes:
         enabled: true
 
+# API docs are off unless a profile turns them on (local, test); they are not served in production
 springdoc:
+  api-docs:
+    enabled: false
   swagger-ui:
+    enabled: false
     path: /swagger-ui.html
 
 server:
