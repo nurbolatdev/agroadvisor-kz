@@ -191,20 +191,26 @@ class AuthFlowIntegrationTest {
     }
 
     @Test
-    void parallelRefreshWithTheSameTokenSucceedsOnlyOnce() throws Exception {
-        Session s = register(newPhone(), "farmer");
+    void parallelRefreshWithTheSameTokenSucceedsOnlyOnceAndEndsTheSession() throws Exception {
+        String phone = newPhone();
+        Session s = register(phone, "farmer");
         int threads = 6;
         CountDownLatch ready = new CountDownLatch(threads);
         CountDownLatch go = new CountDownLatch(1);
         ExecutorService pool = Executors.newFixedThreadPool(threads);
         try {
             List<Future<Integer>> results = new java.util.ArrayList<>();
+            java.util.concurrent.atomic.AtomicReference<String> winnerRefresh = new java.util.concurrent.atomic.AtomicReference<>();
             for (int i = 0; i < threads; i++) {
                 Callable<Integer> call = () -> {
                     ready.countDown();
                     go.await();
-                    return mvc.perform(post("/api/auth/refresh").contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"refreshToken\":\"" + s.refresh() + "\"}")).andReturn().getResponse().getStatus();
+                    var response = mvc.perform(post("/api/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"refreshToken\":\"" + s.refresh() + "\"}")).andReturn().getResponse();
+                    if (response.getStatus() == 200) {
+                        winnerRefresh.set(JsonPath.read(response.getContentAsString(), "$.refreshToken"));
+                    }
+                    return response.getStatus();
                 };
                 results.add(pool.submit(call));
             }
@@ -220,6 +226,14 @@ class AuthFlowIntegrationTest {
                 }
             }
             assertThat(ok).isEqualTo(1);
+
+            // Chosen policy (strict): a token presented a second time is treated as a replay and the whole
+            // session is revoked, including the new token the winner received. The client must send one
+            // refresh request at a time (single-flight); a lost race means signing in again.
+            assertThat(winnerRefresh.get()).isNotBlank();
+            expectPost("/api/auth/refresh", "{\"refreshToken\":\"" + winnerRefresh.get() + "\"}", 401,
+                    "invalid_refresh_token");
+            assertThat(activeRefreshTokens(phone)).isZero();
         } finally {
             pool.shutdownNow();
         }
