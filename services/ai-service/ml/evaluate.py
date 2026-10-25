@@ -106,9 +106,11 @@ def compute_metrics(
     """Everything results.json needs for one split.
 
     Macro-F1 is averaged over the classes that occur in the evaluated subset. The crop-masked
-    numbers skip images whose class is ``unknown``: no crop is chosen for them. ``crop_masked_*``
-    keeps only the classes of the crop; ``crop_masked_product_*`` also keeps ``unknown``, which
-    is what ``/predict`` does, so a crop photo answered ``unknown`` counts as an error.
+    numbers skip images whose class is ``unknown``: no crop is chosen for them.
+    ``crop_masked_product_*`` is the headline number: the answer is restricted to the classes of
+    the crop plus ``unknown``, as ``/predict`` does, so a crop photo answered ``unknown`` counts
+    as an error; it is also reported per domain and, for field photos, per crop. ``crop_masked_*``
+    (the crop's classes only) is an auxiliary metric.
     """
     preds = logits.argmax(axis=1)
     acc, macro_f1 = _acc_f1(targets, preds)
@@ -122,6 +124,18 @@ def compute_metrics(
     # as /predict answers: the crop's classes plus ``unknown``
     product = mask_logits(logits[has_crop], crop_list, masks, (classes.index(UNKNOWN),))
     product_acc, product_f1 = _acc_f1(targets[has_crop], product.argmax(axis=1))
+    product_preds = np.full(len(targets), -1)
+    product_preds[has_crop] = product.argmax(axis=1)
+    crop_arr = np.array([c or "" for c in crops])
+    product_by_domain, product_field_by_crop = {}, {}
+    for domain in DOMAINS:
+        sel = has_crop & (np.array(kinds) == domain)
+        d_acc, d_f1 = _acc_f1(targets[sel], product_preds[sel])
+        product_by_domain[domain] = {"acc": d_acc, "macro_f1": d_f1, "n": int(sel.sum())}
+    for crop in sorted(masks):
+        sel = (crop_arr == crop) & (np.array(kinds) == "field")
+        c_acc, c_f1 = _acc_f1(targets[sel], product_preds[sel])
+        product_field_by_crop[crop] = {"acc": c_acc, "macro_f1": c_f1, "n": int(sel.sum())}
 
     kind_arr = np.array(kinds)
     by_domain = {}
@@ -154,6 +168,8 @@ def compute_metrics(
         "crop_masked_product_acc": product_acc,
         "crop_masked_product_macro_f1": product_f1,
         "crop_masked_n": int(has_crop.sum()),
+        "crop_masked_product_by_domain": product_by_domain,
+        "crop_masked_product_field_by_crop": product_field_by_crop,
         "by_domain": by_domain,
         "unknown": unknown,
         "per_class": per_class,
