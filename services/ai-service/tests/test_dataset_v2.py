@@ -105,9 +105,11 @@ def test_unknown_download_type_is_rejected(tmp_path):
 def test_the_real_config_has_the_v2_sources():
     sources = {s.name: s for s in load_sources(REGISTRY)}
     assert sources["pldd-up"].limit_per_class == 1500 and sources["pldd-up"].role == "train"
-    assert {n for n, s in sources.items() if s.role == "bench"} == {
-        "plantwild", "plantseg", "johninnes-wheat",
-    }  # fmt: skip
+    assert {n for n, s in sources.items() if s.role == "bench"} == {"plantwild", "plantseg"}
+    # no field source that trains gives more than 1500 photos per class
+    for source in sources.values():
+        if source.kind == "field" and source.role == "train":
+            assert source.limit_per_class and source.limit_per_class <= 1500, source.name
     assert sources["fieldplant"].loader == "coco"
     assert sources["ccmt"].label_path(("Maize", "healthy")) == "corn__healthy"
     mixed = (("Maize", "leaf blight"), ("Maize", "leaf spot"), ("Tomato", "leaf blight"))
@@ -197,8 +199,9 @@ def test_the_real_config_has_the_wheat_bench_sources():
     assert sources["johninnes-wheat"].label("BrownRust") == "wheat__leaf_rust"
     assert sources["plantseg"].label("Wheat Septoria Blotch") == "wheat__septoria"
     assert sources["plantseg"].label("corn rust") == "corn__common_rust"
-    roles = {sources[name].role for name in ("plantseg", "johninnes-wheat")}
-    assert roles == {"bench"}
+    assert sources["plantseg"].role == "bench"
+    # John Innes is where most of the Kaggle wheat comes from: not independent, so it trains
+    assert sources["johninnes-wheat"].role == "train"
 
 
 def coco_source(tmp_path, extra=""):
@@ -283,6 +286,25 @@ def test_truncated_images_are_not_readable(tmp_path):
     assert build_dataset._is_readable(good)
     assert not build_dataset._is_readable(cut)  # verify() would accept it
     assert not build_dataset._is_readable(tmp_path / "missing.jpg")
+
+
+def test_the_same_photo_with_two_classes_is_a_label_conflict_shown_in_the_report(tmp_path):
+    first = item(tmp_path, "a", "plantwild", "bench", (10, 200, 10), "corn__common_rust")
+    other = item(tmp_path, "b", "ccmt", "train", (10, 200, 10), "corn__gray_leaf_spot")
+    again = item(tmp_path, "c", "tom2024", "train", (10, 200, 10), "corn__gray_leaf_spot")
+    keep = item(tmp_path, "d", "ccmt", "train", (200, 10, 10), "corn__healthy")
+    removed: Counter = Counter()
+    conflicts: Counter = Counter()
+    rows = build([other, again, keep, first], REGISTRY, tmp_path / "v2", removed, conflicts)
+    assert [r["class"] for r in rows if r["md5"] == first.md5] == ["corn__common_rust"]
+    assert conflicts == {
+        ("plantwild", "corn__common_rust", "ccmt", "corn__gray_leaf_spot"): 1,
+        ("plantwild", "corn__common_rust", "tom2024", "corn__gray_leaf_spot"): 1,
+    }
+    assert not removed  # these are conflicts, not plain duplicates
+    text = report(rows, REGISTRY, removed, conflicts)
+    assert "Label conflicts: 2 photos" in text
+    assert "| plantwild / `corn__common_rust` | ccmt / `corn__gray_leaf_spot` | 1 |" in text
 
 
 def test_building_without_images_is_a_clear_error(tmp_path):

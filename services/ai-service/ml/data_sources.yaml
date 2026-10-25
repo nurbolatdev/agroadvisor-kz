@@ -11,7 +11,9 @@
 #       "bench" split and a train photo that matches one is dropped. Needed for non-commercial
 #       licenses (CC BY-NC-ND) and for an honest evaluation on photos from other places.
 # limit_per_class: keep at most N photos per class from this source (seeded, deterministic), so
-#       one region or one photographer does not dominate a class.
+#       one region or one photographer does not dominate a class. General rule: no field source
+#       gives more than 1500 photos per class. Laboratory sources are not limited here: the
+#       training script caps lab photos (--lab-cap).
 # loader: folders (default) or coco (leaves are cut out of photos by their boxes).
 # Two-level names ("Maize/healthy") tell apart classes whose folder name repeats under crops.
 # download type local: archives fetched by hand (.team/scripts) and listed under archives.
@@ -106,6 +108,7 @@ sources:
       - grape leaf black rot
       - grape leaf
     unknown_limit: 800
+    limit_per_class: 1500  # no class reaches it; the rule is the same for every field source
     # Not used: Tomato leaf yellow virus, Tomato two spotted spider mites leaf
 
   wheat_kaggle:
@@ -121,7 +124,10 @@ sources:
       septoria: wheat__septoria
       mildew: wheat__powdery_mildew
       healthy: wheat__healthy
+    limit_per_class: 1500
     # Not used: other wheat diseases and pests — a wheat photo must not be labeled unknown
+    # Most of this dataset is made of copies of the John Innes photos (see johninnes-wheat), so
+    # wheat is practically one source (Long et al., 2023).
 
   caltech101:
     kind: other
@@ -172,6 +178,8 @@ sources:
       Maize/healthy: corn__healthy
       Tomato/healthy: tomato__healthy
       Tomato/septoria leaf spot: tomato__septoria_leaf_spot
+    # 2 743 raw septoria photos from Ghana would be more than half of the class: limited to 1500
+    limit_per_class: 1500
     # Raw photos only (never the augmented copies), only the unambiguous classes. Decided from
     # contact sheets (a mix of diseases): Maize/leaf blight, Maize/leaf spot, Tomato/leaf blight
     # are not used.
@@ -189,6 +197,7 @@ sources:
       tomato_diseases/tomato_late_blight_d: tomato__late_blight
       maize_diseases/Helminthosporiosis-D: corn__northern_leaf_blight
       maize_diseases/Rust-D: corn__common_rust  # may include some southern rust; same treatment
+    limit_per_class: 1500
     # Labeled photos of "CATEGORY A / CATA-English" only (not the augmented category B).
     # Decided from contact sheets, not used: tomato alternaria_d (half of the photos show fruit)
     # and virosis_d (a mix of viruses). Not used: pests, abiotic damage, fruit, other diseases.
@@ -254,7 +263,6 @@ sources:
 
   johninnes-wheat:
     kind: field
-    role: bench
     loader: filename
     license: CC BY 4.0
     url: https://zenodo.org/records/7573133
@@ -267,8 +275,10 @@ sources:
       Mildew: wheat__powdery_mildew
       Septoria: wheat__septoria
       Healthy: wheat__healthy
-    # 999 wheat photos (Long et al., Plant Pathology 2023), a second source for wheat, whose
-    # train photos all come from one Kaggle dataset. The photos are field and glasshouse shots.
+    limit_per_class: 1500
+    # 999 wheat photos (Long et al., Plant Pathology 2023), field and glasshouse shots. It is the
+    # origin of most of wheat_kaggle (1 504 exact copies), so it is NOT an independent bench:
+    # it trains, and the wheat bench is PlantSeg only. wheat__healthy has no bench.
 
   fieldplant:
     kind: field
@@ -287,5 +297,6 @@ sources:
       Tomato leaf mosaic virus: tomato__mosaic_virus
       Tomato blight leaf: tomato__late_blight  # decided from contact sheets
       Corn rust leaf: corn__common_rust
+    limit_per_class: 1500
     # Category names of the Roboflow export v11 (27 classes, one "train" folder, 5 156 photos).
     # Not used: "Corn leaf blight" (noisy, a mix), "Tomato Brown Spots" and every other class

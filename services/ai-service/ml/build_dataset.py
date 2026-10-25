@@ -344,11 +344,14 @@ def build(
     registry: Registry,
     out_dir: Path,
     removed: Counter | None = None,
+    conflicts: Counter | None = None,
 ) -> list[dict]:
     """Write the dataset folders and manifest.csv; the first copy of an exact duplicate wins.
 
     Bench sources go first, so a photo that is in both a bench and a train source stays in the
-    bench only. ``removed`` counts the dropped copies as (kept source, dropped source).
+    bench only. ``removed`` counts the dropped copies as (kept source, dropped source); a copy
+    with a different class is a label conflict and is counted in ``conflicts`` as
+    (kept source, kept class, dropped source, dropped class) instead.
     """
     if not items:
         raise ValueError("no images found — check the raw folders and the class mapping")
@@ -361,9 +364,15 @@ def build(
     for item in items:
         if item.md5 in seen:
             first = seen[item.md5]
-            stats["conflicts" if first.code != item.code else "duplicates"] += 1
-            if removed is not None:
-                removed[(first.source.name, item.source.name)] += 1
+            if first.code != item.code:
+                stats["conflicts"] += 1
+                if conflicts is not None:
+                    key = (first.source.name, first.code, item.source.name, item.code)
+                    conflicts[key] += 1
+            else:
+                stats["duplicates"] += 1
+                if removed is not None:
+                    removed[(first.source.name, item.source.name)] += 1
             continue
         seen[item.md5] = item
         name = f"{item.source.name}__{item.md5[:16]}{item.path.suffix.lower()}"
@@ -393,8 +402,14 @@ def build(
     return rows
 
 
-def report(rows: list[dict], registry: Registry, removed: Counter | None = None) -> str:
-    """Image counts per class (train pool and bench apart) and the exact duplicates removed."""
+def report(
+    rows: list[dict],
+    registry: Registry,
+    removed: Counter | None = None,
+    conflicts: Counter | None = None,
+) -> str:
+    """Image counts per class (train pool and bench apart), the exact duplicates removed and the
+    label conflicts (the same photo with different classes in two places)."""
     counts: dict[str, Counter] = defaultdict(Counter)
     bench: Counter = Counter()
     for row in rows:
@@ -429,6 +444,18 @@ def report(rows: list[dict], registry: Registry, removed: Counter | None = None)
             "| --- | --- | ---: |",
         ]
         lines += [f"| {k} | {d} | {n} |" for (k, d), n in sorted(removed.items())]
+    if conflicts:
+        lines += [
+            "",
+            f"Label conflicts: {sum(conflicts.values())} photos appear with different classes. "
+            "The first copy (and its class) is kept, the other is dropped. A conflict that repeats "
+            "for one pair of classes points to a systematic labeling difference:",
+            "",
+            "| Kept: source / class | Dropped: source / class | Photos |",
+            "| --- | --- | ---: |",
+        ]
+        ordered = sorted(conflicts.items(), key=lambda kv: (-kv[1], kv[0]))
+        lines += [f"| {a} / `{b}` | {c} / `{d}` | {n} |" for (a, b, c, d), n in ordered]
     return "\n".join(lines) + "\n"
 
 
@@ -465,8 +492,9 @@ def main() -> None:
         items.extend(found)
 
     removed: Counter = Counter()
-    rows = build(items, registry, out_dir, removed)
-    text = report(rows, registry, removed)
+    conflicts: Counter = Counter()
+    rows = build(items, registry, out_dir, removed, conflicts)
+    text = report(rows, registry, removed, conflicts)
     (out_dir / "report.md").write_text(text, encoding="utf-8")
     print(text)
 
