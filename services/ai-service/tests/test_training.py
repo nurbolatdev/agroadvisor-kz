@@ -7,6 +7,7 @@ import pytest
 from PIL import Image
 
 from ml import train
+from ml.data import field_weights
 from ml.evaluate import compute_metrics, crop_masks, mask_logits
 from ml.registry import load_registry
 
@@ -194,5 +195,44 @@ def test_interrupted_and_failed_runs_keep_their_status(monkeypatch, tmp_path, er
 
 def test_eval_test_is_refused_for_smoke_runs(monkeypatch, tmp_path):
     run_main(monkeypatch, tmp_path, "--subset", "0.5", "--eval-test")
+    with pytest.raises(SystemExit):
+        train.main()
+
+
+def test_field_weights_give_each_class_the_same_mass_and_the_field_its_share():
+    targets = [0, 0, 0, 0, 1, 1, 2, 2]
+    kinds = ["lab", "lab", "lab", "field", "lab", "lab", "field", "field"]
+    w = field_weights(targets, kinds, 0.5)
+    assert w[3] == pytest.approx(0.5)  # the single field photo of class 0 gets half the class
+    assert sum(w[:3]) == pytest.approx(0.5)  # the three others share the rest
+    assert w[4] == w[5] == pytest.approx(0.5)  # no field photos: plain 1/count
+    assert w[6] == w[7] == pytest.approx(0.5)  # only field photos: plain 1/count
+    for cls in (0, 1, 2):
+        assert sum(x for x, t in zip(w, targets, strict=True) if t == cls) == pytest.approx(1.0)
+
+
+def test_run_with_field_share_records_it(monkeypatch, tmp_path):
+    run = run_main(
+        monkeypatch, tmp_path, "--field-share", "0.5", "--head-epochs", "1", "--full-epochs", "0",
+        "--batch-size", "8",
+    )  # fmt: skip
+    train.main()
+    config = json.loads((run / "config.json").read_text())
+    assert config["field_share"] == 0.5
+    assert "field photos" in config["sampler"]
+    assert json.loads((run / "results.json").read_text())["status"] == "completed"
+
+
+def test_field_share_works_together_with_a_subset(monkeypatch, tmp_path):
+    run = run_main(
+        monkeypatch, tmp_path, "--field-share", "0.5", "--subset", "0.5", "--head-epochs", "1",
+        "--full-epochs", "0", "--batch-size", "8",
+    )  # fmt: skip
+    train.main()
+    assert json.loads((run / "results.json").read_text())["status"] == "completed"
+
+
+def test_field_share_conflicts_with_no_balanced(monkeypatch, tmp_path):
+    run_main(monkeypatch, tmp_path, "--field-share", "0.5", "--no-balanced")
     with pytest.raises(SystemExit):
         train.main()

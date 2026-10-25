@@ -87,6 +87,33 @@ def balanced_sampler(targets: list[int]) -> WeightedRandomSampler:
     return WeightedRandomSampler(weights, num_samples=len(targets), replacement=True)
 
 
+def field_weights(targets: list[int], kinds: list[str], field_share: float) -> list[float]:
+    """Sampling weights: classes are drawn equally often, and inside a class that has field
+    photos, ``field_share`` of the draws go to them (the rest to lab and other photos).
+
+    A class without field photos, or consisting only of them, keeps plain 1/count weights.
+    """
+    total = Counter(targets)
+    field = Counter(t for t, k in zip(targets, kinds, strict=True) if k == "field")
+    weights = []
+    for target, kind in zip(targets, kinds, strict=True):
+        n_field, n_rest = field[target], total[target] - field[target]
+        if n_field == 0 or n_rest == 0:
+            weights.append(1.0 / total[target])
+        elif kind == "field":
+            weights.append(field_share / n_field)
+        else:
+            weights.append((1.0 - field_share) / n_rest)
+    return weights
+
+
+def field_weighted_sampler(
+    targets: list[int], kinds: list[str], field_share: float
+) -> WeightedRandomSampler:
+    weights = torch.tensor(field_weights(targets, kinds, field_share), dtype=torch.double)
+    return WeightedRandomSampler(weights, num_samples=len(targets), replacement=True)
+
+
 def make_loaders(
     dataset_dir: Path, batch_size: int = 32, num_workers: int = 4, balanced: bool = True
 ) -> dict[str, DataLoader]:
