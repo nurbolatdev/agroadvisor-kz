@@ -17,6 +17,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import shutil
 import subprocess
 import tarfile
@@ -222,16 +223,43 @@ def limit_per_class(
     return kept
 
 
+def _images(source_dir: Path) -> list[Path]:
+    return [
+        p
+        for p in sorted(source_dir.rglob("*"))
+        if p.suffix.lower() in IMAGE_EXTENSIONS and not _is_junk(p)
+    ]
+
+
+def label_images(source: Source, source_dir: Path) -> list[tuple[Path, str]]:
+    """(photo, class code) for every photo of a used class, by the source's loader."""
+    labeled: list[tuple[Path, str]] = []
+    if source.loader == "csv":
+        spec = source.labels or {}
+        folder = source_dir / spec.get("images", "")
+        by_name = {p.name: p for p in _images(folder)}
+        table = source_dir / spec["file"]
+        with table.open(encoding="utf-8-sig") as f:
+            for row in csv.DictReader(f):
+                code = source.label(row[spec["class"]])
+                path = by_name.get(row[spec["name"]])
+                if code and path:
+                    labeled.append((path, code))
+        return labeled
+    for path in _images(source_dir):
+        if source.loader == "filename":  # BrownRust107.png -> BrownRust
+            code = source.label(re.sub(r"[\d_\-\s]+$", "", path.stem))
+        else:
+            code = source.label_path(path.parent.relative_to(source_dir).parts)
+        if code:
+            labeled.append((path, code))
+    return labeled
+
+
 def collect(source: Source, source_dir: Path, rng: random.Random) -> list[Item]:
     if source.loader == "coco":
         return collect_coco(source, source_dir)
-    labeled: list[tuple[Path, str]] = []
-    for path in sorted(source_dir.rglob("*")):
-        if path.suffix.lower() not in IMAGE_EXTENSIONS or _is_junk(path):
-            continue
-        code = source.label_path(path.parent.relative_to(source_dir).parts)
-        if code:
-            labeled.append((path, code))
+    labeled = label_images(source, source_dir)
     known = [x for x in labeled if x[1] != UNKNOWN]
     unknown = [x for x in labeled if x[1] == UNKNOWN]
     if source.limit_per_class:

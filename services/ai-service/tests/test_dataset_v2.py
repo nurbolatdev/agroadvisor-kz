@@ -105,7 +105,9 @@ def test_unknown_download_type_is_rejected(tmp_path):
 def test_the_real_config_has_the_v2_sources():
     sources = {s.name: s for s in load_sources(REGISTRY)}
     assert sources["pldd-up"].limit_per_class == 1500 and sources["pldd-up"].role == "train"
-    assert {n for n, s in sources.items() if s.role == "bench"} == {"plantwild"}
+    assert {n for n, s in sources.items() if s.role == "bench"} == {
+        "plantwild", "plantseg", "johninnes-wheat",
+    }  # fmt: skip
     assert sources["fieldplant"].loader == "coco"
     assert sources["ccmt"].label_path(("Maize", "healthy")) == "corn__healthy"
     assert sources["ccmt"].label_path(("Maize", "leaf blight")) is None  # undecided
@@ -136,6 +138,61 @@ def test_limit_per_class_applies_while_collecting(tmp_path):
     kept = {i.original for i in collect(source, raw, random.Random(0))}
     assert len(kept) == 3
     assert kept == {i.original for i in collect(source, raw, random.Random(99))}
+
+
+def test_filename_loader_takes_the_class_from_the_start_of_the_name(tmp_path):
+    source = write_sources(
+        tmp_path,
+        "  s:\n" + COMMON + LOCAL + "    loader: filename\n    classes:\n"
+        + "      BrownRust: wheat__leaf_rust\n      Healthy: wheat__healthy\n",
+    )[0]
+    raw = tmp_path / "raw"
+    photo(raw / "BrownRust107.png", (150, 80, 20))
+    photo(raw / "BrownRust-12.png", (151, 80, 20))
+    photo(raw / "Healthy3.png", (20, 160, 20))
+    photo(raw / "Smut9.png", (1, 1, 1))  # not mapped
+    codes = Counter(i.code for i in collect(source, raw, random.Random(0)))
+    assert codes == {"wheat__leaf_rust": 2, "wheat__healthy": 1}
+
+
+def test_csv_loader_labels_photos_from_the_metadata_table(tmp_path):
+    source = write_sources(
+        tmp_path,
+        "  s:\n" + COMMON + LOCAL + "    loader: csv\n    labels:\n      file: meta/Metadata.csv\n"
+        + "      name: Name\n      class: Disease\n      images: images\n    classes:\n"
+        + "      wheat stripe rust: wheat__stripe_rust\n"
+        + "      tomato leaf mold: tomato__leaf_mold\n",
+    )[0]
+    raw = tmp_path / "raw"
+    photo(raw / "images/train/a.jpg", (1, 2, 3))
+    photo(raw / "images/val/b.jpg", (4, 5, 6))
+    photo(raw / "images/val/c.jpg", (7, 8, 9))
+    photo(raw / "annotations/a.jpg", (0, 0, 0))  # a mask folder with the same name: not an image
+    (raw / "meta").mkdir()
+    (raw / "meta/Metadata.csv").write_text(
+        "\ufeffName,Disease,Split\na.jpg,wheat stripe rust,Training\nb.jpg,tomato leaf mold,Test\n"
+        "c.jpg,corn smut,Test\nmissing.jpg,wheat stripe rust,Test\n",
+        encoding="utf-8",
+    )
+    items = {i.original: i.code for i in collect(source, raw, random.Random(0))}
+    assert items == {
+        "images/train/a.jpg": "wheat__stripe_rust",
+        "images/val/b.jpg": "tomato__leaf_mold",
+    }
+
+
+def test_csv_loader_needs_a_labels_table(tmp_path):
+    with pytest.raises(SourceConfigError, match="labels"):
+        write_sources(tmp_path, "  s:\n" + COMMON + LOCAL + "    loader: csv\n")
+
+
+def test_the_real_config_has_the_wheat_bench_sources():
+    sources = {s.name: s for s in load_sources(REGISTRY)}
+    assert sources["johninnes-wheat"].label("BrownRust") == "wheat__leaf_rust"
+    assert sources["plantseg"].label("Wheat Septoria Blotch") == "wheat__septoria"
+    assert sources["plantseg"].label("corn rust") is None  # undecided
+    roles = {sources[name].role for name in ("plantseg", "johninnes-wheat")}
+    assert roles == {"bench"}
 
 
 def coco_source(tmp_path, extra=""):

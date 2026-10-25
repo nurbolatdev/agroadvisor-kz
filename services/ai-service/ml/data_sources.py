@@ -12,7 +12,7 @@ from ml.registry import UNKNOWN, Registry
 DEFAULT_PATH = Path(__file__).resolve().parent / "data_sources.yaml"
 KINDS = ("lab", "field", "other")
 ROLES = ("train", "bench")
-LOADERS = ("folders", "coco")
+LOADERS = ("folders", "filename", "csv", "coco")
 DOWNLOAD_TYPES = ("git", "kaggle", "url", "local")
 REQUIRED = ("license", "url", "download")
 ALL_FOLDERS = "*"
@@ -47,8 +47,12 @@ class Source:
     exclude: frozenset[str]
     unknown_limit: int | None
     role: str = "train"  # bench sources are only used to evaluate, never to train
-    loader: str = "folders"  # coco: leaves are cut out of the photos by their boxes
+    # How the class of a photo is found: folders (name of the folder), filename (the name without
+    # its trailing number), csv (a metadata table, see ``labels``), coco (leaves are cut out of
+    # the photos by their boxes)
+    loader: str = "folders"
     limit_per_class: int | None = None  # keep at most N photos per class (seeded)
+    labels: dict[str, str] | None = None  # csv loader: file, name, class column and images dir
 
     def label(self, folder: str) -> str | None:
         """Class code for a source folder ('class' or 'crop/class'), or None if it is not used."""
@@ -125,6 +129,9 @@ def _parse(name: str, raw: dict[str, Any]) -> Source:
         raise SourceConfigError(f"{name}: unknown folders need unknown_limit")
     if role == "bench" and unknown:
         raise SourceConfigError(f"{name}: a bench source cannot feed the unknown class")
+    labels = raw.get("labels")
+    if loader == "csv" and not (labels and {"file", "name", "class"} <= labels.keys()):
+        raise SourceConfigError(f"{name}: the csv loader needs labels with file, name and class")
     limit = raw.get("limit_per_class")
     if limit is not None and (not isinstance(limit, int) or limit < 1):
         raise SourceConfigError(f"{name}: limit_per_class must be a positive integer")
@@ -141,4 +148,5 @@ def _parse(name: str, raw: dict[str, Any]) -> Source:
         role=role,
         loader=loader,
         limit_per_class=limit,
+        labels=labels,
     )

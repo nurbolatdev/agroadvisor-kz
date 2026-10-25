@@ -213,6 +213,58 @@ sources:
     # Undecided: corn rust, and the "corn leaf", "potato leaf", "tomato leaf" classes (healthy
     # leaves only if the photos clearly show healthy leaves).
 
+  plantseg:
+    kind: field
+    role: bench
+    loader: csv
+    license: CC BY-NC 4.0  # Zenodo record 17719108; per photo in Metadata.csv: CC-BY-NC or CC0
+    url: https://zenodo.org/records/17719108
+    download:
+      type: local
+      archives: [plantseg.zip]  # Zenodo publishes only MD5 (9358a66d...), checked at download
+    labels:
+      file: plantseg/Metadata.csv
+      name: Name
+      class: Disease
+      images: plantseg/images
+    classes:
+      corn gray leaf spot: corn__gray_leaf_spot
+      corn northern leaf blight: corn__northern_leaf_blight
+      potato early blight: potato__early_blight
+      potato late blight: potato__late_blight
+      tomato bacterial leaf spot: tomato__bacterial_spot
+      tomato early blight: tomato__early_blight
+      tomato late blight: tomato__late_blight
+      tomato leaf mold: tomato__leaf_mold
+      tomato mosaic virus: tomato__mosaic_virus
+      tomato septoria leaf spot: tomato__septoria_leaf_spot
+      wheat leaf rust: wheat__leaf_rust
+      wheat powdery mildew: wheat__powdery_mildew
+      wheat septoria blotch: wheat__septoria
+      wheat stripe rust: wheat__stripe_rust
+    # Evaluation only (non-commercial). It overlaps PlantWild (same research group, web photos):
+    # exact copies are removed by MD5, near copies by the split. Undecided: corn rust.
+    # Not used: corn smut, tomato yellow leaf curl virus, wheat head scab, loose smut, stem rust,
+    # bacterial leaf streak. The masks (annotations/) are not used.
+
+  johninnes-wheat:
+    kind: field
+    role: bench
+    loader: filename
+    license: CC BY 4.0
+    url: https://zenodo.org/records/7573133
+    download:
+      type: local
+      archives: [Long 2023 Plant Path 999 photos.zip]
+    classes:
+      BrownRust: wheat__leaf_rust
+      YellowRust: wheat__stripe_rust
+      Mildew: wheat__powdery_mildew
+      Septoria: wheat__septoria
+      Healthy: wheat__healthy
+    # 999 wheat photos (Long et al., Plant Pathology 2023), a second source for wheat, whose
+    # train photos all come from one Kaggle dataset. The photos are field and glasshouse shots.
+
   fieldplant:
     kind: field
     loader: coco
