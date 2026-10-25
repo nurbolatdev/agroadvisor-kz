@@ -2,9 +2,11 @@
 
 Every training or evaluation run has an ID (`<task>-E<NNN>`) and a folder `services/ai-service/ml/runs/<ID>/` (not in git). This file records the results. Selection of the best checkpoint uses validation macro-F1 only; the test split is not used for tuning.
 
-| ID | Status | Change | Val macro-F1 | Crop-masked macro-F1 (crop only / + unknown) | Field macro-F1 |
-| --- | --- | --- | --- | --- | --- |
-| A5-E001 | completed | Baseline, two-stage fine-tuning, balanced sampler | 0.9557 | 0.9607 / 0.9619 | 0.699 |
+The headline metric is **crop-masked macro-F1 with `unknown`** (`crop_masked_product_*`): the answer is restricted to the classes of the crop the farmer selected plus `unknown`, exactly as `/predict` answers (step 5 in `app/services/predict.py`). It is reported on the whole validation split and separately on field photos. "Crop classes only" is an auxiliary metric. Plain overall macro-F1 is kept for reference.
+
+| ID | Status | Change | Crop-masked macro-F1 (val) | Crop-masked macro-F1 (val, field) | Overall macro-F1 | Field macro-F1 (unmasked) |
+| --- | --- | --- | --- | --- | --- | --- |
+| A5-E001 | completed | Baseline, two-stage fine-tuning, balanced sampler | 0.9619 | 0.7325 | 0.9557 | 0.699 |
 
 ## A5-E001 — baseline
 
@@ -23,13 +25,24 @@ Every training or evaluation run has an ID (`<task>-E<NNN>`) and a folder `servi
 | Subset | n | Accuracy | Macro-F1 |
 | --- | --- | --- | --- |
 | Overall | 3809 | 0.9614 | 0.9557 |
-| Crop-masked, crop classes only | 3344 | 0.9644 | 0.9607 |
-| Crop-masked, crop classes + `unknown` (as `/predict` answers) | 3344 | 0.9620 | 0.9619 |
-| Laboratory photos | 2479 | 0.986 | 0.981 |
-| Field photos | 1105 | 0.899 | 0.699 |
-| Other | 225 | 1.000 | 1.000 |
+| **Crop-masked + `unknown` (headline)** | 3344 | 0.9620 | **0.9619** |
+| **Crop-masked + `unknown`, field photos (headline)** | 985 | 0.9015 | **0.7325** |
+| Crop-masked + `unknown`, laboratory photos | 2359 | 0.9873 | 0.9847 |
+| Crop-masked, crop classes only (auxiliary) | 3344 | 0.9644 | 0.9607 |
+| Laboratory photos (unmasked) | 2479 | 0.986 | 0.981 |
+| Field photos (unmasked) | 1105 | 0.899 | 0.699 |
+| Other (unmasked) | 225 | 1.000 | 1.000 |
 
-Crop-masked numbers cover the 3344 images of a crop; the 465 `unknown` images are skipped because no crop is chosen for them. In the first variant the answer is restricted to the classes of the selected crop. The second also keeps `unknown`, as `/predict` does, so a crop photo answered `unknown` counts as an error; it is the closer match to the product. The definition used for the headline number is still to be confirmed.
+Crop-masked numbers cover the 3344 images of a crop; the 465 `unknown` images are skipped because no crop is chosen for them. A crop photo that the model answers with `unknown` counts as an error, as in the product. The headline numbers on field photos only, per crop (macro-F1 / accuracy / photos):
+
+| Crop | Macro-F1 | Accuracy | Field photos |
+| --- | --- | --- | --- |
+| tomato | 0.571 | 0.529 | 102 |
+| potato | 0.688 | 0.667 | 33 |
+| corn | 0.751 | 0.768 | 56 |
+| wheat | 0.966 | 0.969 | 794 |
+
+Tomato and potato are the main target of the next experiment.
 
 Top-3 accuracy 0.990. `unknown`: precision 0.960, recall 0.987.
 
@@ -92,9 +105,11 @@ Wheat has hundreds of field photos and is recognised well. Tomato, potato and co
 
 **Conclusion.** The baseline reaches 0.956 macro-F1 on validation, but the gap between laboratory and field photos is the main weakness. The best epoch is the last one (15 of 15) and validation loss was still falling slowly, so the model may be undertrained; a longer schedule is worth testing too.
 
-**Model artifact.** The best checkpoint (epoch 15) is stored locally as `ml/weights/effnet-b0-v1/` (`model.pt`, `class_index.json`, `model_card.json`). It is a baseline and research artifact, not a production model; the folder is outside git, and the checkpoint is identified by the SHA-256 in `model_card.json`. A repeat needs a new ID and the same arguments, `python -m ml.train --id <new ID> --objective ... --hypothesis ... --head-epochs 3 --full-epochs 12` (all other parameters are defaults: lr 1e-3 / 1e-4, weight decay 1e-4, batch size 32, seed 42, balanced sampler); results on MPS vary slightly between runs.
+**Model artifact.** The best checkpoint (epoch 15) is published as the preliminary model `effnet-b0-v1` (`calibrated: false`): until confidences are calibrated (A7) the service must not answer `ok`, at most `low_confidence`. The files `model.pt`, `class_index.json` and `model_card.json` (data sources with licenses, SHA-256 of both files, versions) go to the GitHub Release `model-effnet-b0-v1`; `python -m ml.fetch_weights effnet-b0-v1` downloads them into `ml/weights/effnet-b0-v1/` and verifies the checksums. The weights are not in git (no LFS). The fallback is to retrain: a repeat needs a new ID and the same arguments, `python -m ml.train --id <new ID> --objective ... --hypothesis ... --head-epochs 3 --full-epochs 12` (all other parameters are defaults: lr 1e-3 / 1e-4, weight decay 1e-4, batch size 32, seed 42, balanced sampler); results on MPS vary slightly between runs.
 
-**Next step.** Run A5-E002 with a sampler that favours field photos (parent A5-E001), with the same split, preprocessing and metrics. A sampler repeats the few field photos more often and does not add new ones, so it may also overfit them. Compare field macro-F1, the per-class field metrics and the laboratory results, and keep E001 available. The test split stays untouched until the final evaluation of a selected model.
+**Environment.** Python 3.12.10, torch 2.14.1, torchvision 0.29.1. Python 3.12 is accepted for training and for the service image (`python:3.12-slim`); the package keeps `requires-python >= 3.11`.
+
+**Next step.** Run A5-E002 with a sampler that favours field photos (parent A5-E001), with the same split, preprocessing and metrics; the main comparison metric is the crop-masked macro-F1 with `unknown` on field photos of tomato and potato. A sampler repeats the few field photos more often and does not add new ones, so it may also overfit them. Compare field macro-F1, the per-class field metrics and the laboratory results, and keep E001 available. The test split stays untouched until the final evaluation of a selected model.
 
 ## A5-TRIAL — speed check (not an experiment)
 
