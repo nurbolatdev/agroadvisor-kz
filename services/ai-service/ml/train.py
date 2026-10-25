@@ -25,6 +25,7 @@ os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 import torchvision  # noqa: E402
+import yaml  # noqa: E402
 from torch import nn  # noqa: E402
 from torch.utils.data import DataLoader, Subset  # noqa: E402
 
@@ -326,12 +327,26 @@ def finalize(args, run_dir: Path, device: torch.device, status: str) -> None:
     write_json(run_dir / "results.json", results)
 
 
+def data_sources() -> list[dict]:
+    """Where the training images come from and under which licenses (ml/data_sources.yaml)."""
+    with (ML_DIR / "data_sources.yaml").open(encoding="utf-8") as f:
+        sources = yaml.safe_load(f)["sources"]
+    return [
+        {"name": name, "kind": s["kind"], "license": s["license"], "url": s["url"]}
+        for name, s in sources.items()
+    ]
+
+
 def model_card(args, run_dir: Path, classes: list[str], epoch: int, val: dict) -> dict:
     """Everything needed to publish the checkpoint: copy model.pt, class_index.json, this card."""
     return {
         "source_run": args.id,
         "checkpoint_epoch": epoch,
         "checkpoint_sha256": hashlib.sha256((run_dir / "best.pt").read_bytes()).hexdigest(),
+        "class_index_sha256": hashlib.sha256(
+            (run_dir / "class_index.json").read_bytes()
+        ).hexdigest(),
+        "calibrated": False,  # confidences are raw softmax values until A7
         "checkpoint_format": "torch.save({'model': state_dict, 'classes': [codes]})",
         "architecture": "efficientnet_b0",
         "num_classes": len(classes),
@@ -344,7 +359,13 @@ def model_card(args, run_dir: Path, classes: list[str], epoch: int, val: dict) -
         "normalize_mean": list(MEAN),
         "normalize_std": list(STD),
         "val_macro_f1": val["macro_f1"],
+        "val_crop_masked_product_macro_f1": val["crop_masked_product_macro_f1"],
         "val_field_macro_f1": val["by_domain"]["field"]["macro_f1"],
+        "val_field_crop_masked_product_macro_f1": val["crop_masked_product_by_domain"]["field"][
+            "macro_f1"
+        ],
+        "data_sources": data_sources(),
+        "python": platform.python_version(),
         "torch": torch.__version__,
         "torchvision": torchvision.__version__,
         **git_info(),

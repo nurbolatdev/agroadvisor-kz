@@ -147,6 +147,15 @@ def test_run_writes_every_artifact(tmp_path, monkeypatch):
             "acc", "macro_f1", "top3_acc", "crop_masked_acc", "crop_masked_macro_f1",
             "by_domain", "unknown", "per_class",
         } <= set(results[split])  # fmt: skip
+    assert set(results["val"]["crop_masked_product_by_domain"]) == {"lab", "field", "other"}
+    assert set(results["val"]["crop_masked_product_field_by_crop"]) == {
+        "tomato", "potato", "corn", "wheat",
+    }  # fmt: skip
+    card = json.loads((run / "model_card.json").read_text())
+    assert card["calibrated"] is False
+    assert card["source_run"] == "T0-E001"
+    assert {s["license"] for s in card["data_sources"]} >= {"CC BY 4.0", "CC0 1.0"}
+    assert len(card["checkpoint_sha256"]) == len(card["class_index_sha256"]) == 64
     assert json.loads((run / "class_index.json").read_text())["classes"] == CLASSES
     header = (run / "metrics.csv").read_text().splitlines()[0]
     assert header == ",".join(train.METRIC_COLUMNS)
