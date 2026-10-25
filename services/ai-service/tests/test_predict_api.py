@@ -267,6 +267,25 @@ def test_request_errors_win_over_model_not_loaded(client):
     assert error_of(post(client, blurry, content_type="image/png"))[0] == 422
 
 
+def test_model_output_that_breaks_the_registry_is_a_controlled_500(serve, caplog):
+    probs = spread({"tomato__late_blight": 0.9}, crop_codes("tomato"))
+    del probs["wheat__healthy"]
+    _, client = serve(probs)
+
+    with caplog.at_level("ERROR"):
+        response = post(client, encode(noise_image()))
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "error": "internal_error",
+        "reason": None,
+        "message": "The model returned an invalid result",
+    }
+    # The class names stay in the log, not in the response.
+    assert "wheat__healthy" in caplog.text
+    assert "wheat__healthy" not in response.text
+
+
 # --- real startup with the placeholder model ------------------------------------------------
 
 

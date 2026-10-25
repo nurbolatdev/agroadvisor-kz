@@ -11,8 +11,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /srv
 
 # CPU-only PyTorch: the default Linux wheel brings ~2 GB of CUDA libraries the service never uses.
-# Keep these specifiers in step with pyproject.toml.
-RUN pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.4" "torchvision>=0.19"
+# Pinned (a matching pair) so the image is reproducible; pyproject.toml keeps the supported range.
+RUN pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.14.1" "torchvision==0.29.1"
 
 # The remaining dependencies come from pyproject.toml, so there is a single list to maintain.
 COPY pyproject.toml ./
