@@ -7,6 +7,17 @@
 # classes: source folder -> class code from ml/classes.yaml
 # unknown: folders that go into the unknown class (other plants, non-plant objects);
 #          unknown_limit caps how many images this source adds to unknown.
+# role: train (default) or bench. Bench sources are never used to train: their photos go to the
+#       "bench" split and a train photo that matches one is dropped. Needed for non-commercial
+#       licenses (CC BY-NC-ND) and for an honest evaluation on photos from other places.
+# limit_per_class: keep at most N photos per class from this source (seeded, deterministic), so
+#       one region or one photographer does not dominate a class. General rule: no field source
+#       gives more than 1500 photos per class. Laboratory sources are not limited here: the
+#       training script caps lab photos (--lab-cap).
+# loader: folders (default) or coco (leaves are cut out of photos by their boxes).
+# Two-level names ("Maize/healthy") tell apart classes whose folder name repeats under crops.
+# download type local: files fetched with `python -m ml.fetch_sources <name>` (archives to
+#       unpack, checksums to verify, or a fetch hint when the files are read straight from a zip).
 # Details and licenses: docs/ai/dataset.md
 
 version: 1
@@ -98,6 +109,7 @@ sources:
       - grape leaf black rot
       - grape leaf
     unknown_limit: 800
+    limit_per_class: 1500  # no class reaches it; the rule is the same for every field source
     # Not used: Tomato leaf yellow virus, Tomato two spotted spider mites leaf
 
   wheat_kaggle:
@@ -113,7 +125,10 @@ sources:
       septoria: wheat__septoria
       mildew: wheat__powdery_mildew
       healthy: wheat__healthy
+    limit_per_class: 1500
     # Not used: other wheat diseases and pests — a wheat photo must not be labeled unknown
+    # Most of this dataset is made of copies of the John Innes photos (see johninnes-wheat), so
+    # wheat is practically one source (Long et al., 2023).
 
   caltech101:
     kind: other
@@ -134,3 +149,165 @@ sources:
       - sunflower
       - water_lilly
     unknown_limit: 1500
+
+  pldd-up:
+    kind: field
+    license: CC BY 4.0
+    url: https://data.mendeley.com/datasets/3j4nfkvp2n/1
+    download:
+      type: local
+      archives: [EB.zip, LB.zip, Healthy.zip]
+      checksums:  # SHA-256 published by Mendeley Data
+        EB.zip: cffd37bbb79e75c0e23c1486f88f0a7c873b3fe67f643c41db3abd794bdc01e5
+        LB.zip: f4d31182b5d2f147c256e1c73838eac9b17592b89ed2b1ae394f58863e74a447
+        Healthy.zip: 2b7e4107d7ba03c0ef9636831aa4de7d333435df238f667f562e27b1e46e59e2
+    classes:
+      EB: potato__early_blight
+      LB: potato__late_blight
+      Healthy: potato__healthy
+    # 15 519 photos from potato fields of one region of India: capped so that this single source
+    # does not dominate the potato classes
+    limit_per_class: 1500
+
+  ccmt:
+    kind: field
+    license: CC BY 4.0
+    url: https://data.mendeley.com/datasets/bwh3zbpkpv/1
+    download:
+      type: local
+      # only the raw photos of maize and tomato are read out of the zip (Maize/<class>/...)
+      fetch: python -m ml.fetch_sources ccmt
+    classes:
+      Maize/healthy: corn__healthy
+      Tomato/healthy: tomato__healthy
+      Tomato/septoria leaf spot: tomato__septoria_leaf_spot
+    # 2 743 raw septoria photos from Ghana would be more than half of the class: limited to 1500
+    limit_per_class: 1500
+    # Raw photos only (never the augmented copies), only the unambiguous classes. Decided from
+    # contact sheets (a mix of diseases): Maize/leaf blight, Maize/leaf spot, Tomato/leaf blight
+    # are not used.
+    # Not used: pests, streak virus, leaf curl, verticillium wilt (not in the registry)
+
+  tom2024:
+    kind: field
+    license: CC BY 4.0
+    url: https://data.mendeley.com/datasets/3d4yg89rtr/1
+    download:
+      type: local
+      # only CATEGORY A / CATA-English (maize_diseases/..., tomato_diseases/...) is read
+      fetch: python -m ml.fetch_sources tom2024
+    classes:
+      maize_diseases/Healthy_leaf: corn__healthy
+      tomato_diseases/healthy_leaf: tomato__healthy
+      tomato_diseases/tomato_late_blight_d: tomato__late_blight
+      maize_diseases/Helminthosporiosis-D: corn__northern_leaf_blight
+      maize_diseases/Rust-D: corn__common_rust  # may include some southern rust; same treatment
+    limit_per_class: 1500
+    # Labeled photos of "CATEGORY A / CATA-English" only (not the augmented category B).
+    # Decided from contact sheets, not used: tomato alternaria_d (half of the photos show fruit)
+    # and virosis_d (a mix of viruses). Not used: pests, abiotic damage, fruit, other diseases.
+
+  plantwild:
+    kind: field
+    role: bench
+    license: CC BY-NC-ND 4.0
+    url: https://huggingface.co/datasets/uqtwei2/PlantWild
+    download:
+      type: local
+      archives: [plantwild.zip]
+    classes:
+      corn gray leaf spot: corn__gray_leaf_spot
+      corn northern leaf blight: corn__northern_leaf_blight
+      potato early blight: potato__early_blight
+      potato late blight: potato__late_blight
+      tomato bacterial leaf spot: tomato__bacterial_spot
+      tomato early blight: tomato__early_blight
+      tomato late blight: tomato__late_blight
+      tomato leaf mold: tomato__leaf_mold
+      tomato mosaic virus: tomato__mosaic_virus
+      tomato septoria leaf spot: tomato__septoria_leaf_spot
+      corn rust: corn__common_rust
+    # Evaluation only (non-commercial, no derivatives): never train, never in the repository.
+    # Not used: the "corn leaf", "potato leaf", "tomato leaf" classes (the photos are mixed, not
+    # clearly healthy leaves).
+
+  plantseg:
+    kind: field
+    role: bench
+    loader: csv
+    license: CC BY-NC 4.0  # Zenodo record 17719108; per photo in Metadata.csv: CC-BY-NC or CC0
+    url: https://zenodo.org/records/17719108
+    download:
+      type: local
+      archives: [plantseg.zip]
+      checksums:  # Zenodo publishes only MD5
+        plantseg.zip: "md5:9358a66dff88cdd15c4fe009763c40a3"
+    labels:
+      file: plantseg/Metadata.csv
+      name: Name
+      class: Disease
+      images: plantseg/images
+    classes:
+      corn gray leaf spot: corn__gray_leaf_spot
+      corn northern leaf blight: corn__northern_leaf_blight
+      corn rust: corn__common_rust  # the same decision as for PlantWild
+      potato early blight: potato__early_blight
+      potato late blight: potato__late_blight
+      tomato bacterial leaf spot: tomato__bacterial_spot
+      tomato early blight: tomato__early_blight
+      tomato late blight: tomato__late_blight
+      tomato leaf mold: tomato__leaf_mold
+      tomato mosaic virus: tomato__mosaic_virus
+      tomato septoria leaf spot: tomato__septoria_leaf_spot
+      wheat leaf rust: wheat__leaf_rust
+      wheat powdery mildew: wheat__powdery_mildew
+      wheat septoria blotch: wheat__septoria
+      wheat stripe rust: wheat__stripe_rust
+    # Evaluation only (non-commercial). It overlaps PlantWild (same research group, web photos):
+    # exact copies are removed by MD5, near copies by the split.
+    # Not used: corn smut, tomato yellow leaf curl virus, wheat head scab, loose smut, stem rust,
+    # bacterial leaf streak. The masks (annotations/) are not used.
+
+  johninnes-wheat:
+    kind: field
+    loader: filename
+    license: CC BY 4.0
+    url: https://zenodo.org/records/7573133
+    download:
+      type: local
+      archives: [Long 2023 Plant Path 999 photos.zip]
+      checksums:
+        Long 2023 Plant Path 999 photos.zip: "md5:1f8a7c660c2da137b957fb4edee3dd7d"
+    classes:
+      BrownRust: wheat__leaf_rust
+      YellowRust: wheat__stripe_rust
+      Mildew: wheat__powdery_mildew
+      Septoria: wheat__septoria
+      Healthy: wheat__healthy
+    limit_per_class: 1500
+    # 999 wheat photos (Long et al., Plant Pathology 2023), field and glasshouse shots. It is the
+    # origin of most of wheat_kaggle (1 504 exact copies), so it is NOT an independent bench:
+    # it trains, and the wheat bench is PlantSeg only. wheat__healthy has no bench.
+
+  fieldplant:
+    kind: field
+    loader: coco
+    license: CC BY 4.0
+    url: https://universe.roboflow.com/plant-disease-detection/fieldplant
+    download:
+      type: local
+      # Roboflow export v11 in COCO format, unpacked into coco/ by `python -m ml.fetch_sources
+      # fieldplant` (needs ROBOFLOW_API_KEY)
+      fetch: python -m ml.fetch_sources fieldplant
+      checksums:
+        fieldplant-coco-v11.zip: a979aa7d869d3b49c4c33bc47656c1bacc08516e04b2e22ae243842cf8ed37fd
+    classes:
+      Corn Healthy: corn__healthy
+      Corn Gray leaf spot: corn__gray_leaf_spot  # Cercosporiose
+      Tomato healthy: tomato__healthy
+      Tomato leaf mosaic virus: tomato__mosaic_virus
+      Tomato blight leaf: tomato__late_blight  # decided from contact sheets
+      Corn rust leaf: corn__common_rust
+    limit_per_class: 1500
+    # Category names of the Roboflow export v11 (27 classes, one "train" folder, 5 156 photos).
+    # Not used: "Corn leaf blight" (noisy, a mix), "Tomato Brown Spots" and every other class

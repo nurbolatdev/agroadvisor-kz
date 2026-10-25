@@ -1,9 +1,12 @@
-"""Download dataset sources and build ml/datasets/v<registry version>/<class code>/.
+"""Download dataset sources and build ml/datasets/<version>/<class code>/ (default: v2).
 
 Usage (from services/ai-service):
-    python -m ml.build_dataset                  # download everything and build
+    python -m ml.build_dataset                  # download everything and build v2
     python -m ml.build_dataset --skip-download  # rebuild from already downloaded sources
-    python -m ml.build_dataset --sources plantdoc,caltech101
+    python -m ml.build_dataset --sources plantdoc,caltech101 --out-dir ml/datasets/partial
+
+v1 is frozen (the first training runs used it) and is never rebuilt. Sources with
+``role: bench`` end up in the ``bench`` split (python -m ml.splits) and are only used to evaluate.
 
 Output: one folder per class code, manifest.csv (one row per image) and report.md.
 """
@@ -11,8 +14,10 @@ Output: one folder per class code, manifest.csv (one row per image) and report.m
 import argparse
 import csv
 import hashlib
+import json
 import os
 import random
+import re
 import shutil
 import subprocess
 import tarfile
@@ -22,14 +27,19 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
-from PIL import Image
+from PIL import Image, ImageOps
 
 from ml.data_sources import Source, load_sources
 from ml.registry import UNKNOWN, Registry, load_registry
 
 DATASETS_DIR = Path(__file__).resolve().parent / "datasets"
+BENCH_EXCLUDE = Path(__file__).resolve().parent / "bench_exclude.csv"
+EXCLUDE_REASONS = ("fruit", "stem", "other_crop", "wrong_disease", "unclear")
+EXCLUDE_FILE = re.compile(r"(?P<code>[a-z_]+)/[a-z0-9-]+__(?P<md5>[0-9a-f]{16})\.[a-z]+")
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 MIN_PER_CLASS = 100
+MIN_CROP_SIDE = 64  # boxes smaller than this (pixels) are too small to classify
+CROP_MARGIN = 0.10
 SEED = 42
 KAGGLE_DOWNLOAD = "https://www.kaggle.com/api/v1/datasets/download/{ref}"
 DONE_MARKER = ".download-complete"
@@ -62,10 +72,36 @@ def download(source: Source, raw_dir: Path) -> Path:
         _download_archive(KAGGLE_DOWNLOAD.format(ref=source.download["ref"]), target, None, True)
     elif kind == "url":
         _download_archive(source.download["url"], target, source.download.get("md5"), False)
+    elif kind == "local":
+        _unpack_local(source, target)
     else:
         raise ValueError(f"{source.name}: unknown download type {kind!r}")
     (target / DONE_MARKER).touch()
     return target
+
+
+def _unpack_local(source: Source, target: Path) -> None:
+    """Sources fetched with ``python -m ml.fetch_sources``: check the files, unpack the archives.
+
+    ``checksums`` maps file names to their SHA-256 (or ``md5:<hex>``); a file that does not match
+    stops the build. ``archives`` are unpacked into the source folder and the zip files are kept
+    (an export that is already unpacked, like FieldPlant, lists only its checksum).
+    """
+    target.mkdir(parents=True, exist_ok=True)
+    for name, expected in source.download.get("checksums", {}).items():
+        path = target / name
+        if not path.exists():
+            raise FileNotFoundError(f"{path} is missing — python -m ml.fetch_sources {source.name}")
+        if not check_file(path, expected):
+            raise ValueError(f"{path}: checksum does not match data_sources.yaml")
+    for name in source.download.get("archives", []):
+        archive = target / name
+        if not archive.exists():
+            raise FileNotFoundError(f"{archive} is missing — download it first")
+        if not zipfile.is_zipfile(archive):
+            raise ValueError(f"{archive} is not a complete zip file (still downloading?)")
+        print(f"  unpacking {name}")
+        _extract(archive, target)
 
 
 def _download_git(spec: dict, target: Path) -> None:
@@ -147,6 +183,22 @@ def _md5(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def check_file(path: Path, expected: str) -> bool:
+    """True if the file has the checksum: a SHA-256, or ``md5:<hex>`` for MD5-only sources."""
+    expected = str(expected)  # an unquoted all-digit hash would be read as a number by YAML
+    if expected.startswith("md5:"):
+        return _md5(path) == expected.removeprefix("md5:")
+    return _sha256(path) == expected
+
+
 def _extract(archive: Path, target: Path) -> None:
     with zipfile.ZipFile(archive) as z:
         z.extractall(target, members=[m for m in z.namelist() if not _is_junk(Path(m))])
@@ -165,16 +217,68 @@ def _is_junk(path: Path) -> bool:
 # Build
 
 
-def collect(source: Source, source_dir: Path, rng: random.Random) -> list[Item]:
+def limit_per_class(
+    labeled: list[tuple[Path, str]], limit: int, source: str
+) -> list[tuple[Path, str]]:
+    """At most ``limit`` photos per class. The choice is seeded per source and class, so it does
+    not depend on the order of the sources or on anything else in the build."""
+    by_code: dict[str, list[tuple[Path, str]]] = defaultdict(list)
+    for entry in labeled:
+        by_code[entry[1]].append(entry)
+    kept: list[tuple[Path, str]] = []
+    for code, entries in sorted(by_code.items()):
+        entries = sorted(entries)  # sampling a sorted list: the order of the input is irrelevant
+        if len(entries) > limit:
+            entries = random.Random(f"{SEED}:{source}:{code}").sample(entries, limit)
+        kept.extend(sorted(entries))
+    return kept
+
+
+def _images(source_dir: Path) -> list[Path]:
+    return [
+        p
+        for p in sorted(source_dir.rglob("*"))
+        if p.suffix.lower() in IMAGE_EXTENSIONS and not _is_junk(p)
+    ]
+
+
+def label_images(source: Source, source_dir: Path) -> list[tuple[Path, str]]:
+    """(photo, class code) for every photo of a used class, by the source's loader."""
     labeled: list[tuple[Path, str]] = []
-    for path in sorted(source_dir.rglob("*")):
-        if path.suffix.lower() not in IMAGE_EXTENSIONS or _is_junk(path):
-            continue
-        code = source.label(path.parent.name)
+    if source.loader == "csv":
+        spec = source.labels or {}
+        folder = source_dir / spec.get("images", "")
+        by_name: dict[str, Path] = {}
+        for p in _images(folder):
+            if p.name in by_name:
+                raise ValueError(f"{source.name}: two photos named {p.name}, labels are ambiguous")
+            by_name[p.name] = p
+        table = source_dir / spec["file"]
+        with table.open(encoding="utf-8-sig") as f:
+            for row in csv.DictReader(f):
+                code = source.label(row[spec["class"]])
+                path = by_name.get(row[spec["name"]])
+                if code and path:
+                    labeled.append((path, code))
+        return labeled
+    for path in _images(source_dir):
+        if source.loader == "filename":  # BrownRust107.png -> BrownRust
+            code = source.label(re.sub(r"[\d_\-\s]+$", "", path.stem))
+        else:
+            code = source.label_path(path.parent.relative_to(source_dir).parts)
         if code:
             labeled.append((path, code))
+    return labeled
+
+
+def collect(source: Source, source_dir: Path, rng: random.Random) -> list[Item]:
+    if source.loader == "coco":
+        return collect_coco(source, source_dir)
+    labeled = label_images(source, source_dir)
     known = [x for x in labeled if x[1] != UNKNOWN]
     unknown = [x for x in labeled if x[1] == UNKNOWN]
+    if source.limit_per_class:
+        known = limit_per_class(known, source.limit_per_class, source.name)
     if source.unknown_limit and len(unknown) > source.unknown_limit:
         unknown = sorted(rng.sample(unknown, source.unknown_limit))
     items = []
@@ -187,26 +291,151 @@ def collect(source: Source, source_dir: Path, rng: random.Random) -> list[Item]:
     return items
 
 
+def collect_coco(source: Source, source_dir: Path) -> list[Item]:
+    """Cut the leaves out of COCO-annotated photos (one crop per box of a used class).
+
+    Crops go to <source>/crops/<class>/. ``original`` is the photo the crop comes from, so all
+    crops of one photo share a leaf key and land in the same part of the split.
+    """
+    crops_dir = source_dir / "crops"
+    labeled: list[tuple[Path, str, str]] = []
+    for annotations in sorted(source_dir.rglob("_annotations.coco.json")):
+        if crops_dir in annotations.parents:
+            continue
+        data = json.loads(annotations.read_text(encoding="utf-8"))
+        names = {c["id"]: c["name"] for c in data["categories"]}
+        images = {i["id"]: i for i in data["images"]}
+        part = annotations.parent
+        for box in data["annotations"]:
+            code = source.label(names[box["category_id"]])
+            image = images[box["image_id"]]
+            x, y, w, h = box["bbox"]
+            if not code or w < MIN_CROP_SIDE or h < MIN_CROP_SIDE:
+                continue
+            crop = crops_dir / code / f"{part.name}_{image['id']}_{box['id']}.jpg"
+            if not crop.exists():
+                _save_crop(part / image["file_name"], (x, y, x + w, y + h), crop)
+            labeled.append((crop, code, f"{part.name}/{image['file_name']}"))
+    if source.limit_per_class:  # once for the whole source, not once per annotation file
+        pairs = [(path, code) for path, code, _ in labeled]
+        keep = set(limit_per_class(pairs, source.limit_per_class, source.name))
+        labeled = [x for x in labeled if (x[0], x[1]) in keep]
+    return [
+        Item(crop, code, source, original, _md5(crop))
+        for crop, code, original in labeled
+        if _is_readable(crop)
+    ]
+
+
+def _save_crop(photo: Path, box: tuple[float, float, float, float], target: Path) -> None:
+    """Crop with a 10 % margin around the box, clipped to the photo."""
+    with Image.open(photo) as img:
+        img = ImageOps.exif_transpose(img).convert("RGB")
+        left, top, right, bottom = box
+        mx, my = (right - left) * CROP_MARGIN, (bottom - top) * CROP_MARGIN
+        region = (
+            max(0, left - mx),
+            max(0, top - my),
+            min(img.width, right + mx),
+            min(img.height, bottom + my),
+        )
+        target.parent.mkdir(parents=True, exist_ok=True)
+        img.crop(tuple(int(v) for v in region)).save(target, quality=95)
+
+
 def _is_readable(path: Path) -> bool:
+    """True if the whole image decodes. ``verify()`` only checks the header, so a truncated file
+    would pass it and break later (the dHash step of the split)."""
     try:
         with Image.open(path) as img:
-            img.verify()
+            img.load()
         return True
     except Exception:
         return False
 
 
-def build(items: list[Item], registry: Registry, out_dir: Path) -> list[dict]:
+def load_exclusions(path: Path) -> dict[tuple[str, str], str]:
+    """Photos removed by hand: (class, first 16 hex digits of the MD5) -> reason.
+
+    The file column holds the dataset path ``<class>/<source>__<md5[:16]>.<ext>``, so the list
+    keeps working after a rebuild. A photo is identified by its content, in every source.
+    """
+    if not path.exists():
+        return {}
+    exclusions: dict[tuple[str, str], str] = {}
+    with path.open(encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if row["reason"] not in EXCLUDE_REASONS:
+                raise ValueError(f"{path}: unknown reason {row['reason']!r} for {row['file']}")
+            match = EXCLUDE_FILE.fullmatch(row["file"])
+            if not match or match["code"] != row["class"]:
+                raise ValueError(f"{path}: {row['file']!r} is not <class>/<source>__<md5>.<ext>")
+            exclusions[(row["class"], match["md5"])] = row["reason"]
+    return exclusions
+
+
+def build(
+    items: list[Item],
+    registry: Registry,
+    out_dir: Path,
+    removed: Counter | None = None,
+    conflicts: Counter | None = None,
+    exclusions: dict[tuple[str, str], str] | None = None,
+    hand_removed: Counter | None = None,
+) -> list[dict]:
+    """Write the dataset folders and manifest.csv; the first copy of an exact duplicate wins.
+
+    Bench sources go first, so a photo that is in both a bench and a train source stays in the
+    bench only. ``removed`` counts the dropped copies as (kept source, dropped source).
+
+    A photo that appears with different classes is a label conflict: its label cannot be
+    trusted, so **every** copy is dropped. ``conflicts`` counts such photos by the set of
+    (source, class) pairs they were found under.
+
+    ``exclusions`` (see ``load_exclusions``) lists photos removed by hand, e.g. fruit or stems in
+    a class of leaf diseases; they are dropped in every source and counted in ``hand_removed``
+    as (class, reason), once per photo.
+    """
+    if not items:
+        raise ValueError("no images found — check the raw folders and the class mapping")
     if out_dir.exists():
         shutil.rmtree(out_dir)
-    seen: dict[str, str] = {}
+    if exclusions:
+        matched: set[tuple[str, str]] = set()
+        kept = []
+        for item in items:
+            key = (item.code, item.md5[:16])
+            if key in exclusions:
+                matched.add(key)
+            else:
+                kept.append(item)
+        if hand_removed is not None:
+            for code, md5_prefix in matched:
+                hand_removed[(code, exclusions[(code, md5_prefix)])] += 1
+            hand_removed[("not found", "")] += len(exclusions) - len(matched)
+        items = kept
+    items = sorted(items, key=lambda i: i.source.role != "bench")
+    found: dict[str, list[Item]] = defaultdict(list)
+    for item in items:
+        found[item.md5].append(item)
+    conflicting = {md5 for md5, copies in found.items() if len({c.code for c in copies}) > 1}
+    if conflicts is not None:
+        for md5 in sorted(conflicting):
+            conflicts[tuple(sorted({(c.source.name, c.code) for c in found[md5]}))] += 1
+    seen: dict[str, Item] = {}
     rows = []
     stats = Counter()
     for item in items:
-        if item.md5 in seen:
-            stats["conflicts" if seen[item.md5] != item.code else "duplicates"] += 1
+        if item.md5 in conflicting:
+            stats["conflict_files"] += 1
             continue
-        seen[item.md5] = item.code
+        if item.md5 in seen:
+            first = seen[item.md5]
+            stats["duplicates"] += 1
+            if removed is not None:
+                removed[(first.source.name, item.source.name)] += 1
+            continue
+        seen[item.md5] = item
         name = f"{item.source.name}__{item.md5[:16]}{item.path.suffix.lower()}"
         dest = out_dir / item.code / name
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -221,11 +450,15 @@ def build(items: list[Item], registry: Registry, out_dir: Path) -> list[dict]:
                 "crop": registry.get(item.code).crop or "",
                 "source": item.source.name,
                 "kind": item.source.kind,
+                "role": item.source.role,
                 "original": item.original,
                 "md5": item.md5,
             }
         )
-    print(f"skipped exact duplicates: {stats['duplicates']}, label conflicts: {stats['conflicts']}")
+    print(
+        f"skipped exact duplicates: {stats['duplicates']}, "
+        f"label conflicts: {len(conflicting)} photos, {stats['conflict_files']} files dropped"
+    )
     with (out_dir / "manifest.csv").open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0]))
         writer.writeheader()
@@ -233,15 +466,30 @@ def build(items: list[Item], registry: Registry, out_dir: Path) -> list[dict]:
     return rows
 
 
-def report(rows: list[dict], registry: Registry) -> str:
+def report(
+    rows: list[dict],
+    registry: Registry,
+    removed: Counter | None = None,
+    conflicts: Counter | None = None,
+    hand_removed: Counter | None = None,
+) -> str:
+    """Image counts per class (train pool and bench apart), the exact duplicates removed, the
+    label conflicts (the same photo with different classes in two places) and the photos removed
+    by hand."""
     counts: dict[str, Counter] = defaultdict(Counter)
+    bench: Counter = Counter()
     for row in rows:
-        counts[row["class"]][row["kind"]] += 1
+        if row.get("role") == "bench":
+            bench[row["class"]] += 1
+        else:
+            counts[row["class"]][row["kind"]] += 1
+    train_total = sum(sum(n.values()) for n in counts.values())
     lines = [
-        f"Registry v{registry.version}, {len(rows)} images.",
+        f"Registry v{registry.version}, {len(rows)} images: {train_total} train pool "
+        f"(split later into train / val / test), {sum(bench.values())} bench.",
         "",
-        "| Class | Lab | Field | Other | Total | Note |",
-        "| --- | ---: | ---: | ---: | ---: | --- |",
+        "| Class | Lab | Field | Other | Total | Bench | Note |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for c in registry.active():
         n = counts[c.code]
@@ -251,8 +499,50 @@ def report(rows: list[dict], registry: Registry) -> str:
             notes.append(f"below {MIN_PER_CLASS}")
         if total and c.code != UNKNOWN and not n["field"]:
             notes.append("lab only")
-        cells = [f"`{c.code}`", n["lab"], n["field"], n["other"], total, ", ".join(notes)]
-        lines.append("| " + " | ".join(str(x) for x in cells) + " |")
+        cells = [f"`{c.code}`", n["lab"], n["field"], n["other"], total, bench[c.code]]
+        lines.append("| " + " | ".join(str(x) for x in [*cells, ", ".join(notes)]) + " |")
+    if removed:
+        lines += [
+            "",
+            "Exact duplicates removed (the first copy is kept, bench sources first):",
+            "",
+            "| Kept in | Removed from | Photos |",
+            "| --- | --- | ---: |",
+        ]
+        lines += [f"| {k} | {d} | {n} |" for (k, d), n in sorted(removed.items())]
+    if hand_removed:
+        classes = sorted({c for c, _ in hand_removed if c != "not found"})
+        lines += [
+            "",
+            "Photos removed by hand from the sources (`ml/bench_exclude.csv`; fruit, stems, other "
+            "crops, other diseases or unclear photos in classes of leaf diseases):",
+            "",
+            "| Class | " + " | ".join(EXCLUDE_REASONS) + " | Total |",
+            "| --- | " + " | ".join("---:" for _ in EXCLUDE_REASONS) + " | ---: |",
+        ]
+        for code in classes:
+            counts = [hand_removed[(code, reason)] for reason in EXCLUDE_REASONS]
+            cells = [*counts, sum(counts)]
+            lines.append(f"| `{code}` | " + " | ".join(str(n) for n in cells) + " |")
+        total = [sum(hand_removed[(c, r)] for c in classes) for r in EXCLUDE_REASONS]
+        lines.append("| **total** | " + " | ".join(str(n) for n in total) + f" | {sum(total)} |")
+        if hand_removed[("not found", "")]:
+            missing = hand_removed[("not found", "")]
+            lines.append(f"\nListed but not found in the sources: {missing}.")
+    if conflicts:
+        lines += [
+            "",
+            f"Label conflicts: {sum(conflicts.values())} photos appear with different classes. "
+            "Their label cannot be trusted, so every copy is dropped. A pair of classes that "
+            "repeats points to a systematic labeling difference:",
+            "",
+            "| The same photo found as (source / class) | Photos |",
+            "| --- | ---: |",
+        ]
+        ordered = sorted(conflicts.items(), key=lambda kv: (-kv[1], kv[0]))
+        for pairs, n in ordered:
+            label = " = ".join(f"{source} / `{code}`" for source, code in pairs)
+            lines.append(f"| {label} | {n} |")
     return "\n".join(lines) + "\n"
 
 
@@ -264,14 +554,23 @@ def main() -> None:
     parser.add_argument("--skip-download", action="store_true")
     parser.add_argument("--raw-dir", type=Path, default=DATASETS_DIR / "raw")
     parser.add_argument("--out-dir", type=Path)
+    parser.add_argument("--dataset-version", default="v2", help="folder name under datasets/")
+    parser.add_argument(
+        "--bench-exclude", type=Path, default=BENCH_EXCLUDE,
+        help="csv (file, class, reason) of photos to remove by hand",
+    )  # fmt: skip
     args = parser.parse_args()
+    if args.sources and not args.out_dir:
+        parser.error("--sources builds a partial dataset: give --out-dir so v2 is not replaced")
 
     registry = load_registry()
     sources = load_sources(registry)
     if args.sources:
         wanted = set(args.sources.split(","))
         sources = [s for s in sources if s.name in wanted]
-    out_dir = args.out_dir or DATASETS_DIR / f"v{registry.version}"
+    out_dir = args.out_dir or DATASETS_DIR / args.dataset_version
+    if out_dir.name == "v1" and out_dir.exists():
+        parser.error("v1 is frozen (the A5 runs were trained on it); build into another folder")
     rng = random.Random(SEED)
 
     items: list[Item] = []
@@ -279,12 +578,19 @@ def main() -> None:
         source_dir = args.raw_dir / source.name
         if not args.skip_download:
             download(source, args.raw_dir)
-        found = collect(source, source_dir, rng)
-        print(f"[{source.name}] {len(found)} images")
+        found = collect(source, source_dir, rng) if source_dir.exists() else []
+        print(f"[{source.name}] {len(found)} images ({source.role})")
+        if not found and not args.sources:  # a full build must not silently lack a source
+            hint = source.download.get("fetch", f"python -m ml.fetch_sources {source.name}")
+            parser.error(f"{source.name} has no images in {source_dir}; fetch it first: {hint}")
         items.extend(found)
 
-    rows = build(items, registry, out_dir)
-    text = report(rows, registry)
+    removed: Counter = Counter()
+    conflicts: Counter = Counter()
+    hand_removed: Counter = Counter()
+    exclusions = load_exclusions(args.bench_exclude)
+    rows = build(items, registry, out_dir, removed, conflicts, exclusions, hand_removed)
+    text = report(rows, registry, removed, conflicts, hand_removed)
     (out_dir / "report.md").write_text(text, encoding="utf-8")
     print(text)
 

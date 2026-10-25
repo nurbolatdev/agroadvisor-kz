@@ -1,0 +1,567 @@
+import csv
+import json
+import random
+import sys
+import zipfile
+from collections import Counter
+
+import numpy as np
+import pytest
+from PIL import Image
+
+from ml import build_dataset, splits
+from ml.build_dataset import (
+    Item,
+    _unpack_local,
+    build,
+    collect,
+    collect_coco,
+    limit_per_class,
+    report,
+)
+from ml.data_sources import Source, SourceConfigError, load_sources, normalize
+from ml.registry import load_registry
+
+REGISTRY = load_registry()
+
+
+def photo(path, color, size=(8, 8)):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", size, color).save(path)
+
+
+def write_sources(tmp_path, body: str):
+    text = "sources:\n" + body
+    path = tmp_path / "sources.yaml"
+    path.write_text(text, encoding="utf-8")
+    return load_sources(REGISTRY, path)
+
+
+COMMON = "    kind: field\n    license: CC BY 4.0\n    url: https://example.org\n"
+LOCAL = "    download:\n      type: local\n      fetch: python -m ml.fetch_sources s\n"
+
+
+def test_two_level_names_tell_apart_classes_with_the_same_folder_name(tmp_path):
+    source = write_sources(
+        tmp_path,
+        "  ccmt:\n" + COMMON + LOCAL
+        + "    classes:\n      Maize/healthy: corn__healthy\n"
+        + "      Tomato/healthy: tomato__healthy\n",
+    )[0]
+    raw = tmp_path / "raw"
+    photo(raw / "Maize/healthy/a.png", (0, 90, 0))
+    photo(raw / "Tomato/healthy/b.png", (0, 180, 0))
+    photo(raw / "Maize/leaf blight/c.png", (90, 90, 0))  # not mapped
+    codes = {i.original: i.code for i in collect(source, raw, random.Random(0))}
+    assert codes == {
+        "Maize/healthy/a.png": "corn__healthy",
+        "Tomato/healthy/b.png": "tomato__healthy",
+    }
+
+
+def test_label_path_prefers_the_two_level_name_and_falls_back_to_the_folder(tmp_path):
+    source = write_sources(
+        tmp_path,
+        "  s:\n" + COMMON + LOCAL
+        + "    classes:\n      Maize/healthy: corn__healthy\n      brown rust: wheat__leaf_rust\n"
+        + "    exclude: [Maize/Smut]\n",
+    )[0]
+    assert source.label_path(("data", "Maize", "Healthy")) == "corn__healthy"
+    assert source.label_path(("train", "Brown-Rust")) == "wheat__leaf_rust"
+    assert source.label_path(("Maize", "Smut")) is None
+    assert source.label_path(()) is None
+    assert normalize("Maize/Leaf Blight") == "maize/leaf_blight"
+
+
+@pytest.mark.parametrize(
+    ("extra", "message"),
+    [
+        ("    role: judge\n", "role"),
+        ("    loader: tiff\n", "loader"),
+        ("    limit_per_class: 0\n", "limit_per_class"),
+        ("    limit_per_class: many\n", "limit_per_class"),
+        ("    role: bench\n    unknown: [x]\n    unknown_limit: 5\n", "bench"),
+    ],
+)
+def test_invalid_new_options_are_rejected(tmp_path, extra, message):
+    body = "  s:\n" + COMMON + LOCAL + "    classes:\n      a: corn__healthy\n" + extra
+    with pytest.raises(SourceConfigError, match=message):
+        write_sources(tmp_path, body)
+
+
+@pytest.mark.parametrize("missing", ["license", "url", "download"])
+def test_missing_required_fields_are_config_errors(tmp_path, missing):
+    lines = {"license": "    license: CC0\n", "url": "    url: https://x.org\n", "download": LOCAL}
+    body = "  s:\n    kind: field\n" + "".join(v for k, v in lines.items() if k != missing)
+    with pytest.raises(SourceConfigError, match=missing):
+        write_sources(tmp_path, body)
+
+
+def test_unknown_download_type_is_rejected(tmp_path):
+    body = "  s:\n" + COMMON + "    download:\n      type: ftp\n"
+    with pytest.raises(SourceConfigError, match="download type"):
+        write_sources(tmp_path, body)
+
+
+def test_the_real_config_has_the_v2_sources():
+    sources = {s.name: s for s in load_sources(REGISTRY)}
+    assert sources["pldd-up"].limit_per_class == 1500 and sources["pldd-up"].role == "train"
+    assert {n for n, s in sources.items() if s.role == "bench"} == {"plantwild", "plantseg"}
+    # no field source that trains gives more than 1500 photos per class
+    for source in sources.values():
+        if source.kind == "field" and source.role == "train":
+            assert source.limit_per_class and source.limit_per_class <= 1500, source.name
+    assert sources["fieldplant"].loader == "coco"
+    assert sources["ccmt"].label_path(("Maize", "healthy")) == "corn__healthy"
+    mixed = (("Maize", "leaf blight"), ("Maize", "leaf spot"), ("Tomato", "leaf blight"))
+    for crop, folder in mixed:
+        assert sources["ccmt"].label_path((crop, folder)) is None  # a mix of diseases
+    assert sources["tom2024"].label_path(("tomato_diseases", "virosis_d")) is None
+    assert sources["tom2024"].label_path(("tomato_diseases", "alternaria_d")) is None
+    assert sources["tom2024"].label_path(("maize_diseases", "Rust-D")) == "corn__common_rust"
+    assert sources["fieldplant"].label("Corn leaf blight") is None
+    assert sources["fieldplant"].label("Tomato blight leaf") == "tomato__late_blight"
+    fieldplant = sources["fieldplant"]
+    assert fieldplant.label("Corn Healthy") == fieldplant.label("Corn_Healthy") == "corn__healthy"
+
+
+def test_limit_per_class_is_seeded_and_does_not_depend_on_order(tmp_path):
+    entries = [(tmp_path / f"{i}.png", "potato__healthy" if i % 2 else "potato__late_blight")
+               for i in range(40)]  # fmt: skip
+    first = limit_per_class(entries, 5, "pldd-up")
+    assert first == limit_per_class(list(reversed(entries)), 5, "pldd-up")
+    assert Counter(code for _, code in first) == {"potato__healthy": 5, "potato__late_blight": 5}
+    assert first != limit_per_class(entries, 5, "other-source")  # the source name is in the seed
+    assert sorted(limit_per_class(entries, 100, "pldd-up")) == sorted(entries)  # under the limit
+
+
+def test_limit_per_class_applies_while_collecting(tmp_path):
+    source = write_sources(
+        tmp_path,
+        "  s:\n" + COMMON + LOCAL + "    classes:\n      EB: potato__early_blight\n"
+        + "    limit_per_class: 3\n",
+    )[0]
+    raw = tmp_path / "raw"
+    for i in range(10):
+        photo(raw / "EB" / f"{i}.png", (i * 20, 10, 10))
+    kept = {i.original for i in collect(source, raw, random.Random(0))}
+    assert len(kept) == 3
+    assert kept == {i.original for i in collect(source, raw, random.Random(99))}
+
+
+def test_filename_loader_takes_the_class_from_the_start_of_the_name(tmp_path):
+    source = write_sources(
+        tmp_path,
+        "  s:\n" + COMMON + LOCAL + "    loader: filename\n    classes:\n"
+        + "      BrownRust: wheat__leaf_rust\n      Healthy: wheat__healthy\n",
+    )[0]
+    raw = tmp_path / "raw"
+    photo(raw / "BrownRust107.png", (150, 80, 20))
+    photo(raw / "BrownRust-12.png", (151, 80, 20))
+    photo(raw / "Healthy3.png", (20, 160, 20))
+    photo(raw / "Smut9.png", (1, 1, 1))  # not mapped
+    codes = Counter(i.code for i in collect(source, raw, random.Random(0)))
+    assert codes == {"wheat__leaf_rust": 2, "wheat__healthy": 1}
+
+
+def test_csv_loader_labels_photos_from_the_metadata_table(tmp_path):
+    source = write_sources(
+        tmp_path,
+        "  s:\n" + COMMON + LOCAL + "    loader: csv\n    labels:\n      file: meta/Metadata.csv\n"
+        + "      name: Name\n      class: Disease\n      images: images\n    classes:\n"
+        + "      wheat stripe rust: wheat__stripe_rust\n"
+        + "      tomato leaf mold: tomato__leaf_mold\n",
+    )[0]
+    raw = tmp_path / "raw"
+    photo(raw / "images/train/a.jpg", (1, 2, 3))
+    photo(raw / "images/val/b.jpg", (4, 5, 6))
+    photo(raw / "images/val/c.jpg", (7, 8, 9))
+    photo(raw / "annotations/a.jpg", (0, 0, 0))  # a mask folder with the same name: not an image
+    (raw / "meta").mkdir()
+    (raw / "meta/Metadata.csv").write_text(
+        "\ufeffName,Disease,Split\na.jpg,wheat stripe rust,Training\nb.jpg,tomato leaf mold,Test\n"
+        "c.jpg,corn smut,Test\nmissing.jpg,wheat stripe rust,Test\n",
+        encoding="utf-8",
+    )
+    items = {i.original: i.code for i in collect(source, raw, random.Random(0))}
+    assert items == {
+        "images/train/a.jpg": "wheat__stripe_rust",
+        "images/val/b.jpg": "tomato__leaf_mold",
+    }
+
+
+def test_csv_loader_needs_a_labels_table(tmp_path):
+    with pytest.raises(SourceConfigError, match="labels"):
+        write_sources(tmp_path, "  s:\n" + COMMON + LOCAL + "    loader: csv\n")
+
+
+def test_the_real_config_has_the_wheat_bench_sources():
+    sources = {s.name: s for s in load_sources(REGISTRY)}
+    assert sources["johninnes-wheat"].label("BrownRust") == "wheat__leaf_rust"
+    assert sources["plantseg"].label("Wheat Septoria Blotch") == "wheat__septoria"
+    assert sources["plantseg"].label("corn rust") == "corn__common_rust"
+    assert sources["plantseg"].role == "bench"
+    # John Innes is where most of the Kaggle wheat comes from: not independent, so it trains
+    assert sources["johninnes-wheat"].role == "train"
+
+
+def coco_source(tmp_path, extra=""):
+    return write_sources(
+        tmp_path,
+        "  fp:\n" + COMMON + LOCAL + "    loader: coco\n    classes:\n"
+        + "      Corn_Healthy: corn__healthy\n      Tomato_Mosaic: tomato__mosaic_virus\n" + extra,
+    )[0]
+
+
+def write_coco(raw, boxes):
+    part = raw / "train"
+    photo(part / "leaf1_jpg.rf.abc123.jpg", (30, 120, 30), size=(400, 300))
+    data = {
+        "categories": [
+            {"id": 1, "name": "Corn Healthy"},
+            {"id": 2, "name": "Tomato_Mosaic"},
+            {"id": 3, "name": "Tomato_Brown_Spots"},
+        ],
+        "images": [{"id": 7, "file_name": "leaf1_jpg.rf.abc123.jpg"}],
+        "annotations": [
+            {"id": i, "image_id": 7, "category_id": c, "bbox": box}
+            for i, (c, box) in enumerate(boxes, start=1)
+        ],
+    }
+    (part / "_annotations.coco.json").write_text(json.dumps(data))
+
+
+def test_coco_boxes_become_crops_that_share_the_photo_as_their_origin(tmp_path):
+    raw = tmp_path / "raw"
+    write_coco(raw, [(1, [10, 10, 120, 100]), (2, [200, 50, 100, 120]),
+                     (3, [0, 0, 150, 150]), (1, [300, 200, 20, 20])])  # fmt: skip
+    items = collect_coco(coco_source(tmp_path), raw)
+    assert sorted(i.code for i in items) == ["corn__healthy", "tomato__mosaic_virus"]
+    assert {i.original for i in items} == {"train/leaf1_jpg.rf.abc123.jpg"}  # one photo
+    for item in items:
+        assert item.path.parent.parent == raw / "crops"
+        with Image.open(item.path) as crop:
+            assert crop.width >= 64 and crop.height >= 64
+    keys = {splits.leaf_key("fieldplant", i.original) for i in items}
+    assert keys == {"fieldplant:train/leaf1_jpg.jpg"}  # the Roboflow suffix is gone
+
+
+def test_coco_crops_are_reused_and_respect_the_class_limit(tmp_path):
+    raw = tmp_path / "raw"
+    write_coco(raw, [(1, [10, 10, 120, 100]), (1, [150, 10, 120, 100]), (1, [10, 150, 120, 100])])
+    source = coco_source(tmp_path, "    limit_per_class: 2\n")
+    first = collect_coco(source, raw)
+    assert len(first) == 2
+    assert [i.path for i in first] == [i.path for i in collect_coco(source, raw)]
+
+
+def item(tmp_path, name, source, role, color, code="potato__healthy"):
+    path = tmp_path / f"{source}_{name}.png"
+    photo(path, color)
+    src = Source(
+        name=source, kind="field", license="x", url="x", download={"type": "local"}, classes={},
+        unknown=frozenset(), exclude=frozenset(), unknown_limit=None, role=role,
+    )  # fmt: skip
+    return Item(path, code, src, name, build_dataset._md5(path))
+
+
+def test_bench_is_processed_first_so_a_shared_photo_stays_in_the_bench(tmp_path):
+    train_copy = item(tmp_path, "a", "plantdoc", "train", (10, 200, 10))
+    bench_copy = item(tmp_path, "b", "plantwild", "bench", (10, 200, 10))  # identical pixels
+    own = item(tmp_path, "c", "pldd-up", "train", (200, 10, 10))
+    removed: Counter = Counter()
+    rows = build([train_copy, own, bench_copy], REGISTRY, tmp_path / "v2", removed)
+    kept = {(r["source"], r["role"]) for r in rows}
+    assert kept == {("plantwild", "bench"), ("pldd-up", "train")}
+    assert removed == {("plantwild", "plantdoc"): 1}
+    text = report(rows, REGISTRY, removed)
+    assert "| plantwild | plantdoc | 1 |" in text
+    assert "1 bench" in text and "| `potato__healthy` | 0 | 1 | 0 | 1 | 1 |" in text
+
+
+def test_truncated_images_are_not_readable(tmp_path):
+    good = tmp_path / "good.jpg"
+    Image.effect_noise((256, 256), 80).convert("RGB").save(good, quality=95)
+    cut = tmp_path / "cut.jpg"
+    cut.write_bytes(good.read_bytes()[: good.stat().st_size // 2])  # a download that stopped
+    assert build_dataset._is_readable(good)
+    assert not build_dataset._is_readable(cut)  # verify() would accept it
+    assert not build_dataset._is_readable(tmp_path / "missing.jpg")
+
+
+def test_a_photo_with_two_classes_is_dropped_in_every_copy_and_shown_in_the_report(tmp_path):
+    first = item(tmp_path, "a", "plantwild", "bench", (10, 200, 10), "corn__common_rust")
+    other = item(tmp_path, "b", "ccmt", "train", (10, 200, 10), "corn__gray_leaf_spot")
+    again = item(tmp_path, "c", "tom2024", "train", (10, 200, 10), "corn__gray_leaf_spot")
+    keep = item(tmp_path, "d", "ccmt", "train", (200, 10, 10), "corn__healthy")
+    same = item(tmp_path, "e", "plantdoc", "train", (200, 10, 10), "corn__healthy")  # a duplicate
+    removed: Counter = Counter()
+    conflicts: Counter = Counter()
+    rows = build([other, again, keep, same, first], REGISTRY, tmp_path / "v2", removed, conflicts)
+    assert [r["source"] for r in rows] == ["ccmt"]  # nothing of the conflicting photo is left
+    assert conflicts == {
+        (
+            ("ccmt", "corn__gray_leaf_spot"),
+            ("plantwild", "corn__common_rust"),
+            ("tom2024", "corn__gray_leaf_spot"),
+        ): 1
+    }
+    assert removed == {("ccmt", "plantdoc"): 1}  # a plain duplicate is not a conflict
+    text = report(rows, REGISTRY, removed, conflicts)
+    assert "Label conflicts: 1 photos" in text
+    assert "ccmt / `corn__gray_leaf_spot` = plantwild / `corn__common_rust` = tom2024" in text
+
+
+def test_photos_removed_by_hand_disappear_from_every_source_and_are_counted(tmp_path):
+    bench = item(tmp_path, "a", "plantwild", "bench", (10, 200, 10), "tomato__late_blight")
+    copy = item(tmp_path, "b", "plantdoc", "train", (10, 200, 10), "tomato__late_blight")
+    leaf = item(tmp_path, "c", "plantwild", "bench", (200, 10, 10), "tomato__late_blight")
+    fruit = bench.md5[:16]
+    exclusions = {
+        ("tomato__late_blight", fruit): "fruit",
+        ("tomato__late_blight", "0123456789abcdef"): "stem",  # a photo that is not in the sources
+    }
+    removed: Counter = Counter()
+    hand: Counter = Counter()
+    rows = build([copy, leaf, bench], REGISTRY, tmp_path / "v2", removed, None, exclusions, hand)
+    assert [r["md5"] for r in rows] == [leaf.md5]  # the copy in the train source is gone too
+    assert not removed  # nothing was left to count as a plain duplicate
+    assert hand[("tomato__late_blight", "fruit")] == 1 and hand[("not found", "")] == 1
+    text = report(rows, REGISTRY, removed, None, hand)
+    assert "| `tomato__late_blight` | 1 | 0 | 0 | 0 | 0 | 1 |" in text
+    assert "Listed but not found in the sources: 1." in text
+
+
+def test_the_exclusion_file_is_read_by_content_and_checked(tmp_path):
+    path = tmp_path / "bench_exclude.csv"
+    path.write_text(
+        "file,class,reason\ntomato__late_blight/plantwild__0123456789abcdef.jpg,tomato__late_blight,fruit\n",
+        encoding="utf-8",
+    )
+    loaded = build_dataset.load_exclusions(path)
+    assert loaded == {("tomato__late_blight", "0123456789abcdef"): "fruit"}
+    assert build_dataset.load_exclusions(tmp_path / "missing.csv") == {}
+    path.write_text("file,class,reason\nc/plantwild__00ff.jpg,c,pretty\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="unknown reason"):
+        build_dataset.load_exclusions(path)
+
+
+def test_the_real_exclusion_list_is_consistent():
+    exclusions = build_dataset.load_exclusions(build_dataset.BENCH_EXCLUDE)
+    assert len(exclusions) > 200
+    assert {code for code, _ in exclusions} == {
+        "tomato__early_blight", "tomato__late_blight", "tomato__bacterial_spot",
+        "tomato__mosaic_virus", "corn__gray_leaf_spot",
+    }  # fmt: skip
+    # septoria and leaf mold are not in the list
+    assert set(exclusions.values()) <= set(build_dataset.EXCLUDE_REASONS)
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        "tomato__late_blight/plantwild__xyz.jpg,tomato__late_blight,fruit",  # no 16 hex digits
+        "tomato__late_blight/plantwild.jpg,tomato__late_blight,fruit",  # no md5 at all
+        "corn__healthy/plantwild__0123456789abcdef.jpg,tomato__late_blight,fruit",  # wrong folder
+    ],
+)
+def test_exclusion_rows_are_validated(tmp_path, row):
+    path = tmp_path / "bench_exclude.csv"
+    path.write_text(f"file,class,reason\n{row}\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="not <class>/<source>__<md5>"):
+        build_dataset.load_exclusions(path)
+
+
+def test_the_real_exclusion_files_have_the_expected_names():
+    for key in build_dataset.load_exclusions(build_dataset.BENCH_EXCLUDE):
+        assert len(key[1]) == 16
+
+
+def test_a_csv_table_with_two_photos_of_one_name_is_refused(tmp_path):
+    source = write_sources(
+        tmp_path,
+        "  s:\n" + COMMON + LOCAL + "    loader: csv\n    labels:\n      file: m.csv\n"
+        + "      name: Name\n      class: Disease\n    classes:\n"
+        + "      tomato leaf mold: tomato__leaf_mold\n",
+    )[0]
+    raw = tmp_path / "raw"
+    photo(raw / "train/a.jpg", (1, 2, 3))
+    photo(raw / "val/a.jpg", (4, 5, 6))  # the same name in another folder
+    (raw / "m.csv").write_text("Name,Disease\na.jpg,tomato leaf mold\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="two photos named a.jpg"):
+        collect(source, raw, random.Random(0))
+
+
+def test_the_coco_limit_counts_all_annotation_files_together(tmp_path):
+    raw = tmp_path / "raw"
+    for part in ("train", "valid"):
+        photo(raw / part / "p.jpg", (30, 120, 30), size=(400, 300))
+        boxes = [[10, 10, 100, 100], [150, 10, 100, 100], [10, 150, 100, 100]]
+        data = {
+            "categories": [{"id": 1, "name": "Corn Healthy"}],
+            "images": [{"id": 1, "file_name": "p.jpg"}],
+            "annotations": [
+                {"id": i, "image_id": 1, "category_id": 1, "bbox": b} for i, b in enumerate(boxes)
+            ],
+        }
+        (raw / part / "_annotations.coco.json").write_text(json.dumps(data))
+    source = coco_source(tmp_path, "    limit_per_class: 4\n")
+    assert len(collect_coco(source, raw)) == 4  # six boxes in two files, one limit
+
+
+def test_a_local_source_must_say_where_its_files_come_from(tmp_path):
+    body = "  s:\n" + COMMON + "    download:\n      type: local\n"
+    with pytest.raises(SourceConfigError, match="archives, checksums or fetch"):
+        write_sources(tmp_path, body)
+
+
+def test_a_full_build_stops_when_a_source_has_no_images(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(
+        sys, "argv", ["build_dataset", "--skip-download", "--raw-dir", str(tmp_path / "raw")]
+    )
+    with pytest.raises(SystemExit):
+        build_dataset.main()
+    assert "fetch it first" in capsys.readouterr().err
+
+
+def test_the_overlap_section_is_not_added_to_a_dataset_without_bench(monkeypatch, tmp_path):
+    out = tmp_path / "v1"
+    train = [item(tmp_path, f"t{i}", "plantvillage", "train", (i * 9, 40, 40)) for i in range(12)]
+    rows = build(train, REGISTRY, out)
+    (out / "report.md").write_text(report(rows, REGISTRY), encoding="utf-8")
+    before = (out / "report.md").read_text(encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["splits", "--dataset-dir", str(out)])
+    splits.main()
+    assert (out / "report.md").read_text(encoding="utf-8") == before  # a frozen report stays
+
+
+def test_similar_leaves_are_not_chained_into_one_group_but_real_copies_are(tmp_path):
+    classes = ["potato__healthy"] * 4
+    hashes = [0b1010, 0b1010, 0b1011, 0b1010]  # the 64-bit hashes of all four photos are close
+    keys = [f"k{i}" for i in range(4)]
+    base = np.full(32 * 32, 100, dtype=np.int16)
+    thumbs = np.stack([base, base + 2, base + 40, base + 80])  # 0 and 1 are copies, 2 and 3 are not
+    coarse = splits.group_images(keys, classes, hashes)
+    assert len(set(coarse)) == 1  # the hash alone chains all of them
+    fine = splits.group_images(keys, classes, hashes, thumbs=thumbs)
+    assert fine[0] == fine[1] and len({fine[0], fine[2], fine[3]}) == 3
+
+
+def test_a_thumbnail_is_32_by_32_gray(tmp_path):
+    path = tmp_path / "a.png"
+    photo(path, (200, 100, 50), size=(90, 60))
+    thumb = splits.thumbnail(path)
+    assert thumb.shape == (32 * 32,) and thumb.min() == thumb.max()  # a flat photo, a flat thumb
+
+
+def test_the_largest_groups_are_listed_for_the_report(tmp_path):
+    groups = [0, 0, 0, 1, 1, 2]
+    classes = ["a"] * 3 + ["b"] * 2 + ["c"]
+    parts = ["train", "train", "train", "val", "val", "bench"]
+    top = splits.largest_groups(groups, classes, parts, top=2)
+    assert top == [(3, "a", "train"), (2, "b", "val")]
+    splits.write_overlap_report(tmp_path, Counter(), [(3, "a", "train")])
+    text = (tmp_path / "report.md").read_text(encoding="utf-8")
+    assert "Largest groups" in text and "| 3 | `a` | train |" in text
+
+
+def test_building_without_images_is_a_clear_error(tmp_path):
+    with pytest.raises(ValueError, match="no images"):
+        build([], REGISTRY, tmp_path / "v2")
+
+
+def test_local_archives_are_unpacked_and_checked(tmp_path):
+    source = write_sources(
+        tmp_path,
+        "  s:\n" + COMMON + "    download:\n      type: local\n      archives: [a.zip]\n",
+    )[0]
+    target = tmp_path / "raw" / "s"
+    target.mkdir(parents=True)
+    with pytest.raises(FileNotFoundError):
+        _unpack_local(source, target)
+    (target / "a.zip").write_bytes(b"half a download")
+    with pytest.raises(ValueError, match="complete zip"):
+        _unpack_local(source, target)
+    with zipfile.ZipFile(target / "a.zip", "w") as z:
+        z.writestr("EB/x.png", b"data")
+    _unpack_local(source, target)
+    assert (target / "EB" / "x.png").exists() and (target / "a.zip").exists()
+
+
+def test_checksums_of_hand_fetched_files_are_verified(tmp_path):
+    target = tmp_path / "raw" / "s"
+    target.mkdir(parents=True)
+    (target / "export.zip").write_bytes(b"export")
+    digest = build_dataset._sha256(target / "export.zip")
+    body = "  s:\n" + COMMON + "    download:\n      type: local\n      checksums:\n"
+    ok = write_sources(tmp_path, body + f"        export.zip: {digest}\n")[0]
+    _unpack_local(ok, target)
+    wrong = write_sources(tmp_path, body + f"        export.zip: {'0' * 64}\n")[0]
+    with pytest.raises(ValueError, match="checksum does not match"):
+        _unpack_local(wrong, target)
+    missing = write_sources(tmp_path, body + f"        nothing.zip: {digest}\n")[0]
+    with pytest.raises(FileNotFoundError):
+        _unpack_local(missing, target)
+
+
+def test_the_real_config_lists_the_known_checksums():
+    sources = {s.name: s for s in load_sources(REGISTRY)}
+    checksum = sources["fieldplant"].download["checksums"]["fieldplant-coco-v11.zip"]
+    assert checksum.startswith("a979aa7d")
+    assert set(sources["pldd-up"].download["checksums"]) == {"EB.zip", "LB.zip", "Healthy.zip"}
+
+
+def run_build_cli(monkeypatch, *args):
+    monkeypatch.setattr(sys, "argv", ["build_dataset", *args])
+    with pytest.raises(SystemExit):
+        build_dataset.main()
+
+
+def test_the_cli_never_rebuilds_v1_or_a_partial_v2(monkeypatch, tmp_path, capsys):
+    (tmp_path / "v1").mkdir()
+    run_build_cli(monkeypatch, "--skip-download", "--out-dir", str(tmp_path / "v1"))
+    assert "frozen" in capsys.readouterr().err
+    run_build_cli(monkeypatch, "--skip-download", "--sources", "plantdoc")
+    assert "--out-dir" in capsys.readouterr().err
+
+
+def test_bench_photos_form_their_own_split_and_leaky_train_photos_are_dropped():
+    # groups: 0 = bench only, 1 = bench + a train copy (leak), 2 and 3 = train only
+    groups = [0, 1, 1, 2, 2, 3, 3, 3]
+    roles = ["bench", "bench", "train", "train", "train", "train", "train", "train"]
+    strata = ["potato/field"] * 8
+    parts = splits.split_with_bench(groups, strata, roles)
+    assert parts[0] == parts[1] == "bench"
+    assert parts[2] is None  # shares a group with a bench photo
+    assert set(parts[3:]) <= {"train", "val", "test"}
+    assert parts == splits.split_with_bench(groups, strata, roles)  # deterministic
+    assert all(parts[i] != "bench" for i in range(2, 8))
+
+
+def test_bench_overlap_counts_dropped_photos_by_source_pair(tmp_path):
+    groups = [0, 0, 0, 1]
+    roles = ["bench", "train", "train", "train"]
+    sources = ["plantwild", "plantdoc", "pldd-up", "plantdoc"]
+    dropped = splits.bench_overlap(groups, roles, sources)
+    assert dropped == {("plantwild", "plantdoc"): 1, ("plantwild", "pldd-up"): 1}
+    (tmp_path / "report.md").write_text("Registry v1.\n", encoding="utf-8")
+    splits.write_overlap_report(tmp_path, dropped)
+    splits.write_overlap_report(tmp_path, dropped)  # rewriting does not stack sections
+    text = (tmp_path / "report.md").read_text(encoding="utf-8")
+    assert text.count(splits.REPORT_MARKER) == 1
+    assert "| plantwild | plantdoc | 1 |" in text and "| **total** | | 2 |" in text
+    splits.write_overlap_report(tmp_path, Counter())
+    assert "None." in (tmp_path / "report.md").read_text(encoding="utf-8")
+
+
+def test_splits_main_writes_a_bench_split_for_a_built_dataset(monkeypatch, tmp_path):
+    out = tmp_path / "v2"
+    train = [item(tmp_path, f"t{i}", "pldd-up", "train", (i * 9, 40, 40)) for i in range(20)]
+    bench = [item(tmp_path, f"b{i}", "plantwild", "bench", (40, i * 9 + 3, 200)) for i in range(4)]
+    build(train + bench, REGISTRY, out)
+    monkeypatch.setattr(sys, "argv", ["splits", "--dataset-dir", str(out)])
+    splits.main()
+    with (out / "splits.csv").open(encoding="utf-8") as f:
+        parts = Counter(r["split"] for r in csv.DictReader(f))
+    assert parts["bench"] == 4 and parts["train"] + parts["val"] + parts["test"] <= 20
+    assert "Train-pool photos dropped" in (out / "report.md").read_text(encoding="utf-8")
