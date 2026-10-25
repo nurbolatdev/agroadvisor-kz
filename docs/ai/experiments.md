@@ -155,6 +155,8 @@ Per-class F1 on field photos (no mask), E001 → E002 (photos in validation). To
 
 **Learning curves.** Training loss falls to 0.064 while validation loss improves only slightly after epoch 9 (0.177 → 0.164), and validation field macro-F1 stays flat between 0.65 and 0.68 from epoch 5 on. More repetitions of the same few field photos did not add generalisation.
 
+**Intervals of E002 itself** (95 %, group bootstrap, 1000 resamples), crop-masked + `unknown`: overall 0.9620 (0.954 – 0.969), field 0.7338 (0.676 – 0.778), field tomato 0.5876 (0.465 – 0.674), potato 0.6877 (0.526 – 0.840), corn 0.7132 (0.582 – 0.843), wheat 0.9695 (0.955 – 0.982).
+
 **Intervals (paired bootstrap of groups on the same validation photos, E002 minus E001, 1000 resamples).**
 
 | Headline metric | Difference | 95 % interval of the difference | Significant |
