@@ -116,6 +116,7 @@ Wheat has hundreds of field photos and is recognised well. Tomato, potato and co
 - Most validation images are laboratory photos, so the overall numbers say little about field quality. The field macro-F1 of 0.699 is much lower than the laboratory 0.981.
 - Field accuracy is inflated by wheat: most field validation photos are wheat or `unknown`. The weak field results come from tomato, potato and corn, which also have the fewest field photos in training.
 - `potato__healthy` and `corn__healthy` have laboratory photos only.
+- **Wheat is practically one source.** Found while building dataset v2: most of the Kaggle wheat photos are copies of the John Innes photos (1 504 exact copies, Long et al., Plant Pathology 2023). The very good wheat field results here (F1 0.94–0.98) do not show that the model works on wheat photos from other places; it is not an independent test of transfer.
 - `unknown` is trained on other plants and objects; it does not recognise unknown diseases.
 - One configuration and one seed; confidence is not calibrated (planned in A7).
 
@@ -168,7 +169,7 @@ Per-class F1 on field photos (no mask), E001 → E002 (photos in validation). To
 | Field corn | −0.0382 | −0.106 … 0.000 | no (the upper bound touches 0) |
 | Field wheat | +0.0039 | −0.008 … +0.016 | no |
 
-**Limitations.** Tomato and potato have only 8–23 field photos per class in validation (102 and 33 in total), so their intervals are 0.21 – 0.33 wide (see the table above); there is no repeat with another seed. `potato__healthy` and `corn__healthy` have laboratory photos only. The test split was not used.
+**Limitations.** Tomato and potato have only 8–23 field photos per class in validation (102 and 33 in total), so their intervals are 0.21 – 0.33 wide (see the table above); there is no repeat with another seed. `potato__healthy` and `corn__healthy` have laboratory photos only. The wheat result (field F1 0.97) comes from practically one source (see the limitations of A5-E001: the Kaggle wheat set is mostly copies of the John Innes photos) and does not prove transfer. The test split was not used.
 
 **Conclusion.** The success criterion is not met: tomato improved by 0.017 and potato did not change, while both needed +0.05. That alone settles the verdict against the pre-set criterion. With intervals the honest reading is: **no significant effect** of the sampler on tomato, potato, corn or the field as a whole (every difference interval contains 0). The corn drop (−0.038, interval −0.106 … 0.000) touches 0 at its upper bound, so a small harm can neither be confirmed nor excluded. Laboratory quality did not change. Sampling field photos more often does not help on its own, and a repeat with another seed is not planned.
 

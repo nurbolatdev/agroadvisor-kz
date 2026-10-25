@@ -17,7 +17,7 @@ python -m ml.splits                         # train / val / test / bench split o
 - `ml/datasets/v2/manifest.csv` has one row per image: `file, class, crop, source, kind, role, original, md5` (v1 has no `role`). `original` is the path inside the source (for boxes cut from photos, the photo) — the data pipeline uses it to keep related photos in the same split.
 - `ml/datasets/v2/report.md` is the class table; it also lists exact duplicates removed in the build and train photos dropped because of bench matches.
 
-Which source folder becomes which class is configured in [`services/ai-service/ml/data_sources.yaml`](../../services/ai-service/ml/data_sources.yaml); class codes are checked against the registry. The script skips unreadable files and exact duplicates (by MD5), and drops images that two sources label differently.
+Which source folder becomes which class is configured in [`services/ai-service/ml/data_sources.yaml`](../../services/ai-service/ml/data_sources.yaml); class codes are checked against the registry. The script skips unreadable or truncated files and exact duplicates (by MD5). When the same photo has different classes in two places, the first copy and its class are kept (bench sources are read first) and the other copy is dropped; `report.md` lists every such conflict by source and class, so a systematic labeling difference between two sources is visible.
 
 Kaggle downloads work without an account for public datasets. If Kaggle starts requiring authentication, put an API token in `~/.kaggle/access_token` or the `KAGGLE_API_TOKEN` variable.
 
@@ -107,14 +107,14 @@ v2 adds field photos (the weak point of v1, see Known gaps) and an external benc
 | Source | Role | Kind | Used for | License | Notes |
 | --- | --- | --- | --- | --- | --- |
 | [PLDD-UP](https://data.mendeley.com/datasets/3j4nfkvp2n/1) (Mendeley Data, Uttar Pradesh, India, 15 519 photos) | train | field | potato: EB → `potato__early_blight`, LB → `potato__late_blight`, Healthy → `potato__healthy` | CC BY 4.0 | **Limited to 1 500 photos per class** (`limit_per_class`, seeded) so that one region does not dominate the potato classes |
-| [CCMT](https://data.mendeley.com/datasets/bwh3zbpkpv/1) (Mendeley Data, Ghana) | train | field | corn and tomato healthy, tomato septoria | CC BY 4.0 | raw photos only, never the augmented copies; undecided classes below |
+| [CCMT](https://data.mendeley.com/datasets/bwh3zbpkpv/1) (Mendeley Data, Ghana) | train | field | corn and tomato healthy, tomato septoria | CC BY 4.0 | raw photos only, never the augmented copies; **limited to 1 500 photos per class**: the 2 743 raw septoria photos from Ghana would be more than half of `tomato__septoria_leaf_spot` |
 | [TOM2024](https://data.mendeley.com/datasets/3d4yg89rtr/1) (Mendeley Data, Burkina Faso) | train | field | corn and tomato healthy, tomato late blight | CC BY 4.0 | labeled photos of category A (English folder) only, not the augmented category B |
 | [FieldPlant](https://universe.roboflow.com/plant-disease-detection/fieldplant) (Moupojou et al., IEEE Access 2023, Roboflow copy) | train | field | leaves cut out of the photos by their boxes | CC BY 4.0 (stated in the export's README; export v11 of 5 July 2023, 5 156 photos, 27 classes, no augmentation) | crops of one photo stay in one part of the split |
 | [PlantWild](https://huggingface.co/datasets/uqtwei2/PlantWild) (Wei et al., ACM MM 2024) | bench | field | evaluation of tomato, potato and corn classes | CC BY-NC-ND 4.0 | not used for training, never copied into the repository |
 | [PlantSeg](https://zenodo.org/records/17719108) (Wei et al., 2024, web photos with masks) | bench | field | evaluation of tomato, potato, corn **and wheat** classes (labels from `Metadata.csv`) | CC BY-NC 4.0 (per photo CC-BY-NC or CC0) | the masks are not used; from the same research group as PlantWild, so exact and near copies are removed by the build and the split |
-| [John Innes wheat](https://zenodo.org/records/7573133) (Long et al., Plant Pathology 2023, 999 photos) | bench | field | second source of wheat: brown rust, yellow rust, mildew, septoria, healthy (class = start of the file name) | CC BY 4.0 | field and glasshouse photos; the wheat training photos all come from one Kaggle dataset |
+| [John Innes wheat](https://zenodo.org/records/7573133) (Long et al., Plant Pathology 2023, 999 photos) | train | field | wheat: brown rust, yellow rust, mildew, septoria, healthy (class = start of the file name) | CC BY 4.0 | field and glasshouse photos. **Not an independent bench:** 1 504 photos of the Kaggle wheat dataset are exact copies of these photos, so the Kaggle set is mostly the same data. It trains, and the wheat bench is PlantSeg only |
 
-`limit_per_class` is a property of the source in `data_sources.yaml`, not of training: `--lab-cap` limits laboratory photos only. The photos that stay are chosen with seed 42 per source and class, so a rebuild gives the same set.
+`limit_per_class` is a property of the source in `data_sources.yaml`, not of training: `--lab-cap` limits laboratory photos only. The general rule is that **one field source gives at most 1 500 photos per class**, so that no region or photographer dominates a class (PLDD-UP and CCMT are the sources that reach it). The photos that stay are chosen with seed 42 per source and class, so a rebuild gives the same set. `unknown` keeps its own limits (`unknown_limit`, 800 for PlantDoc); whether that is right for field photos is checked in the first A10 run with the field confusion matrix.
 
 **Class mapping.** Matched by the folder or category name; classes whose name is not clear are decided by looking at photos (listed below the table).
 
@@ -128,7 +128,8 @@ v2 adds field photos (the weak point of v1, see Known gaps) and an external benc
 | TOM2024 maize `Rust-D`, FieldPlant `Corn rust leaf` | `corn__common_rust` (some photos may be southern rust; the treatment is the same) |
 | FieldPlant `Corn Gray leaf spot` (Cercosporiose) | `corn__gray_leaf_spot` |
 | FieldPlant `Tomato leaf mosaic virus` | `tomato__mosaic_virus` |
-| PlantWild and PlantSeg: gray leaf spot, northern leaf blight, corn rust, potato early/late blight, tomato bacterial leaf spot, early/late blight, leaf mold, mosaic virus, septoria; PlantSeg and John Innes: the four wheat diseases | the matching class (bench only) |
+| PlantWild and PlantSeg: gray leaf spot, northern leaf blight, corn rust, potato early/late blight, tomato bacterial leaf spot, early/late blight, leaf mold, mosaic virus, septoria; PlantSeg: the four wheat diseases | the matching class (bench only) |
+| John Innes `BrownRust`, `YellowRust`, `Mildew`, `Septoria`, `Healthy` | `wheat__leaf_rust`, `wheat__stripe_rust`, `wheat__powdery_mildew`, `wheat__septoria`, `wheat__healthy` (train) |
 
 Decided from contact sheets and **not used**: CCMT maize `leaf blight` and `leaf spot`, tomato `leaf blight` (each is a mix of diseases); TOM2024 tomato `alternaria_d` (half of the photos show fruit) and `virosis_d` (a mix of viruses); FieldPlant `Corn leaf blight` (noisy); PlantWild `corn leaf`, `potato leaf`, `tomato leaf` (the photos are mixed, not clearly healthy). Pests, abiotic damage and diseases that are not in the registry are never used, and photos of the four crops never go to `unknown`.
 
@@ -137,7 +138,8 @@ Citations for the CC BY sources: Singh P.K. et al., *PLDD-UP: Potato Leaf Diseas
 ## Known gaps
 
 - **v2: `tomato__early_blight` got no new field photos** — no source has a clean class for it (CCMT and FieldPlant blight classes are mixes, TOM2024 `alternaria_d` is half fruit). It is a candidate for our own photos. It only has field photos from PlantDoc and the bench from PlantWild and PlantSeg.
-- **v2: wheat training photos come from one source** (Kaggle). The wheat bench (PlantSeg, John Innes) shows whether the high wheat accuracy holds on photos from other places.
+- **Wheat is practically one source.** The Kaggle wheat dataset used in v1 is mostly made of copies of the John Innes photos (Long et al., Plant Pathology 2023): 1 504 of its photos are exact copies. So the very good wheat field results of v1 (F1 0.94–0.98) do not show that the model transfers to other wheat fields. The wheat bench is PlantSeg only (web photos from other places) and has no healthy class, so **`wheat__healthy` has no bench**.
+- **No bench for the healthy classes of tomato, potato and corn.** No independent bench source has healthy leaves of these crops, and healthy photos must not be cut out of the training sources (they would not be independent). Our own set `own` (task A6) must contain healthy tomato, potato and corn leaves.
 
 - **Few field photos for tomato, potato and corn** — 54–190 per class against ~1 000 lab photos. Accuracy on lab images will overstate real-world accuracy: evaluation must report field photos separately and include our own photos (task A6).
 - **`potato__healthy` and `corn__healthy` have no field photos**, and `potato__healthy` is the smallest class (152). The model may learn "plain background → healthy". Mitigation: class weights or oversampling, strong background augmentation, and own field photos as soon as possible.
