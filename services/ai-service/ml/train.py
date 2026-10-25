@@ -293,19 +293,18 @@ def finalize(args, run_dir: Path, device: torch.device, state: dict, status: str
         model = build_model(len(classes), pretrained=False)
         model.load_state_dict(checkpoint["model"])
         model.to(device)
-        val, logits, targets = evaluate_split(
-            model, args.dataset_dir, "val", device, args.batch_size, args.num_workers
-        )
-        results["val"] = val
-        plot_confusion(logits, targets, classes, run_dir / "confusion_val.png", f"{args.id} — val")
-        if args.eval_test:
-            test, logits, targets = evaluate_split(
-                model, args.dataset_dir, "test", device, args.batch_size, args.num_workers
+        splits = ["val", "test"] if args.eval_test else ["val"]
+        for split in splits:
+            metrics, logits, targets, field = evaluate_split(
+                model, args.dataset_dir, split, device, args.batch_size, args.num_workers
             )
-            results["test"] = test
+            results[split] = metrics
+            title = f"{args.id} — {split}"
+            plot_confusion(logits, targets, classes, run_dir / f"confusion_{split}.png", title)
             plot_confusion(
-                logits, targets, classes, run_dir / "confusion_test.png", f"{args.id} — test"
-            )
+                logits, targets, classes, run_dir / f"confusion_{split}_field.png",
+                f"{title} (field photos)", mask=field,
+            )  # fmt: skip
         (run_dir / "class_index.json").write_text(
             (args.dataset_dir / "class_index.json").read_text(encoding="utf-8"), encoding="utf-8"
         )

@@ -67,6 +67,26 @@ def _acc_f1(targets: np.ndarray, preds: np.ndarray) -> tuple[float, float]:
     return float((targets == preds).mean()), float(f1)
 
 
+def per_class_metrics(targets: np.ndarray, preds: np.ndarray, classes: list[str]) -> dict:
+    from sklearn.metrics import precision_recall_fscore_support
+
+    if len(targets) == 0:  # a domain with no images in this split
+        empty = {"precision": 0.0, "recall": 0.0, "f1": 0.0, "support": 0}
+        return {code: dict(empty) for code in classes}
+    p, r, f, support = precision_recall_fscore_support(
+        targets, preds, labels=list(range(len(classes))), zero_division=0
+    )
+    return {
+        code: {
+            "precision": float(p[i]),
+            "recall": float(r[i]),
+            "f1": float(f[i]),
+            "support": int(support[i]),
+        }
+        for i, code in enumerate(classes)
+    }
+
+
 def compute_metrics(
     logits: np.ndarray,
     targets: np.ndarray,
@@ -80,8 +100,6 @@ def compute_metrics(
     Macro-F1 is averaged over the classes that occur in the evaluated subset. The crop-masked
     numbers skip images whose class is ``unknown``: no crop is chosen for them.
     """
-    from sklearn.metrics import precision_recall_fscore_support
-
     preds = logits.argmax(axis=1)
     acc, macro_f1 = _acc_f1(targets, preds)
     top3 = np.argsort(-logits, axis=1)[:, :3]
@@ -96,7 +114,12 @@ def compute_metrics(
     for domain in DOMAINS:
         sel = kind_arr == domain
         d_acc, d_f1 = _acc_f1(targets[sel], preds[sel])
-        by_domain[domain] = {"acc": d_acc, "macro_f1": d_f1, "n": int(sel.sum())}
+        by_domain[domain] = {
+            "acc": d_acc,
+            "macro_f1": d_f1,
+            "n": int(sel.sum()),
+            "per_class": per_class_metrics(targets[sel], preds[sel], classes),
+        }
 
     unk = classes.index(UNKNOWN)
     pred_unk, true_unk = preds == unk, targets == unk
@@ -106,18 +129,7 @@ def compute_metrics(
         "recall": hit / int(true_unk.sum()) if true_unk.any() else 0.0,
     }
 
-    p, r, f, support = precision_recall_fscore_support(
-        targets, preds, labels=list(range(len(classes))), zero_division=0
-    )
-    per_class = {
-        code: {
-            "precision": float(p[i]),
-            "recall": float(r[i]),
-            "f1": float(f[i]),
-            "support": int(support[i]),
-        }
-        for i, code in enumerate(classes)
-    }
+    per_class = per_class_metrics(targets, preds, classes)
     return {
         "n": int(len(targets)),
         "acc": acc,
@@ -157,8 +169,8 @@ def evaluate_split(
     batch_size: int = 64,
     num_workers: int = 4,
     registry: Registry | None = None,
-) -> tuple[dict, np.ndarray, np.ndarray]:
-    """Score ``model`` on one full split; returns (metrics, logits, targets)."""
+) -> tuple[dict, np.ndarray, np.ndarray, np.ndarray]:
+    """Score ``model`` on one full split; returns (metrics, logits, targets, field mask)."""
     dataset = PlantDataset(dataset_dir, split, eval_transform())
     loader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
     logits, targets, loss = predict_logits(model, loader, device)
@@ -167,7 +179,7 @@ def evaluate_split(
         logits, targets, dataset.classes, crops, kinds, registry or load_registry()
     )
     metrics["loss"] = loss
-    return metrics, logits, targets
+    return metrics, logits, targets, np.array(kinds) == "field"
 
 
 def plot_curves(metrics_csv: Path, out: Path) -> None:
@@ -200,14 +212,24 @@ def plot_curves(metrics_csv: Path, out: Path) -> None:
 
 
 def plot_confusion(
-    logits: np.ndarray, targets: np.ndarray, classes: list[str], out: Path, title: str
+    logits: np.ndarray,
+    targets: np.ndarray,
+    classes: list[str],
+    out: Path,
+    title: str,
+    mask: np.ndarray | None = None,
 ) -> None:
+    """Row-normalized confusion matrix; ``mask`` keeps a subset of the images (e.g. field)."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from sklearn.metrics import confusion_matrix
 
+    if mask is not None:
+        logits, targets = logits[mask], targets[mask]
+    if len(targets) == 0:  # nothing of this kind in the split, nothing to draw
+        return
     labels = list(range(len(classes)))
     cm = confusion_matrix(targets, logits.argmax(axis=1), labels=labels).astype(float)
     cm /= np.maximum(cm.sum(axis=1, keepdims=True), 1)
@@ -239,13 +261,15 @@ def main() -> None:
     model.load_state_dict(checkpoint["model"])
     model.to(device)
 
-    metrics, logits, targets = evaluate_split(
+    metrics, logits, targets, field = evaluate_split(
         model, Path(config["dataset_dir"]), args.split, device, num_workers=args.num_workers
     )
+    classes, title = checkpoint["classes"], f"{config['id']} — {args.split}"
+    plot_confusion(logits, targets, classes, args.run_dir / f"confusion_{args.split}.png", title)
     plot_confusion(
-        logits, targets, checkpoint["classes"], args.run_dir / f"confusion_{args.split}.png",
-        f"{config['id']} — {args.split}",
-    )
+        logits, targets, classes, args.run_dir / f"confusion_{args.split}_field.png",
+        f"{title} (field photos)", mask=field,
+    )  # fmt: skip
     results_path = args.run_dir / "results.json"
     results = json.loads(results_path.read_text(encoding="utf-8"))
     results[args.split] = metrics

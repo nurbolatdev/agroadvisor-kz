@@ -78,6 +78,11 @@ def test_crop_masked_metrics_forgive_errors_across_crops():
     assert m["acc"] == pytest.approx(2 / 3)
     assert m["crop_masked_acc"] == 1.0  # the unknown image is skipped, the rest is right
     assert m["by_domain"]["lab"]["acc"] == 0.0
+    field = m["by_domain"]["field"]["per_class"]
+    assert field["corn__common_rust"] == {
+        "precision": 1.0, "recall": 1.0, "f1": 1.0, "support": 1,
+    }  # fmt: skip
+    assert field["tomato__late_blight"]["support"] == 0
 
 
 def make_dataset(root):
@@ -91,7 +96,7 @@ def make_dataset(root):
             (root / code).mkdir(exist_ok=True)
             Image.new("RGB", (64, 64), (INDEX[code] * 10, 80, 120)).save(root / name)
             rows.append({"file": name, "class": code, "group": f"{code}{i}", "split": split})
-            manifest.append({"file": name, "crop": crop, "kind": "field" if i % 2 else "lab"})
+            manifest.append({"file": name, "crop": crop, "kind": "field" if i >= 2 else "lab"})
     for filename, data in (("splits.csv", rows), ("manifest.csv", manifest)):
         with (root / filename).open("w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=list(data[0]))
@@ -118,8 +123,8 @@ def test_run_writes_every_artifact(tmp_path, monkeypatch):
     run = runs / "T0-E001"
     for name in (
         "config.json", "env.json", "metrics.csv", "results.json", "curves.png",
-        "confusion_val.png", "confusion_test.png", "best.pt", "class_index.json",
-        "model_card.json", "tb",
+        "confusion_val.png", "confusion_val_field.png", "confusion_test.png", "best.pt",
+        "class_index.json", "model_card.json", "tb",
     ):  # fmt: skip
         assert (run / name).exists(), name
     results = json.loads((run / "results.json").read_text())
