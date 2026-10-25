@@ -180,8 +180,8 @@ def build_config(args: argparse.Namespace, device: torch.device, classes_version
             "eval": "Resize 256, CenterCrop 224, ImageNet normalization",
         },
         "sampler": (
-            f"balanced by class, {args.field_share:.0%} of the draws of a class with field "
-            "photos go to its field photos"
+            f"balanced by class, {args.field_share:.1%} of the draws of a class that has both "
+            "field and other photos go to its field photos"
             if args.field_share > 0
             else "balanced (1/class count)"
             if args.balanced
@@ -415,6 +415,8 @@ def parse_args() -> argparse.Namespace:
     args = p.parse_args()
     if not 0.0 <= args.field_share < 1.0:
         p.error("--field-share must be in [0, 1)")
+    if args.field_share > 0 and not args.balanced:
+        p.error("--field-share replaces the class-balanced sampler; drop --no-balanced")
     if args.eval_test and args.subset < 1.0:
         p.error("--eval-test is for full runs only; do not score test with a smoke model")
     return args

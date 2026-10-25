@@ -221,3 +221,18 @@ def test_run_with_field_share_records_it(monkeypatch, tmp_path):
     assert config["field_share"] == 0.5
     assert "field photos" in config["sampler"]
     assert json.loads((run / "results.json").read_text())["status"] == "completed"
+
+
+def test_field_share_works_together_with_a_subset(monkeypatch, tmp_path):
+    run = run_main(
+        monkeypatch, tmp_path, "--field-share", "0.5", "--subset", "0.5", "--head-epochs", "1",
+        "--full-epochs", "0", "--batch-size", "8",
+    )  # fmt: skip
+    train.main()
+    assert json.loads((run / "results.json").read_text())["status"] == "completed"
+
+
+def test_field_share_conflicts_with_no_balanced(monkeypatch, tmp_path):
+    run_main(monkeypatch, tmp_path, "--field-share", "0.5", "--no-balanced")
+    with pytest.raises(SystemExit):
+        train.main()
