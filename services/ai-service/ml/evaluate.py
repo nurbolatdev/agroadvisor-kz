@@ -380,7 +380,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Score the best checkpoint of a run")
     parser.add_argument("run_dir", type=Path)
-    parser.add_argument("--split", choices=["val", "test"], default="val")
+    parser.add_argument("--split", choices=["val", "test", "bench"], default="val")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--bootstrap", type=int, default=0, help="resamples for 95%% intervals")
