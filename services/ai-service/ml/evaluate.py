@@ -34,6 +34,13 @@ def load_meta(dataset_dir: Path, files: list[str]) -> tuple[list[str | None], li
     return crops, kinds
 
 
+def load_groups(dataset_dir: Path, files: list[str]) -> np.ndarray:
+    """Group of every file (photos of one leaf / near-duplicates), from splits.csv."""
+    with (Path(dataset_dir) / "splits.csv").open(encoding="utf-8") as f:
+        rows = {r["file"]: r["group"] for r in csv.DictReader(f)}
+    return np.array([rows[name] for name in files])
+
+
 def crop_masks(classes: list[str], registry: Registry) -> dict[str, list[int]]:
     """Indices of the classes of each crop (``unknown`` belongs to no crop)."""
     masks: dict[str, list[int]] = {}
@@ -219,7 +226,10 @@ def compare_runs(
     registry = registry or load_registry()
     preds_new, slices = product_slices(new["logits"], crops, kinds, classes, registry)
     preds_old, _ = product_slices(old["logits"], crops, kinds, classes, registry)
-    diff = paired_diff_ci95(new["targets"], preds_new, preds_old, slices, len(classes), n_boot)
+    groups = load_groups(Path(config["dataset_dir"]), new["files"].tolist())
+    diff = paired_diff_ci95(
+        new["targets"], preds_new, preds_old, slices, len(classes), n_boot, groups=groups
+    )
     return {ci_key(name): value for name, value in diff.items()}
 
 
@@ -266,9 +276,10 @@ def evaluate_split(
     metrics["loss"] = loss
     if bootstrap:
         preds, slices = product_slices(logits, crops, kinds, dataset.classes, registry)
-        intervals = ci95(targets, preds, slices, len(dataset.classes), bootstrap)
+        groups = load_groups(dataset_dir, dataset.files)
+        intervals = ci95(targets, preds, slices, len(dataset.classes), bootstrap, groups=groups)
         metrics["ci95"] = {ci_key(name): value for name, value in intervals.items()}
-        metrics["ci95_bootstrap"] = {"resamples": bootstrap, "seed": 42}
+        metrics["ci95_bootstrap"] = {"resamples": bootstrap, "seed": 42, "unit": "group"}
     if run_dir is not None:
         np.savez_compressed(
             run_dir / f"logits_{split}.npz",

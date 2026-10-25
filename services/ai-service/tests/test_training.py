@@ -159,7 +159,7 @@ def test_run_writes_every_artifact(tmp_path, monkeypatch):
     }  # fmt: skip
     low, high = ci["crop_masked_product_macro_f1"]
     assert 0 <= low <= high <= 1
-    assert results["val"]["ci95_bootstrap"] == {"resamples": 1000, "seed": 42}
+    assert results["val"]["ci95_bootstrap"] == {"resamples": 1000, "seed": 42, "unit": "group"}
     assert (run / "logits_val.npz").exists() and (run / "logits_test.npz").exists()
     same = compare_runs(run, run, "val", n_boot=50)  # a run compared with itself
     assert same["crop_masked_product_macro_f1"] == {"diff": 0.0, "ci95": [0.0, 0.0]}
