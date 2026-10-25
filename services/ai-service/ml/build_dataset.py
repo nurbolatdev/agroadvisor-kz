@@ -77,8 +77,19 @@ def download(source: Source, raw_dir: Path) -> Path:
 
 
 def _unpack_local(source: Source, target: Path) -> None:
-    """Sources fetched by hand (.team/scripts): unpack the listed archives, keep the zip files."""
+    """Sources fetched by hand (.team/scripts): check the files, unpack the archives, keep the zips.
+
+    ``checksums`` maps file names to their SHA-256; a file that does not match stops the build.
+    ``archives`` are unpacked into the source folder (an export that is already unpacked, like
+    FieldPlant, lists only its checksum).
+    """
     target.mkdir(parents=True, exist_ok=True)
+    for name, expected in source.download.get("checksums", {}).items():
+        path = target / name
+        if not path.exists():
+            raise FileNotFoundError(f"{path} is missing — download it first")
+        if _sha256(path) != expected:
+            raise ValueError(f"{path}: SHA-256 does not match data_sources.yaml")
     for name in source.download.get("archives", []):
         archive = target / name
         if not archive.exists():
@@ -162,6 +173,14 @@ def _fetch_resumable(url: str, archive: Path, headers: dict[str, str]) -> None:
 
 def _md5(path: Path) -> str:
     digest = hashlib.md5()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
     with path.open("rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
             digest.update(chunk)

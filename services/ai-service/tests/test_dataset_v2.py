@@ -235,6 +235,29 @@ def test_local_archives_are_unpacked_and_checked(tmp_path):
     assert (target / "EB" / "x.png").exists() and (target / "a.zip").exists()
 
 
+def test_checksums_of_hand_fetched_files_are_verified(tmp_path):
+    target = tmp_path / "raw" / "s"
+    target.mkdir(parents=True)
+    (target / "export.zip").write_bytes(b"export")
+    digest = build_dataset._sha256(target / "export.zip")
+    body = "  s:\n" + COMMON + "    download:\n      type: local\n      checksums:\n"
+    ok = write_sources(tmp_path, body + f"        export.zip: {digest}\n")[0]
+    _unpack_local(ok, target)
+    wrong = write_sources(tmp_path, body + f"        export.zip: {'0' * 64}\n")[0]
+    with pytest.raises(ValueError, match="SHA-256"):
+        _unpack_local(wrong, target)
+    missing = write_sources(tmp_path, body + f"        nothing.zip: {digest}\n")[0]
+    with pytest.raises(FileNotFoundError):
+        _unpack_local(missing, target)
+
+
+def test_the_real_config_lists_the_known_checksums():
+    sources = {s.name: s for s in load_sources(REGISTRY)}
+    checksum = sources["fieldplant"].download["checksums"]["fieldplant-coco-v11.zip"]
+    assert checksum.startswith("a979aa7d")
+    assert set(sources["pldd-up"].download["checksums"]) == {"EB.zip", "LB.zip", "Healthy.zip"}
+
+
 def run_build_cli(monkeypatch, *args):
     monkeypatch.setattr(sys, "argv", ["build_dataset", *args])
     with pytest.raises(SystemExit):

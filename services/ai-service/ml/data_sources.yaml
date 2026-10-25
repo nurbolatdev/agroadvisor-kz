@@ -150,6 +150,10 @@ sources:
     download:
       type: local
       archives: [EB.zip, LB.zip, Healthy.zip]
+      checksums:  # SHA-256 published by Mendeley Data
+        EB.zip: cffd37bbb79e75c0e23c1486f88f0a7c873b3fe67f643c41db3abd794bdc01e5
+        LB.zip: f4d31182b5d2f147c256e1c73838eac9b17592b89ed2b1ae394f58863e74a447
+        Healthy.zip: 2b7e4107d7ba03c0ef9636831aa4de7d333435df238f667f562e27b1e46e59e2
     classes:
       EB: potato__early_blight
       LB: potato__late_blight
@@ -216,6 +220,9 @@ sources:
     url: https://universe.roboflow.com/plant-disease-detection/fieldplant
     download:
       type: local
+      # Roboflow export v11 in COCO format, already unpacked into coco/ by .team/scripts
+      checksums:
+        fieldplant-coco-v11.zip: a979aa7d869d3b49c4c33bc47656c1bacc08516e04b2e22ae243842cf8ed37fd
     classes:
       Corn Healthy: corn__healthy
       Corn Gray leaf spot: corn__gray_leaf_spot  # Cercosporiose
