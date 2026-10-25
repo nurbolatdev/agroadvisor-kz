@@ -118,7 +118,7 @@ Every class has at least 100 images; every wheat class has more than 300, so all
 
 v2 adds field photos (the weak point of v1, see Known gaps) and an external benchmark. Class codes and the registry are unchanged. Counts per class are in the table at the end of this section (`report.md` has the same numbers and the removal tables).
 
-**Roles.** A source has `role: train` (default) or `role: bench`. Bench photos go to the split `bench` and are only used to evaluate: parameters are never tuned on them. A train photo that is the same leaf as a bench photo, or a near-identical copy (dHash within a class, the same rule as for the other splits), is dropped from train (the same group rule as for the other splits: close dHash and similar thumbnails, see "Groups" below), and an exact copy is kept only in the bench. How many photos were dropped, by pair of sources, is in `report.md` (this matters most for PlantDoc and PlantWild, which both come from the internet).
+**Roles.** A source has `role: train` (default) or `role: bench`. Bench photos go to the split `bench` and are only used to evaluate: parameters are never tuned on them. A train photo that is the same leaf as a bench photo, or a near-identical copy (the same group rule as for the other splits: close dHash and similar thumbnails, see "Groups" below), is dropped from train, and an exact copy is kept only in the bench. How many photos were dropped, by pair of sources, is in `report.md` (this matters most for PlantDoc and PlantWild, which both come from the internet).
 
 | Source | Role | Kind | Used for | License | Notes |
 | --- | --- | --- | --- | --- | --- |
