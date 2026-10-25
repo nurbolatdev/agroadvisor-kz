@@ -321,8 +321,9 @@ def finalize(args, run_dir: Path, device: torch.device, status: str) -> None:
         model.to(device)
         for split in ["val", "test"] if args.eval_test else ["val"]:
             metrics, logits, targets, field = evaluate_split(
-                model, args.dataset_dir, split, device, args.batch_size, args.num_workers
-            )
+                model, args.dataset_dir, split, device, args.batch_size, args.num_workers,
+                bootstrap=args.bootstrap, run_dir=run_dir,
+            )  # fmt: skip
             results[split] = metrics
             title = f"{args.id} — {split}"
             plot_confusion(logits, targets, classes, run_dir / f"confusion_{split}.png", title)
@@ -411,6 +412,10 @@ def parse_args() -> argparse.Namespace:
     )  # fmt: skip
     p.add_argument("--no-pretrained", action="store_true")
     p.add_argument("--eval-test", action="store_true", help="also score the test split")
+    p.add_argument(
+        "--bootstrap", type=int, default=1000,
+        help="resamples for the 95%% intervals of the final scoring (0 = none)",
+    )  # fmt: skip
     p.add_argument("--runs-dir", type=Path, default=RUNS_DIR)
     args = p.parse_args()
     if not 0.0 <= args.field_share < 1.0:

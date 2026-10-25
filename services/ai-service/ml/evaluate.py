@@ -17,6 +17,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
+from ml.bootstrap import ci95, paired_diff_ci95
 from ml.data import PlantDataset, eval_transform
 from ml.registry import Registry, load_registry
 
@@ -176,6 +177,52 @@ def compute_metrics(
     }
 
 
+def product_slices(
+    logits: np.ndarray,
+    crops: list[str | None],
+    kinds: list[str],
+    classes: list[str],
+    registry: Registry,
+) -> tuple[np.ndarray, dict[str, np.ndarray]]:
+    """Product-style predictions (crop classes + ``unknown``) and the photo masks of the headline
+    slices: all crop photos, field photos, and field photos of each crop."""
+    has_crop = np.array([c is not None for c in crops], dtype=bool)
+    masks = crop_masks(classes, registry)
+    preds = np.full(len(logits), -1)
+    masked = mask_logits(
+        logits[has_crop], [c for c in crops if c], masks, (classes.index(UNKNOWN),)
+    )
+    preds[has_crop] = masked.argmax(axis=1)
+    field = has_crop & (np.array(kinds) == "field")
+    crop_arr = np.array([c or "" for c in crops])
+    slices = {"overall": has_crop, "field": field}
+    for crop in sorted(masks):
+        slices[f"field_{crop}"] = field & (crop_arr == crop)
+    return preds, slices
+
+
+def ci_key(slice_name: str) -> str:
+    """Key of a slice in ``ci95``: ``crop_masked_product_macro_f1[_field[_<crop>]]``."""
+    return "crop_masked_product_macro_f1" + ("" if slice_name == "overall" else f"_{slice_name}")
+
+
+def compare_runs(
+    run_dir: Path, parent_dir: Path, split: str, n_boot: int, registry: Registry | None = None
+) -> dict:
+    """Paired bootstrap of the headline metrics: this run minus its parent on the same photos."""
+    new, old = (np.load(d / f"logits_{split}.npz") for d in (run_dir, parent_dir))
+    if not (new["files"] == old["files"]).all():
+        raise ValueError("the two runs were scored on different photos")
+    config = json.loads((run_dir / "config.json").read_text(encoding="utf-8"))
+    classes = json.loads((run_dir / "class_index.json").read_text(encoding="utf-8"))["classes"]
+    crops, kinds = load_meta(Path(config["dataset_dir"]), new["files"].tolist())
+    registry = registry or load_registry()
+    preds_new, slices = product_slices(new["logits"], crops, kinds, classes, registry)
+    preds_old, _ = product_slices(old["logits"], crops, kinds, classes, registry)
+    diff = paired_diff_ci95(new["targets"], preds_new, preds_old, slices, len(classes), n_boot)
+    return {ci_key(name): value for name, value in diff.items()}
+
+
 @torch.no_grad()
 def predict_logits(
     model: nn.Module, loader: DataLoader, device: torch.device
@@ -202,16 +249,33 @@ def evaluate_split(
     batch_size: int = 64,
     num_workers: int = 4,
     registry: Registry | None = None,
+    bootstrap: int = 0,
+    run_dir: Path | None = None,
 ) -> tuple[dict, np.ndarray, np.ndarray, np.ndarray]:
-    """Score ``model`` on one full split; returns (metrics, logits, targets, field mask)."""
+    """Score ``model`` on one full split; returns (metrics, logits, targets, field mask).
+
+    With ``bootstrap`` > 0 the headline metrics get 95 % intervals (``ci95``); with ``run_dir``
+    the logits are saved as ``logits_<split>.npz`` so runs can be compared on the same photos.
+    """
+    registry = registry or load_registry()
     dataset = PlantDataset(dataset_dir, split, eval_transform())
     loader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
     logits, targets, loss = predict_logits(model, loader, device)
     crops, kinds = load_meta(dataset_dir, dataset.files)
-    metrics = compute_metrics(
-        logits, targets, dataset.classes, crops, kinds, registry or load_registry()
-    )
+    metrics = compute_metrics(logits, targets, dataset.classes, crops, kinds, registry)
     metrics["loss"] = loss
+    if bootstrap:
+        preds, slices = product_slices(logits, crops, kinds, dataset.classes, registry)
+        intervals = ci95(targets, preds, slices, len(dataset.classes), bootstrap)
+        metrics["ci95"] = {ci_key(name): value for name, value in intervals.items()}
+        metrics["ci95_bootstrap"] = {"resamples": bootstrap, "seed": 42}
+    if run_dir is not None:
+        np.savez_compressed(
+            run_dir / f"logits_{split}.npz",
+            logits=logits.astype(np.float32),
+            targets=targets,
+            files=np.array(dataset.files),
+        )
     return metrics, logits, targets, np.array(kinds) == "field"
 
 
@@ -285,7 +349,13 @@ def main() -> None:
     parser.add_argument("--split", choices=["val", "test"], default="val")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--num-workers", type=int, default=4)
+    parser.add_argument("--bootstrap", type=int, default=0, help="resamples for 95%% intervals")
+    parser.add_argument(
+        "--compare-with", type=Path, help="parent run dir: paired difference with intervals"
+    )
     args = parser.parse_args()
+    if args.compare_with and not args.bootstrap:
+        parser.error("--compare-with needs --bootstrap")
 
     config = json.loads((args.run_dir / "config.json").read_text(encoding="utf-8"))
     checkpoint = torch.load(args.run_dir / "best.pt", map_location="cpu", weights_only=True)
@@ -295,8 +365,14 @@ def main() -> None:
     model.to(device)
 
     metrics, logits, targets, field = evaluate_split(
-        model, Path(config["dataset_dir"]), args.split, device, num_workers=args.num_workers
-    )
+        model, Path(config["dataset_dir"]), args.split, device, num_workers=args.num_workers,
+        bootstrap=args.bootstrap, run_dir=args.run_dir,
+    )  # fmt: skip
+    if args.compare_with:
+        parent_id = json.loads((args.compare_with / "config.json").read_text())["id"]
+        metrics["ci95_diff"] = {
+            parent_id: compare_runs(args.run_dir, args.compare_with, args.split, args.bootstrap)
+        }
     classes, title = checkpoint["classes"], f"{config['id']} — {args.split}"
     plot_confusion(logits, targets, classes, args.run_dir / f"confusion_{args.split}.png", title)
     plot_confusion(
