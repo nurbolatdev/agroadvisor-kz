@@ -6,6 +6,7 @@ Labels are indices from class_index.json — the same order as the model head.
 
 import csv
 import json
+import random
 from collections import Counter
 from pathlib import Path
 
@@ -20,8 +21,35 @@ MEAN = (0.485, 0.456, 0.406)
 STD = (0.229, 0.224, 0.225)
 
 
-def train_transform() -> v2.Compose:
-    """Augmentations that imitate field conditions: framing, angle, light, focus."""
+AUGMENTATIONS = ("basic", "strong")
+
+
+def train_transform(aug: str = "basic") -> v2.Compose:
+    """Augmentations that imitate field conditions: framing, angle, light, focus.
+
+    ``strong`` adds tighter crops, TrivialAugment, JPEG compression, sensor noise and random
+    erasing (cut-out patches imitate leaves, hands and soil covering part of the frame).
+    """
+    if aug not in AUGMENTATIONS:
+        raise ValueError(f"unknown augmentation {aug!r}, expected one of {AUGMENTATIONS}")
+    if aug == "strong":
+        return v2.Compose(
+            [
+                v2.ToImage(),
+                v2.RandomResizedCrop(IMAGE_SIZE, scale=(0.3, 1.0), antialias=True),
+                v2.RandomHorizontalFlip(),
+                v2.RandomVerticalFlip(),
+                v2.RandomRotation(30),
+                v2.TrivialAugmentWide(),
+                v2.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.3, hue=0.03),
+                v2.RandomApply([v2.GaussianBlur(kernel_size=5, sigma=(0.1, 2.0))], p=0.2),
+                v2.RandomApply([v2.JPEG(quality=(30, 90))], p=0.3),
+                v2.ToDtype(torch.float32, scale=True),
+                v2.RandomApply([v2.GaussianNoise(sigma=0.03)], p=0.2),
+                v2.Normalize(MEAN, STD),
+                v2.RandomErasing(p=0.25, scale=(0.02, 0.2), value=0.0),
+            ]
+        )
     return v2.Compose(
         [
             v2.ToImage(),
@@ -85,6 +113,24 @@ def balanced_sampler(targets: list[int]) -> WeightedRandomSampler:
     counts = Counter(targets)
     weights = torch.tensor([1.0 / counts[t] for t in targets], dtype=torch.double)
     return WeightedRandomSampler(weights, num_samples=len(targets), replacement=True)
+
+
+def lab_cap_indices(targets: list[int], kinds: list[str], cap: int, seed: int) -> list[int]:
+    """Positions to keep when each class may have at most ``cap`` laboratory photos.
+
+    Field and other photos are always kept. The lab photos that stay are drawn with a seed, so
+    the same ``cap`` and ``seed`` give the same training set.
+    """
+    lab_by_class: dict[int, list[int]] = {}
+    for position, (target, kind) in enumerate(zip(targets, kinds, strict=True)):
+        if kind == "lab":
+            lab_by_class.setdefault(target, []).append(position)
+    dropped: set[int] = set()
+    for target, positions in lab_by_class.items():
+        if len(positions) > cap:
+            keep = set(random.Random(seed * 1000 + target).sample(positions, cap))
+            dropped.update(set(positions) - keep)
+    return [i for i in range(len(targets)) if i not in dropped]
 
 
 def field_weights(targets: list[int], kinds: list[str], field_share: float) -> list[float]:
