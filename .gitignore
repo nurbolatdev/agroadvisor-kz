@@ -40,3 +40,4 @@ services/ai-service/ml/datasets/*
 !services/ai-service/ml/datasets/.gitkeep
 services/ai-service/ml/weights/*
 !services/ai-service/ml/weights/.gitkeep
+services/ai-service/ml/runs/
