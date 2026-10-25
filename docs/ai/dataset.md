@@ -114,7 +114,7 @@ v2 adds field photos (the weak point of v1, see Known gaps) and an external benc
 
 `limit_per_class` is a property of the source in `data_sources.yaml`, not of training: `--lab-cap` limits laboratory photos only. The photos that stay are chosen with seed 42 per source and class, so a rebuild gives the same set.
 
-**Class mapping, decided by looking at photos.**
+**Class mapping.** Matched by the folder or category name; classes whose name is not clear are decided by looking at photos (listed below the table).
 
 | Source folder | Class |
 | --- | --- |
