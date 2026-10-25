@@ -24,6 +24,17 @@ STD = (0.229, 0.224, 0.225)
 AUGMENTATIONS = ("basic", "strong")
 
 
+class AddGaussianNoise(torch.nn.Module):
+    """Sensor noise on a float image in [0, 1]; own class so no recent torchvision is needed."""
+
+    def __init__(self, sigma: float) -> None:
+        super().__init__()
+        self.sigma = sigma
+
+    def forward(self, image: torch.Tensor) -> torch.Tensor:
+        return (image + torch.randn_like(image) * self.sigma).clamp(0.0, 1.0)
+
+
 def train_transform(aug: str = "basic") -> v2.Compose:
     """Augmentations that imitate field conditions: framing, angle, light, focus.
 
@@ -45,7 +56,7 @@ def train_transform(aug: str = "basic") -> v2.Compose:
                 v2.RandomApply([v2.GaussianBlur(kernel_size=5, sigma=(0.1, 2.0))], p=0.2),
                 v2.RandomApply([v2.JPEG(quality=(30, 90))], p=0.3),
                 v2.ToDtype(torch.float32, scale=True),
-                v2.RandomApply([v2.GaussianNoise(sigma=0.03)], p=0.2),
+                v2.RandomApply([AddGaussianNoise(sigma=0.03)], p=0.2),
                 v2.Normalize(MEAN, STD),
                 v2.RandomErasing(p=0.25, scale=(0.02, 0.2), value=0.0),
             ]

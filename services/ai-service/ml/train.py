@@ -126,8 +126,7 @@ def build_loaders(args: argparse.Namespace) -> dict[str, DataLoader]:
         _, kinds = load_meta(args.dataset_dir, files)
     if args.lab_cap:
         keep_pos = lab_cap_indices(targets, kinds, args.lab_cap, args.seed)
-        base = train_set if isinstance(train_set, Subset) else None
-        original = base.indices if base else list(range(len(train)))
+        original = train_set.indices if isinstance(train_set, Subset) else list(range(len(train)))
         train_set = Subset(train, [original[i] for i in keep_pos])
         targets = [targets[i] for i in keep_pos]
         kinds = [kinds[i] for i in keep_pos]

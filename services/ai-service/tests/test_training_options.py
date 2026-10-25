@@ -1,12 +1,42 @@
 import json
+from collections import Counter
 
+import numpy as np
 import pytest
 import torch
 from PIL import Image
 from test_training import run_main
 
 from ml import train
-from ml.data import AUGMENTATIONS, IMAGE_SIZE, lab_cap_indices, train_transform
+from ml.data import AUGMENTATIONS, IMAGE_SIZE, PlantDataset, lab_cap_indices, train_transform
+from ml.evaluate import compare_runs
+
+
+def fake_scored_run(root, name, classes, targets, files):
+    run = root / name
+    run.mkdir()
+    (run / "class_index.json").write_text(json.dumps({"classes": classes}))
+    np.savez(
+        run / "logits_val.npz",
+        logits=np.zeros((len(targets), len(classes)), dtype=np.float32),
+        targets=np.array(targets),
+        files=np.array(files),
+        dataset_dir=str(root),
+    )
+    return run
+
+
+def test_compare_runs_refuses_runs_that_are_not_comparable(tmp_path):
+    base = fake_scored_run(tmp_path, "a", ["x", "y"], [0, 1], ["f1", "f2"])
+    other_photos = fake_scored_run(tmp_path, "b", ["x", "y"], [0, 1], ["f1", "f3"])
+    other_targets = fake_scored_run(tmp_path, "c", ["x", "y"], [1, 0], ["f1", "f2"])
+    other_classes = fake_scored_run(tmp_path, "d", ["y", "x"], [0, 1], ["f1", "f2"])
+    with pytest.raises(ValueError, match="different photos"):
+        compare_runs(base, other_photos, "val", 10)
+    with pytest.raises(ValueError, match="different targets"):
+        compare_runs(base, other_targets, "val", 10)
+    with pytest.raises(ValueError, match="different class indexes"):
+        compare_runs(base, other_classes, "val", 10)
 
 
 def names(transform) -> list[str]:
@@ -86,8 +116,14 @@ def test_options_reach_the_loaders_and_val_is_not_capped(monkeypatch, tmp_path):
 
 def test_lab_cap_works_together_with_a_subset(monkeypatch, tmp_path):
     run_main(monkeypatch, tmp_path, "--lab-cap", "1", "--subset", "0.5", "--num-workers", "0")
-    loaders = train.build_loaders(train.parse_args())
-    assert 0 < len(loaders["train"].dataset) <= 20
+    args = train.parse_args()
+    loaders = train.build_loaders(args)
+    dataset = loaders["train"].dataset
+    full = len(PlantDataset(args.dataset_dir, "train"))
+    assert set(dataset.indices) <= set(train.subset_indices(full, 0.5, args.seed))
+    classes = [dataset.dataset.targets[i] for i in dataset.indices]
+    assert max(Counter(classes).values()) <= 1  # one lab photo per class in the synthetic data
+    assert len(dataset) == len(set(dataset.indices))
 
 
 def test_run_with_the_new_options_records_them(monkeypatch, tmp_path):
