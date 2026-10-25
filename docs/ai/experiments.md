@@ -120,6 +120,16 @@ Wheat has hundreds of field photos and is recognised well. Tomato, potato and co
 - `unknown` is trained on other plants and objects; it does not recognise unknown diseases.
 - One configuration and one seed; confidence is not calibrated (planned in A7).
 
+**Re-scored on dataset v2** (same checkpoint, `python -m ml.evaluate ml/runs/A5-E001 --dataset-dir ml/datasets/v2 --split <val|bench> --bootstrap 1000`). The v2 split was made again, so 2 493 of the 5 170 v2 validation photos (48 %) were in the v1 training set of this model; they are left out by MD5 (31 of the bench photos too), and the rest is scored. Crop-masked macro-F1 with `unknown`, 95 % group-bootstrap intervals:
+
+| Subset | Photos | Overall | Field | Field tomato | Field potato | Field corn | Field wheat |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| v1 validation (original) | 3 344 | 0.962 | 0.733 | 0.571 | 0.688 | 0.752 | 0.966 |
+| v2 validation, without v1-train photos | 2 677 | 0.718 (0.697–0.738) | 0.509 (0.481–0.536) | 0.209–0.278 | 0.291–0.373 | 0.438–0.630 | 0.930–0.991 |
+| v2 bench (PlantWild, PlantSeg) | 2 792 | 0.564 (0.547–0.581) | 0.564 (0.546–0.581) | 0.509–0.565 | 0.657–0.745 | 0.648–0.721 | **0.410–0.478** |
+
+The model trained on laboratory photos and PlantDoc transfers poorly to the new field sources, and wheat, which looked excellent on v1, drops to 0.41–0.48 on photos from other places: the v1 wheat result came from one source. These numbers are the baseline for A10-E001; both runs must be scored on the same photos (`--exclude-train-of`).
+
 **Conclusion.** The baseline reaches 0.956 macro-F1 on validation, but the gap between laboratory and field photos is the main weakness. The best epoch is the last one (15 of 15) and validation loss was still falling slowly, so the model may be undertrained; a longer schedule is worth testing too.
 
 **Model artifact.** The best checkpoint (epoch 15) is published as the preliminary model `effnet-b0-v1` (`calibrated: false`): until confidences are calibrated (A7) the service must not answer `ok`, at most `low_confidence`. The files `model.pt`, `class_index.json` and `model_card.json` (data sources with licenses, SHA-256 of both files, versions) go to the GitHub Release `model-effnet-b0-v1`; `python -m ml.fetch_weights effnet-b0-v1` downloads them into `ml/weights/effnet-b0-v1/` and verifies the checksums. The weights are not in git (no LFS). The fallback is to retrain: a repeat needs a new ID and the same arguments, `python -m ml.train --id <new ID> --objective ... --hypothesis ... --head-epochs 3 --full-epochs 12` (all other parameters are defaults: lr 1e-3 / 1e-4, weight decay 1e-4, batch size 32, seed 42, balanced sampler); results on MPS vary slightly between runs.
