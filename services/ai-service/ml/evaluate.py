@@ -17,9 +17,11 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
+from ml.bootstrap import ci95, paired_diff_ci95
 from ml.data import PlantDataset, eval_transform
 from ml.registry import Registry, load_registry
 
+BOOTSTRAP_SEED = 42
 DOMAINS = ("lab", "field", "other")
 UNKNOWN = "unknown"
 
@@ -31,6 +33,13 @@ def load_meta(dataset_dir: Path, files: list[str]) -> tuple[list[str | None], li
     crops = [rows[name]["crop"] or None for name in files]
     kinds = [rows[name]["kind"] for name in files]
     return crops, kinds
+
+
+def load_groups(dataset_dir: Path, files: list[str]) -> np.ndarray:
+    """Group of every file (photos of one leaf / near-duplicates), from splits.csv."""
+    with (Path(dataset_dir) / "splits.csv").open(encoding="utf-8") as f:
+        rows = {r["file"]: r["group"] for r in csv.DictReader(f)}
+    return np.array([rows[name] for name in files])
 
 
 def crop_masks(classes: list[str], registry: Registry) -> dict[str, list[int]]:
@@ -176,6 +185,70 @@ def compute_metrics(
     }
 
 
+def product_slices(
+    logits: np.ndarray,
+    crops: list[str | None],
+    kinds: list[str],
+    classes: list[str],
+    registry: Registry,
+) -> tuple[np.ndarray, dict[str, np.ndarray]]:
+    """Product-style predictions (crop classes + ``unknown``) and the photo masks of the headline
+    slices: all crop photos, field photos, and field photos of each crop."""
+    has_crop = np.array([c is not None for c in crops], dtype=bool)
+    masks = crop_masks(classes, registry)
+    preds = np.full(len(logits), -1)
+    masked = mask_logits(
+        logits[has_crop], [c for c in crops if c], masks, (classes.index(UNKNOWN),)
+    )
+    preds[has_crop] = masked.argmax(axis=1)
+    field = has_crop & (np.array(kinds) == "field")
+    crop_arr = np.array([c or "" for c in crops])
+    slices = {"overall": has_crop, "field": field}
+    for crop in sorted(masks):
+        slices[f"field_{crop}"] = field & (crop_arr == crop)
+    return preds, slices
+
+
+def ci_key(slice_name: str) -> str:
+    """Key of a slice in ``ci95``: ``crop_masked_product_macro_f1[_field[_<crop>]]``."""
+    return "crop_masked_product_macro_f1" + ("" if slice_name == "overall" else f"_{slice_name}")
+
+
+def compare_runs(
+    run_dir: Path, parent_dir: Path, tag: str, n_boot: int, registry: Registry | None = None
+) -> dict:
+    """Paired bootstrap of the headline metrics: this run minus its parent on the same photos.
+
+    ``tag`` names the saved logits (``logits_<tag>.npz``): the split, plus the dataset name when a
+    run was scored on a dataset other than its own.
+    """
+    new, old = (np.load(d / f"logits_{tag}.npz") for d in (run_dir, parent_dir))
+    if new["files"].shape != old["files"].shape or not (new["files"] == old["files"]).all():
+        raise ValueError("the two runs were scored on different photos")
+    if not (new["targets"] == old["targets"]).all():
+        raise ValueError("the two runs have different targets (different class index?)")
+    classes = json.loads((run_dir / "class_index.json").read_text(encoding="utf-8"))["classes"]
+    parent_classes = json.loads((parent_dir / "class_index.json").read_text(encoding="utf-8"))
+    if parent_classes["classes"] != classes:
+        raise ValueError("the two runs have different class indexes")
+    if "dataset_dir" in new.files:
+        dataset_dir = Path(str(new["dataset_dir"]))
+    else:  # logits saved before the dataset was recorded: the run's own dataset
+        config = json.loads((run_dir / "config.json").read_text(encoding="utf-8"))
+        dataset_dir = Path(config["dataset_dir"])
+    files = new["files"].tolist()
+    crops, kinds = load_meta(dataset_dir, files)
+    registry = registry or load_registry()
+    preds_new, slices = product_slices(new["logits"], crops, kinds, classes, registry)
+    preds_old, _ = product_slices(old["logits"], crops, kinds, classes, registry)
+    groups = load_groups(dataset_dir, files)
+    diff = paired_diff_ci95(
+        new["targets"], preds_new, preds_old, slices, len(classes), n_boot,
+        seed=BOOTSTRAP_SEED, groups=groups,
+    )  # fmt: skip
+    return {ci_key(name): value for name, value in diff.items()}
+
+
 @torch.no_grad()
 def predict_logits(
     model: nn.Module, loader: DataLoader, device: torch.device
@@ -202,16 +275,41 @@ def evaluate_split(
     batch_size: int = 64,
     num_workers: int = 4,
     registry: Registry | None = None,
+    bootstrap: int = 0,
+    run_dir: Path | None = None,
+    tag: str | None = None,
 ) -> tuple[dict, np.ndarray, np.ndarray, np.ndarray]:
-    """Score ``model`` on one full split; returns (metrics, logits, targets, field mask)."""
+    """Score ``model`` on one full split; returns (metrics, logits, targets, field mask).
+
+    With ``bootstrap`` > 0 the headline metrics get 95 % intervals (``ci95``); with ``run_dir``
+    the logits are saved as ``logits_<split>.npz`` so runs can be compared on the same photos.
+    """
+    registry = registry or load_registry()
     dataset = PlantDataset(dataset_dir, split, eval_transform())
     loader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
     logits, targets, loss = predict_logits(model, loader, device)
     crops, kinds = load_meta(dataset_dir, dataset.files)
-    metrics = compute_metrics(
-        logits, targets, dataset.classes, crops, kinds, registry or load_registry()
-    )
+    metrics = compute_metrics(logits, targets, dataset.classes, crops, kinds, registry)
     metrics["loss"] = loss
+    if bootstrap:
+        preds, slices = product_slices(logits, crops, kinds, dataset.classes, registry)
+        groups = load_groups(dataset_dir, dataset.files)
+        intervals = ci95(
+            targets, preds, slices, len(dataset.classes), bootstrap,
+            seed=BOOTSTRAP_SEED, groups=groups,
+        )  # fmt: skip
+        metrics["ci95"] = {ci_key(name): value for name, value in intervals.items()}
+        metrics["ci95_bootstrap"] = {
+            "resamples": bootstrap, "seed": BOOTSTRAP_SEED, "unit": "group",
+        }  # fmt: skip
+    if run_dir is not None:
+        np.savez_compressed(
+            run_dir / f"logits_{tag or split}.npz",
+            logits=logits.astype(np.float32),
+            targets=targets,
+            files=np.array(dataset.files),
+            dataset_dir=str(dataset_dir),
+        )
     return metrics, logits, targets, np.array(kinds) == "field"
 
 
@@ -285,9 +383,24 @@ def main() -> None:
     parser.add_argument("--split", choices=["val", "test"], default="val")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--num-workers", type=int, default=4)
+    parser.add_argument("--bootstrap", type=int, default=0, help="resamples for 95%% intervals")
+    parser.add_argument(
+        "--compare-with", type=Path, help="parent run dir: paired difference with intervals"
+    )
+    parser.add_argument(
+        "--dataset-dir", type=Path,
+        help="score on another dataset than the run was trained on (results are kept under "
+        "'<split>@<dataset>' so the original numbers stay)",
+    )  # fmt: skip
     args = parser.parse_args()
+    if args.compare_with and not args.bootstrap:
+        parser.error("--compare-with needs --bootstrap")
 
     config = json.loads((args.run_dir / "config.json").read_text(encoding="utf-8"))
+    dataset_dir = args.dataset_dir or Path(config["dataset_dir"])
+    own = dataset_dir.resolve() == Path(config["dataset_dir"]).resolve()
+    tag = args.split if own else f"{args.split}_{dataset_dir.name}"  # file names and results key
+    key = args.split if own else f"{args.split}@{dataset_dir.name}"
     checkpoint = torch.load(args.run_dir / "best.pt", map_location="cpu", weights_only=True)
     device = resolve_device(args.device)
     model = build_model(len(checkpoint["classes"]), pretrained=False)
@@ -295,23 +408,31 @@ def main() -> None:
     model.to(device)
 
     metrics, logits, targets, field = evaluate_split(
-        model, Path(config["dataset_dir"]), args.split, device, num_workers=args.num_workers
-    )
-    classes, title = checkpoint["classes"], f"{config['id']} — {args.split}"
-    plot_confusion(logits, targets, classes, args.run_dir / f"confusion_{args.split}.png", title)
+        model, dataset_dir, args.split, device, num_workers=args.num_workers,
+        bootstrap=args.bootstrap, run_dir=args.run_dir, tag=tag,
+    )  # fmt: skip
+    if args.compare_with:
+        parent_config = (args.compare_with / "config.json").read_text(encoding="utf-8")
+        parent_id = json.loads(parent_config)["id"]
+        metrics["ci95_diff"] = {
+            parent_id: compare_runs(args.run_dir, args.compare_with, tag, args.bootstrap)
+        }
+    classes, title = checkpoint["classes"], f"{config['id']} — {key}"
+    plot_confusion(logits, targets, classes, args.run_dir / f"confusion_{tag}.png", title)
     plot_confusion(
-        logits, targets, classes, args.run_dir / f"confusion_{args.split}_field.png",
+        logits, targets, classes, args.run_dir / f"confusion_{tag}_field.png",
         f"{title} (field photos)", mask=field,
     )  # fmt: skip
     results_path = args.run_dir / "results.json"
     results = json.loads(results_path.read_text(encoding="utf-8"))
-    results[args.split] = metrics
-    results[f"{args.split}_scored_with"] = {
+    results[key] = metrics
+    results[f"{key}_scored_with"] = {
+        "dataset_dir": str(dataset_dir),
         "git_commit": git_info()["git_commit"],
         "scored_at": datetime.now().isoformat(timespec="seconds"),
     }
     results_path.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"{args.split}: acc={metrics['acc']:.4f} macro_f1={metrics['macro_f1']:.4f}")
+    print(f"{key}: acc={metrics['acc']:.4f} macro_f1={metrics['macro_f1']:.4f}")
 
 
 if __name__ == "__main__":

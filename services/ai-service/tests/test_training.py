@@ -8,7 +8,7 @@ from PIL import Image
 
 from ml import train
 from ml.data import field_weights
-from ml.evaluate import compute_metrics, crop_masks, mask_logits
+from ml.evaluate import compare_runs, compute_metrics, crop_masks, mask_logits
 from ml.registry import load_registry
 
 REGISTRY = load_registry()
@@ -152,6 +152,17 @@ def test_run_writes_every_artifact(tmp_path, monkeypatch):
     assert set(results["val"]["crop_masked_product_field_by_crop"]) == {
         "tomato", "potato", "corn", "wheat",
     }  # fmt: skip
+    ci = results["val"]["ci95"]
+    assert set(ci) == {
+        "crop_masked_product_macro_f1", "crop_masked_product_macro_f1_field",
+        *(f"crop_masked_product_macro_f1_field_{c}" for c in ("tomato", "potato", "corn", "wheat")),
+    }  # fmt: skip
+    low, high = ci["crop_masked_product_macro_f1"]
+    assert 0 <= low <= high <= 1
+    assert results["val"]["ci95_bootstrap"] == {"resamples": 1000, "seed": 42, "unit": "group"}
+    assert (run / "logits_val.npz").exists() and (run / "logits_test.npz").exists()
+    same = compare_runs(run, run, "val", n_boot=50)  # a run compared with itself
+    assert same["crop_masked_product_macro_f1"] == {"diff": 0.0, "ci95": [0.0, 0.0]}
     card = json.loads((run / "model_card.json").read_text())
     assert card["calibrated"] is False
     assert card["source_run"] == "T0-E001"
