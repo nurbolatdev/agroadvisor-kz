@@ -45,6 +45,19 @@ Crop-masked numbers cover the 3344 images of a crop; the 465 `unknown` images ar
 
 Tomato and potato are the main target of the next experiment.
 
+**95 % bootstrap intervals** (1000 resamples of the photos inside each slice, seed 42, same checkpoint scored again; the point values did not change). Photos of one leaf are treated as independent, so the intervals are slightly narrower than the real uncertainty.
+
+| Headline metric (crop-masked + `unknown`) | Value | 95 % interval |
+| --- | --- | --- |
+| Overall (3344 photos) | 0.9619 | 0.954 – 0.969 |
+| Field | 0.7325 | 0.677 – 0.776 |
+| Field tomato (102) | 0.5706 | 0.464 – 0.658 |
+| Field potato (33) | 0.6882 | 0.516 – 0.844 |
+| Field corn (56) | 0.7515 | 0.608 – 0.855 |
+| Field wheat (794) | 0.9656 | 0.950 – 0.979 |
+
+The field intervals of tomato, potato and corn are 0.19 – 0.33 wide. Differences of 0.02 – 0.05 between two runs cannot be told apart from noise on this validation set.
+
 Top-3 accuracy 0.990. `unknown`: precision 0.960, recall 0.987.
 
 Per-class results on the whole validation split:
@@ -140,9 +153,20 @@ Per-class F1 on field photos (no mask), E001 → E002 (photos in validation). To
 
 **Learning curves.** Training loss falls to 0.064 while validation loss improves only slightly after epoch 9 (0.177 → 0.164), and validation field macro-F1 stays flat between 0.65 and 0.68 from epoch 5 on. More repetitions of the same few field photos did not add generalisation.
 
-**Limitations.** Tomato and potato have only 8–23 field photos per class in validation (102 and 33 in total), so differences of 0.02–0.04 are comparable to the noise of a single seed; there is no repeat with another seed. `potato__healthy` and `corn__healthy` have laboratory photos only. The test split was not used.
+**Intervals (paired bootstrap on the same validation photos, E002 minus E001, 1000 resamples).**
 
-**Conclusion.** The success criterion is not met: tomato improved by 0.017 and potato did not change, while both needed +0.05. That alone settles the verdict. The field corn result also dropped by 0.038, beyond the 0.02 limit, though that is within the single-seed noise. Laboratory quality did not change. This is a clear miss, not a borderline result, so a repeat with another seed is not planned. Sampling field photos more often does not help on its own.
+| Headline metric | Difference | 95 % interval of the difference | Significant |
+| --- | --- | --- | --- |
+| Overall | +0.0001 | −0.006 … +0.006 | no |
+| Field | +0.0013 | −0.033 … +0.038 | no |
+| Field tomato | +0.0169 | −0.055 … +0.083 | no |
+| Field potato | −0.0005 | −0.124 … +0.115 | no |
+| Field corn | −0.0382 | −0.102 … −0.002 | barely (upper bound −0.002) |
+| Field wheat | +0.0039 | −0.007 … +0.016 | no |
+
+**Limitations.** Tomato and potato have only 8–23 field photos per class in validation (102 and 33 in total), so their intervals are 0.19 – 0.33 wide (see the table above); there is no repeat with another seed. `potato__healthy` and `corn__healthy` have laboratory photos only. The test split was not used.
+
+**Conclusion.** The success criterion is not met: tomato improved by 0.017 and potato did not change, while both needed +0.05. That alone settles the verdict against the pre-set criterion. With intervals the honest reading is: **no significant effect** of the sampler on tomato, potato or the field as a whole (every difference interval contains 0). The only difference that excludes 0 is a drop for corn (−0.038, interval −0.102 … −0.002), and only barely. Laboratory quality did not change. Sampling field photos more often does not help on its own, and a repeat with another seed is not planned.
 
 **Next step.** A5-E003: stronger background and lighting augmentation (smaller crops, stronger color changes, random erasing or blur of the background) on top of the same sampler, parent A5-E002, with a success criterion fixed beforehand. `--field-share 0.5` is not tried because the curves already show no gain from repeating field photos.
 
