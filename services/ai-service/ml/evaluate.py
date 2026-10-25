@@ -9,6 +9,7 @@ checkpoint of a finished run.
 import argparse
 import csv
 import json
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -43,15 +44,22 @@ def crop_masks(classes: list[str], registry: Registry) -> dict[str, list[int]]:
 
 
 def mask_logits(
-    logits: np.ndarray, crops: list[str | None], masks: dict[str, list[int]]
+    logits: np.ndarray,
+    crops: list[str | None],
+    masks: dict[str, list[int]],
+    also_keep: tuple[int, ...] = (),
 ) -> np.ndarray:
-    """Keep only the classes of each row's crop; rows without a crop are left untouched."""
+    """Keep only the classes of each row's crop (plus ``also_keep``, e.g. ``unknown``).
+
+    Rows without a crop are left untouched.
+    """
     out = logits.copy()
     for row, crop in enumerate(crops):
         if crop is None:
             continue
         keep = np.zeros(logits.shape[1], dtype=bool)
         keep[masks[crop]] = True
+        keep[list(also_keep)] = True
         out[row, ~keep] = -np.inf
     return out
 
@@ -98,7 +106,9 @@ def compute_metrics(
     """Everything results.json needs for one split.
 
     Macro-F1 is averaged over the classes that occur in the evaluated subset. The crop-masked
-    numbers skip images whose class is ``unknown``: no crop is chosen for them.
+    numbers skip images whose class is ``unknown``: no crop is chosen for them. ``crop_masked_*``
+    keeps only the classes of the crop; ``crop_masked_product_*`` also keeps ``unknown``, which
+    is what ``/predict`` does, so a crop photo answered ``unknown`` counts as an error.
     """
     preds = logits.argmax(axis=1)
     acc, macro_f1 = _acc_f1(targets, preds)
@@ -106,8 +116,12 @@ def compute_metrics(
     top3_acc = float((top3 == targets[:, None]).any(axis=1).mean())
 
     has_crop = np.array([c is not None for c in crops], dtype=bool)
-    masked = mask_logits(logits[has_crop], [c for c in crops if c], crop_masks(classes, registry))
+    crop_list, masks = [c for c in crops if c], crop_masks(classes, registry)
+    masked = mask_logits(logits[has_crop], crop_list, masks)
     masked_acc, masked_f1 = _acc_f1(targets[has_crop], masked.argmax(axis=1))
+    # as /predict answers: the crop's classes plus ``unknown``
+    product = mask_logits(logits[has_crop], crop_list, masks, (classes.index(UNKNOWN),))
+    product_acc, product_f1 = _acc_f1(targets[has_crop], product.argmax(axis=1))
 
     kind_arr = np.array(kinds)
     by_domain = {}
@@ -137,6 +151,9 @@ def compute_metrics(
         "top3_acc": top3_acc,
         "crop_masked_acc": masked_acc,
         "crop_masked_macro_f1": masked_f1,
+        "crop_masked_product_acc": product_acc,
+        "crop_masked_product_macro_f1": product_f1,
+        "crop_masked_n": int(has_crop.sum()),
         "by_domain": by_domain,
         "unknown": unknown,
         "per_class": per_class,
@@ -245,7 +262,7 @@ def plot_confusion(
 
 
 def main() -> None:
-    from ml.train import build_model, resolve_device
+    from ml.train import build_model, git_info, resolve_device
 
     parser = argparse.ArgumentParser(description="Score the best checkpoint of a run")
     parser.add_argument("run_dir", type=Path)
@@ -273,6 +290,10 @@ def main() -> None:
     results_path = args.run_dir / "results.json"
     results = json.loads(results_path.read_text(encoding="utf-8"))
     results[args.split] = metrics
+    results[f"{args.split}_scored_with"] = {
+        "git_commit": git_info()["git_commit"],
+        "scored_at": datetime.now().isoformat(timespec="seconds"),
+    }
     results_path.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"{args.split}: acc={metrics['acc']:.4f} macro_f1={metrics['macro_f1']:.4f}")
 

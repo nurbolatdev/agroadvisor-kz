@@ -85,6 +85,17 @@ def test_crop_masked_metrics_forgive_errors_across_crops():
     assert field["tomato__late_blight"]["support"] == 0
 
 
+def test_product_mask_counts_unknown_answers_as_errors():
+    # a tomato photo that the model calls ``unknown``
+    logits = one_hot_logits(["unknown"])
+    logits[0, INDEX["tomato__late_blight"]] = 1.0  # the runner-up
+    targets = np.array([INDEX["tomato__late_blight"]])
+    m = compute_metrics(logits, targets, CLASSES, ["tomato"], ["field"], REGISTRY)
+    assert m["crop_masked_acc"] == 1.0  # crop classes only: forced onto a tomato class
+    assert m["crop_masked_product_acc"] == 0.0  # /predict would answer unknown
+    assert m["crop_masked_n"] == 1
+
+
 def make_dataset(root):
     """20 classes, 2 train / 1 val / 1 test tiny images each, with a manifest like the real one."""
     splits = ["train", "train", "val", "test"]
@@ -140,4 +151,39 @@ def test_run_writes_every_artifact(tmp_path, monkeypatch):
     header = (run / "metrics.csv").read_text().splitlines()[0]
     assert header == ",".join(train.METRIC_COLUMNS)
     with pytest.raises(SystemExit):  # a finished ID cannot be reused
+        train.main()
+
+
+def run_main(monkeypatch, tmp_path, *extra):
+    dataset, runs = tmp_path / "ds", tmp_path / "runs"
+    dataset.mkdir(exist_ok=True)
+    make_dataset(dataset)
+    argv = [
+        "train", "--id", "T0-E002", "--objective", "o", "--hypothesis", "h",
+        "--dataset-dir", str(dataset), "--runs-dir", str(runs), "--device", "cpu",
+        "--num-workers", "0", "--no-pretrained", *extra,
+    ]  # fmt: skip
+    monkeypatch.setattr(sys, "argv", argv)
+    return runs / "T0-E002"
+
+
+@pytest.mark.parametrize(
+    ("error", "status"), [(KeyboardInterrupt, "stopped"), (RuntimeError, "failed")]
+)
+def test_interrupted_and_failed_runs_keep_their_status(monkeypatch, tmp_path, error, status):
+    run = run_main(monkeypatch, tmp_path)
+
+    def boom(*args, **kwargs):
+        raise error
+
+    monkeypatch.setattr(train, "run_training", boom)
+    with pytest.raises(SystemExit if error is KeyboardInterrupt else error):
+        train.main()
+    assert json.loads((run / "results.json").read_text())["status"] == status
+    assert (run / "env.json").exists()
+
+
+def test_eval_test_is_refused_for_smoke_runs(monkeypatch, tmp_path):
+    run_main(monkeypatch, tmp_path, "--subset", "0.5", "--eval-test")
+    with pytest.raises(SystemExit):
         train.main()

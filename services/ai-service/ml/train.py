@@ -1,15 +1,16 @@
 """Train EfficientNet-B0 on the plant dataset.
 
 Stage 1 trains only the new classification head, stage 2 the whole network with a smaller
-learning rate. Every run writes its artifacts to ``ml/runs/<ID>/`` (see
-``.team/reference/experiments-rule.md``): config, environment, per-epoch metrics, results,
-plots and the best checkpoint by validation macro-F1.
+learning rate. Every run writes its artifacts to ``ml/runs/<ID>/`` (not in git): config,
+environment, per-epoch metrics, results, plots and the best checkpoint by validation macro-F1.
+Results are recorded in ``docs/ai/experiments.md``.
 
     python -m ml.train --id A5-E001 --objective "..." --hypothesis "..."
 """
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import platform
@@ -29,6 +30,8 @@ from torch.utils.data import DataLoader, Subset  # noqa: E402
 
 from ml.data import (  # noqa: E402
     IMAGE_SIZE,
+    MEAN,
+    STD,
     PlantDataset,
     balanced_sampler,
     eval_transform,
@@ -214,7 +217,7 @@ def _files_of(dataset) -> list[str]:
     return dataset.files
 
 
-def run_training(args: argparse.Namespace, run_dir: Path, device: torch.device) -> dict:
+def run_training(args: argparse.Namespace, run_dir: Path, device: torch.device) -> None:
     from torch.utils.tensorboard import SummaryWriter
 
     registry = load_registry()
@@ -227,7 +230,7 @@ def run_training(args: argparse.Namespace, run_dir: Path, device: torch.device) 
         ("head", args.head_epochs, args.head_lr, True),
         ("full", args.full_epochs, args.full_lr, False),
     ]
-    best_f1, best_epoch, epoch = -1.0, 0, 0
+    best_f1, epoch = -1.0, 0
     with (run_dir / "metrics.csv").open("w", newline="", encoding="utf-8") as f:
         log = csv.writer(f)
         log.writerow(METRIC_COLUMNS)
@@ -268,15 +271,17 @@ def run_training(args: argparse.Namespace, run_dir: Path, device: torch.device) 
                     flush=True,
                 )
                 if val["macro_f1"] > best_f1:
-                    best_f1, best_epoch = val["macro_f1"], epoch
+                    best_f1 = val["macro_f1"]
                     torch.save({"model": model.state_dict(), "classes": classes},
                                run_dir / "best.pt")  # fmt: skip
     writer.close()
-    return {"best_epoch": best_epoch, "classes": classes, "registry": registry}
 
 
-def finalize(args, run_dir: Path, device: torch.device, state: dict, status: str) -> None:
-    """Re-score the best checkpoint on the full val split and write results and plots."""
+def finalize(args, run_dir: Path, device: torch.device, status: str) -> None:
+    """Write results.json, then re-score the best checkpoint on the full val split.
+
+    The status is saved first, so a failure while scoring cannot lose it.
+    """
     epochs = []
     if (run_dir / "metrics.csv").exists():
         with (run_dir / "metrics.csv").open(encoding="utf-8") as f:
@@ -287,14 +292,18 @@ def finalize(args, run_dir: Path, device: torch.device, state: dict, status: str
         "best_epoch": int(best["epoch"]) if best else 0,
         "selection_metric": SELECTION_METRIC,
     }
-    if (run_dir / "best.pt").exists():
+    write_json(run_dir / "results.json", results)
+    if epochs:
+        plot_curves(run_dir / "metrics.csv", run_dir / "curves.png")
+    if not (run_dir / "best.pt").exists():
+        return
+    try:
         checkpoint = torch.load(run_dir / "best.pt", map_location="cpu", weights_only=True)
         classes = checkpoint["classes"]
         model = build_model(len(classes), pretrained=False)
         model.load_state_dict(checkpoint["model"])
         model.to(device)
-        splits = ["val", "test"] if args.eval_test else ["val"]
-        for split in splits:
+        for split in ["val", "test"] if args.eval_test else ["val"]:
             metrics, logits, targets, field = evaluate_split(
                 model, args.dataset_dir, split, device, args.batch_size, args.num_workers
             )
@@ -308,19 +317,34 @@ def finalize(args, run_dir: Path, device: torch.device, state: dict, status: str
         (run_dir / "class_index.json").write_text(
             (args.dataset_dir / "class_index.json").read_text(encoding="utf-8"), encoding="utf-8"
         )
-        write_json(run_dir / "model_card.json", model_card(args, classes))
-    if epochs:
-        plot_curves(run_dir / "metrics.csv", run_dir / "curves.png")
+        write_json(
+            run_dir / "model_card.json",
+            model_card(args, run_dir, classes, results["best_epoch"], results["val"]),
+        )
+    except Exception as exc:  # keep the training status, record why scoring failed
+        results["scoring_error"] = f"{type(exc).__name__}: {exc}"
     write_json(run_dir / "results.json", results)
 
 
-def model_card(args, classes: list[str]) -> dict:
+def model_card(args, run_dir: Path, classes: list[str], epoch: int, val: dict) -> dict:
+    """Everything needed to publish the checkpoint: copy model.pt, class_index.json, this card."""
     return {
-        "id": args.id,
+        "source_run": args.id,
+        "checkpoint_epoch": epoch,
+        "checkpoint_sha256": hashlib.sha256((run_dir / "best.pt").read_bytes()).hexdigest(),
+        "checkpoint_format": "torch.save({'model': state_dict, 'classes': [codes]})",
         "architecture": "efficientnet_b0",
         "num_classes": len(classes),
+        "classes_version": json.loads((args.dataset_dir / "class_index.json").read_text())[
+            "classes_version"
+        ],
+        "dataset_version": args.dataset_dir.name,
         "input_size": IMAGE_SIZE,
         "preprocessing": "resize 256 -> center crop 224 -> ImageNet normalization",
+        "normalize_mean": list(MEAN),
+        "normalize_std": list(STD),
+        "val_macro_f1": val["macro_f1"],
+        "val_field_macro_f1": val["by_domain"]["field"]["macro_f1"],
         "torch": torch.__version__,
         "torchvision": torchvision.__version__,
         **git_info(),
@@ -348,7 +372,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--no-pretrained", action="store_true")
     p.add_argument("--eval-test", action="store_true", help="also score the test split")
     p.add_argument("--runs-dir", type=Path, default=RUNS_DIR)
-    return p.parse_args()
+    args = p.parse_args()
+    if args.eval_test and args.subset < 1.0:
+        p.error("--eval-test is for full runs only; do not score test with a smoke model")
+    return args
 
 
 def main() -> None:
@@ -357,38 +384,40 @@ def main() -> None:
     if run_dir.exists():
         raise SystemExit(f"{run_dir} exists — every run needs a new ID")
     run_dir.mkdir(parents=True)
-    seed_everything(args.seed)
-    device = resolve_device(args.device)
-    classes_version = json.loads((args.dataset_dir / "class_index.json").read_text())[
-        "classes_version"
-    ]
-    write_json(run_dir / "config.json", build_config(args, device, classes_version))
-    env = {
-        "python": platform.python_version(),
-        "torch": torch.__version__,
-        "torchvision": torchvision.__version__,
-        "device": str(device),
-        "chip": chip_name(),
-        "os": platform.platform(),
-        **git_info(),
-        "started_at": datetime.now().isoformat(timespec="seconds"),
-    }
     started = time.time()
-    state: dict = {}
+    env: dict = {}
     status = "completed"
+    device = torch.device("cpu")
     try:
-        state = run_training(args, run_dir, device)
+        seed_everything(args.seed)
+        device = resolve_device(args.device)
+        classes_version = json.loads((args.dataset_dir / "class_index.json").read_text())[
+            "classes_version"
+        ]
+        write_json(run_dir / "config.json", build_config(args, device, classes_version))
+        env = {
+            "python": platform.python_version(),
+            "torch": torch.__version__,
+            "torchvision": torchvision.__version__,
+            "device": str(device),
+            "chip": chip_name(),
+            "os": platform.platform(),
+            **git_info(),
+            "started_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        run_training(args, run_dir, device)
     except KeyboardInterrupt:
         status = "stopped"
-    except Exception:
+        raise SystemExit(130) from None
+    except BaseException:
         status = "failed"
         raise
     finally:
         env["finished_at"] = datetime.now().isoformat(timespec="seconds")
         env["duration_s"] = round(time.time() - started)
         write_json(run_dir / "env.json", env)
-        finalize(args, run_dir, device, state, status)
-        print(f"{args.id}: {status}, artifacts in {run_dir}")
+        finalize(args, run_dir, device, status)
+        print(f"{args.id}: {status}, artifacts in {run_dir}", flush=True)
 
 
 if __name__ == "__main__":
