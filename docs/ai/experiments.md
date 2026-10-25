@@ -120,7 +120,7 @@ Wheat has hundreds of field photos and is recognised well. Tomato, potato and co
 
 **Hypothesis and success criterion (fixed before the run).** Field crop-masked macro-F1 (with `unknown`) improves by 0.05 or more for tomato and for potato versus A5-E001, while lab macro-F1 drops by no more than 0.01 and the field metrics of wheat and corn drop by no more than 0.02. A sampler repeats the few field photos and adds none, so it may also overfit them.
 
-**What changed.** Only the sampler: classes are still drawn equally often, and in a class with field photos 35 % of the draws go to its field photos (`--field-share 0.35`; in E001 field photos were 4–16 % of the training images of these classes). Everything else as in A5-E001: same split, preprocessing, metrics, seed 42, 3 head epochs + 12 full-network epochs. Commit `5dfdbc9`, 5157 s on the Apple M4.
+**What changed.** Only the sampler: classes are still drawn equally often, and in a class that has both field and other photos, 35 % of the draws go to its field photos (`--field-share 0.35`). In E001 field photos were 4–16 % of the training images of tomato, potato and corn classes; `unknown` (26 % field photos) was moved to 35 % as well, and the wheat classes (field photos only) keep plain 1/count weights. Everything else as in A5-E001: same split, preprocessing, metrics, seed 42, 3 head epochs + 12 full-network epochs. Commit `5dfdbc9`, 5157 s on the Apple M4.
 
 **Results (validation), E001 → E002.**
 
@@ -136,13 +136,13 @@ Wheat has hundreds of field photos and is recognised well. Tomato, potato and co
 | Overall macro-F1 (no mask) | 0.9557 | 0.9555 | −0.0003 |
 | Field macro-F1 (no mask) | 0.699 | 0.684 | −0.015 |
 
-Per-class F1 on field photos, E001 → E002 (photos in validation): `tomato__early_blight` 0.40 → 0.52 (13), `tomato__healthy` 0.47 → 0.35 (10), `tomato__bacterial_spot` 0.41 → 0.33 (17), `tomato__leaf_mold` 0.50 → 0.46 (14), `potato__early_blight` 0.50 → 0.45 (17), `potato__late_blight` 0.48 → 0.47 (16), `corn__common_rust` 0.87 → 0.76 (17), `corn__gray_leaf_spot` 0.61 → 0.50 (10), `corn__northern_leaf_blight` 0.79 → 0.85 (29). Wheat classes stay at 0.94–0.98.
+Per-class F1 on field photos (no mask), E001 → E002 (photos in validation). Tomato, all seven classes: `tomato__late_blight` 0.60 → 0.61 (17), `tomato__early_blight` 0.40 → 0.52 (13), `tomato__septoria_leaf_spot` 0.58 → 0.63 (23), `tomato__bacterial_spot` 0.41 → 0.33 (17), `tomato__leaf_mold` 0.50 → 0.46 (14), `tomato__mosaic_virus` 0.63 → 0.63 (8), `tomato__healthy` 0.47 → 0.35 (10). Others: `unknown` 0.92 → 0.91 (120; recall 0.975 → 0.950), `potato__early_blight` 0.50 → 0.45 (17), `potato__late_blight` 0.48 → 0.47 (16), `corn__common_rust` 0.87 → 0.76 (17), `corn__gray_leaf_spot` 0.61 → 0.50 (10), `corn__northern_leaf_blight` 0.79 → 0.85 (29). Wheat classes stay at 0.94–0.98.
 
-**Learning curves.** Training loss falls to 0.064 while validation loss stops improving after epoch 9 (0.177 → 0.165), and validation field macro-F1 stays flat between 0.65 and 0.68 from epoch 5 on. More repetitions of the same few field photos did not add generalisation.
+**Learning curves.** Training loss falls to 0.064 while validation loss improves only slightly after epoch 9 (0.177 → 0.164), and validation field macro-F1 stays flat between 0.65 and 0.68 from epoch 5 on. More repetitions of the same few field photos did not add generalisation.
 
 **Limitations.** Tomato and potato have only 8–23 field photos per class in validation (102 and 33 in total), so differences of 0.02–0.04 are comparable to the noise of a single seed; there is no repeat with another seed. `potato__healthy` and `corn__healthy` have laboratory photos only. The test split was not used.
 
-**Conclusion.** The success criterion is not met: tomato improved by 0.017 and potato did not change (both needed +0.05), and the field corn result dropped by 0.038 (the limit was 0.02). Laboratory quality did not change. This is a clear miss, not a borderline result, so a repeat with another seed is not planned. Sampling field photos more often does not help on its own.
+**Conclusion.** The success criterion is not met: tomato improved by 0.017 and potato did not change, while both needed +0.05. That alone settles the verdict. The field corn result also dropped by 0.038, beyond the 0.02 limit, though that is within the single-seed noise. Laboratory quality did not change. This is a clear miss, not a borderline result, so a repeat with another seed is not planned. Sampling field photos more often does not help on its own.
 
 **Next step.** A5-E003: stronger background and lighting augmentation (smaller crops, stronger color changes, random erasing or blur of the background) on top of the same sampler, parent A5-E002, with a success criterion fixed beforehand. `--field-share 0.5` is not tried because the curves already show no gain from repeating field photos.
 
