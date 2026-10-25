@@ -100,7 +100,7 @@ Every class has at least 100 images; every wheat class has more than 300, so all
 
 ## Dataset v2
 
-v2 adds field photos (the weak point of v1, see Known gaps) and an external benchmark. Class codes and the registry are unchanged. Numbers per class are filled in after the build (`report.md`).
+v2 adds field photos (the weak point of v1, see Known gaps) and an external benchmark. Class codes and the registry are unchanged. Counts per class are in the table at the end of this section (`report.md` has the same numbers and the removal tables).
 
 **Roles.** A source has `role: train` (default) or `role: bench`. Bench photos go to the split `bench` and are only used to evaluate: parameters are never tuned on them. A train photo that is the same leaf as a bench photo, or a near-identical copy (dHash within a class, the same rule as for the other splits), is dropped from train, and an exact copy is kept only in the bench. How many photos were dropped, by pair of sources, is in `report.md` (this matters most for PlantDoc and PlantWild, which both come from the internet).
 
@@ -115,6 +115,8 @@ v2 adds field photos (the weak point of v1, see Known gaps) and an external benc
 | [John Innes wheat](https://zenodo.org/records/7573133) (Long et al., Plant Pathology 2023, 999 photos) | train | field | wheat: brown rust, yellow rust, mildew, septoria, healthy (class = start of the file name) | CC BY 4.0 | field and glasshouse photos. **Not an independent bench:** 1 504 photos of the Kaggle wheat dataset are exact copies of these photos, so the Kaggle set is mostly the same data. It trains, and the wheat bench is PlantSeg only |
 
 `limit_per_class` is a property of the source in `data_sources.yaml`, not of training: `--lab-cap` limits laboratory photos only. The general rule is that **one field source gives at most 1 500 photos per class**, so that no region or photographer dominates a class (PLDD-UP and CCMT are the sources that reach it). The photos that stay are chosen with seed 42 per source and class, so a rebuild gives the same set. `unknown` keeps its own limits (`unknown_limit`, 800 for PlantDoc); whether that is right for field photos is checked in the first A10 run with the field confusion matrix.
+
+**The PlantWild bench was cleaned by hand.** PlantWild has fruit, stems, other crops and other diseases in classes of leaf diseases, but the model reads leaves. All photos of five classes (`tomato__early_blight`, `tomato__late_blight`, `tomato__bacterial_spot`, `tomato__mosaic_virus`, `corn__gray_leaf_spot`; 1 224 photos) were checked one by one on numbered sheets of 50, and only the clear cases were removed: 278 photos (196 fruit, 42 stem, 13 other crop, 9 wrong disease, 18 unclear), listed in [`ml/bench_exclude.csv`](../../services/ai-service/ml/bench_exclude.csv) (`file, class, reason`). The doubtful photos stayed. The build drops them in every source (a photo is identified by its content) and `report.md` counts them by class and reason. `tomato__septoria_leaf_spot` and `tomato__leaf_mold` were not touched. Share removed: `tomato__late_blight` 48 % (fruit 42 %), `tomato__early_blight` 21 %, `tomato__bacterial_spot` 18 %, `tomato__mosaic_virus` 9 %, `corn__gray_leaf_spot` 9 %. These classes stay in the bench because the weak tomato classes would otherwise have no independent evaluation.
 
 **Class mapping.** Matched by the folder or category name; classes whose name is not clear are decided by looking at photos (listed below the table).
 
@@ -134,6 +136,38 @@ v2 adds field photos (the weak point of v1, see Known gaps) and an external benc
 Decided from contact sheets and **not used**: CCMT maize `leaf blight` and `leaf spot`, tomato `leaf blight` (each is a mix of diseases); TOM2024 tomato `alternaria_d` (half of the photos show fruit) and `virosis_d` (a mix of viruses); FieldPlant `Corn leaf blight` (noisy); PlantWild `corn leaf`, `potato leaf`, `tomato leaf` (the photos are mixed, not clearly healthy). Pests, abiotic damage and diseases that are not in the registry are never used, and photos of the four crops never go to `unknown`.
 
 Citations for the CC BY sources: Singh P.K. et al., *PLDD-UP: Potato Leaf Disease Dataset from Uttar Pradesh, India*, Mendeley Data, V1, doi:10.17632/3j4nfkvp2n.1; Mensah P.K. et al., *CCMT: Dataset for crop pest and disease detection*, Data in Brief 49 (2023), doi:10.17632/bwh3zbpkpv.1; *TOM2024: datasets of tomato, onion and maize images*, Data in Brief (2025), doi:10.17632/3d4yg89rtr.1; Moupojou E. et al., *FieldPlant: A Dataset of Field Plant Images for Plant Disease Detection and Classification With Deep Learning*, IEEE Access 11 (2023), doi:10.1109/ACCESS.2023.3263042.
+
+### Classes — v2
+
+Built on 26 Oct 2026: **37 205 images**, split by `python -m ml.splits` (seed 42) into train 23 994, val 5 265, test 5 123 and bench 2 823 (PlantWild 2 240, PlantSeg 583). Removed on the way: 2 698 exact duplicates, 109 photos with conflicting labels (297 files, every copy dropped), 245 train-pool photos that match a bench photo (PlantSeg ∩ Kaggle wheat 117, PlantWild ∩ PlantDoc 108, PlantWild ∩ PlantVillage 20) and 278 bench photos removed by hand. No group of photos is split across parts.
+
+Each cell is the number of photos (lab / field; `unknown` also has other):
+
+| Class | train | val | test | bench |
+| --- | --- | --- | --- | --- |
+| `tomato__late_blight` | 1 732 (1 330/402) | 370 (285/85) | 371 (286/85) | 142 (0/142) |
+| `tomato__early_blight` | 748 (700/48) | 161 (150/11) | 160 (150/10) | 244 (0/244) |
+| `tomato__septoria_leaf_spot` | 2 286 (1 238/1 048) | 491 (266/225) | 489 (265/224) | 198 (0/198) |
+| `tomato__bacterial_spot` | 1 560 (1 488/72) | 334 (319/15) | 334 (319/15) | 212 (0/212) |
+| `tomato__leaf_mold` | 721 (664/57) | 155 (143/12) | 154 (142/12) | 233 (0/233) |
+| `tomato__mosaic_virus` | 308 (261/47) | 68 (56/12) | 66 (56/10) | 171 (0/171) |
+| `tomato__healthy` | 2 205 (1 109/1 096) | 474 (238/236) | 476 (238/238) | 0 |
+| `potato__late_blight` | 1 750 (698/1 052) | 501 (150/351) | 330 (149/181) | 223 (0/223) |
+| `potato__early_blight` | 1 804 (697/1 107) | 386 (149/237) | 386 (149/237) | 199 (0/199) |
+| `potato__healthy` | 1 128 (106/1 022) | 232 (23/209) | 271 (23/248) | 0 |
+| `corn__common_rust` | 1 000 (834/166) | 215 (179/36) | 214 (179/35) | 235 (0/235) |
+| `corn__northern_leaf_blight` | 911 (689/222) | 196 (148/48) | 195 (147/48) | 206 (0/206) |
+| `corn__gray_leaf_spot` | 432 (356/76) | 93 (76/17) | 92 (76/16) | 178 (0/178) |
+| `corn__healthy` | 1 454 (813/641) | 312 (174/138) | 311 (175/136) | 0 |
+| `wheat__leaf_rust` | 916 (0/916) | 196 (0/196) | 196 (0/196) | 70 (0/70) |
+| `wheat__stripe_rust` | 1 113 (0/1 113) | 239 (0/239) | 238 (0/238) | 211 (0/211) |
+| `wheat__septoria` | 312 (0/312) | 67 (0/67) | 67 (0/67) | 126 (0/126) |
+| `wheat__powdery_mildew` | 719 (0/719) | 154 (0/154) | 153 (0/153) | 175 (0/175) |
+| `wheat__healthy` | 726 (0/726) | 156 (0/156) | 155 (0/155) | 0 |
+| `unknown` | 2 169 (560/559/1 050) | 465 (120/120/225) | 465 (120/120/225) | 0 |
+| **total** | **23 994** (11 543/11 401/1 050) | **5 265** | **5 123** | **2 823** |
+
+**The goal of at least 300 field photos per class in train is met only in part.** It is met for `tomato__late_blight` (402), `tomato__septoria_leaf_spot`, `tomato__healthy`, all potato classes, `corn__healthy` and wheat. It is not met where there is no clean source: `tomato__early_blight` 48, `tomato__mosaic_virus` 47, `tomato__leaf_mold` 57, `tomato__bacterial_spot` 72, `corn__gray_leaf_spot` 76, `corn__common_rust` 166, `corn__northern_leaf_blight` 222. **The field validation of these rare tomato and corn classes (10–17 photos) is not informative**: they are evaluated on the bench (171–244 photos per class), not on the validation split. Field photos of crops (15 587 in train, val and test) clearly outnumber the 799 field `unknown` photos.
 
 ## Known gaps
 
