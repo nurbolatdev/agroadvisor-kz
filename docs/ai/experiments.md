@@ -4,6 +4,8 @@ Every training or evaluation run has an ID (`<task>-E<NNN>`) and a folder `servi
 
 The headline metric is **crop-masked macro-F1 with `unknown`** (`crop_masked_product_*`): the answer is restricted to the classes of the crop the farmer selected plus `unknown`, exactly as `/predict` answers (step 5 in `app/services/predict.py`). It is reported on the whole validation split and separately on field photos. "Crop classes only" is an auxiliary metric. Plain overall macro-F1 is kept for reference.
 
+Training options (all off by default, so earlier runs stay reproducible): `--selection-metric val_field_product_macro_f1` picks the best epoch by the crop-masked macro-F1 with `unknown` on field photos, with overall macro-F1 breaking ties (`metrics.csv` has this column); `--aug strong` adds tighter crops, TrivialAugment, JPEG compression, sensor noise and random erasing; `--lab-cap N` keeps at most N laboratory photos per class in train (validation is never capped, the kept photos are drawn with the seed); `--label-smoothing` smooths the training loss only; `--field-share` is described in A5-E002.
+
 | ID | Status | Change | Crop-masked macro-F1 (val) | Crop-masked macro-F1 (val, field) | Overall macro-F1 | Field macro-F1 (unmasked) |
 | --- | --- | --- | --- | --- | --- | --- |
 | A5-E001 | completed | Baseline, two-stage fine-tuning, balanced sampler | 0.9619 | 0.7325 | 0.9557 | 0.699 |
