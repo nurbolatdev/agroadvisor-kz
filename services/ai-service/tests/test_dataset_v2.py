@@ -311,6 +311,51 @@ def test_a_photo_with_two_classes_is_dropped_in_every_copy_and_shown_in_the_repo
     assert "ccmt / `corn__gray_leaf_spot` = plantwild / `corn__common_rust` = tom2024" in text
 
 
+def test_photos_removed_by_hand_disappear_from_every_source_and_are_counted(tmp_path):
+    bench = item(tmp_path, "a", "plantwild", "bench", (10, 200, 10), "tomato__late_blight")
+    copy = item(tmp_path, "b", "plantdoc", "train", (10, 200, 10), "tomato__late_blight")
+    leaf = item(tmp_path, "c", "plantwild", "bench", (200, 10, 10), "tomato__late_blight")
+    fruit = bench.md5[:16]
+    exclusions = {
+        ("tomato__late_blight", fruit): "fruit",
+        ("tomato__late_blight", "0123456789abcdef"): "stem",  # a photo that is not in the sources
+    }
+    removed: Counter = Counter()
+    hand: Counter = Counter()
+    rows = build([copy, leaf, bench], REGISTRY, tmp_path / "v2", removed, None, exclusions, hand)
+    assert [r["md5"] for r in rows] == [leaf.md5]  # the copy in the train source is gone too
+    assert not removed  # nothing was left to count as a plain duplicate
+    assert hand[("tomato__late_blight", "fruit")] == 1 and hand[("not found", "")] == 1
+    text = report(rows, REGISTRY, removed, None, hand)
+    assert "| `tomato__late_blight` | 1 | 0 | 0 | 0 | 0 | 1 |" in text
+    assert "Listed but not found in the sources: 1." in text
+
+
+def test_the_exclusion_file_is_read_by_content_and_checked(tmp_path):
+    path = tmp_path / "bench_exclude.csv"
+    path.write_text(
+        "file,class,reason\ntomato__late_blight/plantwild__0123456789abcdef.jpg,tomato__late_blight,fruit\n",
+        encoding="utf-8",
+    )
+    loaded = build_dataset.load_exclusions(path)
+    assert loaded == {("tomato__late_blight", "0123456789abcdef"): "fruit"}
+    assert build_dataset.load_exclusions(tmp_path / "missing.csv") == {}
+    path.write_text("file,class,reason\nc/plantwild__00ff.jpg,c,pretty\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="unknown reason"):
+        build_dataset.load_exclusions(path)
+
+
+def test_the_real_exclusion_list_is_consistent():
+    exclusions = build_dataset.load_exclusions(build_dataset.BENCH_EXCLUDE)
+    assert len(exclusions) > 200
+    assert {code for code, _ in exclusions} == {
+        "tomato__early_blight", "tomato__late_blight", "tomato__bacterial_spot",
+        "tomato__mosaic_virus", "corn__gray_leaf_spot",
+    }  # fmt: skip
+    # septoria and leaf mold are not in the list
+    assert set(exclusions.values()) <= set(build_dataset.EXCLUDE_REASONS)
+
+
 def test_building_without_images_is_a_clear_error(tmp_path):
     with pytest.raises(ValueError, match="no images"):
         build([], REGISTRY, tmp_path / "v2")

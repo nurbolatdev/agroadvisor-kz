@@ -33,6 +33,8 @@ from ml.data_sources import Source, load_sources
 from ml.registry import UNKNOWN, Registry, load_registry
 
 DATASETS_DIR = Path(__file__).resolve().parent / "datasets"
+BENCH_EXCLUDE = Path(__file__).resolve().parent / "bench_exclude.csv"
+EXCLUDE_REASONS = ("fruit", "stem", "other_crop", "wrong_disease", "unclear")
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 MIN_PER_CLASS = 100
 MIN_CROP_SIDE = 64  # boxes smaller than this (pixels) are too small to classify
@@ -339,12 +341,32 @@ def _is_readable(path: Path) -> bool:
         return False
 
 
+def load_exclusions(path: Path) -> dict[tuple[str, str], str]:
+    """Photos removed by hand: (class, first 16 hex digits of the MD5) -> reason.
+
+    The file column holds the dataset path ``<class>/<source>__<md5[:16]>.<ext>``, so the list
+    keeps working after a rebuild. A photo is identified by its content, in every source.
+    """
+    if not path.exists():
+        return {}
+    exclusions: dict[tuple[str, str], str] = {}
+    with path.open(encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if row["reason"] not in EXCLUDE_REASONS:
+                raise ValueError(f"{path}: unknown reason {row['reason']!r} for {row['file']}")
+            md5_prefix = Path(row["file"]).stem.split("__", 1)[1]
+            exclusions[(row["class"], md5_prefix)] = row["reason"]
+    return exclusions
+
+
 def build(
     items: list[Item],
     registry: Registry,
     out_dir: Path,
     removed: Counter | None = None,
     conflicts: Counter | None = None,
+    exclusions: dict[tuple[str, str], str] | None = None,
+    hand_removed: Counter | None = None,
 ) -> list[dict]:
     """Write the dataset folders and manifest.csv; the first copy of an exact duplicate wins.
 
@@ -354,11 +376,29 @@ def build(
     A photo that appears with different classes is a label conflict: its label cannot be
     trusted, so **every** copy is dropped. ``conflicts`` counts such photos by the set of
     (source, class) pairs they were found under.
+
+    ``exclusions`` (see ``load_exclusions``) lists photos removed by hand, e.g. fruit or stems in
+    a class of leaf diseases; they are dropped in every source and counted in ``hand_removed``
+    as (class, reason), once per photo.
     """
     if not items:
         raise ValueError("no images found — check the raw folders and the class mapping")
     if out_dir.exists():
         shutil.rmtree(out_dir)
+    if exclusions:
+        matched: set[tuple[str, str]] = set()
+        kept = []
+        for item in items:
+            key = (item.code, item.md5[:16])
+            if key in exclusions:
+                matched.add(key)
+            else:
+                kept.append(item)
+        if hand_removed is not None:
+            for code, md5_prefix in matched:
+                hand_removed[(code, exclusions[(code, md5_prefix)])] += 1
+            hand_removed[("not found", "")] += len(exclusions) - len(matched)
+        items = kept
     items = sorted(items, key=lambda i: i.source.role != "bench")
     found: dict[str, list[Item]] = defaultdict(list)
     for item in items:
@@ -416,9 +456,11 @@ def report(
     registry: Registry,
     removed: Counter | None = None,
     conflicts: Counter | None = None,
+    hand_removed: Counter | None = None,
 ) -> str:
-    """Image counts per class (train pool and bench apart), the exact duplicates removed and the
-    label conflicts (the same photo with different classes in two places)."""
+    """Image counts per class (train pool and bench apart), the exact duplicates removed, the
+    label conflicts (the same photo with different classes in two places) and the photos removed
+    by hand."""
     counts: dict[str, Counter] = defaultdict(Counter)
     bench: Counter = Counter()
     for row in rows:
@@ -453,6 +495,25 @@ def report(
             "| --- | --- | ---: |",
         ]
         lines += [f"| {k} | {d} | {n} |" for (k, d), n in sorted(removed.items())]
+    if hand_removed:
+        classes = sorted({c for c, _ in hand_removed if c != "not found"})
+        lines += [
+            "",
+            "Photos removed by hand from the sources (`ml/bench_exclude.csv`; fruit, stems, other "
+            "crops, other diseases or unclear photos in classes of leaf diseases):",
+            "",
+            "| Class | " + " | ".join(EXCLUDE_REASONS) + " | Total |",
+            "| --- | " + " | ".join("---:" for _ in EXCLUDE_REASONS) + " | ---: |",
+        ]
+        for code in classes:
+            counts = [hand_removed[(code, reason)] for reason in EXCLUDE_REASONS]
+            cells = [*counts, sum(counts)]
+            lines.append(f"| `{code}` | " + " | ".join(str(n) for n in cells) + " |")
+        total = [sum(hand_removed[(c, r)] for c in classes) for r in EXCLUDE_REASONS]
+        lines.append("| **total** | " + " | ".join(str(n) for n in total) + f" | {sum(total)} |")
+        if hand_removed[("not found", "")]:
+            missing = hand_removed[("not found", "")]
+            lines.append(f"\nListed but not found in the sources: {missing}.")
     if conflicts:
         lines += [
             "",
@@ -479,6 +540,10 @@ def main() -> None:
     parser.add_argument("--raw-dir", type=Path, default=DATASETS_DIR / "raw")
     parser.add_argument("--out-dir", type=Path)
     parser.add_argument("--dataset-version", default="v2", help="folder name under datasets/")
+    parser.add_argument(
+        "--bench-exclude", type=Path, default=BENCH_EXCLUDE,
+        help="csv (file, class, reason) of photos to remove by hand",
+    )  # fmt: skip
     args = parser.parse_args()
     if args.sources and not args.out_dir:
         parser.error("--sources builds a partial dataset: give --out-dir so v2 is not replaced")
@@ -504,8 +569,10 @@ def main() -> None:
 
     removed: Counter = Counter()
     conflicts: Counter = Counter()
-    rows = build(items, registry, out_dir, removed, conflicts)
-    text = report(rows, registry, removed, conflicts)
+    hand_removed: Counter = Counter()
+    exclusions = load_exclusions(args.bench_exclude)
+    rows = build(items, registry, out_dir, removed, conflicts, exclusions, hand_removed)
+    text = report(rows, registry, removed, conflicts, hand_removed)
     (out_dir / "report.md").write_text(text, encoding="utf-8")
     print(text)
 
