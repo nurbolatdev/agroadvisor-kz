@@ -36,6 +36,7 @@ from ml.data import (  # noqa: E402
     PlantDataset,
     balanced_sampler,
     eval_transform,
+    field_weighted_sampler,
     train_transform,
 )
 from ml.evaluate import (  # noqa: E402
@@ -103,18 +104,24 @@ def build_loaders(args: argparse.Namespace) -> dict[str, DataLoader]:
     """Train / val loaders; ``--subset`` keeps a seeded random fraction of both (smoke runs)."""
     train = PlantDataset(args.dataset_dir, "train", train_transform())
     val = PlantDataset(args.dataset_dir, "val", eval_transform())
-    train_set, val_set, targets = train, val, train.targets
+    train_set, val_set, targets, files = train, val, train.targets, train.files
     if args.subset < 1.0:
         keep = subset_indices(len(train), args.subset, args.seed)
         train_set, targets = Subset(train, keep), [train.targets[i] for i in keep]
+        files = [train.files[i] for i in keep]
         val_set = Subset(val, subset_indices(len(val), args.subset, args.seed))
+    if args.field_share > 0:
+        _, kinds = load_meta(args.dataset_dir, files)
+        sampler = field_weighted_sampler(targets, kinds, args.field_share)
+    else:
+        sampler = balanced_sampler(targets) if args.balanced else None
     workers = args.num_workers
     return {
         "train": DataLoader(
             train_set,
             batch_size=args.batch_size,
-            sampler=balanced_sampler(targets) if args.balanced else None,
-            shuffle=not args.balanced,
+            sampler=sampler,
+            shuffle=sampler is None,
             num_workers=workers,
             persistent_workers=workers > 0,
         ),
@@ -172,7 +179,15 @@ def build_config(args: argparse.Namespace, device: torch.device, classes_version
             "train": "RandomResizedCrop(224, 0.6-1.0), flips, rotation 30, ColorJitter, blur",
             "eval": "Resize 256, CenterCrop 224, ImageNet normalization",
         },
-        "sampler": "balanced (1/class count)" if args.balanced else "uniform shuffle",
+        "sampler": (
+            f"balanced by class, {args.field_share:.0%} of the draws of a class with field "
+            "photos go to its field photos"
+            if args.field_share > 0
+            else "balanced (1/class count)"
+            if args.balanced
+            else "uniform shuffle"
+        ),
+        "field_share": args.field_share,
         "selection_metric": SELECTION_METRIC,
         "device": str(device),
         "num_workers": args.num_workers,
@@ -390,10 +405,16 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda", "mps"])
     p.add_argument("--subset", type=float, default=1.0, help="fraction of train/val (smoke run)")
     p.add_argument("--no-balanced", dest="balanced", action="store_false")
+    p.add_argument(
+        "--field-share", type=float, default=0.0,
+        help="share of a class's draws that go to its field photos (0 = plain class balance)",
+    )  # fmt: skip
     p.add_argument("--no-pretrained", action="store_true")
     p.add_argument("--eval-test", action="store_true", help="also score the test split")
     p.add_argument("--runs-dir", type=Path, default=RUNS_DIR)
     args = p.parse_args()
+    if not 0.0 <= args.field_share < 1.0:
+        p.error("--field-share must be in [0, 1)")
     if args.eval_test and args.subset < 1.0:
         p.error("--eval-test is for full runs only; do not score test with a smoke model")
     return args
