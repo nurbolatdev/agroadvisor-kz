@@ -349,30 +349,36 @@ def build(
     """Write the dataset folders and manifest.csv; the first copy of an exact duplicate wins.
 
     Bench sources go first, so a photo that is in both a bench and a train source stays in the
-    bench only. ``removed`` counts the dropped copies as (kept source, dropped source); a copy
-    with a different class is a label conflict and is counted in ``conflicts`` as
-    (kept source, kept class, dropped source, dropped class) instead.
+    bench only. ``removed`` counts the dropped copies as (kept source, dropped source).
+
+    A photo that appears with different classes is a label conflict: its label cannot be
+    trusted, so **every** copy is dropped. ``conflicts`` counts such photos by the set of
+    (source, class) pairs they were found under.
     """
     if not items:
         raise ValueError("no images found — check the raw folders and the class mapping")
     if out_dir.exists():
         shutil.rmtree(out_dir)
     items = sorted(items, key=lambda i: i.source.role != "bench")
+    found: dict[str, list[Item]] = defaultdict(list)
+    for item in items:
+        found[item.md5].append(item)
+    conflicting = {md5 for md5, copies in found.items() if len({c.code for c in copies}) > 1}
+    if conflicts is not None:
+        for md5 in sorted(conflicting):
+            conflicts[tuple(sorted({(c.source.name, c.code) for c in found[md5]}))] += 1
     seen: dict[str, Item] = {}
     rows = []
     stats = Counter()
     for item in items:
+        if item.md5 in conflicting:
+            stats["conflict_files"] += 1
+            continue
         if item.md5 in seen:
             first = seen[item.md5]
-            if first.code != item.code:
-                stats["conflicts"] += 1
-                if conflicts is not None:
-                    key = (first.source.name, first.code, item.source.name, item.code)
-                    conflicts[key] += 1
-            else:
-                stats["duplicates"] += 1
-                if removed is not None:
-                    removed[(first.source.name, item.source.name)] += 1
+            stats["duplicates"] += 1
+            if removed is not None:
+                removed[(first.source.name, item.source.name)] += 1
             continue
         seen[item.md5] = item
         name = f"{item.source.name}__{item.md5[:16]}{item.path.suffix.lower()}"
@@ -394,7 +400,10 @@ def build(
                 "md5": item.md5,
             }
         )
-    print(f"skipped exact duplicates: {stats['duplicates']}, label conflicts: {stats['conflicts']}")
+    print(
+        f"skipped exact duplicates: {stats['duplicates']}, "
+        f"label conflicts: {len(conflicting)} photos, {stats['conflict_files']} files dropped"
+    )
     with (out_dir / "manifest.csv").open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0]))
         writer.writeheader()
@@ -448,14 +457,16 @@ def report(
         lines += [
             "",
             f"Label conflicts: {sum(conflicts.values())} photos appear with different classes. "
-            "The first copy (and its class) is kept, the other is dropped. A conflict that repeats "
-            "for one pair of classes points to a systematic labeling difference:",
+            "Their label cannot be trusted, so every copy is dropped. A pair of classes that "
+            "repeats points to a systematic labeling difference:",
             "",
-            "| Kept: source / class | Dropped: source / class | Photos |",
-            "| --- | --- | ---: |",
+            "| The same photo found as (source / class) | Photos |",
+            "| --- | ---: |",
         ]
         ordered = sorted(conflicts.items(), key=lambda kv: (-kv[1], kv[0]))
-        lines += [f"| {a} / `{b}` | {c} / `{d}` | {n} |" for (a, b, c, d), n in ordered]
+        for pairs, n in ordered:
+            label = " = ".join(f"{source} / `{code}`" for source, code in pairs)
+            lines.append(f"| {label} | {n} |")
     return "\n".join(lines) + "\n"
 
 

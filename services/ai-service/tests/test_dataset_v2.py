@@ -288,23 +288,27 @@ def test_truncated_images_are_not_readable(tmp_path):
     assert not build_dataset._is_readable(tmp_path / "missing.jpg")
 
 
-def test_the_same_photo_with_two_classes_is_a_label_conflict_shown_in_the_report(tmp_path):
+def test_a_photo_with_two_classes_is_dropped_in_every_copy_and_shown_in_the_report(tmp_path):
     first = item(tmp_path, "a", "plantwild", "bench", (10, 200, 10), "corn__common_rust")
     other = item(tmp_path, "b", "ccmt", "train", (10, 200, 10), "corn__gray_leaf_spot")
     again = item(tmp_path, "c", "tom2024", "train", (10, 200, 10), "corn__gray_leaf_spot")
     keep = item(tmp_path, "d", "ccmt", "train", (200, 10, 10), "corn__healthy")
+    same = item(tmp_path, "e", "plantdoc", "train", (200, 10, 10), "corn__healthy")  # a duplicate
     removed: Counter = Counter()
     conflicts: Counter = Counter()
-    rows = build([other, again, keep, first], REGISTRY, tmp_path / "v2", removed, conflicts)
-    assert [r["class"] for r in rows if r["md5"] == first.md5] == ["corn__common_rust"]
+    rows = build([other, again, keep, same, first], REGISTRY, tmp_path / "v2", removed, conflicts)
+    assert [r["source"] for r in rows] == ["ccmt"]  # nothing of the conflicting photo is left
     assert conflicts == {
-        ("plantwild", "corn__common_rust", "ccmt", "corn__gray_leaf_spot"): 1,
-        ("plantwild", "corn__common_rust", "tom2024", "corn__gray_leaf_spot"): 1,
+        (
+            ("ccmt", "corn__gray_leaf_spot"),
+            ("plantwild", "corn__common_rust"),
+            ("tom2024", "corn__gray_leaf_spot"),
+        ): 1
     }
-    assert not removed  # these are conflicts, not plain duplicates
+    assert removed == {("ccmt", "plantdoc"): 1}  # a plain duplicate is not a conflict
     text = report(rows, REGISTRY, removed, conflicts)
-    assert "Label conflicts: 2 photos" in text
-    assert "| plantwild / `corn__common_rust` | ccmt / `corn__gray_leaf_spot` | 1 |" in text
+    assert "Label conflicts: 1 photos" in text
+    assert "ccmt / `corn__gray_leaf_spot` = plantwild / `corn__common_rust` = tom2024" in text
 
 
 def test_building_without_images_is_a_clear_error(tmp_path):
