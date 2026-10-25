@@ -1,18 +1,11 @@
-import random
-
 import pytest
+from images import noise_image
 from PIL import Image, ImageEnhance, ImageFilter
 
 from app.core.errors import ApiError
 from app.services.quality import QualityLimits, check_quality, measure
 
 LIMITS = QualityLimits(min_side=224, min_brightness=40.0, min_sharpness=50.0)
-
-
-def noise_image(size: tuple[int, int] = (400, 300), seed: int = 0) -> Image.Image:
-    """Sharp, evenly lit synthetic photo: seeded random pixels, fully deterministic."""
-    data = random.Random(seed).randbytes(size[0] * size[1] * 3)
-    return Image.frombytes("RGB", size, data)
 
 
 def reason_of(excinfo) -> tuple[int, str, str]:
