@@ -1,0 +1,14 @@
+# Keep the build context small: the dataset alone is tens of thousands of photos.
+.venv
+.env
+.env.*
+!.env.example
+*.egg-info
+__pycache__
+.pytest_cache
+.ruff_cache
+tests
+ml/datasets
+ml/notebooks
+ml/weights/*
+!ml/weights/.gitkeep
