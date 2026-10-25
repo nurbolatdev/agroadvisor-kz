@@ -30,6 +30,17 @@ def test_api_error_body_has_error_reason_and_message(app, client):
     }
 
 
+def test_image_sent_as_text_field_uses_contract_error_format(client):
+    response = client.post("/predict", data={"crop": "tomato", "image": "hello"})
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "error": "invalid_image",
+        "reason": "missing",
+        "message": "The image field must be a file",
+    }
+
+
 def test_api_error_without_reason_has_null_reason(app, client):
     app.include_router(_raising_router())
 

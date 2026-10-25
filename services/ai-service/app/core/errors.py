@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.models.predict import ErrorResponse
@@ -17,3 +18,13 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApiError)
     def handle_api_error(_: Request, exc: ApiError) -> JSONResponse:
         return JSONResponse(status_code=exc.status_code, content=exc.body.model_dump())
+
+    @app.exception_handler(RequestValidationError)
+    def handle_validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
+        # Keep the contract's error format for malformed requests, e.g. "image" sent as text.
+        fields = {str(e["loc"][1]) for e in exc.errors() if len(e["loc"]) > 1}
+        if "image" in fields:
+            error = ApiError(400, "invalid_image", "The image field must be a file", "missing")
+        else:
+            error = ApiError(400, "unknown_crop", "Crop is missing or not supported")
+        return JSONResponse(status_code=error.status_code, content=error.body.model_dump())

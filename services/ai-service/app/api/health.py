@@ -5,7 +5,11 @@ from app.models.health import HealthResponse
 router = APIRouter()
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    responses={503: {"model": HealthResponse, "description": "model_not_loaded"}},
+)
 def health(request: Request, response: Response) -> HealthResponse:
     model_version = request.app.state.model_version
     if model_version is None:
