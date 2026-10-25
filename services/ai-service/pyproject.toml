@@ -24,6 +24,12 @@ dev = [
     "pytest>=8.3",
     "ruff>=0.6",
 ]
+train = [
+    "tensorboard>=2.17",
+    "matplotlib>=3.9",
+    "scikit-learn>=1.5",
+    "tqdm>=4.66",
+]
 
 [tool.setuptools.packages.find]
 include = ["app*", "ml*"]
