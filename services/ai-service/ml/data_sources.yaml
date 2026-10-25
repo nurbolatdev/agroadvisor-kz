@@ -7,6 +7,14 @@
 # classes: source folder -> class code from ml/classes.yaml
 # unknown: folders that go into the unknown class (other plants, non-plant objects);
 #          unknown_limit caps how many images this source adds to unknown.
+# role: train (default) or bench. Bench sources are never used to train: their photos go to the
+#       "bench" split and a train photo that matches one is dropped. Needed for non-commercial
+#       licenses (CC BY-NC-ND) and for an honest evaluation on photos from other places.
+# limit_per_class: keep at most N photos per class from this source (seeded, deterministic), so
+#       one region or one photographer does not dominate a class.
+# loader: folders (default) or coco (leaves are cut out of photos by their boxes).
+# Two-level names ("Maize/healthy") tell apart classes whose folder name repeats under crops.
+# download type local: archives fetched by hand (.team/scripts) and listed under archives.
 # Details and licenses: docs/ai/dataset.md
 
 version: 1
@@ -134,3 +142,85 @@ sources:
       - sunflower
       - water_lilly
     unknown_limit: 1500
+
+  pldd-up:
+    kind: field
+    license: CC BY 4.0
+    url: https://data.mendeley.com/datasets/3j4nfkvp2n/1
+    download:
+      type: local
+      archives: [EB.zip, LB.zip, Healthy.zip]
+    classes:
+      EB: potato__early_blight
+      LB: potato__late_blight
+      Healthy: potato__healthy
+    # 15 519 photos from potato fields of one region of India: capped so that this single source
+    # does not dominate the potato classes
+    limit_per_class: 1500
+
+  ccmt:
+    kind: field
+    license: CC BY 4.0
+    url: https://data.mendeley.com/datasets/bwh3zbpkpv/1
+    download:
+      type: local
+    classes:
+      Maize/healthy: corn__healthy
+      Tomato/healthy: tomato__healthy
+      Tomato/septoria leaf spot: tomato__septoria_leaf_spot
+    # Raw photos only (never the augmented copies). Undecided, waiting for the lead's choice from
+    # contact sheets: Maize/leaf blight, Maize/leaf spot, Tomato/leaf blight.
+    # Not used: pests, streak virus, leaf curl, verticillium wilt (not in the registry)
+
+  tom2024:
+    kind: field
+    license: CC BY 4.0
+    url: https://data.mendeley.com/datasets/3d4yg89rtr/1
+    download:
+      type: local
+    classes:
+      maize_diseases/Healthy_leaf: corn__healthy
+      tomato_diseases/healthy_leaf: tomato__healthy
+      tomato_diseases/tomato_late_blight_d: tomato__late_blight
+    # Labeled photos of "CATEGORY A / CATA-English" only (not the augmented category B).
+    # Undecided: maize Helminthosporiosis-D, Rust-D; tomato alternaria_d, virosis_d (a mix of
+    # viruses, probably not used). Not used: pests, abiotic damage, fruit and other diseases.
+
+  plantwild:
+    kind: field
+    role: bench
+    license: CC BY-NC-ND 4.0
+    url: https://huggingface.co/datasets/uqtwei2/PlantWild
+    download:
+      type: local
+      archives: [plantwild.zip]
+    classes:
+      corn gray leaf spot: corn__gray_leaf_spot
+      corn northern leaf blight: corn__northern_leaf_blight
+      potato early blight: potato__early_blight
+      potato late blight: potato__late_blight
+      tomato bacterial leaf spot: tomato__bacterial_spot
+      tomato early blight: tomato__early_blight
+      tomato late blight: tomato__late_blight
+      tomato leaf mold: tomato__leaf_mold
+      tomato mosaic virus: tomato__mosaic_virus
+      tomato septoria leaf spot: tomato__septoria_leaf_spot
+    # Evaluation only (non-commercial, no derivatives): never train, never in the repository.
+    # Undecided: corn rust, and the "corn leaf", "potato leaf", "tomato leaf" classes (healthy
+    # leaves only if the photos clearly show healthy leaves).
+
+  fieldplant:
+    kind: field
+    loader: coco
+    license: CC BY 4.0 (confirm on the Roboflow project page before the first build)
+    url: https://universe.roboflow.com/plant-disease-detection/fieldplant
+    download:
+      type: local
+    classes:
+      Corn_Healthy: corn__healthy  # "Corn Healthy" is the same key after normalization
+      Corn_Cercosporiose: corn__gray_leaf_spot
+      Tomato_healthy: tomato__healthy
+      Tomato_Mosaic: tomato__mosaic_virus
+      Tomato_Mildiou: tomato__late_blight
+    # Undecided, the lead decides from photos: Corn_Rust, Corn_Blight.
+    # Not used: Tomato_Brown_Spots and every other class
