@@ -7,6 +7,7 @@ The headline metric is **crop-masked macro-F1 with `unknown`** (`crop_masked_pro
 | ID | Status | Change | Crop-masked macro-F1 (val) | Crop-masked macro-F1 (val, field) | Overall macro-F1 | Field macro-F1 (unmasked) |
 | --- | --- | --- | --- | --- | --- | --- |
 | A5-E001 | completed | Baseline, two-stage fine-tuning, balanced sampler | 0.9619 | 0.7325 | 0.9557 | 0.699 |
+| A5-E002 | completed, criterion not met | E001 + field photos are 35 % of the draws in classes that have them | 0.9620 | 0.7338 | 0.9555 | 0.684 |
 
 ## A5-E001 — baseline
 
@@ -110,6 +111,40 @@ Wheat has hundreds of field photos and is recognised well. Tomato, potato and co
 **Environment.** Python 3.12.10, torch 2.14.1, torchvision 0.29.1. Python 3.12 is accepted for training and for the service image (`python:3.12-slim`); the package keeps `requires-python >= 3.11`.
 
 **Next step.** Run A5-E002 with a sampler that favours field photos (parent A5-E001), with the same split, preprocessing and metrics; the main comparison metric is the crop-masked macro-F1 with `unknown` on field photos of tomato and potato. A sampler repeats the few field photos more often and does not add new ones, so it may also overfit them. Compare field macro-F1, the per-class field metrics and the laboratory results, and keep E001 available. The test split stays untouched until the final evaluation of a selected model.
+
+## A5-E002 — sampler that favours field photos
+
+**Status:** completed, best epoch 13 of 15 (selected by overall validation macro-F1). Parent: A5-E001.
+
+**Objective.** Raise the quality on field photos of tomato and potato.
+
+**Hypothesis and success criterion (fixed before the run).** Field crop-masked macro-F1 (with `unknown`) improves by 0.05 or more for tomato and for potato versus A5-E001, while lab macro-F1 drops by no more than 0.01 and the field metrics of wheat and corn drop by no more than 0.02. A sampler repeats the few field photos and adds none, so it may also overfit them.
+
+**What changed.** Only the sampler: classes are still drawn equally often, and in a class with field photos 35 % of the draws go to its field photos (`--field-share 0.35`; in E001 field photos were 4–16 % of the training images of these classes). Everything else as in A5-E001: same split, preprocessing, metrics, seed 42, 3 head epochs + 12 full-network epochs. Commit `5dfdbc9`, 5157 s on the Apple M4.
+
+**Results (validation), E001 → E002.**
+
+| Metric | E001 | E002 | Change |
+| --- | --- | --- | --- |
+| Crop-masked + `unknown`, overall | 0.9619 | 0.9620 | +0.0001 |
+| Crop-masked + `unknown`, laboratory | 0.9847 | 0.9834 | −0.0013 |
+| Crop-masked + `unknown`, field | 0.7325 | 0.7338 | +0.0013 |
+| Field tomato (102 photos) | 0.5706 | 0.5876 | +0.0169 |
+| Field potato (33 photos) | 0.6882 | 0.6877 | −0.0005 |
+| Field corn (56 photos) | 0.7515 | 0.7132 | −0.0382 |
+| Field wheat (794 photos) | 0.9656 | 0.9695 | +0.0039 |
+| Overall macro-F1 (no mask) | 0.9557 | 0.9555 | −0.0003 |
+| Field macro-F1 (no mask) | 0.699 | 0.684 | −0.015 |
+
+Per-class F1 on field photos, E001 → E002 (photos in validation): `tomato__early_blight` 0.40 → 0.52 (13), `tomato__healthy` 0.47 → 0.35 (10), `tomato__bacterial_spot` 0.41 → 0.33 (17), `tomato__leaf_mold` 0.50 → 0.46 (14), `potato__early_blight` 0.50 → 0.45 (17), `potato__late_blight` 0.48 → 0.47 (16), `corn__common_rust` 0.87 → 0.76 (17), `corn__gray_leaf_spot` 0.61 → 0.50 (10), `corn__northern_leaf_blight` 0.79 → 0.85 (29). Wheat classes stay at 0.94–0.98.
+
+**Learning curves.** Training loss falls to 0.064 while validation loss stops improving after epoch 9 (0.177 → 0.165), and validation field macro-F1 stays flat between 0.65 and 0.68 from epoch 5 on. More repetitions of the same few field photos did not add generalisation.
+
+**Limitations.** Tomato and potato have only 8–23 field photos per class in validation (102 and 33 in total), so differences of 0.02–0.04 are comparable to the noise of a single seed; there is no repeat with another seed. `potato__healthy` and `corn__healthy` have laboratory photos only. The test split was not used.
+
+**Conclusion.** The success criterion is not met: tomato improved by 0.017 and potato did not change (both needed +0.05), and the field corn result dropped by 0.038 (the limit was 0.02). Laboratory quality did not change. This is a clear miss, not a borderline result, so a repeat with another seed is not planned. Sampling field photos more often does not help on its own.
+
+**Next step.** A5-E003: stronger background and lighting augmentation (smaller crops, stronger color changes, random erasing or blur of the background) on top of the same sampler, parent A5-E002, with a success criterion fixed beforehand. `--field-share 0.5` is not tried because the curves already show no gain from repeating field photos.
 
 ## A5-TRIAL — speed check (not an experiment)
 
