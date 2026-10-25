@@ -43,4 +43,4 @@ def test_collect_and_build(tmp_path):
         assert len(list(csv.DictReader(f))) == 2
 
     text = report(rows, registry)
-    assert "| `wheat__healthy` | 0 | 1 | 0 | 1 | below 100 |" in text
+    assert "| `wheat__healthy` | 0 | 1 | 0 | 1 | 0 | below 100 |" in text
