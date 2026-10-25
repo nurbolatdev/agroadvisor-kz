@@ -110,8 +110,14 @@ def test_the_real_config_has_the_v2_sources():
     }  # fmt: skip
     assert sources["fieldplant"].loader == "coco"
     assert sources["ccmt"].label_path(("Maize", "healthy")) == "corn__healthy"
-    assert sources["ccmt"].label_path(("Maize", "leaf blight")) is None  # undecided
-    assert sources["tom2024"].label_path(("tomato_diseases", "virosis_d")) is None  # undecided
+    mixed = (("Maize", "leaf blight"), ("Maize", "leaf spot"), ("Tomato", "leaf blight"))
+    for crop, folder in mixed:
+        assert sources["ccmt"].label_path((crop, folder)) is None  # a mix of diseases
+    assert sources["tom2024"].label_path(("tomato_diseases", "virosis_d")) is None
+    assert sources["tom2024"].label_path(("tomato_diseases", "alternaria_d")) is None
+    assert sources["tom2024"].label_path(("maize_diseases", "Rust-D")) == "corn__common_rust"
+    assert sources["fieldplant"].label("Corn leaf blight") is None
+    assert sources["fieldplant"].label("Tomato blight leaf") == "tomato__late_blight"
     fieldplant = sources["fieldplant"]
     assert fieldplant.label("Corn Healthy") == fieldplant.label("Corn_Healthy") == "corn__healthy"
 
@@ -190,7 +196,7 @@ def test_the_real_config_has_the_wheat_bench_sources():
     sources = {s.name: s for s in load_sources(REGISTRY)}
     assert sources["johninnes-wheat"].label("BrownRust") == "wheat__leaf_rust"
     assert sources["plantseg"].label("Wheat Septoria Blotch") == "wheat__septoria"
-    assert sources["plantseg"].label("corn rust") is None  # undecided
+    assert sources["plantseg"].label("corn rust") == "corn__common_rust"
     roles = {sources[name].role for name in ("plantseg", "johninnes-wheat")}
     assert roles == {"bench"}
 

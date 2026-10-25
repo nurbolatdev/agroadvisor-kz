@@ -123,16 +123,21 @@ v2 adds field photos (the weak point of v1, see Known gaps) and an external benc
 | CCMT Maize/healthy, TOM2024 maize `Healthy_leaf`, FieldPlant `Corn Healthy` | `corn__healthy` |
 | CCMT Tomato/healthy, TOM2024 tomato `healthy_leaf`, FieldPlant `Tomato healthy` | `tomato__healthy` |
 | CCMT Tomato/septoria leaf spot | `tomato__septoria_leaf_spot` |
-| TOM2024 `tomato_late_blight_d` | `tomato__late_blight` |
+| TOM2024 `tomato_late_blight_d`, FieldPlant `Tomato blight leaf` | `tomato__late_blight` |
+| TOM2024 maize `Helminthosporiosis-D` | `corn__northern_leaf_blight` |
+| TOM2024 maize `Rust-D`, FieldPlant `Corn rust leaf` | `corn__common_rust` (some photos may be southern rust; the treatment is the same) |
 | FieldPlant `Corn Gray leaf spot` (Cercosporiose) | `corn__gray_leaf_spot` |
 | FieldPlant `Tomato leaf mosaic virus` | `tomato__mosaic_virus` |
-| PlantWild gray leaf spot, northern leaf blight, potato early/late blight, tomato bacterial leaf spot, early/late blight, leaf mold, mosaic virus, septoria | the matching class (bench only) |
+| PlantWild and PlantSeg: gray leaf spot, northern leaf blight, corn rust, potato early/late blight, tomato bacterial leaf spot, early/late blight, leaf mold, mosaic virus, septoria; PlantSeg and John Innes: the four wheat diseases | the matching class (bench only) |
 
-Not used yet, waiting for a decision made from photos: CCMT maize `leaf blight` and `leaf spot`, tomato `leaf blight`; TOM2024 maize `Helminthosporiosis-D` and `Rust-D`, tomato `alternaria_d` and `virosis_d`; FieldPlant `Tomato blight leaf` (late blight?), `Corn rust leaf` and `Corn leaf blight`; PlantWild `corn rust` and the `corn leaf`, `potato leaf`, `tomato leaf` classes. Pests, abiotic damage and diseases that are not in the registry are never used, and photos of the four crops never go to `unknown`.
+Decided from contact sheets and **not used**: CCMT maize `leaf blight` and `leaf spot`, tomato `leaf blight` (each is a mix of diseases); TOM2024 tomato `alternaria_d` (half of the photos show fruit) and `virosis_d` (a mix of viruses); FieldPlant `Corn leaf blight` (noisy); PlantWild `corn leaf`, `potato leaf`, `tomato leaf` (the photos are mixed, not clearly healthy). Pests, abiotic damage and diseases that are not in the registry are never used, and photos of the four crops never go to `unknown`.
 
 Citations for the CC BY sources: Singh P.K. et al., *PLDD-UP: Potato Leaf Disease Dataset from Uttar Pradesh, India*, Mendeley Data, V1, doi:10.17632/3j4nfkvp2n.1; Mensah P.K. et al., *CCMT: Dataset for crop pest and disease detection*, Data in Brief 49 (2023), doi:10.17632/bwh3zbpkpv.1; *TOM2024: datasets of tomato, onion and maize images*, Data in Brief (2025), doi:10.17632/3d4yg89rtr.1; Moupojou E. et al., *FieldPlant: A Dataset of Field Plant Images for Plant Disease Detection and Classification With Deep Learning*, IEEE Access 11 (2023), doi:10.1109/ACCESS.2023.3263042.
 
 ## Known gaps
+
+- **v2: `tomato__early_blight` got no new field photos** — no source has a clean class for it (CCMT and FieldPlant blight classes are mixes, TOM2024 `alternaria_d` is half fruit). It is a candidate for our own photos. It only has field photos from PlantDoc and the bench from PlantWild and PlantSeg.
+- **v2: wheat training photos come from one source** (Kaggle). The wheat bench (PlantSeg, John Innes) shows whether the high wheat accuracy holds on photos from other places.
 
 - **Few field photos for tomato, potato and corn** — 54–190 per class against ~1 000 lab photos. Accuracy on lab images will overstate real-world accuracy: evaluation must report field photos separately and include our own photos (task A6).
 - **`potato__healthy` and `corn__healthy` have no field photos**, and `potato__healthy` is the smallest class (152). The model may learn "plain background → healthy". Mitigation: class weights or oversampling, strong background augmentation, and own field photos as soon as possible.

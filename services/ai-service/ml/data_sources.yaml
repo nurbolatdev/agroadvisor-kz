@@ -172,8 +172,9 @@ sources:
       Maize/healthy: corn__healthy
       Tomato/healthy: tomato__healthy
       Tomato/septoria leaf spot: tomato__septoria_leaf_spot
-    # Raw photos only (never the augmented copies). Undecided, waiting for the lead's choice from
-    # contact sheets: Maize/leaf blight, Maize/leaf spot, Tomato/leaf blight.
+    # Raw photos only (never the augmented copies), only the unambiguous classes. Decided from
+    # contact sheets (a mix of diseases): Maize/leaf blight, Maize/leaf spot, Tomato/leaf blight
+    # are not used.
     # Not used: pests, streak virus, leaf curl, verticillium wilt (not in the registry)
 
   tom2024:
@@ -186,9 +187,11 @@ sources:
       maize_diseases/Healthy_leaf: corn__healthy
       tomato_diseases/healthy_leaf: tomato__healthy
       tomato_diseases/tomato_late_blight_d: tomato__late_blight
+      maize_diseases/Helminthosporiosis-D: corn__northern_leaf_blight
+      maize_diseases/Rust-D: corn__common_rust  # may include some southern rust; same treatment
     # Labeled photos of "CATEGORY A / CATA-English" only (not the augmented category B).
-    # Undecided: maize Helminthosporiosis-D, Rust-D; tomato alternaria_d, virosis_d (a mix of
-    # viruses, probably not used). Not used: pests, abiotic damage, fruit and other diseases.
+    # Decided from contact sheets, not used: tomato alternaria_d (half of the photos show fruit)
+    # and virosis_d (a mix of viruses). Not used: pests, abiotic damage, fruit, other diseases.
 
   plantwild:
     kind: field
@@ -209,9 +212,10 @@ sources:
       tomato leaf mold: tomato__leaf_mold
       tomato mosaic virus: tomato__mosaic_virus
       tomato septoria leaf spot: tomato__septoria_leaf_spot
+      corn rust: corn__common_rust
     # Evaluation only (non-commercial, no derivatives): never train, never in the repository.
-    # Undecided: corn rust, and the "corn leaf", "potato leaf", "tomato leaf" classes (healthy
-    # leaves only if the photos clearly show healthy leaves).
+    # Not used: the "corn leaf", "potato leaf", "tomato leaf" classes (the photos are mixed, not
+    # clearly healthy leaves).
 
   plantseg:
     kind: field
@@ -230,6 +234,7 @@ sources:
     classes:
       corn gray leaf spot: corn__gray_leaf_spot
       corn northern leaf blight: corn__northern_leaf_blight
+      corn rust: corn__common_rust  # the same decision as for PlantWild
       potato early blight: potato__early_blight
       potato late blight: potato__late_blight
       tomato bacterial leaf spot: tomato__bacterial_spot
@@ -243,7 +248,7 @@ sources:
       wheat septoria blotch: wheat__septoria
       wheat stripe rust: wheat__stripe_rust
     # Evaluation only (non-commercial). It overlaps PlantWild (same research group, web photos):
-    # exact copies are removed by MD5, near copies by the split. Undecided: corn rust.
+    # exact copies are removed by MD5, near copies by the split.
     # Not used: corn smut, tomato yellow leaf curl virus, wheat head scab, loose smut, stem rust,
     # bacterial leaf streak. The masks (annotations/) are not used.
 
@@ -280,7 +285,7 @@ sources:
       Corn Gray leaf spot: corn__gray_leaf_spot  # Cercosporiose
       Tomato healthy: tomato__healthy
       Tomato leaf mosaic virus: tomato__mosaic_virus
+      Tomato blight leaf: tomato__late_blight  # decided from contact sheets
+      Corn rust leaf: corn__common_rust
     # Category names of the Roboflow export v11 (27 classes, one "train" folder, 5 156 photos).
-    # Undecided, the lead decides from contact sheets: "Tomato blight leaf" (the French
-    # "Mildiou", late blight?), "Corn rust leaf", "Corn leaf blight".
-    # Not used: "Tomato Brown Spots" and every other class
+    # Not used: "Corn leaf blight" (noisy, a mix), "Tomato Brown Spots" and every other class
