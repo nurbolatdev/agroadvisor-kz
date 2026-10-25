@@ -212,15 +212,16 @@ sources:
   fieldplant:
     kind: field
     loader: coco
-    license: CC BY 4.0 (confirm on the Roboflow project page before the first build)
+    license: CC BY 4.0
     url: https://universe.roboflow.com/plant-disease-detection/fieldplant
     download:
       type: local
     classes:
-      Corn_Healthy: corn__healthy  # "Corn Healthy" is the same key after normalization
-      Corn_Cercosporiose: corn__gray_leaf_spot
-      Tomato_healthy: tomato__healthy
-      Tomato_Mosaic: tomato__mosaic_virus
-      Tomato_Mildiou: tomato__late_blight
-    # Undecided, the lead decides from photos: Corn_Rust, Corn_Blight.
-    # Not used: Tomato_Brown_Spots and every other class
+      Corn Healthy: corn__healthy
+      Corn Gray leaf spot: corn__gray_leaf_spot  # Cercosporiose
+      Tomato healthy: tomato__healthy
+      Tomato leaf mosaic virus: tomato__mosaic_virus
+    # Category names of the Roboflow export v11 (27 classes, one "train" folder, 5 156 photos).
+    # Undecided, the lead decides from contact sheets: "Tomato blight leaf" (the French
+    # "Mildiou", late blight?), "Corn rust leaf", "Corn leaf blight".
+    # Not used: "Tomato Brown Spots" and every other class

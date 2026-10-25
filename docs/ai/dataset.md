@@ -109,7 +109,7 @@ v2 adds field photos (the weak point of v1, see Known gaps) and an external benc
 | [PLDD-UP](https://data.mendeley.com/datasets/3j4nfkvp2n/1) (Mendeley Data, Uttar Pradesh, India, 15 519 photos) | train | field | potato: EB → `potato__early_blight`, LB → `potato__late_blight`, Healthy → `potato__healthy` | CC BY 4.0 | **Limited to 1 500 photos per class** (`limit_per_class`, seeded) so that one region does not dominate the potato classes |
 | [CCMT](https://data.mendeley.com/datasets/bwh3zbpkpv/1) (Mendeley Data, Ghana) | train | field | corn and tomato healthy, tomato septoria | CC BY 4.0 | raw photos only, never the augmented copies; undecided classes below |
 | [TOM2024](https://data.mendeley.com/datasets/3d4yg89rtr/1) (Mendeley Data, Burkina Faso) | train | field | corn and tomato healthy, tomato late blight | CC BY 4.0 | labeled photos of category A (English folder) only, not the augmented category B |
-| [FieldPlant](https://universe.roboflow.com/plant-disease-detection/fieldplant) (Moupojou et al., IEEE Access 2023, Roboflow copy) | train | field | leaves cut out of the photos by their boxes | CC BY 4.0 — to be confirmed on the project page before the first build | crops of one photo stay in one part of the split |
+| [FieldPlant](https://universe.roboflow.com/plant-disease-detection/fieldplant) (Moupojou et al., IEEE Access 2023, Roboflow copy) | train | field | leaves cut out of the photos by their boxes | CC BY 4.0 (stated in the export's README; export v11 of 5 July 2023, 5 156 photos, 27 classes, no augmentation) | crops of one photo stay in one part of the split |
 | [PlantWild](https://huggingface.co/datasets/uqtwei2/PlantWild) (Wei et al., ACM MM 2024) | bench | field | evaluation of tomato, potato and corn classes | CC BY-NC-ND 4.0 | not used for training, never copied into the repository |
 
 `limit_per_class` is a property of the source in `data_sources.yaml`, not of training: `--lab-cap` limits laboratory photos only. The photos that stay are chosen with seed 42 per source and class, so a rebuild gives the same set.
@@ -118,15 +118,15 @@ v2 adds field photos (the weak point of v1, see Known gaps) and an external benc
 
 | Source folder | Class |
 | --- | --- |
-| CCMT Maize/healthy, TOM2024 maize `Healthy_leaf`, FieldPlant `Corn_Healthy` / `Corn Healthy` | `corn__healthy` |
-| CCMT Tomato/healthy, TOM2024 tomato `healthy_leaf`, FieldPlant `Tomato_healthy` | `tomato__healthy` |
+| CCMT Maize/healthy, TOM2024 maize `Healthy_leaf`, FieldPlant `Corn Healthy` | `corn__healthy` |
+| CCMT Tomato/healthy, TOM2024 tomato `healthy_leaf`, FieldPlant `Tomato healthy` | `tomato__healthy` |
 | CCMT Tomato/septoria leaf spot | `tomato__septoria_leaf_spot` |
-| TOM2024 `tomato_late_blight_d`, FieldPlant `Tomato_Mildiou` | `tomato__late_blight` |
-| FieldPlant `Corn_Cercosporiose` | `corn__gray_leaf_spot` |
-| FieldPlant `Tomato_Mosaic` | `tomato__mosaic_virus` |
+| TOM2024 `tomato_late_blight_d` | `tomato__late_blight` |
+| FieldPlant `Corn Gray leaf spot` (Cercosporiose) | `corn__gray_leaf_spot` |
+| FieldPlant `Tomato leaf mosaic virus` | `tomato__mosaic_virus` |
 | PlantWild gray leaf spot, northern leaf blight, potato early/late blight, tomato bacterial leaf spot, early/late blight, leaf mold, mosaic virus, septoria | the matching class (bench only) |
 
-Not used yet, waiting for a decision made from photos: CCMT maize `leaf blight` and `leaf spot`, tomato `leaf blight`; TOM2024 maize `Helminthosporiosis-D` and `Rust-D`, tomato `alternaria_d` and `virosis_d`; FieldPlant `Corn_Rust` and `Corn_Blight`; PlantWild `corn rust` and the `corn leaf`, `potato leaf`, `tomato leaf` classes. Pests, abiotic damage and diseases that are not in the registry are never used, and photos of the four crops never go to `unknown`.
+Not used yet, waiting for a decision made from photos: CCMT maize `leaf blight` and `leaf spot`, tomato `leaf blight`; TOM2024 maize `Helminthosporiosis-D` and `Rust-D`, tomato `alternaria_d` and `virosis_d`; FieldPlant `Tomato blight leaf` (late blight?), `Corn rust leaf` and `Corn leaf blight`; PlantWild `corn rust` and the `corn leaf`, `potato leaf`, `tomato leaf` classes. Pests, abiotic damage and diseases that are not in the registry are never used, and photos of the four crops never go to `unknown`.
 
 Citations for the CC BY sources: Singh P.K. et al., *PLDD-UP: Potato Leaf Disease Dataset from Uttar Pradesh, India*, Mendeley Data, V1, doi:10.17632/3j4nfkvp2n.1; Mensah P.K. et al., *CCMT: Dataset for crop pest and disease detection*, Data in Brief 49 (2023), doi:10.17632/bwh3zbpkpv.1; *TOM2024: datasets of tomato, onion and maize images*, Data in Brief (2025), doi:10.17632/3d4yg89rtr.1; Moupojou E. et al., *FieldPlant: A Dataset of Field Plant Images for Plant Disease Detection and Classification With Deep Learning*, IEEE Access 11 (2023), doi:10.1109/ACCESS.2023.3263042.
 
