@@ -7,14 +7,15 @@ Training data for the disease classifier. Classes come from the registry ([`clas
 From `services/ai-service` (with the environment from its README):
 
 ```bash
-python -m ml.build_dataset                  # download all sources and build
+python -m ml.build_dataset                  # download all sources and build v2
 python -m ml.build_dataset --skip-download  # rebuild from downloaded sources
+python -m ml.splits                         # train / val / test / bench split of v2
 ```
 
-- Sources are downloaded to `ml/datasets/raw/` (~10 GB). Interrupted downloads continue on the next run.
-- The dataset is built in `ml/datasets/v1/<class code>/` — `v1` follows the registry version. Files are hard links to `raw/`, so the build takes almost no extra space.
-- `ml/datasets/v1/manifest.csv` has one row per image: `file, class, crop, source, kind, original, md5`. `original` is the path inside the source — the data pipeline uses it to keep related photos in the same split.
-- `ml/datasets/v1/report.md` is the class table below.
+- Sources are downloaded to `ml/datasets/raw/` (~25 GB for v2). Interrupted downloads continue on the next run. Sources with `download: type: local` are fetched by hand (large archives, a login, or a tool that picks single folders out of a zip); the build only unpacks them.
+- The dataset is built in `ml/datasets/v2/<class code>/`. Files are hard links to `raw/`, so the build takes almost no extra space. **`v1` is frozen**: the first training runs (A5) were trained on it, so the build refuses to rewrite it and `--sources` needs an explicit `--out-dir`. `classes_version` stays 1: the class registry did not change, only the data did.
+- `ml/datasets/v2/manifest.csv` has one row per image: `file, class, crop, source, kind, role, original, md5` (v1 has no `role`). `original` is the path inside the source (for boxes cut from photos, the photo) — the data pipeline uses it to keep related photos in the same split.
+- `ml/datasets/v2/report.md` is the class table; it also lists exact duplicates removed in the build and train photos dropped because of bench matches.
 
 Which source folder becomes which class is configured in [`services/ai-service/ml/data_sources.yaml`](../../services/ai-service/ml/data_sources.yaml); class codes are checked against the registry. The script skips unreadable files and exact duplicates (by MD5), and drops images that two sources label differently.
 
@@ -96,6 +97,38 @@ Built on 21 Oct 2026: **25 352 images**, 777 exact duplicates skipped, 9 images 
 | `unknown` | 800 | 800 | 1 500 | 3 100 | other plants + non-plant objects |
 
 Every class has at least 100 images; every wheat class has more than 300, so all five wheat classes stay `active`.
+
+## Dataset v2
+
+v2 adds field photos (the weak point of v1, see Known gaps) and an external benchmark. Class codes and the registry are unchanged. Numbers per class are filled in after the build (`report.md`).
+
+**Roles.** A source has `role: train` (default) or `role: bench`. Bench photos go to the split `bench` and are only used to evaluate: parameters are never tuned on them. A train photo that is the same leaf as a bench photo, or a near-identical copy (dHash within a class, the same rule as for the other splits), is dropped from train, and an exact copy is kept only in the bench. How many photos were dropped, by pair of sources, is in `report.md` (this matters most for PlantDoc and PlantWild, which both come from the internet).
+
+| Source | Role | Kind | Used for | License | Notes |
+| --- | --- | --- | --- | --- | --- |
+| [PLDD-UP](https://data.mendeley.com/datasets/3j4nfkvp2n/1) (Mendeley Data, Uttar Pradesh, India, 15 519 photos) | train | field | potato: EB → `potato__early_blight`, LB → `potato__late_blight`, Healthy → `potato__healthy` | CC BY 4.0 | **Limited to 1 500 photos per class** (`limit_per_class`, seeded) so that one region does not dominate the potato classes |
+| [CCMT](https://data.mendeley.com/datasets/bwh3zbpkpv/1) (Mendeley Data, Ghana) | train | field | corn and tomato healthy, tomato septoria | CC BY 4.0 | raw photos only, never the augmented copies; undecided classes below |
+| [TOM2024](https://data.mendeley.com/datasets/3d4yg89rtr/1) (Mendeley Data, Burkina Faso) | train | field | corn and tomato healthy, tomato late blight | CC BY 4.0 | labeled photos of category A (English folder) only, not the augmented category B |
+| [FieldPlant](https://universe.roboflow.com/plant-disease-detection/fieldplant) (Moupojou et al., IEEE Access 2023, Roboflow copy) | train | field | leaves cut out of the photos by their boxes | CC BY 4.0 — to be confirmed on the project page before the first build | crops of one photo stay in one part of the split |
+| [PlantWild](https://huggingface.co/datasets/uqtwei2/PlantWild) (Wei et al., ACM MM 2024) | bench | field | evaluation of tomato, potato and corn classes | CC BY-NC-ND 4.0 | not used for training, never copied into the repository |
+
+`limit_per_class` is a property of the source in `data_sources.yaml`, not of training: `--lab-cap` limits laboratory photos only. The photos that stay are chosen with seed 42 per source and class, so a rebuild gives the same set.
+
+**Class mapping, decided by looking at photos.**
+
+| Source folder | Class |
+| --- | --- |
+| CCMT Maize/healthy, TOM2024 maize `Healthy_leaf`, FieldPlant `Corn_Healthy` / `Corn Healthy` | `corn__healthy` |
+| CCMT Tomato/healthy, TOM2024 tomato `healthy_leaf`, FieldPlant `Tomato_healthy` | `tomato__healthy` |
+| CCMT Tomato/septoria leaf spot | `tomato__septoria_leaf_spot` |
+| TOM2024 `tomato_late_blight_d`, FieldPlant `Tomato_Mildiou` | `tomato__late_blight` |
+| FieldPlant `Corn_Cercosporiose` | `corn__gray_leaf_spot` |
+| FieldPlant `Tomato_Mosaic` | `tomato__mosaic_virus` |
+| PlantWild gray leaf spot, northern leaf blight, potato early/late blight, tomato bacterial leaf spot, early/late blight, leaf mold, mosaic virus, septoria | the matching class (bench only) |
+
+Not used yet, waiting for a decision made from photos: CCMT maize `leaf blight` and `leaf spot`, tomato `leaf blight`; TOM2024 maize `Helminthosporiosis-D` and `Rust-D`, tomato `alternaria_d` and `virosis_d`; FieldPlant `Corn_Rust` and `Corn_Blight`; PlantWild `corn rust` and the `corn leaf`, `potato leaf`, `tomato leaf` classes. Pests, abiotic damage and diseases that are not in the registry are never used, and photos of the four crops never go to `unknown`.
+
+Citations for the CC BY sources: Singh P.K. et al., *PLDD-UP: Potato Leaf Disease Dataset from Uttar Pradesh, India*, Mendeley Data, V1, doi:10.17632/3j4nfkvp2n.1; Mensah P.K. et al., *CCMT: Dataset for crop pest and disease detection*, Data in Brief 49 (2023), doi:10.17632/bwh3zbpkpv.1; *TOM2024: datasets of tomato, onion and maize images*, Data in Brief (2025), doi:10.17632/3d4yg89rtr.1; Moupojou E. et al., *FieldPlant: A Dataset of Field Plant Images for Plant Disease Detection and Classification With Deep Learning*, IEEE Access 11 (2023), doi:10.1109/ACCESS.2023.3263042.
 
 ## Known gaps
 
