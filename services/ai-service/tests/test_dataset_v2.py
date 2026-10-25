@@ -5,6 +5,7 @@ import sys
 import zipfile
 from collections import Counter
 
+import numpy as np
 import pytest
 from PIL import Image
 
@@ -37,7 +38,7 @@ def write_sources(tmp_path, body: str):
 
 
 COMMON = "    kind: field\n    license: CC BY 4.0\n    url: https://example.org\n"
-LOCAL = "    download:\n      type: local\n"
+LOCAL = "    download:\n      type: local\n      fetch: python -m ml.fetch_sources s\n"
 
 
 def test_two_level_names_tell_apart_classes_with_the_same_folder_name(tmp_path):
@@ -356,6 +357,114 @@ def test_the_real_exclusion_list_is_consistent():
     assert set(exclusions.values()) <= set(build_dataset.EXCLUDE_REASONS)
 
 
+@pytest.mark.parametrize(
+    "row",
+    [
+        "tomato__late_blight/plantwild__xyz.jpg,tomato__late_blight,fruit",  # no 16 hex digits
+        "tomato__late_blight/plantwild.jpg,tomato__late_blight,fruit",  # no md5 at all
+        "corn__healthy/plantwild__0123456789abcdef.jpg,tomato__late_blight,fruit",  # wrong folder
+    ],
+)
+def test_exclusion_rows_are_validated(tmp_path, row):
+    path = tmp_path / "bench_exclude.csv"
+    path.write_text(f"file,class,reason\n{row}\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="not <class>/<source>__<md5>"):
+        build_dataset.load_exclusions(path)
+
+
+def test_the_real_exclusion_files_have_the_expected_names():
+    for key in build_dataset.load_exclusions(build_dataset.BENCH_EXCLUDE):
+        assert len(key[1]) == 16
+
+
+def test_a_csv_table_with_two_photos_of_one_name_is_refused(tmp_path):
+    source = write_sources(
+        tmp_path,
+        "  s:\n" + COMMON + LOCAL + "    loader: csv\n    labels:\n      file: m.csv\n"
+        + "      name: Name\n      class: Disease\n    classes:\n"
+        + "      tomato leaf mold: tomato__leaf_mold\n",
+    )[0]
+    raw = tmp_path / "raw"
+    photo(raw / "train/a.jpg", (1, 2, 3))
+    photo(raw / "val/a.jpg", (4, 5, 6))  # the same name in another folder
+    (raw / "m.csv").write_text("Name,Disease\na.jpg,tomato leaf mold\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="two photos named a.jpg"):
+        collect(source, raw, random.Random(0))
+
+
+def test_the_coco_limit_counts_all_annotation_files_together(tmp_path):
+    raw = tmp_path / "raw"
+    for part in ("train", "valid"):
+        photo(raw / part / "p.jpg", (30, 120, 30), size=(400, 300))
+        boxes = [[10, 10, 100, 100], [150, 10, 100, 100], [10, 150, 100, 100]]
+        data = {
+            "categories": [{"id": 1, "name": "Corn Healthy"}],
+            "images": [{"id": 1, "file_name": "p.jpg"}],
+            "annotations": [
+                {"id": i, "image_id": 1, "category_id": 1, "bbox": b} for i, b in enumerate(boxes)
+            ],
+        }
+        (raw / part / "_annotations.coco.json").write_text(json.dumps(data))
+    source = coco_source(tmp_path, "    limit_per_class: 4\n")
+    assert len(collect_coco(source, raw)) == 4  # six boxes in two files, one limit
+
+
+def test_a_local_source_must_say_where_its_files_come_from(tmp_path):
+    body = "  s:\n" + COMMON + "    download:\n      type: local\n"
+    with pytest.raises(SourceConfigError, match="archives, checksums or fetch"):
+        write_sources(tmp_path, body)
+
+
+def test_a_full_build_stops_when_a_source_has_no_images(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(
+        sys, "argv", ["build_dataset", "--skip-download", "--raw-dir", str(tmp_path / "raw")]
+    )
+    with pytest.raises(SystemExit):
+        build_dataset.main()
+    assert "fetch it first" in capsys.readouterr().err
+
+
+def test_the_overlap_section_is_not_added_to_a_dataset_without_bench(monkeypatch, tmp_path):
+    out = tmp_path / "v1"
+    train = [item(tmp_path, f"t{i}", "plantvillage", "train", (i * 9, 40, 40)) for i in range(12)]
+    rows = build(train, REGISTRY, out)
+    (out / "report.md").write_text(report(rows, REGISTRY), encoding="utf-8")
+    before = (out / "report.md").read_text(encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["splits", "--dataset-dir", str(out)])
+    splits.main()
+    assert (out / "report.md").read_text(encoding="utf-8") == before  # a frozen report stays
+
+
+def test_similar_leaves_are_not_chained_into_one_group_but_real_copies_are(tmp_path):
+    classes = ["potato__healthy"] * 4
+    hashes = [0b1010, 0b1010, 0b1011, 0b1010]  # the 64-bit hashes of all four photos are close
+    keys = [f"k{i}" for i in range(4)]
+    base = np.full(32 * 32, 100, dtype=np.int16)
+    thumbs = np.stack([base, base + 2, base + 40, base + 80])  # 0 and 1 are copies, 2 and 3 are not
+    coarse = splits.group_images(keys, classes, hashes)
+    assert len(set(coarse)) == 1  # the hash alone chains all of them
+    fine = splits.group_images(keys, classes, hashes, thumbs=thumbs)
+    assert fine[0] == fine[1] and len({fine[0], fine[2], fine[3]}) == 3
+
+
+def test_a_thumbnail_is_32_by_32_gray(tmp_path):
+    path = tmp_path / "a.png"
+    photo(path, (200, 100, 50), size=(90, 60))
+    thumb = splits.thumbnail(path)
+    assert thumb.shape == (32 * 32,) and thumb.min() == thumb.max()  # a flat photo, a flat thumb
+
+
+def test_the_largest_groups_are_listed_for_the_report(tmp_path):
+    groups = [0, 0, 0, 1, 1, 2]
+    classes = ["a"] * 3 + ["b"] * 2 + ["c"]
+    parts = ["train", "train", "train", "val", "val", "bench"]
+    top = splits.largest_groups(groups, classes, parts, top=2)
+    assert top == [(3, "a", "train"), (2, "b", "val")]
+    splits.write_overlap_report(tmp_path, Counter(), [(3, "a", "train")])
+    text = (tmp_path / "report.md").read_text(encoding="utf-8")
+    assert "Largest groups" in text and "| 3 | `a` | train |" in text
+
+
 def test_building_without_images_is_a_clear_error(tmp_path):
     with pytest.raises(ValueError, match="no images"):
         build([], REGISTRY, tmp_path / "v2")
@@ -388,7 +497,7 @@ def test_checksums_of_hand_fetched_files_are_verified(tmp_path):
     ok = write_sources(tmp_path, body + f"        export.zip: {digest}\n")[0]
     _unpack_local(ok, target)
     wrong = write_sources(tmp_path, body + f"        export.zip: {'0' * 64}\n")[0]
-    with pytest.raises(ValueError, match="SHA-256"):
+    with pytest.raises(ValueError, match="checksum does not match"):
         _unpack_local(wrong, target)
     missing = write_sources(tmp_path, body + f"        nothing.zip: {digest}\n")[0]
     with pytest.raises(FileNotFoundError):

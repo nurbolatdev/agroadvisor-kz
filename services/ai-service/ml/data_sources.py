@@ -110,6 +110,10 @@ def _parse(name: str, raw: dict[str, Any]) -> Source:
             raise SourceConfigError(f"{name}: {key} is required")
     if raw["download"].get("type") not in DOWNLOAD_TYPES:
         raise SourceConfigError(f"{name}: download type must be one of {DOWNLOAD_TYPES}")
+    if raw["download"]["type"] == "local" and not (
+        {"archives", "checksums", "fetch"} & raw["download"].keys()
+    ):
+        raise SourceConfigError(f"{name}: a local source needs archives, checksums or fetch")
     role = raw.get("role", "train")
     if role not in ROLES:
         raise SourceConfigError(f"{name}: role must be one of {ROLES}")

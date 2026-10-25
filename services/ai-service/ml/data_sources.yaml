@@ -16,7 +16,8 @@
 #       training script caps lab photos (--lab-cap).
 # loader: folders (default) or coco (leaves are cut out of photos by their boxes).
 # Two-level names ("Maize/healthy") tell apart classes whose folder name repeats under crops.
-# download type local: archives fetched by hand (.team/scripts) and listed under archives.
+# download type local: files fetched with `python -m ml.fetch_sources <name>` (archives to
+#       unpack, checksums to verify, or a fetch hint when the files are read straight from a zip).
 # Details and licenses: docs/ai/dataset.md
 
 version: 1
@@ -174,6 +175,8 @@ sources:
     url: https://data.mendeley.com/datasets/bwh3zbpkpv/1
     download:
       type: local
+      # only the raw photos of maize and tomato are read out of the zip (Maize/<class>/...)
+      fetch: python -m ml.fetch_sources ccmt
     classes:
       Maize/healthy: corn__healthy
       Tomato/healthy: tomato__healthy
@@ -191,6 +194,8 @@ sources:
     url: https://data.mendeley.com/datasets/3d4yg89rtr/1
     download:
       type: local
+      # only CATEGORY A / CATA-English (maize_diseases/..., tomato_diseases/...) is read
+      fetch: python -m ml.fetch_sources tom2024
     classes:
       maize_diseases/Healthy_leaf: corn__healthy
       tomato_diseases/healthy_leaf: tomato__healthy
@@ -234,7 +239,9 @@ sources:
     url: https://zenodo.org/records/17719108
     download:
       type: local
-      archives: [plantseg.zip]  # Zenodo publishes only MD5 (9358a66d...), checked at download
+      archives: [plantseg.zip]
+      checksums:  # Zenodo publishes only MD5
+        plantseg.zip: "md5:9358a66dff88cdd15c4fe009763c40a3"
     labels:
       file: plantseg/Metadata.csv
       name: Name
@@ -269,6 +276,8 @@ sources:
     download:
       type: local
       archives: [Long 2023 Plant Path 999 photos.zip]
+      checksums:
+        Long 2023 Plant Path 999 photos.zip: "md5:1f8a7c660c2da137b957fb4edee3dd7d"
     classes:
       BrownRust: wheat__leaf_rust
       YellowRust: wheat__stripe_rust
@@ -287,7 +296,9 @@ sources:
     url: https://universe.roboflow.com/plant-disease-detection/fieldplant
     download:
       type: local
-      # Roboflow export v11 in COCO format, already unpacked into coco/ by .team/scripts
+      # Roboflow export v11 in COCO format, unpacked into coco/ by `python -m ml.fetch_sources
+      # fieldplant` (needs ROBOFLOW_API_KEY)
+      fetch: python -m ml.fetch_sources fieldplant
       checksums:
         fieldplant-coco-v11.zip: a979aa7d869d3b49c4c33bc47656c1bacc08516e04b2e22ae243842cf8ed37fd
     classes:

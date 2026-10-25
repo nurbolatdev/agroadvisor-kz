@@ -26,6 +26,10 @@ from ml.build_dataset import DATASETS_DIR
 from ml.registry import load_registry
 
 HASH_DISTANCE = 4  # max differing bits of two 64-bit dHashes to treat images as copies
+THUMB_SIZE = 32
+# Among 45 000 PLDD-UP pairs with a close hash, about 700 have a thumbnail difference below 8
+# (copies of one photo); the rest are different leaves shot the same way (difference 8 to 30).
+THUMB_DIFF = 6.0  # max mean absolute difference (0-255) of the 32x32 thumbnails of a copy
 SPLIT_RATIOS = {"train": 0.70, "val": 0.15, "test": 0.15}
 SEED = 42
 BENCH = "bench"
@@ -56,6 +60,13 @@ def dhash(path: Path) -> int:
     return int(np.packbits(bits).view(">u8")[0])
 
 
+def thumbnail(path: Path) -> np.ndarray:
+    """32x32 grayscale thumbnail, to tell near-copies from merely similar photos."""
+    with Image.open(path) as img:
+        small = img.convert("L").resize((THUMB_SIZE, THUMB_SIZE), Image.Resampling.LANCZOS)
+    return np.asarray(small, dtype=np.int16).flatten()
+
+
 class _UnionFind:
     def __init__(self, n: int) -> None:
         self.parent = list(range(n))
@@ -71,9 +82,20 @@ class _UnionFind:
 
 
 def group_images(
-    keys: list[str], classes: list[str], hashes: list[int], max_distance: int = HASH_DISTANCE
+    keys: list[str],
+    classes: list[str],
+    hashes: list[int],
+    max_distance: int = HASH_DISTANCE,
+    thumbs: np.ndarray | None = None,
+    max_diff: float = THUMB_DIFF,
 ) -> list[int]:
-    """Group index for every image: same leaf key, or near-identical images of one class."""
+    """Group index for every image: same leaf key, or near-identical images of one class.
+
+    The 64-bit hash alone is coarse: leaves photographed the same way on a plain background often
+    share it, and joining such pairs one after another chains hundreds of different leaves into
+    one group. With ``thumbs`` (one row per image) a pair with a close hash is joined only if the
+    mean absolute difference of the thumbnails is at most ``max_diff``, i.e. it is a real copy.
+    """
     n = len(keys)
     uf = _UnionFind(n)
     first_by_key: dict[str, int] = {}
@@ -87,7 +109,11 @@ def group_images(
         values = np.array([hashes[i] for i in members], dtype=np.uint64)
         for a in range(len(members) - 1):
             distance = np.bitwise_count(values[a + 1 :] ^ values[a])
-            for b in np.nonzero(distance <= max_distance)[0]:
+            close = np.nonzero(distance <= max_distance)[0]
+            if thumbs is not None and len(close):
+                others = thumbs[[members[a + 1 + b] for b in close]]
+                close = close[np.abs(others - thumbs[members[a]]).mean(axis=1) <= max_diff]
+            for b in close:
                 uf.union(members[a], members[a + 1 + b])
 
     roots: dict[int, int] = {}
@@ -157,8 +183,23 @@ def bench_overlap(
     return dropped
 
 
-def write_overlap_report(dataset_dir: Path, dropped: Counter[tuple[str, str]]) -> None:
-    """Replace the bench-overlap section at the end of report.md (the build writes the rest)."""
+def largest_groups(
+    groups: list[int], classes: list[str], parts: list[str | None], top: int = 5
+) -> list[tuple[int, str, str]]:
+    """(size, class, part) of the biggest groups: a very big group is one blob in the split."""
+    sizes = Counter(groups)
+    first: dict[int, int] = {}
+    for i, g in enumerate(groups):
+        first.setdefault(g, i)
+    return [(n, classes[first[g]], str(parts[first[g]])) for g, n in sizes.most_common(top)]
+
+
+def write_overlap_report(
+    dataset_dir: Path,
+    dropped: Counter[tuple[str, str]],
+    largest: list[tuple[int, str, str]] | None = None,
+) -> None:
+    """Replace the split section at the end of report.md (the build writes the rest)."""
     path = dataset_dir / "report.md"
     text = path.read_text(encoding="utf-8") if path.exists() else ""
     text = text.split(REPORT_MARKER)[0].rstrip() + "\n"
@@ -175,6 +216,15 @@ def write_overlap_report(dataset_dir: Path, dropped: Counter[tuple[str, str]]) -
         lines.append(f"| **total** | | {sum(dropped.values())} |")
     else:
         lines.append("None.")
+    if largest:
+        lines += [
+            "",
+            "Largest groups of near-identical photos (a group always goes to one part):",
+            "",
+            "| Photos | Class | Part |",
+            "| ---: | --- | --- |",
+        ]
+        lines += [f"| {n} | `{code}` | {part} |" for n, code, part in largest]
     path.write_text(text + "\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -193,13 +243,16 @@ def main() -> None:
     keys = [leaf_key(r["source"], r["original"]) for r in rows]
     classes = [r["class"] for r in rows]
     hashes = [dhash(dataset_dir / r["file"]) for r in rows]
-    groups = group_images(keys, classes, hashes)
+    thumbs = np.stack([thumbnail(dataset_dir / r["file"]) for r in rows])
+    groups = group_images(keys, classes, hashes, thumbs=thumbs)
     # Lab and field photos are split separately, so each part gets its share of field photos
     strata = [f"{r['class']}/{r['kind']}" for r in rows]
     roles = [r.get("role") or "train" for r in rows]  # v1 has no role column
     all_parts = split_with_bench(groups, strata, roles, seed=args.seed)
     dropped = bench_overlap(groups, roles, [r["source"] for r in rows])
-    write_overlap_report(dataset_dir, dropped)
+    if "bench" in roles:  # a dataset without a bench (v1) keeps its report as it is
+        largest = largest_groups(groups, classes, all_parts)
+        write_overlap_report(dataset_dir, dropped, largest)
     print(f"train-pool photos dropped because of bench matches: {sum(dropped.values())}")
     kept = [i for i, part in enumerate(all_parts) if part is not None]
     rows = [rows[i] for i in kept]

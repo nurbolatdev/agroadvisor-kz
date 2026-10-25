@@ -35,6 +35,7 @@ from ml.registry import UNKNOWN, Registry, load_registry
 DATASETS_DIR = Path(__file__).resolve().parent / "datasets"
 BENCH_EXCLUDE = Path(__file__).resolve().parent / "bench_exclude.csv"
 EXCLUDE_REASONS = ("fruit", "stem", "other_crop", "wrong_disease", "unclear")
+EXCLUDE_FILE = re.compile(r"(?P<code>[a-z_]+)/[a-z0-9-]+__(?P<md5>[0-9a-f]{16})\.[a-z]+")
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 MIN_PER_CLASS = 100
 MIN_CROP_SIDE = 64  # boxes smaller than this (pixels) are too small to classify
@@ -80,19 +81,19 @@ def download(source: Source, raw_dir: Path) -> Path:
 
 
 def _unpack_local(source: Source, target: Path) -> None:
-    """Sources fetched by hand (.team/scripts): check the files, unpack the archives, keep the zips.
+    """Sources fetched with ``python -m ml.fetch_sources``: check the files, unpack the archives.
 
-    ``checksums`` maps file names to their SHA-256; a file that does not match stops the build.
-    ``archives`` are unpacked into the source folder (an export that is already unpacked, like
-    FieldPlant, lists only its checksum).
+    ``checksums`` maps file names to their SHA-256 (or ``md5:<hex>``); a file that does not match
+    stops the build. ``archives`` are unpacked into the source folder and the zip files are kept
+    (an export that is already unpacked, like FieldPlant, lists only its checksum).
     """
     target.mkdir(parents=True, exist_ok=True)
     for name, expected in source.download.get("checksums", {}).items():
         path = target / name
         if not path.exists():
-            raise FileNotFoundError(f"{path} is missing — download it first")
-        if _sha256(path) != expected:
-            raise ValueError(f"{path}: SHA-256 does not match data_sources.yaml")
+            raise FileNotFoundError(f"{path} is missing — python -m ml.fetch_sources {source.name}")
+        if not check_file(path, expected):
+            raise ValueError(f"{path}: checksum does not match data_sources.yaml")
     for name in source.download.get("archives", []):
         archive = target / name
         if not archive.exists():
@@ -190,6 +191,14 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def check_file(path: Path, expected: str) -> bool:
+    """True if the file has the checksum: a SHA-256, or ``md5:<hex>`` for MD5-only sources."""
+    expected = str(expected)  # an unquoted all-digit hash would be read as a number by YAML
+    if expected.startswith("md5:"):
+        return _md5(path) == expected.removeprefix("md5:")
+    return _sha256(path) == expected
+
+
 def _extract(archive: Path, target: Path) -> None:
     with zipfile.ZipFile(archive) as z:
         z.extractall(target, members=[m for m in z.namelist() if not _is_junk(Path(m))])
@@ -239,7 +248,11 @@ def label_images(source: Source, source_dir: Path) -> list[tuple[Path, str]]:
     if source.loader == "csv":
         spec = source.labels or {}
         folder = source_dir / spec.get("images", "")
-        by_name = {p.name: p for p in _images(folder)}
+        by_name: dict[str, Path] = {}
+        for p in _images(folder):
+            if p.name in by_name:
+                raise ValueError(f"{source.name}: two photos named {p.name}, labels are ambiguous")
+            by_name[p.name] = p
         table = source_dir / spec["file"]
         with table.open(encoding="utf-8-sig") as f:
             for row in csv.DictReader(f):
@@ -285,7 +298,7 @@ def collect_coco(source: Source, source_dir: Path) -> list[Item]:
     crops of one photo share a leaf key and land in the same part of the split.
     """
     crops_dir = source_dir / "crops"
-    items: list[Item] = []
+    labeled: list[tuple[Path, str, str]] = []
     for annotations in sorted(source_dir.rglob("_annotations.coco.json")):
         if crops_dir in annotations.parents:
             continue
@@ -293,7 +306,6 @@ def collect_coco(source: Source, source_dir: Path) -> list[Item]:
         names = {c["id"]: c["name"] for c in data["categories"]}
         images = {i["id"]: i for i in data["images"]}
         part = annotations.parent
-        labeled: list[tuple[Path, str, str]] = []
         for box in data["annotations"]:
             code = source.label(names[box["category_id"]])
             image = images[box["image_id"]]
@@ -304,14 +316,15 @@ def collect_coco(source: Source, source_dir: Path) -> list[Item]:
             if not crop.exists():
                 _save_crop(part / image["file_name"], (x, y, x + w, y + h), crop)
             labeled.append((crop, code, f"{part.name}/{image['file_name']}"))
+    if source.limit_per_class:  # once for the whole source, not once per annotation file
         pairs = [(path, code) for path, code, _ in labeled]
-        if source.limit_per_class:
-            keep = set(limit_per_class(pairs, source.limit_per_class, source.name))
-            labeled = [x for x in labeled if (x[0], x[1]) in keep]
-        for crop, code, original in labeled:
-            if _is_readable(crop):
-                items.append(Item(crop, code, source, original, _md5(crop)))
-    return items
+        keep = set(limit_per_class(pairs, source.limit_per_class, source.name))
+        labeled = [x for x in labeled if (x[0], x[1]) in keep]
+    return [
+        Item(crop, code, source, original, _md5(crop))
+        for crop, code, original in labeled
+        if _is_readable(crop)
+    ]
 
 
 def _save_crop(photo: Path, box: tuple[float, float, float, float], target: Path) -> None:
@@ -354,8 +367,10 @@ def load_exclusions(path: Path) -> dict[tuple[str, str], str]:
         for row in csv.DictReader(f):
             if row["reason"] not in EXCLUDE_REASONS:
                 raise ValueError(f"{path}: unknown reason {row['reason']!r} for {row['file']}")
-            md5_prefix = Path(row["file"]).stem.split("__", 1)[1]
-            exclusions[(row["class"], md5_prefix)] = row["reason"]
+            match = EXCLUDE_FILE.fullmatch(row["file"])
+            if not match or match["code"] != row["class"]:
+                raise ValueError(f"{path}: {row['file']!r} is not <class>/<source>__<md5>.<ext>")
+            exclusions[(row["class"], match["md5"])] = row["reason"]
     return exclusions
 
 
@@ -565,6 +580,9 @@ def main() -> None:
             download(source, args.raw_dir)
         found = collect(source, source_dir, rng) if source_dir.exists() else []
         print(f"[{source.name}] {len(found)} images ({source.role})")
+        if not found and not args.sources:  # a full build must not silently lack a source
+            hint = source.download.get("fetch", f"python -m ml.fetch_sources {source.name}")
+            parser.error(f"{source.name} has no images in {source_dir}; fetch it first: {hint}")
         items.extend(found)
 
     removed: Counter = Counter()
