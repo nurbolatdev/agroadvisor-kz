@@ -122,13 +122,13 @@ Wheat has hundreds of field photos and is recognised well. Tomato, potato and co
 
 **Re-scored on dataset v2** (same checkpoint, `python -m ml.evaluate ml/runs/A5-E001 --dataset-dir ml/datasets/v2 --split <val|bench> --bootstrap 1000`). The v2 split was made again, so 2 493 of the 5 170 v2 validation photos (48 %) were in the v1 training set of this model; they are left out by MD5 (31 of the bench photos too), and the rest is scored. Crop-masked macro-F1 with `unknown`, 95 % group-bootstrap intervals:
 
-| Subset | Photos | Overall | Field | Field tomato | Field potato | Field corn | Field wheat |
+| Subset | Crop photos | Overall | Field | Field tomato | Field potato | Field corn | Field wheat |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| v1 validation (original) | 3 344 | 0.962 | 0.733 | 0.571 | 0.688 | 0.752 | 0.966 |
-| v2 validation, without v1-train photos | 2 677 | 0.718 (0.697–0.738) | 0.509 (0.481–0.536) | 0.209–0.278 | 0.291–0.373 | 0.438–0.630 | 0.930–0.991 |
+| v1 validation (original) | 3 344 | 0.962 | 0.733 | 0.571 | 0.688 | 0.751 | 0.966 |
+| v2 validation, without v1-train photos | 2 398 | 0.718 (0.697–0.738) | 0.509 (0.481–0.536) | 0.209–0.278 | 0.291–0.373 | 0.438–0.630 | 0.930–0.991 |
 | v2 bench (PlantWild, PlantSeg) | 2 792 | 0.564 (0.547–0.581) | 0.564 (0.546–0.581) | 0.509–0.565 | 0.657–0.745 | 0.648–0.721 | **0.410–0.478** |
 
-The model trained on laboratory photos and PlantDoc transfers poorly to the new field sources, and wheat, which looked excellent on v1, drops to 0.41–0.48 on photos from other places: the v1 wheat result came from one source. These numbers are the baseline for A10-E001; both runs must be scored on the same photos (`--exclude-train-of`).
+The model trained on laboratory photos and PlantDoc transfers poorly to the new field sources, and wheat, which looked excellent on v1, drops to 0.41–0.48 on photos from other places: the v1 wheat result came from one source. "Crop photos" are the photos of the four crops that the crop-masked metric is computed on (`unknown` photos are scored separately; the v2 validation split has 2 677 photos in all). These numbers are the baseline for A10-E001; both runs must be scored on the same photos (`--exclude-train-of`). A10 chooses its best epoch on v2 validation and A5-E001 never saw it, so v2 validation only guides; the verdict of A5 against A10 is taken on `bench` and `test`.
 
 **Conclusion.** The baseline reaches 0.956 macro-F1 on validation, but the gap between laboratory and field photos is the main weakness. The best epoch is the last one (15 of 15) and validation loss was still falling slowly, so the model may be undertrained; a longer schedule is worth testing too.
 

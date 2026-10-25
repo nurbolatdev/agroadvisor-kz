@@ -6,7 +6,7 @@ import pytest
 import torch
 from test_training import make_dataset
 
-from ml.evaluate import evaluate_split, excluded_md5s, file_md5s, train_md5s
+from ml.evaluate import evaluate_split, excluded_md5s, file_md5s, score_key, train_md5s
 from ml.train import build_model
 
 
@@ -63,6 +63,14 @@ def test_another_run_can_add_its_train_photos(datasets, tmp_path):
     assert excluded_md5s(new, v2) == (set(), [])
     exclude, sources = excluded_md5s(new, v2, [old])
     assert exclude == train_md5s(v1) and sources == ["v1"]
+
+
+def test_score_key_keeps_the_own_numbers_of_a_run(datasets):
+    v1, v2 = datasets
+    config = {"dataset_dir": str(v1)}
+    assert score_key(config, v1, "val", False) == ("val", "val")
+    assert score_key(config, v2, "val", True) == ("val_v2", "val@v2")
+    assert score_key({"dataset_dir": str(v2)}, v2, "bench", True) == ("bench_v2", "bench@v2")
 
 
 def test_scoring_skips_the_photos_the_model_trained_on(datasets):

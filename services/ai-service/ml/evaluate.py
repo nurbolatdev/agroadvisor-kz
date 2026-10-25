@@ -425,6 +425,17 @@ def plot_confusion(
     plt.close(fig)
 
 
+def score_key(config: dict, dataset_dir: Path, split: str, excluded: bool) -> tuple[str, str]:
+    """File tag and results key; a score on other photos never replaces the run's own numbers.
+
+    Relative paths are resolved against the current directory (run from ``services/ai-service``).
+    """
+    own = dataset_dir.resolve() == Path(config["dataset_dir"]).resolve() and not excluded
+    if own:
+        return split, split
+    return f"{split}_{dataset_dir.name}", f"{split}@{dataset_dir.name}"
+
+
 def main() -> None:
     from ml.train import build_model, git_info, resolve_device
 
@@ -453,11 +464,10 @@ def main() -> None:
 
     config = json.loads((args.run_dir / "config.json").read_text(encoding="utf-8"))
     dataset_dir = args.dataset_dir or Path(config["dataset_dir"])
-    exclude, sources = excluded_md5s(args.run_dir, dataset_dir, args.exclude_train_of)
-    own = dataset_dir.resolve() == Path(config["dataset_dir"]).resolve() and not exclude
-    # file names and results key: a score on other photos never replaces the run's own numbers
-    tag = args.split if own else f"{args.split}_{dataset_dir.name}"
-    key = args.split if own else f"{args.split}@{dataset_dir.name}"
+    # a run compared with a parent is scored on the photos the parent did not train on either
+    others = [*args.exclude_train_of, *([args.compare_with] if args.compare_with else [])]
+    exclude, sources = excluded_md5s(args.run_dir, dataset_dir, others)
+    tag, key = score_key(config, dataset_dir, args.split, bool(exclude))
     checkpoint = torch.load(args.run_dir / "best.pt", map_location="cpu", weights_only=True)
     device = resolve_device(args.device)
     model = build_model(len(checkpoint["classes"]), pretrained=False)
