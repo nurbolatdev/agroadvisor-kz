@@ -70,3 +70,13 @@ def test_active_and_for_crop_skip_planned_and_unknown(tmp_path):
 def test_invalid_registry_is_rejected(tmp_path, old, new):
     with pytest.raises(RegistryError):
         load_registry(write(tmp_path, VALID.replace(old, new)))
+
+
+@pytest.mark.parametrize("status", ["planned", "deprecated"])
+def test_unknown_must_be_active(tmp_path, status):
+    text = VALID.replace(
+        "Not recognized }\n    status: active", f"Not recognized }}\n    status: {status}"
+    )
+
+    with pytest.raises(RegistryError, match="unknown must be active"):
+        load_registry(write(tmp_path, text))

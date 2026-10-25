@@ -24,6 +24,28 @@ def test_reads_env_variables(monkeypatch):
     assert settings.max_image_mb == 5
 
 
+def test_threshold_defaults_match_contract():
+    settings = Settings(_env_file=None)
+
+    assert settings.ok_threshold == 0.70
+    assert settings.low_threshold == 0.40
+    assert settings.crop_mismatch_threshold == 0.70
+
+
+def test_rejects_low_threshold_not_below_ok(monkeypatch):
+    monkeypatch.setenv("AI_LOW_THRESHOLD", "0.8")
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
+def test_rejects_unknown_model_kind(monkeypatch):
+    monkeypatch.setenv("AI_MODEL_KIND", "effnet")
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
 def test_rejects_unknown_device(monkeypatch):
     monkeypatch.setenv("AI_DEVICE", "tpu")
 

@@ -89,6 +89,8 @@ def _validate(registry: Registry) -> None:
         if c.code == UNKNOWN:
             if c.crop is not None:
                 raise RegistryError("unknown must have crop: null")
+            if c.status != "active":
+                raise RegistryError("unknown must be active")
             continue
         if c.crop not in crop_codes:
             raise RegistryError(f"{c.code}: unknown crop {c.crop!r}")

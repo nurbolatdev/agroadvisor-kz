@@ -5,7 +5,7 @@ def test_health_without_model_returns_503(client):
     assert response.json() == {
         "status": "model_not_loaded",
         "model_version": None,
-        "classes_version": None,
+        "classes_version": 1,
     }
 
 

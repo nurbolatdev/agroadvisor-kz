@@ -51,6 +51,8 @@ Confidence is the calibrated probability of the class, `0.0–1.0`.
 | `unknown` | top1 < 0.40, or the top class is `unknown` | "Not recognized", suggestion to retake the photo |
 | `crop_mismatch` | Photo looks like another crop | "This looks like another crop", suggestion to change the crop |
 
+When `status` is `unknown` only because the best class is below 0.40, `top1.confidence` is the probability of the `unknown` class and can be very small. Clients must not read it as confidence that the photo is really unknown; this is revisited after calibration.
+
 Thresholds are preliminary and will be finalized after calibration (`docs/ai/evaluation.md`). They are configured in the service, not in clients — clients rely on `status` only.
 
 ### Response `200 OK`
@@ -164,8 +166,15 @@ Error body:
 | 400 | `unknown_crop` | — | `crop` is missing or not an active crop in the registry |
 | 422 | `low_quality` | `blurry` \| `dark` \| `too_small` | Photo failed the quality check; the model was not called |
 | 503 | `model_not_loaded` | — | Weights are not loaded yet (startup) or failed to load |
+| 500 | `internal_error` | — | The model returned probabilities that do not match the class registry; details are in the service log only |
 
-Timeouts and retries on the backend side are defined in the backend integration (tasks B6, B9). `503` is the only error worth retrying.
+Timeouts and retries on the backend side are defined in the backend integration (tasks B6, B9). `503` is the only error worth retrying; `500 internal_error` is a service fault and is not retried.
+
+Other framework responses (`404`, `405`, a malformed multipart body) are outside this contract and use the FastAPI default body.
+
+### Placeholder model
+
+Until trained weights exist the service reports `model_version: "placeholder-v0"`. Its probabilities are artificial, so a response with this version must never be shown to farmers as a diagnosis. The backend must check `model_version` and block or clearly mark such results.
 
 ## `GET /classes`
 
