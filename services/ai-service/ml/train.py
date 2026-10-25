@@ -30,6 +30,7 @@ from torch import nn  # noqa: E402
 from torch.utils.data import DataLoader, Subset  # noqa: E402
 
 from ml.data import (  # noqa: E402
+    AUGMENTATIONS,
     IMAGE_SIZE,
     MEAN,
     STD,
@@ -37,6 +38,7 @@ from ml.data import (  # noqa: E402
     balanced_sampler,
     eval_transform,
     field_weighted_sampler,
+    lab_cap_indices,
     train_transform,
 )
 from ml.evaluate import (  # noqa: E402
@@ -51,11 +53,16 @@ from ml.registry import load_registry  # noqa: E402
 
 ML_DIR = Path(__file__).resolve().parent
 RUNS_DIR = ML_DIR / "runs"
-SELECTION_METRIC = "val_macro_f1"
+SELECTION_METRICS = ("val_macro_f1", "val_field_product_macro_f1")
 METRIC_COLUMNS = [
     "epoch", "stage", "train_loss", "val_loss", "val_acc", "val_macro_f1",
-    "val_macro_f1_lab", "val_macro_f1_field", "lr", "epoch_time_s",
+    "val_macro_f1_lab", "val_macro_f1_field", "val_field_product_macro_f1", "lr", "epoch_time_s",
 ]  # fmt: skip
+
+
+def selection_key(metric: str, scores: dict) -> tuple[float, float]:
+    """Order of epochs: the selection metric first, overall macro-F1 breaks ties."""
+    return round(float(scores[metric]), 6), round(float(scores["val_macro_f1"]), 6)
 
 
 def resolve_device(name: str) -> torch.device:
@@ -101,8 +108,12 @@ def subset_indices(n: int, fraction: float, seed: int) -> list[int]:
 
 
 def build_loaders(args: argparse.Namespace) -> dict[str, DataLoader]:
-    """Train / val loaders; ``--subset`` keeps a seeded random fraction of both (smoke runs)."""
-    train = PlantDataset(args.dataset_dir, "train", train_transform())
+    """Train / val loaders.
+
+    ``--subset`` keeps a seeded random fraction of both (smoke runs); ``--lab-cap`` limits the
+    laboratory photos per class in train only, validation is never touched.
+    """
+    train = PlantDataset(args.dataset_dir, "train", train_transform(args.aug))
     val = PlantDataset(args.dataset_dir, "val", eval_transform())
     train_set, val_set, targets, files = train, val, train.targets, train.files
     if args.subset < 1.0:
@@ -110,8 +121,21 @@ def build_loaders(args: argparse.Namespace) -> dict[str, DataLoader]:
         train_set, targets = Subset(train, keep), [train.targets[i] for i in keep]
         files = [train.files[i] for i in keep]
         val_set = Subset(val, subset_indices(len(val), args.subset, args.seed))
-    if args.field_share > 0:
+    kinds = None
+    if args.lab_cap or args.field_share > 0:
         _, kinds = load_meta(args.dataset_dir, files)
+    if args.lab_cap:
+        keep_pos = lab_cap_indices(targets, kinds, args.lab_cap, args.seed)
+        base = train_set if isinstance(train_set, Subset) else None
+        original = base.indices if base else list(range(len(train)))
+        train_set = Subset(train, [original[i] for i in keep_pos])
+        targets = [targets[i] for i in keep_pos]
+        kinds = [kinds[i] for i in keep_pos]
+    print(
+        f"train images: {len(targets)} (aug {args.aug}, lab cap {args.lab_cap or 'none'})",
+        flush=True,
+    )
+    if args.field_share > 0:
         sampler = field_weighted_sampler(targets, kinds, args.field_share)
     else:
         sampler = balanced_sampler(targets) if args.balanced else None
@@ -176,9 +200,17 @@ def build_config(args: argparse.Namespace, device: torch.device, classes_version
         "seed": args.seed,
         "image_size": IMAGE_SIZE,
         "transforms": {
-            "train": "RandomResizedCrop(224, 0.6-1.0), flips, rotation 30, ColorJitter, blur",
+            "train": (
+                "RandomResizedCrop(224, 0.3-1.0), flips, rotation 30, TrivialAugmentWide, "
+                "ColorJitter, blur, JPEG compression, Gaussian noise, RandomErasing"
+                if args.aug == "strong"
+                else "RandomResizedCrop(224, 0.6-1.0), flips, rotation 30, ColorJitter, blur"
+            ),
             "eval": "Resize 256, CenterCrop 224, ImageNet normalization",
         },
+        "aug": args.aug,
+        "lab_cap": args.lab_cap,
+        "label_smoothing": args.label_smoothing,
         "sampler": (
             f"balanced by class, {args.field_share:.1%} of the draws of a class that has both "
             "field and other photos go to its field photos"
@@ -188,7 +220,7 @@ def build_config(args: argparse.Namespace, device: torch.device, classes_version
             else "uniform shuffle"
         ),
         "field_share": args.field_share,
-        "selection_metric": SELECTION_METRIC,
+        "selection_metric": args.selection_metric,
         "device": str(device),
         "num_workers": args.num_workers,
         "subset": args.subset,
@@ -240,13 +272,13 @@ def run_training(args: argparse.Namespace, run_dir: Path, device: torch.device) 
     loaders = build_loaders(args)
     classes = PlantDataset(args.dataset_dir, "val").classes
     model = build_model(len(classes), pretrained=not args.no_pretrained).to(device)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
     writer = SummaryWriter(run_dir / "tb")
     stages = [
         ("head", args.head_epochs, args.head_lr, True),
         ("full", args.full_epochs, args.full_lr, False),
     ]
-    best_f1, epoch = -1.0, 0
+    best_key, epoch = (-1.0, -1.0), 0
     with (run_dir / "metrics.csv").open("w", newline="", encoding="utf-8") as f:
         log = csv.writer(f)
         log.writerow(METRIC_COLUMNS)
@@ -271,10 +303,11 @@ def run_training(args: argparse.Namespace, run_dir: Path, device: torch.device) 
                 if scheduler:
                     scheduler.step()
                 val = validate(model, loaders["val"], device, args, registry, classes)
+                field_product = val["crop_masked_product_by_domain"]["field"]["macro_f1"]
                 row = [
                     epoch, name, train_loss, val["loss"], val["acc"], val["macro_f1"],
                     val["by_domain"]["lab"]["macro_f1"], val["by_domain"]["field"]["macro_f1"],
-                    current_lr, time.time() - started,
+                    field_product, current_lr, time.time() - started,
                 ]  # fmt: skip
                 log.writerow([f"{v:.6f}" if isinstance(v, float) else v for v in row])
                 f.flush()
@@ -286,8 +319,13 @@ def run_training(args: argparse.Namespace, run_dir: Path, device: torch.device) 
                     f"val_macro_f1={val['macro_f1']:.4f} time={row[-1]:.0f}s",
                     flush=True,
                 )
-                if val["macro_f1"] > best_f1:
-                    best_f1 = val["macro_f1"]
+                scores = {
+                    "val_macro_f1": val["macro_f1"],
+                    "val_field_product_macro_f1": field_product,
+                }
+                key = selection_key(args.selection_metric, scores)
+                if key > best_key:
+                    best_key = key
                     torch.save({"model": model.state_dict(), "classes": classes},
                                run_dir / "best.pt")  # fmt: skip
     writer.close()
@@ -302,11 +340,11 @@ def finalize(args, run_dir: Path, device: torch.device, status: str) -> None:
     if (run_dir / "metrics.csv").exists():
         with (run_dir / "metrics.csv").open(encoding="utf-8") as f:
             epochs = list(csv.DictReader(f))
-    best = max(epochs, key=lambda r: float(r[SELECTION_METRIC]), default=None)
+    best = max(epochs, key=lambda r: selection_key(args.selection_metric, r), default=None)
     results = {
         "status": status,
         "best_epoch": int(best["epoch"]) if best else 0,
-        "selection_metric": SELECTION_METRIC,
+        "selection_metric": args.selection_metric,
     }
     write_json(run_dir / "results.json", results)
     if epochs:
@@ -407,6 +445,16 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--subset", type=float, default=1.0, help="fraction of train/val (smoke run)")
     p.add_argument("--no-balanced", dest="balanced", action="store_false")
     p.add_argument(
+        "--selection-metric", choices=SELECTION_METRICS, default="val_macro_f1",
+        help="metric that picks the best epoch (ties: overall macro-F1)",
+    )  # fmt: skip
+    p.add_argument("--aug", choices=AUGMENTATIONS, default="basic", help="train augmentations")
+    p.add_argument(
+        "--lab-cap", type=int, default=0,
+        help="at most N laboratory photos per class in train (0 = all); val is not touched",
+    )  # fmt: skip
+    p.add_argument("--label-smoothing", type=float, default=0.0)
+    p.add_argument(
         "--field-share", type=float, default=0.0,
         help="share of a class's draws that go to its field photos (0 = plain class balance)",
     )  # fmt: skip
@@ -418,6 +466,10 @@ def parse_args() -> argparse.Namespace:
     )  # fmt: skip
     p.add_argument("--runs-dir", type=Path, default=RUNS_DIR)
     args = p.parse_args()
+    if args.lab_cap < 0:
+        p.error("--lab-cap must be 0 or positive")
+    if not 0.0 <= args.label_smoothing < 1.0:
+        p.error("--label-smoothing must be in [0, 1)")
     if not 0.0 <= args.field_share < 1.0:
         p.error("--field-share must be in [0, 1)")
     if args.field_share > 0 and not args.balanced:
