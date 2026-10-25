@@ -275,6 +275,16 @@ def test_bench_is_processed_first_so_a_shared_photo_stays_in_the_bench(tmp_path)
     assert "1 bench" in text and "| `potato__healthy` | 0 | 1 | 0 | 1 | 1 |" in text
 
 
+def test_truncated_images_are_not_readable(tmp_path):
+    good = tmp_path / "good.jpg"
+    Image.effect_noise((256, 256), 80).convert("RGB").save(good, quality=95)
+    cut = tmp_path / "cut.jpg"
+    cut.write_bytes(good.read_bytes()[: good.stat().st_size // 2])  # a download that stopped
+    assert build_dataset._is_readable(good)
+    assert not build_dataset._is_readable(cut)  # verify() would accept it
+    assert not build_dataset._is_readable(tmp_path / "missing.jpg")
+
+
 def test_building_without_images_is_a_clear_error(tmp_path):
     with pytest.raises(ValueError, match="no images"):
         build([], REGISTRY, tmp_path / "v2")

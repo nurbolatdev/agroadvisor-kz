@@ -329,9 +329,11 @@ def _save_crop(photo: Path, box: tuple[float, float, float, float], target: Path
 
 
 def _is_readable(path: Path) -> bool:
+    """True if the whole image decodes. ``verify()`` only checks the header, so a truncated file
+    would pass it and break later (the dHash step of the split)."""
     try:
         with Image.open(path) as img:
-            img.verify()
+            img.load()
         return True
     except Exception:
         return False
