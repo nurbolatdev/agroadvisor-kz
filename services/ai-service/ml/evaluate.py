@@ -446,7 +446,8 @@ def main() -> None:
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--bootstrap", type=int, default=0, help="resamples for 95%% intervals")
     parser.add_argument(
-        "--compare-with", type=Path, help="parent run dir: paired difference with intervals"
+        "--compare-with", type=Path, help="parent run dir: paired difference with intervals "
+        "(score the parent first with the same --dataset-dir and --exclude-train-of)"
     )
     parser.add_argument(
         "--dataset-dir", type=Path,
