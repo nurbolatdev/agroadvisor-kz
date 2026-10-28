@@ -10,6 +10,7 @@ Training options (all off by default, so earlier runs stay reproducible): `--sel
 | --- | --- | --- | --- | --- | --- | --- |
 | A5-E001 | completed | Baseline, two-stage fine-tuning, balanced sampler | 0.9619 | 0.7325 | 0.9557 | 0.699 |
 | A5-E002 | completed, criterion not met | E001 + field photos are 35 % of the draws in classes that have them | 0.9620 | 0.7338 | 0.9555 | 0.684 |
+| A10-E001 | completed, criterion not met | A5-E001 recipe on dataset v2 (scored on v2 validation, without the training photos of A5-E001) | 0.951 | 0.841 | 0.9456 | — |
 
 ## A5-E001 — baseline
 
@@ -184,6 +185,40 @@ Per-class F1 on field photos (no mask), E001 → E002 (photos in validation). To
 **Conclusion.** The success criterion is not met: tomato improved by 0.017 and potato did not change, while both needed +0.05. That alone settles the verdict against the pre-set criterion. With intervals the honest reading is: **no significant effect** of the sampler on tomato, potato, corn or the field as a whole (every difference interval contains 0). The corn drop (−0.038, interval −0.106 … 0.000) touches 0 at its upper bound, so a small harm can neither be confirmed nor excluded. Laboratory quality did not change. Sampling field photos more often does not help on its own, and a repeat with another seed is not planned.
 
 **Next step.** A5-E003: stronger background and lighting augmentation (smaller crops, stronger color changes, random erasing or blur of the background) on top of the same sampler, parent A5-E002, with a success criterion fixed beforehand. `--field-share 0.5` is not tried because the curves already show no gain from repeating field photos.
+
+## A10-E001 — the baseline recipe on dataset v2
+
+**Status:** completed, best epoch 13 of 23 (3 head + 20 full-network epochs), chosen by `val_field_product_macro_f1`.
+
+**Objective.** Check whether the new field sources of dataset v2 improve the model on photos taken in other places.
+
+**Hypothesis.** Adding field sources raises the field crop-masked macro-F1 above A5-E001 (0.509) and the `bench` score above 0.564.
+
+**Data.** Dataset `v2`, laboratory photos capped at 400 per class (`--lab-cap 400`), the same split rules as before; `bench` (PlantWild, PlantSeg) is never trained on.
+
+**Model and parameters.** The A5-E001 recipe: EfficientNet-B0, ImageNet weights, class-balanced sampler, basic augmentation, AdamW (lr 1e-3 for the head, 1e-4 for the full network, cosine decay), batch 32, seed 42, Apple M4 (MPS), about 4–7 minutes per epoch.
+
+**Results.** Both models are scored on the same photos (`--exclude-train-of ml/runs/A5-E001`), paired bootstrap with 1 000 resamples, 95 % intervals.
+
+| Subset | Crop photos | A5-E001 | A10-E001 | Difference |
+| --- | --- | --- | --- | --- |
+| v2 validation, all crops | 2 398 | 0.718 | 0.951 | +0.233 (0.213 … 0.253) |
+| v2 validation, field | — | 0.509 | 0.841 (0.784 … 0.888) | +0.332 (0.274 … 0.382) |
+| `bench`, all crops (all field) | 2 792 | 0.564 | 0.530 | **−0.034 (−0.052 … −0.018)** |
+| `bench`, tomato | — | 0.537 | 0.483 | −0.053 (−0.082 … −0.023) |
+| `bench`, corn | — | 0.685 | 0.657 | −0.028 (−0.063 … 0.005) |
+| `bench`, potato | — | 0.702 | 0.686 | −0.016 (−0.065 … 0.032) |
+| `bench`, wheat | — | 0.445 | 0.425 | −0.020 (−0.050 … 0.009) |
+
+**Limitations.**
+- The v2 validation split comes from the same sources as the v2 training split and the best epoch was chosen on it, so its gain is a guide only; the verdict is taken on `bench`.
+- Wheat on `bench` stays at 0.43–0.45 for both models: the wheat photos of dataset v1 are practically one source.
+- The `test` split was not scored (it is kept for candidate models). `bench` has no photos of healthy tomato, potato, corn or wheat, and `unknown` is not scored on it.
+- One configuration and one seed.
+
+**Conclusion.** The criterion is not met. More field photos from known sources made the model much better on its own validation split, but on independent sources it is significantly worse than the baseline (−0.034, interval below 0), mainly because of tomato. Adding data of this kind with the same recipe does not improve transfer to new places.
+
+**Next step.** A10-E002, one change at a time: stronger augmentation (`--aug strong`), then a larger share of field photos or label smoothing, each with the same scoring and the same criterion.
 
 ## A5-TRIAL — speed check (not an experiment)
 
