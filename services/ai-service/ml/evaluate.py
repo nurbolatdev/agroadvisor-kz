@@ -15,7 +15,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 from ml.bootstrap import ci95, paired_diff_ci95
 from ml.data import PlantDataset, eval_transform
@@ -40,6 +40,43 @@ def load_groups(dataset_dir: Path, files: list[str]) -> np.ndarray:
     with (Path(dataset_dir) / "splits.csv").open(encoding="utf-8") as f:
         rows = {r["file"]: r["group"] for r in csv.DictReader(f)}
     return np.array([rows[name] for name in files])
+
+
+def file_md5s(dataset_dir: Path) -> dict[str, str]:
+    """MD5 of every file of a dataset, from manifest.csv."""
+    with (Path(dataset_dir) / "manifest.csv").open(encoding="utf-8") as f:
+        return {r["file"]: r["md5"] for r in csv.DictReader(f)}
+
+
+def train_md5s(dataset_dir: Path) -> set[str]:
+    """MD5 of the photos a model trained on this dataset has seen (its ``train`` split)."""
+    md5 = file_md5s(dataset_dir)
+    with (Path(dataset_dir) / "splits.csv").open(encoding="utf-8") as f:
+        return {md5[r["file"]] for r in csv.DictReader(f) if r["split"] == "train"}
+
+
+def excluded_md5s(
+    run_dir: Path, dataset_dir: Path, other_runs: list[Path] | None = None
+) -> tuple[set[str], list[str]]:
+    """Photos that a comparison on ``dataset_dir`` must leave out, and where they come from.
+
+    A run scored on another dataset than its own has seen that dataset's train photos, and some
+    of them are in val, test or bench of the new one (the split was made again). They are left
+    out. ``other_runs`` adds the train photos of other runs, so that two runs trained on
+    different datasets are scored on exactly the same photos.
+    """
+    own = Path(json.loads((run_dir / "config.json").read_text(encoding="utf-8"))["dataset_dir"])
+    datasets = [own] if own.resolve() != Path(dataset_dir).resolve() else []
+    for other in other_runs or []:
+        config = json.loads((other / "config.json").read_text(encoding="utf-8"))
+        datasets.append(Path(config["dataset_dir"]))
+    md5: set[str] = set()
+    names: list[str] = []
+    for path in dict.fromkeys(p.resolve() for p in datasets):
+        if path != Path(dataset_dir).resolve():  # a dataset's own train never reaches its val
+            md5 |= train_md5s(path)
+            names.append(path.name)
+    return md5, names
 
 
 def crop_masks(classes: list[str], registry: Registry) -> dict[str, list[int]]:
@@ -278,22 +315,35 @@ def evaluate_split(
     bootstrap: int = 0,
     run_dir: Path | None = None,
     tag: str | None = None,
+    exclude_md5: set[str] | None = None,
 ) -> tuple[dict, np.ndarray, np.ndarray, np.ndarray]:
     """Score ``model`` on one full split; returns (metrics, logits, targets, field mask).
 
     With ``bootstrap`` > 0 the headline metrics get 95 % intervals (``ci95``); with ``run_dir``
     the logits are saved as ``logits_<split>.npz`` so runs can be compared on the same photos.
+    Photos whose MD5 is in ``exclude_md5`` (training photos of a model) are left out; their
+    number is reported as ``excluded_train_overlap``.
     """
     registry = registry or load_registry()
     dataset = PlantDataset(dataset_dir, split, eval_transform())
-    loader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
+    files, scored, excluded = dataset.files, dataset, 0
+    if exclude_md5:
+        md5 = file_md5s(dataset_dir)
+        keep = [i for i, name in enumerate(files) if md5[name] not in exclude_md5]
+        if not keep:
+            raise ValueError(f"every photo of {split} is a training photo of the model")
+        excluded = len(files) - len(keep)
+        files, scored = [files[i] for i in keep], Subset(dataset, keep)
+    loader = DataLoader(scored, batch_size=batch_size, num_workers=num_workers)
     logits, targets, loss = predict_logits(model, loader, device)
-    crops, kinds = load_meta(dataset_dir, dataset.files)
+    crops, kinds = load_meta(dataset_dir, files)
     metrics = compute_metrics(logits, targets, dataset.classes, crops, kinds, registry)
     metrics["loss"] = loss
+    metrics["evaluated_photos"] = len(files)
+    metrics["excluded_train_overlap"] = excluded
     if bootstrap:
         preds, slices = product_slices(logits, crops, kinds, dataset.classes, registry)
-        groups = load_groups(dataset_dir, dataset.files)
+        groups = load_groups(dataset_dir, files)
         intervals = ci95(
             targets, preds, slices, len(dataset.classes), bootstrap,
             seed=BOOTSTRAP_SEED, groups=groups,
@@ -307,7 +357,7 @@ def evaluate_split(
             run_dir / f"logits_{tag or split}.npz",
             logits=logits.astype(np.float32),
             targets=targets,
-            files=np.array(dataset.files),
+            files=np.array(files),
             dataset_dir=str(dataset_dir),
         )
     return metrics, logits, targets, np.array(kinds) == "field"
@@ -375,6 +425,17 @@ def plot_confusion(
     plt.close(fig)
 
 
+def score_key(config: dict, dataset_dir: Path, split: str, excluded: bool) -> tuple[str, str]:
+    """File tag and results key; a score on other photos never replaces the run's own numbers.
+
+    Relative paths are resolved against the current directory (run from ``services/ai-service``).
+    """
+    own = dataset_dir.resolve() == Path(config["dataset_dir"]).resolve() and not excluded
+    if own:
+        return split, split
+    return f"{split}_{dataset_dir.name}", f"{split}@{dataset_dir.name}"
+
+
 def main() -> None:
     from ml.train import build_model, git_info, resolve_device
 
@@ -385,12 +446,18 @@ def main() -> None:
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--bootstrap", type=int, default=0, help="resamples for 95%% intervals")
     parser.add_argument(
-        "--compare-with", type=Path, help="parent run dir: paired difference with intervals"
+        "--compare-with", type=Path, help="parent run dir: paired difference with intervals "
+        "(score the parent first with the same --dataset-dir and --exclude-train-of)"
     )
     parser.add_argument(
         "--dataset-dir", type=Path,
         help="score on another dataset than the run was trained on (results are kept under "
         "'<split>@<dataset>' so the original numbers stay)",
+    )  # fmt: skip
+    parser.add_argument(
+        "--exclude-train-of", type=Path, action="append", default=[], metavar="RUN_DIR",
+        help="also leave out the training photos (by MD5) of this run; repeat for several runs. "
+        "A run scored on another dataset always leaves out the train photos of its own one",
     )  # fmt: skip
     args = parser.parse_args()
     if args.compare_with and not args.bootstrap:
@@ -398,9 +465,10 @@ def main() -> None:
 
     config = json.loads((args.run_dir / "config.json").read_text(encoding="utf-8"))
     dataset_dir = args.dataset_dir or Path(config["dataset_dir"])
-    own = dataset_dir.resolve() == Path(config["dataset_dir"]).resolve()
-    tag = args.split if own else f"{args.split}_{dataset_dir.name}"  # file names and results key
-    key = args.split if own else f"{args.split}@{dataset_dir.name}"
+    # a run compared with a parent is scored on the photos the parent did not train on either
+    others = [*args.exclude_train_of, *([args.compare_with] if args.compare_with else [])]
+    exclude, sources = excluded_md5s(args.run_dir, dataset_dir, others)
+    tag, key = score_key(config, dataset_dir, args.split, bool(exclude))
     checkpoint = torch.load(args.run_dir / "best.pt", map_location="cpu", weights_only=True)
     device = resolve_device(args.device)
     model = build_model(len(checkpoint["classes"]), pretrained=False)
@@ -409,7 +477,7 @@ def main() -> None:
 
     metrics, logits, targets, field = evaluate_split(
         model, dataset_dir, args.split, device, num_workers=args.num_workers,
-        bootstrap=args.bootstrap, run_dir=args.run_dir, tag=tag,
+        bootstrap=args.bootstrap, run_dir=args.run_dir, tag=tag, exclude_md5=exclude,
     )  # fmt: skip
     if args.compare_with:
         parent_config = (args.compare_with / "config.json").read_text(encoding="utf-8")
@@ -428,11 +496,17 @@ def main() -> None:
     results[key] = metrics
     results[f"{key}_scored_with"] = {
         "dataset_dir": str(dataset_dir),
+        "excluded_train_of": sources,
+        "excluded_train_overlap": metrics["excluded_train_overlap"],
         "git_commit": git_info()["git_commit"],
         "scored_at": datetime.now().isoformat(timespec="seconds"),
     }
     results_path.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"{key}: acc={metrics['acc']:.4f} macro_f1={metrics['macro_f1']:.4f}")
+    print(
+        f"{key}: acc={metrics['acc']:.4f} macro_f1={metrics['macro_f1']:.4f} "
+        f"({metrics['evaluated_photos']} photos, {metrics['excluded_train_overlap']} left out as "
+        f"training photos of {sources or 'no run'})"
+    )
 
 
 if __name__ == "__main__":

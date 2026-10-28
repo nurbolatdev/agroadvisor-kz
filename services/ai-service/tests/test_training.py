@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import json
 import sys
 
@@ -106,9 +107,12 @@ def make_dataset(root):
         for i, split in enumerate(splits):
             name = f"{code}/{i}.jpg"
             (root / code).mkdir(exist_ok=True)
-            Image.new("RGB", (64, 64), (INDEX[code] * 10, 80, 120)).save(root / name)
+            color = (INDEX[code] * 10, 80, 100 + 5 * i)  # every photo has its own content
+            Image.new("RGB", (64, 64), color).save(root / name)
             rows.append({"file": name, "class": code, "group": f"{code}{i}", "split": split})
-            manifest.append({"file": name, "crop": crop, "kind": "field" if i >= 2 else "lab"})
+            md5 = hashlib.md5((root / name).read_bytes()).hexdigest()
+            kind = "field" if i >= 2 else "lab"
+            manifest.append({"file": name, "crop": crop, "kind": kind, "md5": md5})
     for filename, data in (("splits.csv", rows), ("manifest.csv", manifest)):
         with (root / filename).open("w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=list(data[0]))
