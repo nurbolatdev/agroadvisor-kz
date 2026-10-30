@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,7 @@ public class CatalogAdminService {
         return crops.findAllByOrderBySortOrderAscCodeAsc().stream().map(CatalogAdminService::view).toList();
     }
 
+    @CacheEvict(cacheNames = CatalogService.CACHE, allEntries = true)
     public AdminCrop createCrop(String code, Map<String, String> names, int sortOrder) {
         requireAllLanguages(names);
         if (crops.existsById(code)) {
@@ -56,6 +58,7 @@ public class CatalogAdminService {
         }
     }
 
+    @CacheEvict(cacheNames = CatalogService.CACHE, allEntries = true)
     public AdminCrop updateCrop(String code, Map<String, String> names, int sortOrder) {
         requireAllLanguages(names);
         Crop crop = crops.findById(code).orElseThrow(() -> cropNotFound(code));
@@ -63,6 +66,7 @@ public class CatalogAdminService {
         return view(crop);
     }
 
+    @CacheEvict(cacheNames = CatalogService.CACHE, allEntries = true)
     public void deleteCrop(String code) {
         if (!crops.existsById(code)) {
             throw cropNotFound(code);
@@ -91,6 +95,7 @@ public class CatalogAdminService {
         return view(diseases.findById(code).orElseThrow(() -> diseaseNotFound(code)));
     }
 
+    @CacheEvict(cacheNames = CatalogService.CACHE, allEntries = true)
     public AdminDisease createDisease(String code, DiseaseData data) {
         validate(code, data);
         if (diseases.existsById(code)) {
@@ -107,6 +112,7 @@ public class CatalogAdminService {
     }
 
     /** Replaces the texts and attributes; treatments are untouched. */
+    @CacheEvict(cacheNames = CatalogService.CACHE, allEntries = true)
     public AdminDisease updateDisease(String code, DiseaseData data) {
         Disease disease = diseases.findById(code).orElseThrow(() -> diseaseNotFound(code));
         validate(code, data);
@@ -119,6 +125,7 @@ public class CatalogAdminService {
      * Deletes the disease with its treatments. A code that stored diagnoses refer to
      * stays: class codes are permanent (docs/ai/classes.md).
      */
+    @CacheEvict(cacheNames = CatalogService.CACHE, allEntries = true)
     public void deleteDisease(String code) {
         if (!diseases.existsById(code)) {
             throw diseaseNotFound(code);
@@ -135,6 +142,7 @@ public class CatalogAdminService {
         return findDisease(diseaseCode).getTreatments().stream().map(CatalogAdminService::view).toList();
     }
 
+    @CacheEvict(cacheNames = CatalogService.CACHE, allEntries = true)
     public AdminTreatment createTreatment(String diseaseCode, TreatmentData data) {
         validate(data);
         Disease disease = findDisease(diseaseCode);
@@ -145,6 +153,7 @@ public class CatalogAdminService {
         return view(treatment);
     }
 
+    @CacheEvict(cacheNames = CatalogService.CACHE, allEntries = true)
     public AdminTreatment updateTreatment(String diseaseCode, long treatmentId, TreatmentData data) {
         validate(data);
         Treatment treatment = findTreatment(findDisease(diseaseCode), treatmentId);
@@ -153,6 +162,7 @@ public class CatalogAdminService {
         return view(treatment);
     }
 
+    @CacheEvict(cacheNames = CatalogService.CACHE, allEntries = true)
     public void deleteTreatment(String diseaseCode, long treatmentId) {
         Disease disease = findDisease(diseaseCode);
         findTreatment(disease, treatmentId);

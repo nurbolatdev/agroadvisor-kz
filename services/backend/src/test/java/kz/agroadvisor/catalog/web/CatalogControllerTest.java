@@ -15,6 +15,7 @@ import kz.agroadvisor.catalog.model.Disease;
 import kz.agroadvisor.catalog.model.Treatment;
 import kz.agroadvisor.catalog.repository.CropRepository;
 import kz.agroadvisor.catalog.repository.DiseaseRepository;
+import kz.agroadvisor.catalog.service.CatalogService;
 import kz.agroadvisor.users.model.Login;
 import kz.agroadvisor.users.model.Role;
 import kz.agroadvisor.users.model.User;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -53,6 +55,8 @@ class CatalogControllerTest {
     private JwtService jwt;
     @Autowired
     private TransactionTemplate tx;
+    @Autowired
+    private CacheManager caches;
 
     private String token;
 
@@ -66,6 +70,8 @@ class CatalogControllerTest {
             disease.addTreatment(new Treatment("chemical", "Chem", "ingredient", Map.of("ru", "2 л"), Map.of("ru", "полив"), 1));
             diseases.save(disease);
         });
+        // The rows above are written around the admin service, so nothing evicts the cache
+        caches.getCache(CatalogService.CACHE).clear();
         String phone = "+7702" + (1_000_000 + (int) (Math.random() * 8_999_999));
         User farmer = users.saveAndFlush(new User(Login.parse(phone), "x", "Farmer", "ru", Set.of(Role.FARMER)));
         token = "Bearer " + jwt.issueAccessToken(farmer.getId());
@@ -77,6 +83,7 @@ class CatalogControllerTest {
             diseases.deleteById(DISEASE);
             crops.deleteById(CROP);
         });
+        caches.getCache(CatalogService.CACHE).clear();
     }
 
     @Test
