@@ -4,8 +4,9 @@
 -- Texts are draft content: the Kazakh (kk) texts are not checked by a native
 -- speaker, and treatments must be confirmed by an agrochemist before release.
 -- Dosage is deliberately "per the product label": exact doses are not invented here.
--- Active ingredients are listed in `product`; trade names registered in
--- Kazakhstan are to be added from the state register of plant protection products.
+-- `product` is a language-neutral active-ingredient name (the column is not
+-- translated); trade names registered in Kazakhstan are to be added from the
+-- state register of plant protection products.
 
 INSERT INTO crops (code, names, sort_order) VALUES
     ('tomato', '{"ru": "Томат", "kk": "Қызанақ", "en": "Tomato"}', 10),
@@ -18,7 +19,8 @@ INSERT INTO diseases (code, crop_code, kind, severity, latin_name, names, sympto
      '{"ru": "Не распознано", "kk": "Анықталмады", "en": "Not recognized"}',
      NULL, NULL, NULL),
 
-    ('tomato__late_blight', 'tomato', 'fungal', 'high', 'Phytophthora infestans',
+    -- kind 'other': the pathogen is an oomycete, and the V2 CHECK has no such kind
+    ('tomato__late_blight', 'tomato', 'other', 'high', 'Phytophthora infestans',
      '{"ru": "Фитофтороз", "kk": "Фитофтороз", "en": "Late blight"}',
      '{"ru": ["Бурые маслянистые пятна на листьях и стеблях", "Белый налёт с нижней стороны листа в сырую погоду", "Бурая твёрдая гниль плодов"],
        "kk": ["Жапырақтары мен сабақтарында қоңыр майлы дақтар", "Ылғалды ауа райында жапырақтың астыңғы жағында ақ жабын", "Жемістердің қоңыр қатты шіруі"],
@@ -33,7 +35,7 @@ INSERT INTO diseases (code, crop_code, kind, severity, latin_name, names, sympto
     ('tomato__early_blight', 'tomato', 'fungal', 'medium', 'Alternaria solani',
      '{"ru": "Альтернариоз", "kk": "Альтернариоз", "en": "Early blight"}',
      '{"ru": ["Тёмно-бурые пятна с концентрическими кругами на нижних листьях", "Жёлтая кайма вокруг пятен", "Тёмные вдавленные пятна у плодоножки"],
-       "kk": ["Төменгі жапырақтарда шоғырланған шеңберлі қара қоңыр дақтар", "Дақтардың айналасында сары жиек", "Жеміс сабағының жанында қараңғы ойық дақтар"],
+       "kk": ["Төменгі жапырақтарда концентрлі шеңберлері бар қара қоңыр дақтар", "Дақтардың айналасында сары жиек", "Жеміс сабағының жанында қараңғы ойық дақтар"],
        "en": ["Dark brown spots with concentric rings on lower leaves", "Yellow halo around the spots", "Dark sunken spots near the fruit stalk"]}',
      '{"ru": ["Тёплая погода с чередованием дождей и сухих периодов", "Ослабленные растения, нехватка азота", "Остатки больной ботвы в почве"],
        "kk": ["Жаңбыр мен құрғақ кезеңдер алмасатын жылы ауа райы", "Әлсіреген өсімдіктер, азоттың жетіспеуі", "Топырақтағы ауру сабақ қалдықтары"],
@@ -99,49 +101,49 @@ INSERT INTO diseases (code, crop_code, kind, severity, latin_name, names, sympto
        "en": ["Inspect plants regularly", "Rotate crops and water at the root"]}');
 
 INSERT INTO treatments (disease_code, type, product, active_ingredient, dosage, method, sort_order) VALUES
-    ('tomato__late_blight', 'chemical', 'Манкоцеб', 'mancozeb',
+    ('tomato__late_blight', 'chemical', 'Mancozeb', 'mancozeb',
      '{"ru": "По инструкции на этикетке препарата", "kk": "Препарат затбелгісіндегі нұсқаулыққа сәйкес", "en": "As directed on the product label"}',
      '{"ru": "Профилактическое опрыскивание до появления симптомов, повтор через 7–10 дней", "kk": "Белгілер пайда болғанға дейін профилактикалық бүрку, 7–10 күннен кейін қайталау", "en": "Preventive spraying before symptoms appear, repeat after 7–10 days"}', 1),
-    ('tomato__late_blight', 'chemical', 'Хлорокись меди', 'copper oxychloride',
+    ('tomato__late_blight', 'chemical', 'Copper oxychloride', 'copper oxychloride',
      '{"ru": "По инструкции на этикетке препарата", "kk": "Препарат затбелгісіндегі нұсқаулыққа сәйкес", "en": "As directed on the product label"}',
      '{"ru": "Опрыскивание листьев в сухую погоду; соблюдать срок ожидания до сбора", "kk": "Құрғақ ауа райында жапырақтарды бүрку; жинауға дейінгі күту мерзімін сақтау", "en": "Spray leaves in dry weather; observe the pre-harvest interval"}', 2),
-    ('tomato__late_blight', 'biological', 'Препараты на основе Bacillus subtilis', 'Bacillus subtilis',
+    ('tomato__late_blight', 'biological', 'Bacillus subtilis-based products', 'Bacillus subtilis',
      '{"ru": "По инструкции на этикетке препарата", "kk": "Препарат затбелгісіндегі нұсқаулыққа сәйкес", "en": "As directed on the product label"}',
      '{"ru": "Профилактические опрыскивания каждые 10–14 дней; против развитой болезни слабее химических", "kk": "10–14 күн сайын профилактикалық бүрку; дамыған ауруға химиялық препараттарға қарағанда әлсіз", "en": "Preventive sprays every 10–14 days; weaker than chemicals against advanced disease"}', 1),
 
-    ('tomato__early_blight', 'chemical', 'Манкоцеб', 'mancozeb',
+    ('tomato__early_blight', 'chemical', 'Mancozeb', 'mancozeb',
      '{"ru": "По инструкции на этикетке препарата", "kk": "Препарат затбелгісіндегі нұсқаулыққа сәйкес", "en": "As directed on the product label"}',
      '{"ru": "Опрыскивание при первых пятнах, повтор через 7–10 дней", "kk": "Алғашқы дақтар пайда болған кезде бүрку, 7–10 күннен кейін қайталау", "en": "Spray at the first spots, repeat after 7–10 days"}', 1),
-    ('tomato__early_blight', 'chemical', 'Дифеноконазол', 'difenoconazole',
+    ('tomato__early_blight', 'chemical', 'Difenoconazole', 'difenoconazole',
      '{"ru": "По инструкции на этикетке препарата", "kk": "Препарат затбелгісіндегі нұсқаулыққа сәйкес", "en": "As directed on the product label"}',
      '{"ru": "Опрыскивание в начале болезни; чередовать с препаратами других групп, чтобы не вызвать резистентность", "kk": "Аурудың басында бүрку; төзімділік пайда болмауы үшін басқа топтағы препараттармен кезектестіру", "en": "Spray at disease onset; alternate with other chemical groups to avoid resistance"}', 2),
-    ('tomato__early_blight', 'biological', 'Препараты на основе Bacillus subtilis', 'Bacillus subtilis',
+    ('tomato__early_blight', 'biological', 'Bacillus subtilis-based products', 'Bacillus subtilis',
      '{"ru": "По инструкции на этикетке препарата", "kk": "Препарат затбелгісіндегі нұсқаулыққа сәйкес", "en": "As directed on the product label"}',
      '{"ru": "Профилактические опрыскивания каждые 10–14 дней", "kk": "10–14 күн сайын профилактикалық бүрку", "en": "Preventive sprays every 10–14 days"}', 1),
 
-    ('tomato__septoria_leaf_spot', 'chemical', 'Хлорокись меди', 'copper oxychloride',
+    ('tomato__septoria_leaf_spot', 'chemical', 'Copper oxychloride', 'copper oxychloride',
      '{"ru": "По инструкции на этикетке препарата", "kk": "Препарат затбелгісіндегі нұсқаулыққа сәйкес", "en": "As directed on the product label"}',
      '{"ru": "Опрыскивание при первых признаках, повтор через 10–14 дней", "kk": "Алғашқы белгілерде бүрку, 10–14 күннен кейін қайталау", "en": "Spray at the first signs, repeat after 10–14 days"}', 1),
-    ('tomato__septoria_leaf_spot', 'chemical', 'Манкоцеб', 'mancozeb',
+    ('tomato__septoria_leaf_spot', 'chemical', 'Mancozeb', 'mancozeb',
      '{"ru": "По инструкции на этикетке препарата", "kk": "Препарат затбелгісіндегі нұсқаулыққа сәйкес", "en": "As directed on the product label"}',
      '{"ru": "Опрыскивание всех листьев, включая нижнюю сторону", "kk": "Барлық жапырақтарды, соның ішінде астыңғы жағын бүрку", "en": "Spray all foliage, including the underside"}', 2),
-    ('tomato__septoria_leaf_spot', 'biological', 'Препараты на основе Bacillus subtilis', 'Bacillus subtilis',
+    ('tomato__septoria_leaf_spot', 'biological', 'Bacillus subtilis-based products', 'Bacillus subtilis',
      '{"ru": "По инструкции на этикетке препарата", "kk": "Препарат затбелгісіндегі нұсқаулыққа сәйкес", "en": "As directed on the product label"}',
      '{"ru": "Профилактические опрыскивания каждые 10–14 дней", "kk": "10–14 күн сайын профилактикалық бүрку", "en": "Preventive sprays every 10–14 days"}', 1),
 
-    ('tomato__bacterial_spot', 'chemical', 'Медьсодержащие препараты', 'copper compounds',
+    ('tomato__bacterial_spot', 'chemical', 'Copper compounds', 'copper compounds',
      '{"ru": "По инструкции на этикетке препарата", "kk": "Препарат затбелгісіндегі нұсқаулыққа сәйкес", "en": "As directed on the product label"}',
      '{"ru": "Опрыскивание при первых признаках; эффективность ограничена, главное — профилактика", "kk": "Алғашқы белгілерде бүрку; тиімділігі шектеулі, басты нәрсе — алдын алу", "en": "Spray at the first signs; efficacy is limited, prevention matters most"}', 1),
-    ('tomato__bacterial_spot', 'biological', 'Препараты на основе Bacillus subtilis', 'Bacillus subtilis',
+    ('tomato__bacterial_spot', 'biological', 'Bacillus subtilis-based products', 'Bacillus subtilis',
      '{"ru": "По инструкции на этикетке препарата", "kk": "Препарат затбелгісіндегі нұсқаулыққа сәйкес", "en": "As directed on the product label"}',
      '{"ru": "Профилактические опрыскивания каждые 10–14 дней", "kk": "10–14 күн сайын профилактикалық бүрку", "en": "Preventive sprays every 10–14 days"}', 1),
 
-    ('tomato__leaf_mold', 'chemical', 'Хлорокись меди', 'copper oxychloride',
+    ('tomato__leaf_mold', 'chemical', 'Copper oxychloride', 'copper oxychloride',
      '{"ru": "По инструкции на этикетке препарата", "kk": "Препарат затбелгісіндегі нұсқаулыққа сәйкес", "en": "As directed on the product label"}',
      '{"ru": "Опрыскивание при первых пятнах вместе со снижением влажности в теплице", "kk": "Алғашқы дақтар пайда болған кезде жылыжайдағы ылғалдылықты азайтумен бірге бүрку", "en": "Spray at the first spots while lowering greenhouse humidity"}', 1),
-    ('tomato__leaf_mold', 'chemical', 'Дифеноконазол', 'difenoconazole',
+    ('tomato__leaf_mold', 'chemical', 'Difenoconazole', 'difenoconazole',
      '{"ru": "По инструкции на этикетке препарата", "kk": "Препарат затбелгісіндегі нұсқаулыққа сәйкес", "en": "As directed on the product label"}',
      '{"ru": "Опрыскивание в начале болезни; чередовать с другими группами", "kk": "Аурудың басында бүрку; басқа топтармен кезектестіру", "en": "Spray at disease onset; alternate with other groups"}', 2),
-    ('tomato__leaf_mold', 'biological', 'Препараты на основе Trichoderma', 'Trichoderma spp.',
+    ('tomato__leaf_mold', 'biological', 'Trichoderma-based products', 'Trichoderma spp.',
      '{"ru": "По инструкции на этикетке препарата", "kk": "Препарат затбелгісіндегі нұсқаулыққа сәйкес", "en": "As directed on the product label"}',
      '{"ru": "Профилактическая обработка растений и почвы", "kk": "Өсімдіктер мен топырақты профилактикалық өңдеу", "en": "Preventive treatment of plants and soil"}', 1);
