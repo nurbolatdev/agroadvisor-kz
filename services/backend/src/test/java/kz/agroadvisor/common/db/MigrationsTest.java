@@ -32,7 +32,7 @@ class MigrationsTest {
         List<String> versions = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class);
-        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6");
+        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7");
     }
 
     @Test
@@ -159,7 +159,10 @@ class MigrationsTest {
     }
 
     private void insertCrop(String code) {
-        jdbc.update("INSERT INTO crops (code, names) VALUES (?, '{\"ru\": \"-\", \"kk\": \"-\", \"en\": \"-\"}')", code);
+        // The crops are seeded by the catalog migrations, so the row may already exist
+        jdbc.update("""
+                INSERT INTO crops (code, names) VALUES (?, '{"ru": "-", "kk": "-", "en": "-"}')
+                ON CONFLICT (code) DO NOTHING""", code);
     }
 
     private void insertDiagnosis(UUID user, String status, String top1, String detectedCrop) {
