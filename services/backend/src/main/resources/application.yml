@@ -3,11 +3,18 @@ spring:
     name: agroadvisor-backend
   profiles:
     default: local
+  data:
+    redis:
+      # Short timeouts: with Redis down a request must fall back to the database quickly, not wait 60 s
+      timeout: 500ms
+      connect-timeout: 1s
   cache:
     type: redis
+    cache-names: catalog # every cache is listed here so that CacheReset knows it at start-up
     redis:
       key-prefix: 'agroadvisor:'
-      time-to-live: 1h # the reference changes rarely; admin edits evict the cache anyway
+      # Admin edits evict the cache and a restart clears it; the TTL only bounds a rare read/evict race
+      time-to-live: 15m
   jpa:
     open-in-view: false
     hibernate:
@@ -23,6 +30,10 @@ app:
       secret: ${JWT_SECRET:}
 
 management:
+  health:
+    redis:
+      # Redis is an accelerator, not a dependency: without it the service degrades, so it must not turn health DOWN
+      enabled: false
   endpoints:
     web:
       exposure:

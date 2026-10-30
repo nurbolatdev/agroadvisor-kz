@@ -7,16 +7,18 @@ import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.interceptor.CacheErrorHandler;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 
 /**
  * Redis-backed cache for read-mostly data.
  *
- * <p>The cache advice is ordered before the transaction advice ({@code order = 0},
- * transactions are last): a cache hit opens no transaction and touches no database,
- * and an eviction on an admin write runs after that write has been committed.
+ * <p>The cache advice runs before the transaction advice (which is last) but after Spring Security's
+ * method interceptors ({@code @PreAuthorize}, order 200): a cache hit opens no transaction and touches no
+ * database, an eviction on an admin write runs after that write has been committed, and a cache hit can
+ * never skip an authorization check placed on a cached method.
  */
 @Configuration
-@EnableCaching(order = 0)
+@EnableCaching(order = Ordered.LOWEST_PRECEDENCE - 1)
 class CacheConfig implements CachingConfigurer {
 
     private static final Logger log = LoggerFactory.getLogger(CacheConfig.class);

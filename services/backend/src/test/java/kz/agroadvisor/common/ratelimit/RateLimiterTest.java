@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 import kz.agroadvisor.TestcontainersConfiguration;
@@ -11,9 +12,11 @@ import kz.agroadvisor.common.web.ApiException;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -34,6 +37,10 @@ class RateLimiterTest {
     private StringRedisTemplate redis;
     @Autowired
     private RateLimitProperties limits;
+    @Value("${spring.data.redis.timeout}")
+    private Duration commandTimeout;
+    @Value("${spring.data.redis.connect-timeout}")
+    private Duration connectTimeout;
 
     private RateLimiter limiterAt(Instant now) {
         return new RateLimiter(redis, Clock.fixed(now, ZoneOffset.UTC));
@@ -99,10 +106,23 @@ class RateLimiterTest {
     }
 
     @Test
+    void windowShorterThanASecondIsRejected() {
+        assertThatThrownBy(() -> limiterAt(START).check("diagnosis", "anyone", 5, Duration.ofMillis(500)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void redisCallsFailFastWhenRedisIsDown() {
+        // The Lettuce default is 60 s per command, which would hang every request during an outage
+        assertThat(commandTimeout).isLessThanOrEqualTo(Duration.ofSeconds(1));
+        assertThat(connectTimeout).isLessThanOrEqualTo(Duration.ofSeconds(2));
+    }
+
+    @Test
     void allowsRequestsWhenRedisIsDown() {
         StringRedisTemplate broken = new StringRedisTemplate() {
             @Override
-            public org.springframework.data.redis.core.ValueOperations<String, String> opsForValue() {
+            public <T> T execute(RedisScript<T> script, List<String> keys, Object... args) {
                 throw new IllegalStateException("redis is down");
             }
         };

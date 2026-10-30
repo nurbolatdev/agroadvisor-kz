@@ -1,6 +1,5 @@
 package kz.agroadvisor.auth.config;
 
-import java.time.Clock;
 import java.time.Duration;
 import java.util.Base64;
 
@@ -26,11 +25,6 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 class JwtConfig {
 
     static final int MIN_SECRET_BYTES = 32;
-
-    @Bean
-    Clock clock() {
-        return Clock.systemUTC();
-    }
 
     @Bean
     SecretKey jwtSecretKey(JwtProperties properties) {
