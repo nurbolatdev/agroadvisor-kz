@@ -3,6 +3,11 @@ spring:
     name: agroadvisor-backend
   profiles:
     default: local
+  cache:
+    type: redis
+    redis:
+      key-prefix: 'agroadvisor:'
+      time-to-live: 1h # the reference changes rarely; admin edits evict the cache anyway
   jpa:
     open-in-view: false
     hibernate:
