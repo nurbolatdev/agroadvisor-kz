@@ -161,6 +161,16 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    void adminPathsAreClosedToOtherRolesEvenWithoutAnnotation() throws Exception {
+        String token = jwt.issueAccessToken(farmer.getId());
+        // No controller is mapped here: without the URL rule a signed-in farmer would get 404
+        mvc.perform(get("/api/admin/unmapped").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("forbidden"));
+        mvc.perform(get("/api/admin/unmapped")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void healthAndOpenApiStayPublic() throws Exception {
         mvc.perform(get("/actuator/health")).andExpect(status().isOk());
         mvc.perform(get("/v3/api-docs")).andExpect(status().isOk());

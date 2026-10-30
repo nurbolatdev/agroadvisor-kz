@@ -1,4 +1,4 @@
--- Reference data, part 1: all crops, the `unknown` class and tomato diseases.
+-- Reference data, part 1 (V8-V10): all crops, the `unknown` class and tomato diseases.
 -- Codes are exactly those of services/ai-service/ml/classes.yaml.
 --
 -- Texts are draft content: the Kazakh (kk) texts are not checked by a native
@@ -19,8 +19,7 @@ INSERT INTO diseases (code, crop_code, kind, severity, latin_name, names, sympto
      '{"ru": "Не распознано", "kk": "Анықталмады", "en": "Not recognized"}',
      NULL, NULL, NULL),
 
-    -- kind 'other': the pathogen is an oomycete, and the V2 CHECK has no such kind
-    ('tomato__late_blight', 'tomato', 'other', 'high', 'Phytophthora infestans',
+    ('tomato__late_blight', 'tomato', 'oomycete', 'high', 'Phytophthora infestans',
      '{"ru": "Фитофтороз", "kk": "Фитофтороз", "en": "Late blight"}',
      '{"ru": ["Бурые маслянистые пятна на листьях и стеблях", "Белый налёт с нижней стороны листа в сырую погоду", "Бурая твёрдая гниль плодов"],
        "kk": ["Жапырақтары мен сабақтарында қоңыр майлы дақтар", "Ылғалды ауа райында жапырақтың астыңғы жағында ақ жабын", "Жемістердің қоңыр қатты шіруі"],

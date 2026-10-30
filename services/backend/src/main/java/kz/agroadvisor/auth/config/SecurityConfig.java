@@ -42,6 +42,8 @@ class SecurityConfig {
                         // Development only: springdoc.api-docs.enabled is off unless a profile turns it on
                         auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
                     }
+                    // Second barrier: a new admin controller without @PreAuthorize stays closed to other roles
+                    auth.requestMatchers("/api/admin/**").hasRole("ADMIN");
                     auth.anyRequest().authenticated();
                 })
                 .oauth2ResourceServer(oauth -> oauth

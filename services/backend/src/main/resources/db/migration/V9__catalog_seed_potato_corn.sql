@@ -3,8 +3,7 @@
 -- need a native speaker and an agrochemist; dosage is "per the product label".
 
 INSERT INTO diseases (code, crop_code, kind, severity, latin_name, names, symptoms, conditions, prevention) VALUES
-    -- kind 'other': the pathogen is an oomycete, and the V2 CHECK has no such kind
-    ('potato__late_blight', 'potato', 'other', 'high', 'Phytophthora infestans',
+    ('potato__late_blight', 'potato', 'oomycete', 'high', 'Phytophthora infestans',
      '{"ru": "Фитофтороз", "kk": "Фитофтороз", "en": "Late blight"}',
      '{"ru": ["Тёмно-бурые расплывчатые пятна на листьях, быстро разрастающиеся", "Белый пушистый налёт по краю пятен с нижней стороны листа", "Бурые пятна на стеблях, твёрдая бурая гниль клубней"],
        "kk": ["Жапырақтарда тез үлкейетін күңгірт қоңыр бұлыңғыр дақтар", "Дақтардың шетінде жапырақтың астыңғы жағында ақ мамықты жабын", "Сабақтарда қоңыр дақтар, түйнектердің қатты қоңыр шіруі"],

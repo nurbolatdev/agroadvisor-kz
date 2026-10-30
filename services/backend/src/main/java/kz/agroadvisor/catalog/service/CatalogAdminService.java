@@ -23,7 +23,8 @@ import kz.agroadvisor.common.web.ErrorCodes;
 public class CatalogAdminService {
 
     private static final List<String> LANGUAGES = List.of("ru", "kk", "en");
-    private static final Set<String> KINDS = Set.of("fungal", "bacterial", "viral", "pest", "healthy", "other");
+    private static final Set<String> KINDS = Set.of("fungal", "oomycete", "bacterial", "viral", "pest", "healthy",
+            "other");
     private static final Set<String> SEVERITIES = Set.of("low", "medium", "high");
     private static final Set<String> TREATMENT_TYPES = Set.of("chemical", "biological");
     private static final int MAX_TEXT_LENGTH = 2000;

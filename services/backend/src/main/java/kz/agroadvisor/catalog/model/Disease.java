@@ -30,7 +30,7 @@ public class Disease {
     @Column(name = "crop_code")
     private String cropCode;
 
-    /** fungal, bacterial, viral, pest, healthy or other. */
+    /** fungal, oomycete, bacterial, viral, pest, healthy or other. */
     private String kind;
 
     /** low, medium or high; null when not applicable. */
