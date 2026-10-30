@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import kz.agroadvisor.catalog.model.Crop;
 import kz.agroadvisor.catalog.model.Disease;
+import kz.agroadvisor.catalog.model.Treatment;
 import kz.agroadvisor.catalog.repository.CropRepository;
 import kz.agroadvisor.catalog.repository.DiseaseRepository;
 import kz.agroadvisor.common.web.ApiException;
@@ -23,6 +24,7 @@ public class CatalogAdminService {
     private static final List<String> LANGUAGES = List.of("ru", "kk", "en");
     private static final Set<String> KINDS = Set.of("fungal", "bacterial", "viral", "pest", "healthy", "other");
     private static final Set<String> SEVERITIES = Set.of("low", "medium", "high");
+    private static final Set<String> TREATMENT_TYPES = Set.of("chemical", "biological");
 
     private final CropRepository crops;
     private final DiseaseRepository diseases;
@@ -99,6 +101,62 @@ public class CatalogAdminService {
         diseases.deleteById(code);
     }
 
+    @Transactional(readOnly = true)
+    public List<AdminTreatment> treatments(String diseaseCode) {
+        return findDisease(diseaseCode).getTreatments().stream().map(CatalogAdminService::view).toList();
+    }
+
+    public AdminTreatment createTreatment(String diseaseCode, TreatmentData data) {
+        validate(data);
+        Disease disease = findDisease(diseaseCode);
+        Treatment treatment = new Treatment(data.type(), data.product(), data.activeIngredient(), data.dosage(),
+                data.method(), data.sortOrder());
+        disease.addTreatment(treatment);
+        diseases.flush();
+        return view(treatment);
+    }
+
+    public AdminTreatment updateTreatment(String diseaseCode, long treatmentId, TreatmentData data) {
+        validate(data);
+        Treatment treatment = findTreatment(findDisease(diseaseCode), treatmentId);
+        treatment.update(data.type(), data.product(), data.activeIngredient(), data.dosage(), data.method(),
+                data.sortOrder());
+        return view(treatment);
+    }
+
+    public void deleteTreatment(String diseaseCode, long treatmentId) {
+        Disease disease = findDisease(diseaseCode);
+        findTreatment(disease, treatmentId);
+        disease.removeTreatment(treatmentId);
+    }
+
+    private Disease findDisease(String code) {
+        return diseases.findById(code).orElseThrow(() -> diseaseNotFound(code));
+    }
+
+    private static Treatment findTreatment(Disease disease, long treatmentId) {
+        return disease.getTreatments().stream()
+                .filter(treatment -> treatment.getId() == treatmentId)
+                .findFirst()
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "treatment_not_found",
+                        "Unknown treatment: " + treatmentId));
+    }
+
+    private static void validate(TreatmentData data) {
+        if (!TREATMENT_TYPES.contains(data.type())) {
+            throw invalid("type must be one of " + TREATMENT_TYPES);
+        }
+        if (data.product() == null || data.product().isBlank()) {
+            throw invalid("product must not be blank");
+        }
+    }
+
+    private static AdminTreatment view(Treatment treatment) {
+        return new AdminTreatment(treatment.getId(), new TreatmentData(treatment.getType(), treatment.getProduct(),
+                treatment.getActiveIngredient(), treatment.getDosage(), treatment.getMethod(),
+                treatment.getSortOrder()));
+    }
+
     private void validate(String code, DiseaseData data) {
         requireAllLanguages(data.names());
         if (!KINDS.contains(data.kind())) {
@@ -159,6 +217,14 @@ public class CatalogAdminService {
     public record DiseaseData(String cropCode, String kind, String severity, String latinName,
             Map<String, String> names, Map<String, Object> symptoms, Map<String, Object> conditions,
             Map<String, Object> prevention) {
+    }
+
+    /** Dosage and method are optional translations. */
+    public record TreatmentData(String type, String product, String activeIngredient,
+            Map<String, String> dosage, Map<String, String> method, int sortOrder) {
+    }
+
+    public record AdminTreatment(Long id, TreatmentData data) {
     }
 
     public record AdminDisease(String code, DiseaseData data, int treatmentCount) {

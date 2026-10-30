@@ -23,7 +23,9 @@ import org.springframework.web.bind.annotation.RestController;
 import kz.agroadvisor.catalog.service.CatalogAdminService;
 import kz.agroadvisor.catalog.service.CatalogAdminService.AdminCrop;
 import kz.agroadvisor.catalog.service.CatalogAdminService.AdminDisease;
+import kz.agroadvisor.catalog.service.CatalogAdminService.AdminTreatment;
 import kz.agroadvisor.catalog.service.CatalogAdminService.DiseaseData;
+import kz.agroadvisor.catalog.service.CatalogAdminService.TreatmentData;
 
 /** Editing of the reference; ADMIN only. Texts are returned with all languages. */
 @RestController
@@ -86,6 +88,39 @@ public class CatalogAdminController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteDisease(@PathVariable String code) {
         admin.deleteDisease(code);
+    }
+
+    @GetMapping("/diseases/{code}/treatments")
+    public List<AdminTreatment> treatments(@PathVariable String code) {
+        return admin.treatments(code);
+    }
+
+    @PostMapping("/diseases/{code}/treatments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AdminTreatment createTreatment(@PathVariable String code, @Valid @RequestBody TreatmentBody request) {
+        return admin.createTreatment(code, request.data());
+    }
+
+    @PutMapping("/diseases/{code}/treatments/{id}")
+    public AdminTreatment updateTreatment(@PathVariable String code, @PathVariable long id,
+            @Valid @RequestBody TreatmentBody request) {
+        return admin.updateTreatment(code, id, request.data());
+    }
+
+    @DeleteMapping("/diseases/{code}/treatments/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteTreatment(@PathVariable String code, @PathVariable long id) {
+        admin.deleteTreatment(code, id);
+    }
+
+    public record TreatmentBody(@NotNull String type, @NotNull @Size(max = 160) String product,
+            @Size(max = 160) String activeIngredient, Map<String, String> dosage, Map<String, String> method,
+            Integer sortOrder) {
+
+        TreatmentData data() {
+            return new TreatmentData(type, product, activeIngredient, dosage, method,
+                    sortOrder == null ? 0 : sortOrder);
+        }
     }
 
     /** {@code sortOrder} is optional (0), hence Integer: Jackson rejects a missing primitive. */

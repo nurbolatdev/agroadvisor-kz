@@ -145,6 +145,54 @@ class CatalogAdminControllerTest {
     }
 
     @Test
+    void treatmentLifecycle() throws Exception {
+        send(post("/api/admin/crops"), admin, CROP_BODY).andExpect(status().isCreated());
+        send(post("/api/admin/diseases"), admin, DISEASE_BODY).andExpect(status().isCreated());
+        String url = "/api/admin/diseases/admcrop__rot/treatments";
+
+        String created = send(post(url), admin, """
+                {"type":"chemical","product":"Скор","activeIngredient":"дифеноконазол",
+                 "dosage":{"ru":"2 мл на 10 л"},"method":{"ru":"опрыскивание"},"sortOrder":1}""")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.product").value("Скор"))
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        int id = com.jayway.jsonpath.JsonPath.read(created, "$.id");
+
+        send(get(url), admin, null)
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].data.dosage.ru").value("2 мл на 10 л"));
+        send(get("/api/admin/diseases/admcrop__rot"), admin, null)
+                .andExpect(jsonPath("$.treatmentCount").value(1));
+
+        send(put(url + "/" + id), admin, "{\"type\":\"biological\",\"product\":\"Фитоспорин\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.type").value("biological"))
+                .andExpect(jsonPath("$.data.activeIngredient").doesNotExist());
+
+        send(delete(url + "/" + id), admin, null).andExpect(status().isNoContent());
+        send(delete(url + "/" + id), admin, null)
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("treatment_not_found"));
+        send(get(url), admin, null).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void treatmentRulesAreChecked() throws Exception {
+        send(post("/api/admin/crops"), admin, CROP_BODY).andExpect(status().isCreated());
+        send(post("/api/admin/diseases"), admin, DISEASE_BODY).andExpect(status().isCreated());
+        String url = "/api/admin/diseases/admcrop__rot/treatments";
+
+        send(post(url), admin, "{\"type\":\"magic\",\"product\":\"X\"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("validation_failed"));
+        send(post(url), admin, "{\"type\":\"chemical\",\"product\":\" \"}").andExpect(status().isBadRequest());
+        send(post("/api/admin/diseases/missing__x/treatments"), admin, "{\"type\":\"chemical\",\"product\":\"X\"}")
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("disease_not_found"));
+        send(post(url), farmer, "{\"type\":\"chemical\",\"product\":\"X\"}").andExpect(status().isForbidden());
+    }
+
+    @Test
     void diseaseRulesAreChecked() throws Exception {
         send(post("/api/admin/diseases"), admin, DISEASE_BODY)
                 .andExpect(status().isNotFound())

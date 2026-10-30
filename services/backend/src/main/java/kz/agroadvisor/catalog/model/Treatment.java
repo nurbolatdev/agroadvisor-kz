@@ -60,6 +60,16 @@ public class Treatment {
         this.sortOrder = sortOrder;
     }
 
+    public void update(String type, String product, String activeIngredient, Map<String, String> dosage,
+            Map<String, String> method, int sortOrder) {
+        this.type = type;
+        this.product = product;
+        this.activeIngredient = activeIngredient;
+        this.dosage = dosage;
+        this.method = method;
+        this.sortOrder = sortOrder;
+    }
+
     void attachTo(Disease disease) {
         this.disease = disease;
     }

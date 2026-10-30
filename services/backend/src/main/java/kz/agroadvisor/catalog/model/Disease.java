@@ -88,6 +88,10 @@ public class Disease {
         treatments.add(treatment);
     }
 
+    public boolean removeTreatment(Long treatmentId) {
+        return treatments.removeIf(treatment -> treatment.getId().equals(treatmentId));
+    }
+
     public String getCode() {
         return code;
     }
