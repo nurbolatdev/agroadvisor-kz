@@ -32,23 +32,31 @@ public class CatalogService {
                 .toList();
     }
 
-    /** All diseases, or only those of one crop; an unknown crop is a 404. */
+    /**
+     * All diseases, or only those of one crop; an unknown crop is a 404. The
+     * "healthy" and "unknown" classes are not diseases and are left out of the list;
+     * they are still available by code for a diagnosis result.
+     */
     public List<DiseaseSummary> diseases(String cropCode, String lang) {
         List<Disease> found;
         if (cropCode == null) {
             found = diseases.findAllByOrderByCodeAsc();
         } else {
             if (!crops.existsById(cropCode)) {
-                throw new ApiException(HttpStatus.NOT_FOUND, "crop_not_found", "Unknown crop: " + cropCode);
+                throw new ApiException(HttpStatus.NOT_FOUND, CatalogErrors.CROP_NOT_FOUND,
+                        "Unknown crop: " + cropCode);
             }
             found = diseases.findAllByCropCodeOrderByCodeAsc(cropCode);
         }
-        return found.stream().map(disease -> summary(disease, lang)).toList();
+        return found.stream()
+                .filter(CatalogService::isDisease)
+                .map(disease -> summary(disease, lang))
+                .toList();
     }
 
     public DiseaseDetail disease(String code, String lang) {
         Disease disease = diseases.findById(code)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "disease_not_found",
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, CatalogErrors.DISEASE_NOT_FOUND,
                         "Unknown disease: " + code));
         return new DiseaseDetail(
                 summary(disease, lang),
@@ -56,6 +64,11 @@ public class CatalogService {
                 CatalogLanguage.pick(disease.getConditions(), lang),
                 CatalogLanguage.pick(disease.getPrevention(), lang),
                 disease.getTreatments().stream().map(treatment -> treatmentView(treatment, lang)).toList());
+    }
+
+    /** Healthy classes and {@code unknown} (the only one without a crop) are results, not diseases. */
+    private static boolean isDisease(Disease disease) {
+        return disease.getCropCode() != null && !"healthy".equals(disease.getKind());
     }
 
     private static CropView cropView(Crop crop, String lang) {

@@ -114,6 +114,22 @@ class CatalogControllerTest {
     }
 
     @Test
+    void listLeavesOutHealthyAndUnknownButDetailKeepsThem() throws Exception {
+        mvc.perform(get("/api/diseases?crop=tomato").header("Authorization", token))
+                .andExpect(jsonPath("$[?(@.code=='tomato__late_blight')]").isNotEmpty())
+                .andExpect(jsonPath("$[?(@.code=='tomato__healthy')]").isEmpty());
+        mvc.perform(get("/api/diseases").header("Authorization", token))
+                .andExpect(jsonPath("$[?(@.code=='unknown')]").isEmpty());
+
+        mvc.perform(get("/api/diseases/tomato__healthy?lang=en").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.disease.name").value("Healthy"));
+        mvc.perform(get("/api/diseases/unknown?lang=en").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.disease.name").value("Not recognized"));
+    }
+
+    @Test
     void unknownCropIs404() throws Exception {
         mvc.perform(get("/api/diseases?crop=nope").header("Authorization", token))
                 .andExpect(status().isNotFound())

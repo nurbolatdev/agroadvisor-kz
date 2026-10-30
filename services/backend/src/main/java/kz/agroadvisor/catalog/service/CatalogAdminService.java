@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,8 @@ public class CatalogAdminService {
     private static final Set<String> KINDS = Set.of("fungal", "bacterial", "viral", "pest", "healthy", "other");
     private static final Set<String> SEVERITIES = Set.of("low", "medium", "high");
     private static final Set<String> TREATMENT_TYPES = Set.of("chemical", "biological");
+    private static final int MAX_TEXT_LENGTH = 2000;
+    private static final int MAX_ITEMS = 30;
 
     private final CropRepository crops;
     private final DiseaseRepository diseases;
@@ -42,9 +45,14 @@ public class CatalogAdminService {
     public AdminCrop createCrop(String code, Map<String, String> names, int sortOrder) {
         requireAllLanguages(names);
         if (crops.existsById(code)) {
-            throw new ApiException(HttpStatus.CONFLICT, "crop_exists", "Crop already exists: " + code);
+            throw cropExists(code);
         }
-        return view(crops.save(new Crop(code, names, sortOrder)));
+        try {
+            return view(crops.saveAndFlush(new Crop(code, names, sortOrder)));
+        } catch (DataIntegrityViolationException e) {
+            // A parallel request created the same code between the check and the insert
+            throw cropExists(code);
+        }
     }
 
     public AdminCrop updateCrop(String code, Map<String, String> names, int sortOrder) {
@@ -58,10 +66,18 @@ public class CatalogAdminService {
         if (!crops.existsById(code)) {
             throw cropNotFound(code);
         }
+        ApiException inUse = new ApiException(HttpStatus.CONFLICT, CatalogErrors.CROP_IN_USE,
+                "Crop is still in use: " + code);
         if (!diseases.findAllByCropCodeOrderByCodeAsc(code).isEmpty()) {
-            throw new ApiException(HttpStatus.CONFLICT, "crop_in_use", "Crop still has diseases: " + code);
+            throw inUse;
         }
-        crops.deleteById(code);
+        try {
+            crops.deleteById(code);
+            crops.flush();
+        } catch (DataIntegrityViolationException e) {
+            // Diagnoses or agrochemist profiles still reference the crop
+            throw inUse;
+        }
     }
 
     @Transactional(readOnly = true)
@@ -77,11 +93,16 @@ public class CatalogAdminService {
     public AdminDisease createDisease(String code, DiseaseData data) {
         validate(code, data);
         if (diseases.existsById(code)) {
-            throw new ApiException(HttpStatus.CONFLICT, "disease_exists", "Disease already exists: " + code);
+            throw diseaseExists(code);
         }
         Disease disease = new Disease(code, data.cropCode(), data.kind(), data.severity(), data.latinName(),
                 data.names(), data.symptoms(), data.conditions(), data.prevention());
-        return view(diseases.save(disease));
+        try {
+            return view(diseases.saveAndFlush(disease));
+        } catch (DataIntegrityViolationException e) {
+            // A parallel request created the same code between the check and the insert
+            throw diseaseExists(code);
+        }
     }
 
     /** Replaces the texts and attributes; treatments are untouched. */
@@ -93,10 +114,17 @@ public class CatalogAdminService {
         return view(disease);
     }
 
-    /** Deletes the disease with its treatments; stored diagnoses keep the bare code. */
+    /**
+     * Deletes the disease with its treatments. A code that stored diagnoses refer to
+     * stays: class codes are permanent (docs/ai/classes.md).
+     */
     public void deleteDisease(String code) {
         if (!diseases.existsById(code)) {
             throw diseaseNotFound(code);
+        }
+        if (diseases.countDiagnoses(code) > 0) {
+            throw new ApiException(HttpStatus.CONFLICT, CatalogErrors.DISEASE_IN_USE,
+                    "Diagnoses refer to this disease: " + code);
         }
         diseases.deleteById(code);
     }
@@ -138,7 +166,7 @@ public class CatalogAdminService {
         return disease.getTreatments().stream()
                 .filter(treatment -> treatment.getId() == treatmentId)
                 .findFirst()
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "treatment_not_found",
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, CatalogErrors.TREATMENT_NOT_FOUND,
                         "Unknown treatment: " + treatmentId));
     }
 
@@ -149,6 +177,8 @@ public class CatalogAdminService {
         if (data.product() == null || data.product().isBlank()) {
             throw invalid("product must not be blank");
         }
+        requireTexts("dosage", data.dosage());
+        requireTexts("method", data.method());
     }
 
     private static AdminTreatment view(Treatment treatment) {
@@ -159,6 +189,9 @@ public class CatalogAdminService {
 
     private void validate(String code, DiseaseData data) {
         requireAllLanguages(data.names());
+        requireTexts("symptoms", data.symptoms());
+        requireTexts("conditions", data.conditions());
+        requireTexts("prevention", data.prevention());
         if (!KINDS.contains(data.kind())) {
             throw invalid("kind must be one of " + KINDS);
         }
@@ -186,6 +219,38 @@ public class CatalogAdminService {
                 throw invalid("names must contain a non-blank text for " + LANGUAGES);
             }
         }
+        requireTexts("names", names);
+    }
+
+    /**
+     * Keeps the read contract: only the known languages, each a string or a list of
+     * strings of bounded length.
+     */
+    private static void requireTexts(String field, Map<String, ?> texts) {
+        if (texts == null) {
+            return;
+        }
+        for (Map.Entry<String, ?> entry : texts.entrySet()) {
+            if (!LANGUAGES.contains(entry.getKey())) {
+                throw invalid(field + " has an unsupported language: " + entry.getKey());
+            }
+            Object value = entry.getValue();
+            if (value instanceof List<?> items) {
+                if (items.size() > MAX_ITEMS) {
+                    throw invalid(field + " has too many items");
+                }
+                items.forEach(item -> requireText(field, item));
+            } else {
+                requireText(field, value);
+            }
+        }
+    }
+
+    private static void requireText(String field, Object value) {
+        if (!(value instanceof String text) || text.length() > MAX_TEXT_LENGTH) {
+            throw invalid(field + " must be a string or a list of strings up to " + MAX_TEXT_LENGTH
+                    + " characters");
+        }
     }
 
     private static ApiException invalid(String detail) {
@@ -193,11 +258,20 @@ public class CatalogAdminService {
     }
 
     private static ApiException cropNotFound(String code) {
-        return new ApiException(HttpStatus.NOT_FOUND, "crop_not_found", "Unknown crop: " + code);
+        return new ApiException(HttpStatus.NOT_FOUND, CatalogErrors.CROP_NOT_FOUND, "Unknown crop: " + code);
+    }
+
+    private static ApiException cropExists(String code) {
+        return new ApiException(HttpStatus.CONFLICT, CatalogErrors.CROP_EXISTS, "Crop already exists: " + code);
     }
 
     private static ApiException diseaseNotFound(String code) {
-        return new ApiException(HttpStatus.NOT_FOUND, "disease_not_found", "Unknown disease: " + code);
+        return new ApiException(HttpStatus.NOT_FOUND, CatalogErrors.DISEASE_NOT_FOUND, "Unknown disease: " + code);
+    }
+
+    private static ApiException diseaseExists(String code) {
+        return new ApiException(HttpStatus.CONFLICT, CatalogErrors.DISEASE_EXISTS,
+                "Disease already exists: " + code);
     }
 
     private static AdminCrop view(Crop crop) {

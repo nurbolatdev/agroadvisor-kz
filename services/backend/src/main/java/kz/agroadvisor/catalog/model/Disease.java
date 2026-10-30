@@ -13,7 +13,9 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 @Entity
@@ -50,6 +52,8 @@ public class Disease {
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> prevention;
 
+    // Batched so that listing many diseases with their treatment counts is not N+1
+    @BatchSize(size = 50)
     @OneToMany(mappedBy = "disease", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("type, sortOrder, id")
     private List<Treatment> treatments = new ArrayList<>();
@@ -57,7 +61,9 @@ public class Disease {
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
 
-    @Column(name = "updated_at", insertable = false, updatable = false)
+    // Set on every insert and update; cache invalidation relies on it
+    @UpdateTimestamp
+    @Column(name = "updated_at")
     private Instant updatedAt;
 
     protected Disease() {
@@ -94,6 +100,10 @@ public class Disease {
 
     public String getCode() {
         return code;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
     }
 
     public String getCropCode() {

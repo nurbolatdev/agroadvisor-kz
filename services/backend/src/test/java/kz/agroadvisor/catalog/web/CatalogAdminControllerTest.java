@@ -7,7 +7,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
 import java.util.Set;
+import java.util.UUID;
 
 import kz.agroadvisor.TestcontainersConfiguration;
 import kz.agroadvisor.auth.service.JwtService;
@@ -26,6 +28,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -52,6 +55,8 @@ class CatalogAdminControllerTest {
     private UserRepository users;
     @Autowired
     private JwtService jwt;
+    @Autowired
+    private JdbcTemplate jdbc;
 
     private String admin;
     private String farmer;
@@ -142,6 +147,75 @@ class CatalogAdminControllerTest {
 
         send(delete("/api/admin/diseases/admcrop__rot"), admin, null).andExpect(status().isNoContent());
         send(delete("/api/admin/crops/admcrop"), admin, null).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void cropAndDiseaseWithDiagnosesCannotBeDeleted() throws Exception {
+        send(post("/api/admin/crops"), admin, CROP_BODY).andExpect(status().isCreated());
+        send(post("/api/admin/diseases"), admin, DISEASE_BODY).andExpect(status().isCreated());
+        UUID user = jdbc.queryForObject("SELECT id FROM users LIMIT 1", UUID.class);
+        jdbc.update("""
+                INSERT INTO diagnoses (user_id, crop_code, photo_key, status, top1_code, top1_confidence,
+                                       model_version, classes_version)
+                VALUES (?, 'admcrop', 'diagnoses/adm.jpg', 'ok', 'admcrop__rot', 0.9, 'effnet-b0-v1', 1)""", user);
+        try {
+            send(delete("/api/admin/diseases/admcrop__rot"), admin, null)
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("disease_in_use"));
+
+            // The disease is gone but the diagnosis still points at the crop: a foreign key, not a 500
+            jdbc.update("DELETE FROM diseases WHERE code = 'admcrop__rot'");
+            send(delete("/api/admin/crops/admcrop"), admin, null)
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("crop_in_use"));
+        } finally {
+            jdbc.update("DELETE FROM diagnoses WHERE photo_key = 'diagnoses/adm.jpg'");
+        }
+    }
+
+    @Test
+    void textsKeepTheReadContract() throws Exception {
+        send(post("/api/admin/crops"), admin, CROP_BODY).andExpect(status().isCreated());
+        String names = "\"names\":{\"ru\":\"a\",\"kk\":\"b\",\"en\":\"c\"}";
+
+        send(post("/api/admin/diseases"), admin,
+                "{\"code\":\"admcrop__rot\",\"cropCode\":\"admcrop\",\"kind\":\"fungal\"," + names
+                        + ",\"symptoms\":{\"de\":\"x\"}}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("validation_failed"));
+        send(post("/api/admin/diseases"), admin,
+                "{\"code\":\"admcrop__rot\",\"cropCode\":\"admcrop\",\"kind\":\"fungal\"," + names
+                        + ",\"symptoms\":{\"ru\":{\"nested\":1}}}")
+                .andExpect(status().isBadRequest());
+        send(post("/api/admin/diseases"), admin,
+                "{\"code\":\"admcrop__rot\",\"cropCode\":\"admcrop\",\"kind\":\"fungal\"," + names
+                        + ",\"prevention\":{\"ru\":[1,2]}}")
+                .andExpect(status().isBadRequest());
+        send(post("/api/admin/diseases"), admin,
+                "{\"code\":\"admcrop__rot\",\"cropCode\":\"admcrop\",\"kind\":\"fungal\","
+                        + "\"names\":{\"ru\":\"a\",\"kk\":\"b\",\"en\":\"c\",\"fr\":\"d\"}}")
+                .andExpect(status().isBadRequest());
+        send(post("/api/admin/diseases"), admin,
+                "{\"code\":\"admcrop__rot\",\"cropCode\":\"admcrop\",\"kind\":\"fungal\"," + names
+                        + ",\"symptoms\":{\"ru\":\"" + "x".repeat(2001) + "\"}}")
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void editingADiseaseRefreshesUpdatedAt() throws Exception {
+        send(post("/api/admin/crops"), admin, CROP_BODY).andExpect(status().isCreated());
+        send(post("/api/admin/diseases"), admin, DISEASE_BODY).andExpect(status().isCreated());
+        Instant before = jdbc.queryForObject("SELECT updated_at FROM diseases WHERE code = 'admcrop__rot'",
+                Instant.class);
+        Thread.sleep(20);
+
+        send(put("/api/admin/diseases/admcrop__rot"), admin, """
+                {"cropCode":"admcrop","kind":"fungal","names":{"ru":"Новое","kk":"Жаңа","en":"New"}}""")
+                .andExpect(status().isOk());
+
+        Instant after = jdbc.queryForObject("SELECT updated_at FROM diseases WHERE code = 'admcrop__rot'",
+                Instant.class);
+        org.assertj.core.api.Assertions.assertThat(after).isAfter(before);
     }
 
     @Test
