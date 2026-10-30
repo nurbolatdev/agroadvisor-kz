@@ -1,7 +1,9 @@
 package kz.agroadvisor.catalog.service;
 
+import java.io.Serializable;
 import java.util.List;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,10 +15,18 @@ import kz.agroadvisor.catalog.repository.CropRepository;
 import kz.agroadvisor.catalog.repository.DiseaseRepository;
 import kz.agroadvisor.common.web.ApiException;
 
-/** Read side of the reference: everything is returned in a single language. */
+/**
+ * Read side of the reference: everything is returned in a single language.
+ *
+ * <p>Results are cached in Redis (the views are {@link Serializable}); errors such as
+ * "unknown code" are not cached. {@link CatalogAdminService} evicts the whole cache on every change.
+ */
 @Service
 @Transactional(readOnly = true)
 public class CatalogService {
+
+    /** Name of the cache shared with {@link CatalogAdminService}. */
+    public static final String CACHE = "catalog";
 
     private final CropRepository crops;
     private final DiseaseRepository diseases;
@@ -26,6 +36,7 @@ public class CatalogService {
         this.diseases = diseases;
     }
 
+    @Cacheable(cacheNames = CACHE, key = "'crops:' + #lang")
     public List<CropView> crops(String lang) {
         return crops.findAllByOrderBySortOrderAscCodeAsc().stream()
                 .map(crop -> cropView(crop, lang))
@@ -37,6 +48,7 @@ public class CatalogService {
      * "healthy" and "unknown" classes are not diseases and are left out of the list;
      * they are still available by code for a diagnosis result.
      */
+    @Cacheable(cacheNames = CACHE, key = "'diseases:' + (#cropCode ?: '*') + ':' + #lang")
     public List<DiseaseSummary> diseases(String cropCode, String lang) {
         List<Disease> found;
         if (cropCode == null) {
@@ -54,6 +66,7 @@ public class CatalogService {
                 .toList();
     }
 
+    @Cacheable(cacheNames = CACHE, key = "'disease:' + #code + ':' + #lang")
     public DiseaseDetail disease(String code, String lang) {
         Disease disease = diseases.findById(code)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, CatalogErrors.DISEASE_NOT_FOUND,
@@ -85,19 +98,19 @@ public class CatalogService {
                 CatalogLanguage.pick(treatment.getDosage(), lang), CatalogLanguage.pick(treatment.getMethod(), lang));
     }
 
-    public record CropView(String code, String name) {
+    public record CropView(String code, String name) implements Serializable {
     }
 
     public record DiseaseSummary(String code, String cropCode, String kind, String severity, String latinName,
-            String name) {
+            String name) implements Serializable {
     }
 
     /** {@code symptoms}, {@code conditions} and {@code prevention} are a string or a list of strings. */
     public record DiseaseDetail(DiseaseSummary disease, Object symptoms, Object conditions, Object prevention,
-            List<TreatmentView> treatments) {
+            List<TreatmentView> treatments) implements Serializable {
     }
 
     public record TreatmentView(String type, String product, String activeIngredient, String dosage,
-            String method) {
+            String method) implements Serializable {
     }
 }
