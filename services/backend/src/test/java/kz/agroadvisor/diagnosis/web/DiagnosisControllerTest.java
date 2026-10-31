@@ -1,5 +1,8 @@
 package kz.agroadvisor.diagnosis.web;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Set;
 import java.util.UUID;
 
@@ -8,7 +11,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
@@ -68,8 +74,23 @@ class DiagnosisControllerTest {
         return users.saveAndFlush(new User(Login.parse(phone), "x", "Farmer", "ru", Set.of(Role.FARMER)));
     }
 
-    private static MockMultipartFile image(String type) {
-        return new MockMultipartFile("image", "leaf.jpg", type, new byte[] {1, 2, 3});
+    /** The rate limiter counts per wall-clock minute; a fixed clock keeps six requests in one window. */
+    @TestConfiguration
+    static class FixedClockConfig {
+
+        @Bean
+        @Primary
+        Clock fixedClock() {
+            return Clock.fixed(Instant.now(), ZoneOffset.UTC);
+        }
+    }
+
+    private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 1, 2, 3};
+    private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3};
+
+    /** A JPEG or PNG file (by its bytes); the type the client declares may differ. */
+    private static MockMultipartFile image(String declaredType) {
+        return new MockMultipartFile("image", "leaf", declaredType, "image/png".equals(declaredType) ? PNG : JPEG);
     }
 
     @Test
@@ -111,11 +132,21 @@ class DiagnosisControllerTest {
     }
 
     @Test
-    void rejectsAFileThatIsNotAnImage() throws Exception {
-        mvc.perform(multipart("/api/diagnoses").file(image("text/plain")).param("crop", "tomato")
-                        .header("Authorization", token))
+    void rejectsAFileThatIsNotAnImageWhateverTheClientDeclares() throws Exception {
+        MockMultipartFile text = new MockMultipartFile("image", "leaf.jpg", "image/jpeg", "hello".getBytes());
+
+        mvc.perform(multipart("/api/diagnoses").file(text).param("crop", "tomato").header("Authorization", token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("invalid_image"));
+        verify(photos, never()).store(any(UUID.class), any(byte[].class), anyString());
+    }
+
+    @Test
+    void acceptsAPhotoWhoseDeclaredTypeIsTheNonStandardImageJpg() throws Exception {
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpg")).param("crop", "tomato")
+                        .header("Authorization", token))
+                .andExpect(status().isCreated());
+        verify(photos).store(eq(farmer.getId()), any(byte[].class), eq("image/jpeg"));
     }
 
     @Test

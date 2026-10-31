@@ -3,6 +3,7 @@ package kz.agroadvisor.diagnosis.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -29,7 +30,8 @@ import kz.agroadvisor.diagnosis.repository.DiagnosisRepository;
 public class DiagnosisService {
 
     private static final int MAX_PHOTO_BYTES = 10 * 1024 * 1024;
-    private static final Set<String> IMAGE_TYPES = Set.of("image/jpeg", "image/png");
+    private static final byte[] JPEG_SIGNATURE = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF};
+    private static final byte[] PNG_SIGNATURE = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
 
     private final AiClient ai;
     private final PhotoStorage photos;
@@ -54,23 +56,52 @@ public class DiagnosisService {
             boolean descriptionReady, Instant createdAt) {
     }
 
-    public DiagnosisView create(UUID userId, String crop, byte[] photo, String contentType) {
+    public DiagnosisView create(UUID userId, String crop, byte[] photo) {
         if (!ai.crops().contains(crop)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.UNKNOWN_CROP, "Unsupported crop: " + crop);
         }
-        // Set.of(...).contains(null) throws, and a part may arrive without a content type
-        if (photo.length == 0 || photo.length > MAX_PHOTO_BYTES
-                || contentType == null || !IMAGE_TYPES.contains(contentType)) {
+        String contentType = photo.length > MAX_PHOTO_BYTES ? null : imageType(photo);
+        if (contentType == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IMAGE,
                     "Send a JPEG or PNG photo of up to 10 MB");
         }
         String photoKey = photos.store(userId, photo, contentType);
-        Prediction prediction = ai.predict(crop, photo);
-        Diagnosis saved = diagnoses.save(new Diagnosis(userId, crop, photoKey, prediction.status(),
-                prediction.top1().code(), BigDecimal.valueOf(prediction.top1().confidence()).setScale(4, RoundingMode.HALF_UP),
-                prediction.top3(), prediction.detectedCrop(), prediction.modelVersion(),
-                prediction.classesVersion(), prediction.inferenceMs()));
-        return views(List.of(saved)).get(0);
+        try {
+            Prediction prediction = ai.predict(crop, photo);
+            Diagnosis saved = diagnoses.save(new Diagnosis(userId, crop, photoKey, prediction.status(),
+                    prediction.top1().code(),
+                    BigDecimal.valueOf(prediction.top1().confidence()).setScale(4, RoundingMode.HALF_UP),
+                    prediction.top3(), prediction.detectedCrop(), prediction.modelVersion(),
+                    prediction.classesVersion(), prediction.inferenceMs()));
+            return views(List.of(saved)).get(0);
+        } catch (RuntimeException e) {
+            discard(photoKey, e);
+            throw e;
+        }
+    }
+
+    /** A photo without a diagnosis row is garbage; a failed cleanup must not hide the original error. */
+    private void discard(String photoKey, RuntimeException cause) {
+        try {
+            photos.delete(photoKey);
+        } catch (RuntimeException cleanup) {
+            cause.addSuppressed(cleanup);
+        }
+    }
+
+    /**
+     * The real type from the file's first bytes, not from the client's Content-Type header: the header
+     * is optional, often non-standard ({@code image/jpg}) and says nothing about the content.
+     */
+    private static String imageType(byte[] photo) {
+        if (startsWith(photo, JPEG_SIGNATURE)) {
+            return "image/jpeg";
+        }
+        return startsWith(photo, PNG_SIGNATURE) ? "image/png" : null;
+    }
+
+    private static boolean startsWith(byte[] data, byte[] prefix) {
+        return data.length > prefix.length && Arrays.equals(data, 0, prefix.length, prefix, 0, prefix.length);
     }
 
     @Transactional(readOnly = true)

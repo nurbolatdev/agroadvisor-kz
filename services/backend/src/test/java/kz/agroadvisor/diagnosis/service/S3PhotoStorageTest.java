@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,6 +41,16 @@ class S3PhotoStorageTest {
     @Test
     void usesThePngExtensionForPng() {
         assertThat(upload("image/png").key()).endsWith(".png");
+    }
+
+    @Test
+    void deletesAnObjectByItsKey() {
+        storage.delete("diagnoses/u/photo.jpg");
+
+        ArgumentCaptor<DeleteObjectRequest> request = ArgumentCaptor.forClass(DeleteObjectRequest.class);
+        verify(s3).deleteObject(request.capture());
+        assertThat(request.getValue().bucket()).isEqualTo("diagnosis-photos");
+        assertThat(request.getValue().key()).isEqualTo("diagnoses/u/photo.jpg");
     }
 
     @Test

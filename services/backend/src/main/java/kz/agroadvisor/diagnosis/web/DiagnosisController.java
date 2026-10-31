@@ -48,8 +48,7 @@ public class DiagnosisController {
     public DiagnosisView create(@RequestParam String crop, @RequestParam("image") MultipartFile image,
             Authentication authentication) throws IOException {
         rateLimiter.check("diagnosis", authentication.getName(), limits.diagnosisPerMinute(), Duration.ofMinutes(1));
-        return diagnoses.create(UUID.fromString(authentication.getName()), crop, image.getBytes(),
-                image.getContentType());
+        return diagnoses.create(UUID.fromString(authentication.getName()), crop, image.getBytes());
     }
 
     @GetMapping
