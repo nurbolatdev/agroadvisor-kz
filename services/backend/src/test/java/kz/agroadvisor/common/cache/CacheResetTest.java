@@ -4,6 +4,7 @@ import java.time.Duration;
 
 import kz.agroadvisor.TestcontainersConfiguration;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
@@ -31,13 +32,11 @@ class CacheResetTest {
     @Autowired
     private ConfigurableApplicationContext context;
 
-    /**
-     * A Redis cache write may still be on its way when put() returns, and a removal sent right after
-     * it can overtake it (seen in about 1 of 8 runs); a read is a round trip that settles the write.
-     */
-    private void putAndConfirm(String key, String value) {
-        caches.getCache(CACHE).put(key, value);
-        assertThat(caches.getCache(CACHE).get(key)).isNotNull();
+    /** Arrange: a stale entry that survived the restart. Cache writes are immediate (CacheWritesTest). */
+    @BeforeEach
+    void seedStaleEntry() {
+        caches.getCache(CACHE).put("probe", "stale");
+        assertThat(caches.getCache(CACHE).get("probe")).as("seeded entry").isNotNull();
     }
 
     @Test
@@ -47,8 +46,6 @@ class CacheResetTest {
 
     @Test
     void onReadyEmptiesTheCaches() {
-        putAndConfirm("probe", "stale");
-
         reset.onReady();
 
         assertThat(caches.getCache(CACHE).get("probe")).isNull();
@@ -56,8 +53,6 @@ class CacheResetTest {
 
     @Test
     void theApplicationReadyEventTriggersIt() {
-        putAndConfirm("probe", "stale");
-
         context.publishEvent(new ApplicationReadyEvent(new SpringApplication(), new String[0], context,
                 Duration.ZERO));
 
