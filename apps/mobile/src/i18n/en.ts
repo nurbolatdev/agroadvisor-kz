@@ -11,6 +11,11 @@ export const en: Translation = {
     kk: 'Қазақша',
     en: 'English',
   },
+  common: {
+    empty: 'Nothing here yet',
+    error: 'Something went wrong',
+    retry: 'Try again',
+  },
   home: {
     title: 'Home',
     scaffoldReady: 'The app scaffold is ready',

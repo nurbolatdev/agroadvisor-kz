@@ -1,65 +1,98 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { BlurTargetView } from 'expo-blur'
+import { Leaf, TriangleAlert } from 'lucide-react-native'
+import { useRef, useState, type ComponentRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { StyleSheet, View } from 'react-native'
 
+import {
+  AppText,
+  Badge,
+  Button,
+  Chip,
+  EmptyState,
+  GlassCard,
+  Input,
+  ProgressBar,
+  Screen,
+} from '@/components/ui'
 import { LANGUAGES } from '@/i18n'
 import { useSettings } from '@/store/settings'
-import { colors, radii, sizes, spacing, typography } from '@/theme/tokens'
+import { colors, radii, spacing } from '@/theme/tokens'
 
-// Placeholder screen: proves theme, fonts, i18n and persisted language work.
-// Replaced by the real navigation in M3.
+// Placeholder screen: shows the UI kit on device (dev labels are not translated, the screen is
+// removed in M3). Replaced by the real navigation in M3.
 export default function HomeScreen() {
   const { t } = useTranslation()
-  const insets = useSafeAreaInsets()
   const language = useSettings((s) => s.language)
   const setLanguage = useSettings((s) => s.setLanguage)
+  const [text, setText] = useState('')
+  const blurTarget = useRef<ComponentRef<typeof View>>(null)
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + spacing.xl }]}>
-      <Text style={styles.title}>{t('app.name')}</Text>
-      <Text style={styles.tagline}>{t('app.tagline')}</Text>
-      <Text style={styles.status}>{t('home.scaffoldReady')}</Text>
+    <Screen scroll>
+      <AppText variant="display" color={colors.primaryDark}>
+        {t('app.name')}
+      </AppText>
+      <AppText color={colors.textMuted} style={styles.gap}>
+        {t('app.tagline')}
+      </AppText>
+      <AppText variant="h2" color={colors.primary} style={styles.gap}>
+        {t('home.scaffoldReady')}
+      </AppText>
 
-      <Text style={styles.label}>{t('language.title')}</Text>
+      <AppText variant="caption" color={colors.textMuted} style={styles.section}>
+        {t('language.title')}
+      </AppText>
       <View style={styles.row}>
-        {LANGUAGES.map((code) => {
-          const selected = code === language
-          return (
-            <Pressable
-              key={code}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              onPress={() => setLanguage(code)}
-              style={[styles.chip, selected && styles.chipSelected]}
-            >
-              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                {t(`language.${code}`)}
-              </Text>
-            </Pressable>
-          )
-        })}
+        {LANGUAGES.map((code) => (
+          <Chip
+            key={code}
+            label={t(`language.${code}`)}
+            selected={code === language}
+            onPress={() => setLanguage(code)}
+          />
+        ))}
       </View>
-    </View>
+
+      <View style={styles.hero}>
+        <BlurTargetView ref={blurTarget} style={StyleSheet.absoluteFill}>
+          <View style={styles.heroBackground} />
+        </BlurTargetView>
+        <GlassCard blurTarget={blurTarget}>
+          <View style={styles.row}>
+            <Badge label="OK" tone="success" icon={Leaf} />
+            <Badge label="!" tone="danger" icon={TriangleAlert} />
+          </View>
+          <AppText variant="h2" style={styles.gap}>
+            87%
+          </AppText>
+          <ProgressBar value={0.87} />
+        </GlassCard>
+      </View>
+
+      <View style={styles.stack}>
+        <Input label="Input" value={text} onChangeText={setText} placeholder="..." />
+        <Input label="Input" error="Error" />
+        <Button label="Primary" icon={Leaf} onPress={() => {}} />
+        <Button label="Secondary" variant="secondary" onPress={() => {}} />
+        <Button label="Danger" variant="danger" onPress={() => {}} />
+        <Button label="Ghost" variant="ghost" compact onPress={() => {}} />
+        <EmptyState />
+      </View>
+    </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: spacing.xl },
-  title: { ...typography.display, color: colors.primaryDark },
-  tagline: { ...typography.body, color: colors.textMuted, marginTop: spacing.sm },
-  status: { ...typography.h2, color: colors.primary, marginTop: spacing.xl },
-  label: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xxl },
-  row: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  chip: {
-    minHeight: sizes.touch,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
+  gap: { marginTop: spacing.sm },
+  section: { marginTop: spacing.xl },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
+  hero: {
+    marginTop: spacing.xl,
+    padding: spacing.xl,
+    borderRadius: radii.lg,
+    overflow: 'hidden',
   },
-  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { ...typography.small, color: colors.text },
-  chipTextSelected: { color: colors.white },
+  heroBackground: { flex: 1, backgroundColor: colors.primary },
+  stack: { gap: spacing.md, marginTop: spacing.xl },
 })

@@ -9,6 +9,11 @@ export const ru = {
     kk: 'Қазақша',
     en: 'English',
   },
+  common: {
+    empty: 'Здесь пока пусто',
+    error: 'Что-то пошло не так',
+    retry: 'Повторить',
+  },
   home: {
     title: 'Главная',
     scaffoldReady: 'Каркас приложения готов',

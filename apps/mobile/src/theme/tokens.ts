@@ -16,6 +16,8 @@ export const colors = {
   info: '#2A6592',
   infoSoft: '#E2EDF6',
   white: '#FFFFFF',
+  glassFill: 'rgba(255, 255, 255, 0.45)',
+  glassBorder: 'rgba(255, 255, 255, 0.6)',
 } as const
 
 export const spacing = {
@@ -43,6 +45,10 @@ export const sizes = {
   badge: 24,
   progress: 8,
   icon: 24,
+  iconXs: 14,
+  iconSm: 16,
+  iconMd: 20,
+  iconLg: 48,
 } as const
 
 export const fonts = {
