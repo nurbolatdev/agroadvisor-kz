@@ -11,6 +11,7 @@ Training options (all off by default, so earlier runs stay reproducible): `--sel
 | A5-E001 | completed | Baseline, two-stage fine-tuning, balanced sampler | 0.9619 | 0.7325 | 0.9557 | 0.699 |
 | A5-E002 | completed, criterion not met | E001 + field photos are 35 % of the draws in classes that have them | 0.9620 | 0.7338 | 0.9555 | 0.684 |
 | A10-E001 | completed, criterion not met | A5-E001 recipe on dataset v2 (scored on v2 validation, without the training photos of A5-E001) | 0.951 | 0.841 | 0.9456 | — |
+| A7-E001 | completed | Temperature scaling fitted on field `val` (1 688 photos), checked on `test` and `bench`; thresholds. A5-E001: `T = 3.79`, ECE on `bench` 0.269 → 0.087 | — | — | — | — |
 | A6-E001 | completed | Scoring of A5-E001 and A10-E001 on v2 `val`, `test`, `bench` (same photos for both); top-3 inside the crop added. Best on `bench`: A5-E001, 0.564 (0.547–0.581) | — | — | — | — |
 
 ## A5-E001 — baseline
@@ -249,6 +250,32 @@ Laboratory photos: 0.982–0.986 accuracy on `test`; `unknown` on `test`: A5-E00
 **Conclusion.** The target is met only on photos from the training sources (A10-E001: 0.949 / 0.998 on `test`). On independent field photos the best candidate, A5-E001, reaches 0.563 correct answers and 0.876 top-3; A10-E001, better on its own sources, is significantly worse there and answers "healthy" for 4.9 % of the diseased `bench` photos (A5-E001: 1.1 %). By F1 on `bench` the weakest classes are `wheat__stripe_rust` (0.03–0.14), `wheat__septoria` (0.25–0.37), `wheat__leaf_rust` (0.32–0.33) and `tomato__bacterial_spot` (0.26–0.33). Top-3 in the crop is below 95 % for tomato and wheat on `bench` in both runs.
 
 **Next step.** A7 (calibration) on field data and a check on `bench`; collect the own set, healthy leaves first (`docs/ai/own-photos.md`); more field data from other sources for wheat and tomato before the next training run. The choice of the model for the service stays with the lead.
+
+## A7-E001 — temperature scaling and thresholds
+
+**Status:** completed. No training: the temperature is fitted on saved logits of A5-E001 and A10-E001 (`ml/runs/<ID>/calibration.json`, `reliability_*.png`). Details and tables: `docs/ai/evaluation.md`, section "Confidence calibration and thresholds (A7)".
+
+**Objective.** Make the confidence mean what it says and set the thresholds `ok`, `low` and `crop_mismatch` on field data; check that a non-plant photo is answered "not recognized".
+
+**Hypothesis (written after a first exploratory look at the saved logits, so it checks the final tool, not a blind prediction).** A single temperature fitted on field photos of sources the model did not train on lowers the expected calibration error (ECE) by at least a factor of 2 on `test` and on the independent `bench`.
+
+**Data and method.** Dataset v2, saved logits of `val` (fit: 1 688 field photos), `test` and `bench` (checks only). Probabilities are those of the service: the selected crop's classes plus `unknown`. ECE with 15 bins. From commit `11e7181`, clean working tree.
+
+**Results, A5-E001 (`T = 3.79`).**
+
+| Split | ECE before → after | Log-loss before → after | `ok` (≥ 0.70) before: photos / right | `ok` after: photos / right |
+| --- | --- | --- | --- | --- |
+| `val` (fit) | 0.331 → 0.067 | 2.139 → 1.301 | 67 % / 53 % | 17 % / 87 % |
+| `test` | 0.320 → 0.071 | 2.083 → 1.268 | 68 % / 56 % | 17 % / 89 % |
+| `bench` | 0.269 → 0.087 | 2.035 → 1.247 | 75 % / 63 % | 19 % / 78 % |
+
+False `crop_mismatch` (threshold 0.70) on `bench`: 5.5 % → 0.07 %. A10-E001 (`T = 1.38`): ECE 0.020 → 0.008 on `val`, but 0.305 → 0.243 on `bench`; answers at confidence ≥ 0.70 are right 61.5 % of the time there, and false `crop_mismatch` stays at 4.3 %.
+
+**Limitations.** One scalar for all classes and crops; non-plant photos come from the same sources as the training `unknown` (no independent set); test-time augmentation not measured; no intervals for ECE.
+
+**Conclusion.** The hypothesis is confirmed for A5-E001 (ECE lower by a factor of 4.5 on `test` and 3.1 on `bench`) and rejected for A10-E001 on `bench`: a temperature fitted on photos of the training sources reports a calibration that does not hold on independent photos. Recommended thresholds for A5-E001 with `T` applied: `ok` 0.70, `low` 0.25 (was 0.40), `crop_mismatch` 0.70. Non-plant photos stay rejected (99.6–100 %).
+
+**Next step.** Apply `T` and the thresholds with the real model (A8, item 17); calibrate A10-E001 (or a later model) on photos from independent sources before trusting its confidence.
 
 ## A5-TRIAL — speed check (not an experiment)
 

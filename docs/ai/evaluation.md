@@ -121,6 +121,60 @@ The full per-class tables and the by-crop tables for `test` and `val` are produc
 5. **Missed diseases are measurable, false alarms are not.** On `bench` A10-E001 answers "healthy" for 138 of 2 792 diseased photos (4.9 %), A5-E001 for 31 (1.1 %): one more reason against A10-E001 as the candidate. The opposite error (a healthy leaf called diseased, which costs a farmer a needless treatment) is **not measured** for tomato, potato, corn and wheat, because `bench` has no healthy leaves and no `unknown` photos. This is what the `own` set has to cover first.
 6. **Top-3 is below 95 % where it is not trivial.** On `bench`, tomato 0.80–0.82 and wheat 0.80–0.82 in both runs; corn 0.95–0.97 and potato 0.96–1.00 reach it, and potato has only 4 options.
 
+## Confidence calibration and thresholds (A7)
+
+The service shows the model's probability as its confidence and compares it with thresholds (`ok`, `low`, `crop_mismatch`). That only makes sense if "70 %" means about 70 % right. A network trained with cross-entropy is overconfident; one number fixes most of it, the temperature `T` that divides the logits before the softmax (the answer never changes, only how sure the model says it is).
+
+**Method.** `T` is fitted on the **field** photos of `val` (v2, the photos the model did not train on: 1 688 photos) by minimizing the log-loss of the answer as the service gives it (the selected crop's classes plus `unknown`). It is then *checked*, never fitted, on `test` and on the independent `bench`. Calibration error is ECE (15 bins). Everything is computed from the saved logits by `python -m ml.calibrate` (no new inference), from commit `11e7181`.
+
+### A5-E001: calibration transfers to independent photos
+
+`T = 3.79`. Field photos, accuracy of the answer does not change:
+
+| Split | Photos | Accuracy | Mean confidence | ECE | Log-loss |
+| --- | ---: | ---: | --- | --- | --- |
+| `val` (fitted here) | 1688 | 0.459 | 0.788 → 0.483 | 0.331 → **0.067** | 2.139 → 1.301 |
+| `test` | 1666 | 0.477 | 0.797 → 0.493 | 0.320 → **0.071** | 2.083 → 1.268 |
+| `bench` (independent) | 2792 | 0.563 | 0.831 → 0.504 | 0.269 → **0.087** | 2.035 → 1.247 |
+
+Without `T` the model says 79–83 % while being right 46–56 % of the time. After it, the confidence matches the accuracy within about 0.07–0.09 on all three splits, **including `bench`, which was not used for the fit** (`reliability_bench_v2.png` in the run folder; the curve stays near the diagonal: slightly above it below about 0.7, where the model is a little underconfident, and slightly below it between 0.75 and 0.9, where it is a little overconfident).
+
+What the threshold `ok` (confidence ≥ 0.70) means, share of field photos that reach it and share of those that are right:
+
+| Split | Without `T` | With `T` |
+| --- | --- | --- |
+| `val` | 67 % of photos, 53 % right | **17 %** of photos, 87 % right |
+| `test` | 68 % of photos, 56 % right | **17 %** of photos, 89 % right |
+| `bench` | 75 % of photos, 63 % right | **19 %** of photos, 78 % right |
+
+Without calibration the service would answer "ok" for 67–75 % of the field photos and be wrong for 37–47 % of those answers. With it, "ok" is rare (about one photo in six) and 78–89 % of those answers are right.
+
+The check "this looks like another crop" (`crop_mismatch`, on the unmasked output, threshold 0.70) fires on photos of the selected crop: without `T` on **5.5 %** of `bench` photos (153) and 2.9 % of `val` (49); with `T` on 2 photos of `bench` (0.07 %) and none of `val` or `test`.
+
+### A10-E001: calibrating on a split of the training sources does not help
+
+`T = 1.38`. On `val` and `test` (sources it trained on) it is already calibrated (ECE 0.020 → 0.008 and 0.030 → 0.015) and `ok` answers are right 96–97 % of the time. On the independent `bench` it is overconfident and `T` cannot fix it: ECE 0.305 → **0.243**, answers at confidence ≥ 0.70 are right only 61.5 % of the time (63 % of photos reach it), and `crop_mismatch` fires on 4.3 % of `bench` photos even with `T`. A temperature fitted on photos of the training sources reports a calibration that does not exist elsewhere. For this model there is no honest threshold set until it is calibrated on photos from independent sources (the own set, or a held-out source).
+
+### Recommended thresholds (for A5-E001 with `T = 3.79` applied before the softmax)
+
+| Threshold | Now | Recommended | Why |
+| --- | --- | --- | --- |
+| `ok` | 0.70 | **0.70** | With `T` it means what it says: 78–89 % right on field photos; about one photo in six reaches it |
+| `low` (below it: "not recognized", top-3 still shown) | 0.40 | **0.25** | At 0.40 the app would say "not recognized" for 36–41 % of ordinary crop photos, and 34–40 % of them would have been right; at 0.25 it is 9–10 % (29–35 % of them right). The rule is that "crop → `unknown`" is worse than `low_confidence` |
+| `crop_mismatch` | 0.70 | **0.70, only with `T`** | 0.07 % false alarms on `bench` with `T`, 5.5 % without it |
+
+Non-plant photos stay rejected: of 279 (`val`) and 280 (`test`) photos of other plants and objects, 99.6–100 % are answered "not recognized" for every crop at both `low = 0.25` and `low = 0.40`. These photos come from the same sources as the training `unknown` (other plants, Caltech objects); there is no independent set of non-plant photos, so this is a check of the class, not a promise for any object.
+
+These values change the defaults of `Thresholds` in the service and are applied together with the real model (A8, item 17): the service must apply `T` (it belongs in `model_card.json`) and must not answer `ok` for a model without it. Nothing in the service was changed here.
+
+### Limits of the calibration
+
+- One scalar for all classes and crops. The residual ECE is 0.07–0.09; per-crop temperatures were not tried.
+- The fit uses 1 688 field photos of the v2 sources the model did not train on. The result is checked on `test` (same distribution) and `bench` (independent), which is the strongest check available; a new region, season or camera can still shift it.
+- Only 17–19 % of field photos can be answered `ok`; calibration makes the confidence honest, it does not make the model more accurate.
+- Test-time augmentation (several crops) was **not measured** (it needs the photos, not the saved logits).
+- Intervals for ECE were not computed.
+
 ## Own photo set (`own`)
 
 Status: **not collected, not evaluated.** The tools and the protocol are ready:
