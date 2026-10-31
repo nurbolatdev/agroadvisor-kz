@@ -54,10 +54,31 @@ def _top3(scores: dict[str, dict]) -> list[str]:
     return lines
 
 
+def _missed_diseases(scores: dict[str, dict]) -> list[str]:
+    """Diseased leaves the app would call healthy: the farmer is told the plant is fine."""
+    lines = [
+        "| Run | Diseased photos | Called healthy | Share | Field photos | Field called healthy "
+        "| Field share |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for run_id, m in scores.items():
+        d = m.get("diseased_called_healthy")
+        if not d:
+            lines.append(f"| {run_id} | " + " | ".join(["n/a"] * 6) + " |")
+            continue
+        share = "n/a" if d["rate"] is None else f"{d['rate']:.3f}"
+        field_share = "n/a" if d["field_rate"] is None else f"{d['field_rate']:.3f}"
+        lines.append(
+            f"| {run_id} | {d['photos']} | {d['called_healthy']} | {share} "
+            f"| {d['field_photos']} | {d['field_called_healthy']} | {field_share} |"
+        )
+    return lines
+
+
 def _by_crop(scores: dict[str, dict]) -> list[str]:
     lines = [
-        "| Run | Crop | Field photos | Accuracy | Macro-F1 (95 % CI) |",
-        "| --- | --- | ---: | ---: | --- |",
+        "| Run | Crop | Field photos | Accuracy | Macro-F1 (95 % CI) | Top-3 in the crop |",
+        "| --- | --- | ---: | ---: | --- | ---: |",
     ]
     for run_id, m in scores.items():
         ci95 = m.get("ci95", {})
@@ -65,9 +86,11 @@ def _by_crop(scores: dict[str, dict]) -> list[str]:
         for crop in CROPS:
             if crop in by_crop:
                 row = by_crop[crop]
+                top3 = row.get("top3_acc")
                 lines.append(
                     f"| {run_id} | {crop} | {row['n']} | {row['acc']:.3f} "
-                    f"| {_with_interval(row['macro_f1'], ci95, f'{MAIN}_field_{crop}')} |"
+                    f"| {_with_interval(row['macro_f1'], ci95, f'{MAIN}_field_{crop}')} "
+                    f"| {'n/a' if top3 is None else f'{top3:.3f}'} |"
                 )
     return lines
 
@@ -82,7 +105,7 @@ def _per_class(run_id: str, m: dict) -> list[str]:
     for code, row in m.get("per_class", {}).items():
         if row["support"] > 0:
             cells = [f"{row[name]:.3f}" for name in ("precision", "recall", "f1")]
-        else:  # no photos: recall and F1 are undefined, and precision 0 is not a finding
+        else:  # no photos: recall and F1 are undefined; see the missed-diseases table for the rest
             cells = ["—", "—", "—"]
         lines.append(f"| {code} | {' | '.join(cells)} | {row['support']} |")
     return lines
@@ -105,6 +128,7 @@ def render(scores: dict[str, dict], key: str) -> str:
     """Tables for the scores stored under ``key`` (``val``, ``test@v2``, ``bench@v2`` ...)."""
     out = [f"### Scores on `{key}`", "", *_headline(scores), ""]
     out += ["Top-3 as the app shows it:", "", *_top3(scores), ""]
+    out += ["Diseased leaves answered healthy (missed):", "", *_missed_diseases(scores), ""]
     out += ["Field photos by crop:", "", *_by_crop(scores), ""]
     for run_id, m in scores.items():
         line = _unknown_line(run_id, m)

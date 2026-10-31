@@ -18,9 +18,13 @@ def scores(acc: float, with_ci: bool = True) -> dict:
             "field": {"acc": 0.55, "macro_f1": 0.5, "n": 90},
         },
         "crop_masked_product_field_by_crop": {
-            "tomato": {"acc": 0.5, "macro_f1": 0.45, "n": 40},
-            "wheat": {"acc": 0.8, "macro_f1": 0.75, "n": 50},
+            "tomato": {"acc": 0.5, "macro_f1": 0.45, "n": 40, "top3_acc": 0.9},
+            "wheat": {"acc": 0.8, "macro_f1": 0.75, "n": 50},  # scored before top-3 per crop
         },
+        "diseased_called_healthy": {
+            "photos": 80, "called_healthy": 8, "rate": 0.1,
+            "field_photos": 60, "field_called_healthy": 9, "field_rate": 0.15,
+        },  # fmt: skip
         "unknown": {"precision": 0.1, "recall": 0.2},
         "per_class": {
             "tomato__healthy": {"precision": 0.5, "recall": 0.25, "f1": 0.33, "support": 20},
@@ -76,9 +80,23 @@ def test_a_run_without_intervals_says_so_instead_of_inventing_them():
 def test_field_by_crop_table_has_the_sample_sizes():
     text = render({"A10-E001": scores(0.9)}, "bench@v2")
 
-    assert "tomato" in text and "wheat" in text
-    assert "0.300–0.600" in text  # the interval of the tomato field F1
-    assert "| 40 |" in text
+    assert "| A10-E001 | tomato | 40 | 0.500 | 0.450 (0.300–0.600) | 0.900 |" in text
+    assert "| A10-E001 | wheat | 50 | 0.800 | 0.750 (0.700–0.800) | n/a |" in text
+
+
+def test_missed_diseases_are_reported_with_the_counts_behind_the_share():
+    text = render({"A10-E001": scores(0.9)}, "bench@v2")
+
+    assert "| A10-E001 | 80 | 8 | 0.100 | 60 | 9 | 0.150 |" in text
+
+
+def test_a_run_scored_before_missed_diseases_were_counted_shows_n_a():
+    scored = scores(0.9)
+    del scored["diseased_called_healthy"]
+
+    text = render({"A5-E002": scored}, "val")
+
+    assert "| A5-E002 | n/a | n/a | n/a | n/a | n/a | n/a |" in text
 
 
 def test_per_class_table_lists_every_class_with_its_support():
