@@ -28,6 +28,8 @@ export const Input = forwardRef<ComponentRef<typeof TextInput>, Props>(function 
       <TextInput
         ref={ref}
         accessibilityLabel={label}
+        accessibilityHint={error}
+        aria-invalid={error ? true : undefined}
         placeholderTextColor={colors.textMuted}
         {...rest}
         onFocus={(e) => {
@@ -42,7 +44,7 @@ export const Input = forwardRef<ComponentRef<typeof TextInput>, Props>(function 
       />
       {error ? (
         <View style={styles.error} accessibilityRole="alert">
-          <CircleAlert size={16} color={colors.danger} />
+          <CircleAlert size={sizes.iconSm} color={colors.danger} />
           <AppText variant="small" color={colors.danger}>
             {error}
           </AppText>
@@ -56,7 +58,7 @@ const styles = StyleSheet.create({
   wrapper: { gap: spacing.xs },
   input: {
     ...typography.body,
-    height: sizes.control,
+    minHeight: sizes.control,
     paddingHorizontal: spacing.lg,
     borderRadius: radii.md,
     borderWidth: 1,

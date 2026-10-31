@@ -2,7 +2,7 @@ import { CircleAlert, Inbox, type LucideIcon } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { StyleSheet, View } from 'react-native'
 
-import { colors, spacing } from '@/theme/tokens'
+import { colors, sizes, spacing } from '@/theme/tokens'
 
 import { AppText } from './AppText'
 import { Button } from './Button'
@@ -19,7 +19,7 @@ type BaseProps = {
 function StateView({ icon: Icon, iconColor, title, message, actionLabel, onAction }: BaseProps) {
   return (
     <View style={styles.container}>
-      <Icon size={48} color={iconColor} />
+      <Icon size={sizes.iconLg} color={iconColor} />
       <AppText variant="h2" style={styles.center}>
         {title}
       </AppText>
@@ -35,7 +35,10 @@ function StateView({ icon: Icon, iconColor, title, message, actionLabel, onActio
   )
 }
 
-type EmptyProps = { title?: string; message?: string; actionLabel?: string; onAction?: () => void }
+// The action button needs both its label and its handler.
+type EmptyProps = { title?: string; message?: string } & (
+  { actionLabel: string; onAction: () => void } | { actionLabel?: undefined; onAction?: undefined }
+)
 
 export function EmptyState({ title, message, actionLabel, onAction }: EmptyProps) {
   const { t } = useTranslation()

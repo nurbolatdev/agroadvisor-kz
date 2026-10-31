@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react-native'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 
-import { colors, radii, sizes, spacing } from '@/theme/tokens'
+import { colors, fonts, radii, sizes, spacing } from '@/theme/tokens'
 
 import { AppText } from './AppText'
 
@@ -42,10 +42,11 @@ export function Button({
       accessibilityLabel={label}
       accessibilityState={{ disabled: inactive, busy: loading }}
       disabled={inactive}
+      hitSlop={compact ? (sizes.touch - sizes.controlCompact) / 2 : undefined}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
-        { height: compact ? sizes.controlCompact : sizes.control },
+        { minHeight: compact ? sizes.controlCompact : sizes.control },
         { backgroundColor: bg, borderColor: border },
         inactive && styles.inactive,
         pressed && styles.pressed,
@@ -56,7 +57,7 @@ export function Button({
           <ActivityIndicator color={fg} />
         ) : (
           <>
-            {Icon ? <Icon size={20} color={fg} /> : null}
+            {Icon ? <Icon size={sizes.iconMd} color={fg} /> : null}
             <AppText variant="body" color={fg} style={styles.label}>
               {label}
             </AppText>
@@ -81,7 +82,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  label: { fontWeight: '600' },
+  label: { fontFamily: fonts.semibold },
   inactive: { opacity: 0.5 },
   pressed: { opacity: 0.85 },
 })

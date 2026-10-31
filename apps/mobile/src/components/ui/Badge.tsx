@@ -25,7 +25,7 @@ export function Badge({ label, tone, icon: Icon }: Props) {
   const { bg, fg } = palette[tone]
   return (
     <View style={[styles.badge, { backgroundColor: bg }]}>
-      {Icon ? <Icon size={14} color={fg} /> : null}
+      {Icon ? <Icon size={sizes.iconXs} color={fg} /> : null}
       <AppText variant="caption" color={fg}>
         {label}
       </AppText>
@@ -35,7 +35,7 @@ export function Badge({ label, tone, icon: Icon }: Props) {
 
 const styles = StyleSheet.create({
   badge: {
-    height: sizes.badge,
+    minHeight: sizes.badge,
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',

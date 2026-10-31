@@ -29,7 +29,7 @@ export function Chip({ label, selected = false, onPress }: Props) {
 
 const styles = StyleSheet.create({
   chip: {
-    height: sizes.chip,
+    minHeight: sizes.chip,
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     borderRadius: radii.pill,
