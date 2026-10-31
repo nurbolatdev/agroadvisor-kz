@@ -49,6 +49,23 @@ def test_headline_table_shows_the_numbers_with_their_intervals():
     ]  # fmt: skip
 
 
+def test_the_top_three_the_app_shows_is_reported_for_all_and_for_field_photos():
+    scored = scores(0.9)
+    scored["crop_masked_product_top3_acc"] = 0.97
+    scored["crop_masked_product_top3_acc_field"] = 0.91
+
+    text = render({"A10-E001": scored}, "bench@v2")
+
+    row = next(line for line in text.splitlines() if line.startswith("| A10-E001 | 0.970 |"))
+    assert row == "| A10-E001 | 0.970 | 0.910 |"
+
+
+def test_a_run_scored_before_that_metric_existed_shows_n_a():
+    text = render({"A5-E002": scores(0.8)}, "val")
+
+    assert "| A5-E002 | n/a | n/a |" in text
+
+
 def test_a_run_without_intervals_says_so_instead_of_inventing_them():
     text = render({"A5-E002": scores(0.8, with_ci=False)}, "val")
 
@@ -67,16 +84,35 @@ def test_field_by_crop_table_has_the_sample_sizes():
 def test_per_class_table_lists_every_class_with_its_support():
     text = render({"A10-E001": scores(0.9)}, "bench@v2")
 
-    assert "tomato__healthy" in text
-    assert "| 0.500 | 0.250 | 0.330 | 20 |" in text
-    assert "wheat__healthy" in text  # no support: shown, because the gap is itself a finding
+    assert "| tomato__healthy | 0.500 | 0.250 | 0.330 | 20 |" in text
+
+
+def test_a_class_without_photos_shows_a_dash_not_a_zero():
+    text = render({"A10-E001": scores(0.9)}, "bench@v2")
+
+    # the stored precision cannot tell "never predicted" from "always wrong" when there are no
+    # photos, so nothing is shown; the row stays because the gap is itself a finding
+    assert "| wheat__healthy | — | — | — | 0 |" in text
 
 
 def test_unknown_is_reported_with_the_honest_caveat():
-    text = render({"A10-E001": scores(0.9)}, "bench@v2")
+    scored = scores(0.9)
+    scored["per_class"]["unknown"] = {"precision": 0.1, "recall": 0.2, "f1": 0.13, "support": 30}
 
-    assert "unknown" in text
+    text = render({"A10-E001": scored}, "bench@v2")
+
+    assert "`unknown` in A10-E001: precision 0.100, recall 0.200" in text
     assert "does not recognize unknown diseases" in text
+
+
+def test_unknown_without_photos_in_the_split_is_not_reported_as_zero():
+    scored = scores(0.9)
+    scored["per_class"]["unknown"] = {"precision": 0.0, "recall": 0.0, "f1": 0.0, "support": 0}
+
+    text = render({"A10-E001": scored}, "bench@v2")
+
+    assert "`unknown` in A10-E001: no photos of this class in the split" in text
+    assert "precision 0.000" not in text
 
 
 def test_reads_the_results_of_run_folders(tmp_path):

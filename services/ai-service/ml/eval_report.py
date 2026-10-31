@@ -41,6 +41,19 @@ def _headline(scores: dict[str, dict]) -> list[str]:
     return lines
 
 
+def _top3(scores: dict[str, dict]) -> list[str]:
+    """Top-3 as the app shows it: the best three among the selected crop's classes and unknown."""
+    lines = [
+        "| Run | Top-3 in the crop | Top-3 in the crop, field photos |",
+        "| --- | ---: | ---: |",
+    ]
+    for run_id, m in scores.items():
+        both = (m.get("crop_masked_product_top3_acc"), m.get("crop_masked_product_top3_acc_field"))
+        cells = ["n/a" if value is None else f"{value:.3f}" for value in both]
+        lines.append(f"| {run_id} | {cells[0]} | {cells[1]} |")
+    return lines
+
+
 def _by_crop(scores: dict[str, dict]) -> list[str]:
     lines = [
         "| Run | Crop | Field photos | Accuracy | Macro-F1 (95 % CI) |",
@@ -67,26 +80,37 @@ def _per_class(run_id: str, m: dict) -> list[str]:
         "| --- | ---: | ---: | ---: | ---: |",
     ]
     for code, row in m.get("per_class", {}).items():
-        lines.append(
-            f"| {code} | {row['precision']:.3f} | {row['recall']:.3f} | {row['f1']:.3f} "
-            f"| {row['support']} |"
-        )
+        if row["support"] > 0:
+            cells = [f"{row[name]:.3f}" for name in ("precision", "recall", "f1")]
+        else:  # no photos: recall and F1 are undefined, and precision 0 is not a finding
+            cells = ["—", "—", "—"]
+        lines.append(f"| {code} | {' | '.join(cells)} | {row['support']} |")
     return lines
+
+
+def _unknown_line(run_id: str, m: dict) -> str | None:
+    row = m.get("per_class", {}).get("unknown") or m.get("unknown")
+    if not row:
+        return None
+    if row.get("support", 1) == 0:
+        return f"`unknown` in {run_id}: no photos of this class in the split."
+    return (
+        f"`unknown` in {run_id}: precision {row['precision']:.3f}, recall {row['recall']:.3f}. "
+        "The class was trained on other plants and objects; "
+        "the model does not recognize unknown diseases."
+    )
 
 
 def render(scores: dict[str, dict], key: str) -> str:
     """Tables for the scores stored under ``key`` (``val``, ``test@v2``, ``bench@v2`` ...)."""
     out = [f"### Scores on `{key}`", "", *_headline(scores), ""]
+    out += ["Top-3 as the app shows it:", "", *_top3(scores), ""]
     out += ["Field photos by crop:", "", *_by_crop(scores), ""]
     for run_id, m in scores.items():
-        unknown = m.get("unknown")
-        if unknown:
-            out.append(
-                f"`unknown` in {run_id}: precision {unknown['precision']:.3f}, "
-                f"recall {unknown['recall']:.3f}. The class was trained on other plants and "
-                "objects; the model does not recognize unknown diseases."
-            )
-    out += ["", "Per class:", ""]
+        line = _unknown_line(run_id, m)
+        if line:
+            out += [line, ""]
+    out += ["Per class:", ""]
     for run_id, m in scores.items():
         out += [*_per_class(run_id, m), ""]
     return "\n".join(out)
