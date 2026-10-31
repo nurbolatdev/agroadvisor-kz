@@ -31,10 +31,8 @@
         }
       ],
       "expo-localization",
-      "expo-font"
-    ],
-    "experiments": {
-      "typedRoutes": true
-    }
+      "expo-font",
+      "expo-secure-store"
+    ]
   }
 }
