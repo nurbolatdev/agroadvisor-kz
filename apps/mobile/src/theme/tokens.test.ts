@@ -6,9 +6,13 @@ describe('design tokens', () => {
     expect(sizes.control).toBeGreaterThanOrEqual(48)
   })
 
-  it('use six-digit HEX colors', () => {
-    for (const value of Object.values(colors)) {
-      expect(value).toMatch(/^#[0-9A-F]{6}$/)
+  it('use six-digit HEX colors, except the translucent glass ones', () => {
+    for (const [name, value] of Object.entries(colors)) {
+      if (name.startsWith('glass')) {
+        expect(value).toMatch(/^rgba\(/)
+      } else {
+        expect(value).toMatch(/^#[0-9A-F]{6}$/)
+      }
     }
   })
 
