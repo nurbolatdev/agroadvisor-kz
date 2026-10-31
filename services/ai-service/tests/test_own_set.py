@@ -106,6 +106,7 @@ def test_drops_unreadable_small_and_duplicate_photos_and_says_why(tmp_path):
     assert summary["kept"] == 1
     assert summary["dropped"] == {
         "unreadable": 1, "too_small": 1, "duplicate": 1, "train_overlap": 0,
+        "unsupported_format": 0,
     }  # fmt: skip
 
 
@@ -152,6 +153,73 @@ def test_reports_the_classes_the_lead_asked_to_collect(tmp_path):
         "wheat__healthy",
         "tomato__early_blight",
     ]
+
+
+def test_a_photo_in_a_format_the_model_cannot_read_is_counted_not_swallowed(tmp_path):
+    raw = tmp_path / "raw"
+    put(raw, "tomato__healthy/ok.jpg", seed=1)
+    (raw / "tomato__healthy" / "IMG_1.HEIC").write_bytes(b"iphone photo")  # iPhone default
+    (raw / "tomato__healthy" / ".DS_Store").write_bytes(b"junk")  # not a photo: no noise
+
+    summary = build_own(raw, tmp_path / "own")
+
+    assert summary["dropped"]["unsupported_format"] == 1
+    assert summary["kept"] == 1
+
+
+def test_meta_rows_that_match_no_photo_are_reported(tmp_path):
+    raw = tmp_path / "raw"
+    put(raw, "tomato__healthy/a.jpg", seed=1)
+    (raw / "meta.csv").write_text(
+        "file,leaf,region,date,identified_by\n"
+        "tomato__healthy/a.jpg,leaf-1,,,\n"
+        "tomato__healthy/typo.jpg,leaf-2,,,\n",
+        encoding="utf-8",
+    )
+
+    summary = build_own(raw, tmp_path / "own")
+
+    assert summary["unmatched_meta"] == ["tomato__healthy/typo.jpg"]
+
+
+def test_photos_without_a_leaf_are_counted_because_they_narrow_the_intervals(tmp_path):
+    raw = tmp_path / "raw"
+    put(raw, "tomato__healthy/a.jpg", seed=1)
+    put(raw, "tomato__healthy/b.jpg", seed=2)
+    (raw / "meta.csv").write_text(
+        "file,leaf,region,date,identified_by\ntomato__healthy/a.jpg,leaf-1,,,\n", encoding="utf-8"
+    )
+
+    summary = build_own(raw, tmp_path / "own")
+
+    assert summary["without_leaf"] == 1
+
+
+def test_the_result_is_read_by_the_dataset_loader_of_the_evaluation(tmp_path):
+    from ml.data import PlantDataset
+    from ml.evaluate import load_groups, load_meta
+
+    raw, out = tmp_path / "raw", tmp_path / "own"
+    put(raw, "tomato__healthy/a.jpg", seed=1)
+    put(raw, "tomato__healthy/b.jpg", seed=2)
+    put(raw, "wheat__septoria/c.png", seed=3)
+    (raw / "meta.csv").write_text(
+        "file,leaf,region,date,identified_by\n"
+        "tomato__healthy/a.jpg,leaf-1,,,\ntomato__healthy/b.jpg,leaf-1,,,\n",
+        encoding="utf-8",
+    )
+    build_own(raw, out)
+
+    dataset = PlantDataset(out, "bench")
+    crops, kinds = load_meta(out, dataset.files)
+    groups = load_groups(out, dataset.files)
+
+    assert len(dataset) == 3
+    assert sorted(set(crops)) == ["tomato", "wheat"]
+    assert set(kinds) == {"field"}
+    assert len(set(groups.tolist())) == 2  # the two tomato photos are one leaf
+    image, _ = dataset[0]
+    assert image.size == (400, 300)
 
 
 def test_an_empty_folder_is_an_error(tmp_path):

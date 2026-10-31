@@ -7,7 +7,7 @@ Photos taken by the team in Kazakhstan (market, greenhouse, kitchen garden, fiel
 - **Priority classes** (no independent field source anywhere else): healthy leaves of `tomato`, `potato`, `corn`, `wheat` (`tomato__healthy`, `potato__healthy`, `corn__healthy`, `wheat__healthy`) and `tomato__early_blight`. Then any other class from `ml/classes.yaml` you can find.
 - Per leaf: one close-up of the whole leaf plus two more angles; daylight, no flash, leaf in focus.
 - Real conditions are the point: soil, other leaves, shade, a hand holding the leaf. Do not clean the background.
-- The photo must be at least 224 px on the short side (the service refuses smaller ones). Phone photos are fine at full size.
+- The photo must be at least 224 px on the short side (the service refuses smaller ones). Phone photos are fine at full size, **as JPEG or PNG**: HEIC (the iPhone default) is not read. On iPhone set Settings > Camera > Formats > Most Compatible; on Android JPEG is the default. `ml.own_set` counts and warns about files it skips.
 - Write down who identified the disease (an agronomist, a label on the plant, a grower). If nobody is sure, do not include the photo.
 
 ## Folder layout
@@ -21,7 +21,7 @@ ml/datasets/own_raw/
 ```
 
 - Folder names are class codes from `ml/classes.yaml`, exactly. The `unknown` class is not collected by hand.
-- `meta.csv` is optional but recommended: `file,leaf,region,date,identified_by`. `file` is the path inside `own_raw/`; photos of one leaf get the same `leaf` value, so the statistics resample leaves and not near-identical photos.
+- `meta.csv` is needed for the three angles of one leaf: `file,leaf,region,date,identified_by`. `file` is the path inside `own_raw/`; photos of one leaf get the same `leaf` value, so the statistics resample leaves and not near-identical photos. Without `leaf` every photo counts as independent and the intervals come out too narrow; the tool warns about it, and about rows that match no photo.
 
 ```
 file,leaf,region,date,identified_by

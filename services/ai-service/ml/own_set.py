@@ -29,6 +29,8 @@ from ml.registry import Registry, load_registry
 
 MIN_SIDE = 224  # the service refuses smaller photos (docs/api/ai-predict.md)
 SUFFIXES = {".jpg", ".jpeg", ".png"}
+# Photo formats that are not read: counted and reported, not skipped silently (iPhone saves HEIC)
+UNSUPPORTED = {".heic", ".heif", ".webp", ".tif", ".tiff", ".bmp", ".gif", ".dng", ".raw"}
 SOURCE = "own"
 # Classes with no independent field source anywhere else (lead's decision of 26 Oct 2026)
 REQUIRED = (
@@ -94,16 +96,22 @@ def build_own(
     registry = registry or load_registry()
     raw_dir, out_dir = Path(raw_dir), Path(out_dir)
     meta = _read_meta(raw_dir)
-    dropped = Counter(unreadable=0, too_small=0, duplicate=0, train_overlap=0)
+    dropped = Counter(
+        unreadable=0, too_small=0, duplicate=0, train_overlap=0, unsupported_format=0
+    )
     seen: set[str] = set()
+    found: set[str] = set()  # every photo file met, kept or not: what meta.csv rows can match
     manifest, splits, provenance = [], [], []
 
     for folder in _class_folders(raw_dir, registry):
         code = folder.name
         crop = registry.get(code).crop or ""
-        photos = sorted(p for p in folder.rglob("*") if p.suffix.lower() in SUFFIXES)
+        files = sorted(p for p in folder.rglob("*") if p.is_file())
+        dropped["unsupported_format"] += sum(p.suffix.lower() in UNSUPPORTED for p in files)
+        photos = [p for p in files if p.suffix.lower() in SUFFIXES]
         for photo in photos:
             original = photo.relative_to(raw_dir).as_posix()
+            found.add(original)
             md5 = hashlib.md5(photo.read_bytes()).hexdigest()
             if md5 in seen:
                 dropped["duplicate"] += 1
@@ -136,7 +144,14 @@ def build_own(
     index = {"classes_version": registry.version, "classes": [c.code for c in registry.active()]}
     (out_dir / "class_index.json").write_text(json.dumps(index, indent=2) + "\n", encoding="utf-8")
     per_class = dict(Counter(row[1] for row in manifest))
-    return {"kept": len(manifest), "per_class": per_class, "dropped": dict(dropped)}
+    return {
+        "kept": len(manifest),
+        "per_class": per_class,
+        "dropped": dict(dropped),
+        "unmatched_meta": sorted(set(meta) - found),
+        # without a leaf every photo is its own group, and the intervals come out too narrow
+        "without_leaf": sum(1 for row in provenance if not row[2]),
+    }
 
 
 def _write(path: Path, header: list[str], rows: list[list]) -> None:
@@ -164,6 +179,14 @@ def main() -> None:
     print(f"kept {summary['kept']} photos in {args.out}; dropped {summary['dropped']}")
     for code, count in sorted(summary["per_class"].items()):
         print(f"  {code:30} {count:>4}")
+    if summary["dropped"]["unsupported_format"]:
+        print("WARNING: HEIC and other formats are not read; convert them to JPEG (iPhone: "
+              "Settings > Camera > Formats > Most Compatible)")  # fmt: skip
+    if summary["unmatched_meta"]:
+        print(f"WARNING: meta.csv rows with no photo: {', '.join(summary['unmatched_meta'])}")
+    if summary["without_leaf"]:
+        print(f"WARNING: {summary['without_leaf']} photos have no `leaf` in meta.csv; photos of "
+              "one leaf count as independent, so the intervals come out too narrow")  # fmt: skip
     missing = missing_required(summary["per_class"])
     if missing:
         print(f"still to collect (no independent field source elsewhere): {', '.join(missing)}")
