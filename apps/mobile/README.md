@@ -44,13 +44,14 @@ The app uses a development build (`expo-dev-client`), not Expo Go: native module
 
 ```bash
 npm run lint
+npm run format:check
 npm run typecheck
 npm test
 ```
 
 ## Environment
 
-| Variable | Meaning |
-| --- | --- |
-| `EXPO_PUBLIC_API_URL` | Backend address (added in M3); on a phone use the laptop IP in the same Wi-Fi |
-| `EXPO_PUBLIC_API_MODE` | `mock` to work without the backend (added in M3) |
+| Variable               | Meaning                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| `EXPO_PUBLIC_API_URL`  | Backend address (added in M3); on a phone use the laptop IP in the same Wi-Fi |
+| `EXPO_PUBLIC_API_MODE` | `mock` to work without the backend (added in M3)                              |
