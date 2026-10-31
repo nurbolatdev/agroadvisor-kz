@@ -6,16 +6,17 @@ right. A network trained with cross-entropy is usually overconfident. One number
 the *temperature* ``T`` that divides the logits before the softmax (the answer does not change,
 only how sure the model says it is).
 
-``T`` is fitted on the field photos of a split that looks like what the service will see (photos
-from sources the model did not train on) and then *checked* on other splits, never fitted on
-them. The numbers are computed on the answer as the service gives it: the crop's classes plus
-``unknown``.
+``T`` is fitted on the field photos of a split that the model did not train on and then *checked* on
+other splits, never fitted on them. Statuses (``ok``, ``low_confidence``, ``unknown``,
+``crop_mismatch``) are computed by ``decide_statuses``, a vectorized copy of
+``app.services.predict.decide`` that a test compares with the real one.
 
     python -m ml.calibrate ml/runs/A5-E001 --fit-on val_v2 --check test_v2 --check bench_v2
 """
 
 import argparse
 import json
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -25,9 +26,12 @@ from ml.evaluate import crop_masks, load_meta, mask_logits
 from ml.registry import UNKNOWN, Registry, load_registry
 
 ECE_BINS = 15
-OK_THRESHOLDS = [0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-MISMATCH_THRESHOLDS = [0.5, 0.6, 0.7, 0.8, 0.9]
+STATUSES = ("ok", "low_confidence", "unknown", "crop_mismatch")
+STATUS_GRID = [(ok, low) for ok in (0.6, 0.7, 0.8, 0.9) for low in (0.25, 0.4)]
 LOW_THRESHOLDS = [0.25, 0.4]  # below this the answer is "not recognized"
+MISMATCH_THRESHOLDS = [0.5, 0.6, 0.7, 0.8, 0.9]
+UNKNOWN_LEVELS = (None, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8)  # None: unknown whenever it wins (today)
+RULE_OK, RULE_LOW, RULE_MISMATCH = 0.70, 0.25, 0.70  # the thresholds the unknown rule is tried at
 TEMPERATURE_RANGE = (0.2, 20.0)
 
 
@@ -72,10 +76,14 @@ def fit_temperature(
     """The ``T`` that minimizes the negative log-likelihood of the answer (golden-section search).
 
     Photos whose true class is outside the selected crop (a wrong label) are skipped: the
-    service could never answer them.
+    service could never answer them. Without any photo left there is nothing to fit.
     """
+    if len(targets) == 0:
+        raise ValueError("no photos to fit the temperature on")
     masked = _masked(logits, crops, classes, registry)
     reachable = np.isfinite(masked[np.arange(len(targets)), targets])
+    if not reachable.any():
+        raise ValueError("no photos to fit the temperature on: every label is outside its crop")
     masked, targets = masked[reachable], targets[reachable]
     low, high = np.log(TEMPERATURE_RANGE[0]), np.log(TEMPERATURE_RANGE[1])
     phi = (np.sqrt(5) - 1) / 2
@@ -116,17 +124,90 @@ def ece(conf: np.ndarray, correct: np.ndarray, bins: int = ECE_BINS) -> float:
     return float(total)
 
 
-def risk_coverage(conf: np.ndarray, correct: np.ndarray, thresholds: list[float]) -> list[dict]:
-    """For each threshold: how many answers reach it, and what share of those is right."""
-    rows = []
-    for threshold in thresholds:
-        answered = conf >= threshold
-        count = int(answered.sum())
-        rows.append({
-            "threshold": threshold, "answered": count, "share": count / len(conf),
-            "accuracy": float(correct[answered].mean()) if count else None,
-        })  # fmt: skip
-    return rows
+@dataclass(frozen=True)
+class Decisions:
+    """What the service answers for each photo: status, best class, its probability, top three."""
+
+    status: np.ndarray
+    answer: np.ndarray
+    confidence: np.ndarray
+    top3: np.ndarray  # the crop's three best classes (``unknown`` excluded), as ``decide`` shows
+
+
+def decide_statuses(
+    logits: np.ndarray,
+    crops: list,
+    classes: list[str],
+    registry: Registry,
+    temperature: float = 1.0,
+    ok: float = 0.70,
+    low: float = 0.40,
+    mismatch: float = 0.70,
+    unknown_at: float | None = None,
+) -> Decisions:
+    """A vectorized copy of ``app.services.predict.decide`` (a test compares the two).
+
+    With ``unknown_at`` the rule for ``unknown`` changes: the photo is "not recognized" only when
+    the probability of ``unknown`` is at least that, instead of whenever ``unknown`` wins; the
+    answer is then the crop's best class. This is a proposal to try, not what the service does.
+    """
+    n = len(logits)
+    probs = _softmax(logits / temperature)
+    crop_arr = np.array(crops)
+    crop_of = np.array([registry.get(code).crop or "" for code in classes])
+    looks_like = crop_of[probs.argmax(axis=1)]
+    crop_mismatch = (looks_like != "") & (looks_like != crop_arr) & (probs.max(axis=1) >= mismatch)
+
+    masked = product_probs(logits, crops, classes, registry, temperature)
+    unknown = classes.index(UNKNOWN)
+    crop_only = masked.copy()
+    crop_only[:, unknown] = -1.0
+    top3 = np.argsort(-crop_only, axis=1, kind="stable")[:, :3]
+    if unknown_at is None:
+        answer = masked.argmax(axis=1)
+        not_recognized = answer == unknown
+    else:
+        answer = crop_only.argmax(axis=1)
+        not_recognized = masked[:, unknown] >= unknown_at
+    confidence = masked[np.arange(n), answer]
+    status = np.where(
+        crop_mismatch,
+        "crop_mismatch",
+        np.where(
+            not_recognized | (confidence < low),
+            "unknown",
+            np.where(confidence >= ok, "ok", "low_confidence"),
+        ),
+    )
+    return Decisions(status, answer, confidence, top3)
+
+
+def status_summary(decisions: Decisions, targets: np.ndarray) -> dict:
+    """Shares of each status, how often an answer is right, and what "not recognized" loses.
+
+    ``right_of_all`` is the share of all photos that got an answer (``ok`` or ``low_confidence``)
+    and the right one; a photo answered "not recognized" is a miss, not a wrong answer.
+    ``unknown_top3_right`` is the share of "not recognized" photos whose right class is still in
+    the top three the app shows.
+    """
+    status, answer = decisions.status, decisions.answer
+    right = answer == targets
+
+    def accuracy(name: str):
+        sel = status == name
+        return float(right[sel].mean()) if sel.any() else None
+
+    answered = np.isin(status, ("ok", "low_confidence"))
+    rejected = status == "unknown"
+    top3_right = (decisions.top3[rejected] == targets[rejected][:, None]).any(axis=1)
+    return {
+        "photos": int(len(targets)),
+        "shares": {name: float((status == name).mean()) for name in STATUSES},
+        "ok_accuracy": accuracy("ok"),
+        "low_confidence_accuracy": accuracy("low_confidence"),
+        "right_of_all": float((answered & right).mean()),
+        "unknown_top3_right": float(top3_right.mean()) if rejected.any() else None,
+    }
 
 
 def false_mismatch_rate(
@@ -162,20 +243,56 @@ def unknown_rejection(
     registry: Registry,
     low: float,
     temperature: float = 1.0,
-) -> dict[str, float]:
-    """Share of photos that are not of any known class and are answered "not recognized".
+    ok: float = 0.70,
+    mismatch: float = 0.70,
+    unknown_at: float | None = None,
+) -> dict[str, dict[str, float]]:
+    """Statuses of photos of no known class, once for every crop the farmer could pick.
 
-    The photos are scored once for every crop the farmer could have chosen: the service answers
-    ``unknown`` when ``unknown`` wins among the crop's classes, or when the best answer is below
-    ``low``.
+    "Not recognized" (``unknown``) is the right answer here; ``ok``, ``low_confidence`` and
+    ``crop_mismatch`` are all wrong answers for such a photo.
     """
-    unknown = classes.index(UNKNOWN)
-    share = {}
+    out = {}
     for crop in sorted(crop_masks(classes, registry)):
-        probs = product_probs(logits, [crop] * len(logits), classes, registry, temperature)
-        rejected = (probs.argmax(axis=1) == unknown) | (probs.max(axis=1) < low)
-        share[crop] = float(rejected.mean())
-    return share
+        got = decide_statuses(
+            logits, [crop] * len(logits), classes, registry, temperature, ok, low, mismatch,
+            unknown_at,
+        )  # fmt: skip
+        out[crop] = {name: float((got.status == name).mean()) for name in STATUSES}
+    return out
+
+
+def _unknown_rule_rows(
+    crop_logits: np.ndarray,
+    crop_names: list,
+    crop_targets: np.ndarray,
+    other_logits: np.ndarray,
+    classes: list[str],
+    registry: Registry,
+    temperature: float,
+) -> list[dict]:
+    """Try each level of the ``unknown`` rule: false rejections of crop photos against true ones."""
+    rows = []
+    for level in UNKNOWN_LEVELS:
+        got = decide_statuses(
+            crop_logits, crop_names, classes, registry, temperature,
+            RULE_OK, RULE_LOW, RULE_MISMATCH, level,
+        )  # fmt: skip
+        summary = status_summary(got, crop_targets)
+        rejected = None
+        if len(other_logits):
+            by_crop = unknown_rejection(
+                other_logits, classes, registry, RULE_LOW, temperature,
+                RULE_OK, RULE_MISMATCH, level,
+            )  # fmt: skip
+            rejected = float(np.mean([shares["unknown"] for shares in by_crop.values()]))
+        rows.append({
+            "unknown_at": "argmax" if level is None else level,
+            "crop_photos_unknown": summary["shares"]["unknown"],
+            "right_of_all": summary["right_of_all"],
+            "non_plant_rejected": rejected,
+        })  # fmt: skip
+    return rows
 
 
 def _unknown_photos(run_dir: Path, tag: str) -> tuple[np.ndarray, list[str]]:
@@ -199,7 +316,7 @@ def _metrics(probs: np.ndarray, targets: np.ndarray) -> dict:
     }
 
 
-def _load(run_dir: Path, tag: str, domain: str, registry: Registry):
+def _load(run_dir: Path, tag: str, domain: str):
     """Saved logits of a split, reduced to the photos of one domain that have a crop."""
     saved = np.load(run_dir / f"logits_{tag}.npz")
     classes = json.loads((run_dir / "class_index.json").read_text(encoding="utf-8"))["classes"]
@@ -214,6 +331,10 @@ def _load(run_dir: Path, tag: str, domain: str, registry: Registry):
     )
 
 
+def _grid_key(ok: float, low: float) -> str:
+    return f"ok={ok},low={low}"
+
+
 def calibrate_run(
     run_dir: Path,
     fit_tag: str = "val_v2",
@@ -223,43 +344,60 @@ def calibrate_run(
     plots: bool = True,
 ) -> dict:
     """Fit ``T`` on ``fit_tag`` and report the effect on it and on every ``check_tags`` split."""
+    from ml.train import git_info
+
     registry = registry or load_registry()
     run_dir = Path(run_dir)
-    logits, targets, crops, classes = _load(run_dir, fit_tag, domain, registry)
+    logits, targets, crops, classes = _load(run_dir, fit_tag, domain)
     temperature = fit_temperature(logits, targets, crops, classes, registry)
+    git = git_info()
+    config = run_dir / "config.json"
     result = {
-        "run": json.loads((run_dir / "config.json").read_text(encoding="utf-8"))["id"]
-        if (run_dir / "config.json").exists() else run_dir.name,
+        "run": json.loads(config.read_text(encoding="utf-8"))["id"] if config.exists()
+        else run_dir.name,
         "temperature": temperature,
         "fitted_on": {"tag": fit_tag, "domain": domain, "photos": int(len(targets))},
         "thresholds_checked": {
-            "ok": OK_THRESHOLDS, "low": LOW_THRESHOLDS, "crop_mismatch": MISMATCH_THRESHOLDS,
+            "status_grid": [_grid_key(ok, low) for ok, low in STATUS_GRID],
+            "low": LOW_THRESHOLDS, "crop_mismatch": MISMATCH_THRESHOLDS,
+            "unknown_levels": ["argmax" if u is None else u for u in UNKNOWN_LEVELS],
         },
         "checks": {},
         "non_plant": {},
-        "scored_at": datetime.now().isoformat(timespec="seconds"),
+        "scored_with": {
+            "git_commit": git["git_commit"],
+            "git_dirty": git["git_dirty"],
+            "scored_at": datetime.now().isoformat(timespec="seconds"),
+        },
     }  # fmt: skip
     for tag in (fit_tag, *check_tags):
-        lg, tg, cr, cl = _load(run_dir, tag, domain, registry)
+        lg, tg, cr, cl = _load(run_dir, tag, domain)
+        others, _ = _unknown_photos(run_dir, tag)
         before = product_probs(lg, cr, cl, registry)
         after = product_probs(lg, cr, cl, registry, temperature)
-        correct = after.argmax(axis=1) == tg
+        status = {"before": {}, "after": {}}
+        for ok, low in STATUS_GRID:
+            for name, t in (("before", 1.0), ("after", temperature)):
+                got = decide_statuses(lg, cr, cl, registry, t, ok, low)
+                status[name][_grid_key(ok, low)] = status_summary(got, tg)
         result["checks"][tag] = {
             "before": _metrics(before, tg),
             "after": _metrics(after, tg),
-            "risk_coverage_before": risk_coverage(before.max(axis=1), correct, OK_THRESHOLDS),
-            "risk_coverage_after": risk_coverage(after.max(axis=1), correct, OK_THRESHOLDS),
+            "status_before": status["before"],
+            "status_after": status["after"],
             "false_mismatch_before": false_mismatch_rate(lg, cr, cl, registry, MISMATCH_THRESHOLDS),
             "false_mismatch_after": false_mismatch_rate(
                 lg, cr, cl, registry, MISMATCH_THRESHOLDS, temperature
             ),
-            "reliability_after": reliability_bins(after.max(axis=1), correct.astype(float)),
+            "unknown_rule": _unknown_rule_rows(lg, cr, tg, others, cl, registry, temperature),
+            "reliability_after": reliability_bins(
+                after.max(axis=1), (after.argmax(axis=1) == tg).astype(float)
+            ),
         }
         if plots:
             _plot_reliability(
                 run_dir / f"reliability_{tag}.png", result["run"], tag, before, after, tg
             )
-        others, cl = _unknown_photos(run_dir, tag)
         if len(others):  # not every split has them (bench has none)
             result["non_plant"][tag] = {
                 "photos": int(len(others)),
@@ -316,10 +454,14 @@ def main() -> None:
         b, a = check["before"], check["after"]
         print(f"  {tag:10s} ECE {b['ece']:.3f} -> {a['ece']:.3f}   "
               f"NLL {b['nll']:.3f} -> {a['nll']:.3f}   accuracy {a['accuracy']:.3f}")  # fmt: skip
+        now = check["status_after"][_grid_key(0.7, 0.25)]["shares"]
+        print("    statuses at ok 0.7, low 0.25: "
+              + ", ".join(f"{name} {share:.3f}" for name, share in now.items()))  # fmt: skip
     for tag, info in result["non_plant"].items():
         for low, by_crop in info["after"].items():
-            shares = ", ".join(f"{crop} {share:.3f}" for crop, share in by_crop.items())
-            print(f"  {tag}: {info['photos']} non-plant photos rejected at low {low}: {shares}")
+            shares = ", ".join(f"{crop} {s['unknown']:.3f}" for crop, s in by_crop.items())
+            print(f"  {tag}: {info['photos']} non-plant photos \"not recognized\" at low {low}: "
+                  f"{shares}")  # fmt: skip
 
 
 if __name__ == "__main__":
