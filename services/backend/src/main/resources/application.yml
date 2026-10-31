@@ -15,6 +15,11 @@ spring:
       key-prefix: 'agroadvisor:'
       # Admin edits evict the cache and a restart clears it; the TTL only bounds a rare read/evict race
       time-to-live: 15m
+  servlet:
+    multipart:
+      # A photo is up to 10 MB (DiagnosisService); the default limit is 1 MB
+      max-file-size: 10MB
+      max-request-size: 11MB
   jpa:
     open-in-view: false
     hibernate:
