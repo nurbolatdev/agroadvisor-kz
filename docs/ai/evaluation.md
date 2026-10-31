@@ -170,21 +170,30 @@ Without `T` the service would answer "ok" for 49–66 % of the field photos and 
 
 The choice of `low` was made on `val`; `test` and `bench` only show that it holds.
 
-### The `unknown` rule: "crop → not recognized" is the largest error that is left
+### "Crop → not recognized": what is behind it, and the `unknown` rule
 
-Inside the selected crop the service answers `unknown` whenever `unknown` has the highest probability. For A5-E001 this happens for **18–32 % of ordinary field photos of the selected crop**, and `low` does not change it (it is the winning class, not the confidence). The right class is still among the three classes shown for 80–92 % of those photos, but the status says "not recognized", which is the error the lead ranks worse than `low_confidence`.
+With `T` and `low` 0.25, A5-E001 answers "not recognized" for **18–32 % of ordinary field photos of the selected crop** (`bench` 17.5 %, `test` 29.4 %, `val` 31.7 %). Two different causes make it up, and they overlap:
 
-A way to reduce it: answer "not recognized" only when the probability of `unknown` is at least a level `u`, and otherwise show the crop's best class (with `low_confidence` if it is below `ok`). Tried with `T`, `ok` 0.70, `low` 0.25, `crop_mismatch` 0.70. Crop photos called "not recognized", and non-plant photos (other plants and objects) correctly rejected:
+| Cause | `val` | `test` | `bench` |
+| --- | ---: | ---: | ---: |
+| `unknown` has the highest probability inside the crop | 23.1 % | 22.1 % | 9.3 % |
+| the crop's best class is below `low` (0.25): the model is unsure | 23.4 % | 19.7 % | 15.2 % |
+| together ("not recognized") | 31.7 % | 29.4 % | 17.5 % |
+
+`low` changes the second cause only (this is why 0.40 → 0.25 above removes so many); the first one is the rule for `unknown`. The right class is still among the three classes shown for 80–92 % of these photos, but the status says "not recognized", which is the error the lead ranks worse than `low_confidence`.
+
+A way to reduce the first cause: answer "not recognized" only when the probability of `unknown` is at least a level `u`, and otherwise show the crop's best class (with `low_confidence` if it is below `ok`). Tried with `T`, `ok` 0.70, `low` 0.25, `crop_mismatch` 0.70. Crop photos called "not recognized", and non-plant photos (other plants and objects) correctly rejected:
 
 | Rule | `val`: crop photos / non-plant | `test`: crop photos / non-plant | `bench`: crop photos |
 | --- | --- | --- | --- |
 | `unknown` whenever it wins (today) | 31.7 % / 99.7 % | 29.4 % / 99.8 % | 17.5 % |
+| `u` = 0.3 (worse than today: the answer then excludes `unknown`) | 34.8 % / 99.6 % | 32.4 % / 99.9 % | 18.8 % |
 | `u` = 0.4 | 28.0 % / 99.4 % | 25.3 % / 99.8 % | 16.3 % |
 | `u` = 0.5 | **24.6 %** / 98.8 % | 21.6 % / 99.4 % | 15.4 % |
 | `u` = 0.6 | 23.5 % / 98.5 % | 19.9 % / 99.2 % | 15.2 % |
 | `u` = 0.8 | 23.4 % / 98.5 % | 19.7 % / 98.9 % | 15.2 % |
 
-The rest (about 15–23 %) are photos where the best class of the crop is below `low`: the model is truly unsure. `u` = 0.5 removes 7.1 points of false "not recognized" on `val` (7.8 on `test`, 2.1 on `bench`) and loses 0.9 points of non-plant rejection on `val` (0.4 on `test`); the share of right answers rises from 43.2 % to 46.7 % on `val`. This changes step 5 of `decide()` and the contract, so it is a **decision for the lead**; the proposal is `u` = 0.5. Nothing in the service was changed here.
+From `u` = 0.6 up nothing changes any more: what is left (15–23 %) are the photos where the best class of the crop is below `low` and the model is truly unsure. `u` = 0.5 removes 7.1 points of false "not recognized" on `val` (7.8 on `test`, 2.1 on `bench`) and loses 0.9 points of non-plant rejection on `val` (0.4 on `test`); the share of right answers rises from 43.2 % to 46.7 % on `val`. This changes step 5 of `decide()` and the contract, so it is a **decision for the lead**; the proposal is `u` = 0.5. Nothing in the service was changed here.
 
 ### Non-plant photos
 
