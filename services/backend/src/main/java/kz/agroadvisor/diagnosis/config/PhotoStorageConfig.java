@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
@@ -17,7 +18,11 @@ import kz.agroadvisor.diagnosis.service.S3PhotoStorage;
 @EnableConfigurationProperties(PhotoStorageProperties.class)
 class PhotoStorageConfig {
 
-    /** Path-style addressing: SeaweedFS has no bucket sub-domains. Connects lazily, on the first upload. */
+    /**
+     * Path-style addressing: SeaweedFS has no bucket sub-domains. Connects lazily, on the first upload.
+     * Every wait is bounded (see {@link PhotoStorageProperties}); a retry of the upload is safe because
+     * each upload writes a fresh random key.
+     */
     @Bean(destroyMethod = "close")
     S3Client s3Client(PhotoStorageProperties props) {
         return S3Client.builder()
@@ -26,6 +31,12 @@ class PhotoStorageConfig {
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(props.accessKey(), props.secretKey())))
                 .forcePathStyle(true)
+                .httpClientBuilder(UrlConnectionHttpClient.builder()
+                        .connectionTimeout(props.connectTimeout())
+                        .socketTimeout(props.attemptTimeout()))
+                .overrideConfiguration(config -> config
+                        .apiCallAttemptTimeout(props.attemptTimeout())
+                        .apiCallTimeout(props.totalTimeout()))
                 .build();
     }
 

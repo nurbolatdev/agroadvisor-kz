@@ -4,15 +4,21 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.http.HttpStatus;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import kz.agroadvisor.common.web.ApiException;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class S3PhotoStorageTest {
 
@@ -41,6 +47,18 @@ class S3PhotoStorageTest {
     @Test
     void usesThePngExtensionForPng() {
         assertThat(upload("image/png").key()).endsWith(".png");
+    }
+
+    @Test
+    void reportsAnUnavailableStorageAsServiceUnavailableWithAStableCode() {
+        when(s3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenThrow(SdkClientException.create("Connection refused"));
+
+        assertThatThrownBy(() -> storage.store(userId, new byte[] {1}, "image/jpeg"))
+                .isInstanceOfSatisfying(ApiException.class, e -> {
+                    assertThat(e.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+                    assertThat(e.getCode()).isEqualTo("storage_unavailable");
+                });
     }
 
     @Test
