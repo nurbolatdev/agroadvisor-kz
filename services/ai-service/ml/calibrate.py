@@ -25,8 +25,9 @@ from ml.evaluate import crop_masks, load_meta, mask_logits
 from ml.registry import UNKNOWN, Registry, load_registry
 
 ECE_BINS = 15
-OK_THRESHOLDS = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+OK_THRESHOLDS = [0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 MISMATCH_THRESHOLDS = [0.5, 0.6, 0.7, 0.8, 0.9]
+LOW_THRESHOLDS = [0.25, 0.4]  # below this the answer is "not recognized"
 TEMPERATURE_RANGE = (0.2, 20.0)
 
 
@@ -155,6 +156,36 @@ def false_mismatch_rate(
     ]  # fmt: skip
 
 
+def unknown_rejection(
+    logits: np.ndarray,
+    classes: list[str],
+    registry: Registry,
+    low: float,
+    temperature: float = 1.0,
+) -> dict[str, float]:
+    """Share of photos that are not of any known class and are answered "not recognized".
+
+    The photos are scored once for every crop the farmer could have chosen: the service answers
+    ``unknown`` when ``unknown`` wins among the crop's classes, or when the best answer is below
+    ``low``.
+    """
+    unknown = classes.index(UNKNOWN)
+    share = {}
+    for crop in sorted(crop_masks(classes, registry)):
+        probs = product_probs(logits, [crop] * len(logits), classes, registry, temperature)
+        rejected = (probs.argmax(axis=1) == unknown) | (probs.max(axis=1) < low)
+        share[crop] = float(rejected.mean())
+    return share
+
+
+def _unknown_photos(run_dir: Path, tag: str) -> tuple[np.ndarray, list[str]]:
+    """Saved logits of the photos whose true class is ``unknown`` (any domain), and the classes."""
+    saved = np.load(run_dir / f"logits_{tag}.npz")
+    classes = json.loads((run_dir / "class_index.json").read_text(encoding="utf-8"))["classes"]
+    keep = saved["targets"] == classes.index(UNKNOWN)
+    return saved["logits"].astype(np.float64)[keep], classes
+
+
 def _metrics(probs: np.ndarray, targets: np.ndarray) -> dict:
     conf, answer = probs.max(axis=1), probs.argmax(axis=1)
     correct = answer == targets
@@ -201,8 +232,11 @@ def calibrate_run(
         if (run_dir / "config.json").exists() else run_dir.name,
         "temperature": temperature,
         "fitted_on": {"tag": fit_tag, "domain": domain, "photos": int(len(targets))},
-        "thresholds_checked": {"ok": OK_THRESHOLDS, "crop_mismatch": MISMATCH_THRESHOLDS},
+        "thresholds_checked": {
+            "ok": OK_THRESHOLDS, "low": LOW_THRESHOLDS, "crop_mismatch": MISMATCH_THRESHOLDS,
+        },
         "checks": {},
+        "non_plant": {},
         "scored_at": datetime.now().isoformat(timespec="seconds"),
     }  # fmt: skip
     for tag in (fit_tag, *check_tags):
@@ -225,6 +259,18 @@ def calibrate_run(
             _plot_reliability(
                 run_dir / f"reliability_{tag}.png", result["run"], tag, before, after, tg
             )
+        others, cl = _unknown_photos(run_dir, tag)
+        if len(others):  # not every split has them (bench has none)
+            result["non_plant"][tag] = {
+                "photos": int(len(others)),
+                "before": {
+                    str(low): unknown_rejection(others, cl, registry, low) for low in LOW_THRESHOLDS
+                },
+                "after": {
+                    str(low): unknown_rejection(others, cl, registry, low, temperature)
+                    for low in LOW_THRESHOLDS
+                },
+            }
     (run_dir / "calibration.json").write_text(
         json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8"
     )
@@ -270,6 +316,10 @@ def main() -> None:
         b, a = check["before"], check["after"]
         print(f"  {tag:10s} ECE {b['ece']:.3f} -> {a['ece']:.3f}   "
               f"NLL {b['nll']:.3f} -> {a['nll']:.3f}   accuracy {a['accuracy']:.3f}")  # fmt: skip
+    for tag, info in result["non_plant"].items():
+        for low, by_crop in info["after"].items():
+            shares = ", ".join(f"{crop} {share:.3f}" for crop, share in by_crop.items())
+            print(f"  {tag}: {info['photos']} non-plant photos rejected at low {low}: {shares}")
 
 
 if __name__ == "__main__":

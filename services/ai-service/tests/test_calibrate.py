@@ -11,6 +11,7 @@ from ml.calibrate import (
     fit_temperature,
     product_probs,
     risk_coverage,
+    unknown_rejection,
 )
 from ml.registry import load_registry
 
@@ -113,6 +114,29 @@ def test_false_mismatch_counts_photos_the_unmasked_model_sends_to_another_crop()
     assert rate == [{"threshold": 0.7, "photos": 2, "mismatches": 1, "rate": 0.5}]
 
 
+def test_a_photo_that_is_not_a_plant_is_rejected_whatever_crop_was_chosen():
+    logits = np.full((3, len(CLASSES)), -10.0)
+    logits[0, INDEX["unknown"]] = 10.0  # the model says: not one of ours
+    logits[1, INDEX["tomato__late_blight"]] = 10.0  # confidently a tomato disease
+    logits[2, [INDEX[c] for c in (*TOMATO, "unknown")]] = 0.0  # no idea: 8 equal options
+
+    share = unknown_rejection(logits, CLASSES, REGISTRY, low=0.4)
+
+    # for tomato: the first photo (unknown wins) and the third (confidence 1/8 < 0.4) are rejected
+    assert share["tomato"] == pytest.approx(2 / 3)
+    assert set(share) == {"tomato", "potato", "corn", "wheat"}
+
+
+def test_a_lower_threshold_rejects_fewer_photos():
+    logits = np.full((1, len(CLASSES)), -10.0)
+    logits[0, INDEX["tomato__late_blight"]] = 1.0
+    logits[0, INDEX["tomato__early_blight"]] = 0.5
+    logits[0, INDEX["unknown"]] = 0.0
+
+    assert unknown_rejection(logits, CLASSES, REGISTRY, low=0.9)["tomato"] == 1.0
+    assert unknown_rejection(logits, CLASSES, REGISTRY, low=0.2)["tomato"] == 0.0
+
+
 def test_calibrating_a_run_writes_the_temperature_and_the_before_after_numbers(tmp_path):
     run = tmp_path / "A5-E001"
     run.mkdir()
@@ -143,6 +167,9 @@ def test_calibrating_a_run_writes_the_temperature_and_the_before_after_numbers(t
     check = result["checks"]["test_v2"]
     assert check["after"]["ece"] < check["before"]["ece"]
     assert check["after"]["accuracy"] == check["before"]["accuracy"]  # the answers do not change
+    non_plant = result["non_plant"]["test_v2"]
+    assert non_plant["photos"] > 0  # the drawn labels include `unknown`
+    assert set(non_plant["after"]["0.4"]) == {"tomato", "potato", "corn", "wheat"}
     assert json.loads((run / "calibration.json").read_text(encoding="utf-8"))["temperature"] == (
         result["temperature"]
     )
