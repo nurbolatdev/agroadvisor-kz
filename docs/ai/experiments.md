@@ -223,15 +223,15 @@ Per-class F1 on field photos (no mask), E001 → E002 (photos in validation). To
 
 ## A6-E001 — evaluation of the two candidates on `val`, `test` and `bench`
 
-**Status:** completed. No training: two finished runs are scored (A5-E001, A10-E001). The full report is `docs/ai/evaluation.md`.
+**Status:** part 1 completed (`val`, `test`, `bench`); the own photo set `own` is not collected, so A6 stays open. No training: two finished runs are scored (A5-E001, A10-E001); the scores are stored in their `results.json` under `val@v2`, `test@v2`, `bench@v2` (an evaluation run has no folder of its own). The full report is `docs/ai/evaluation.md`.
 
 **Objective.** Measure how the candidates do on field photos of other sources (the situation of a farmer), compared with the target of 85 % correct answers and 95 % top-3.
 
 **Hypothesis (fixed before scoring).** The numbers on `val` and `test` of dataset v2 overstate the quality on independent photos, because those splits share their sources with the training photos; `bench` shows the real level.
 
-**Data.** Dataset v2, splits `val`, `test` and `bench` (2 677, 2 658 and 2 792 photos after leaving out the training photos of both runs, by MD5). `test` was scored once per run, after the recipes were fixed. The own photo set (`own`) is not collected yet.
+**Data.** Dataset v2, splits `val`, `test` and `bench` (2 677, 2 658 and 2 792 photos after leaving out the training photos of both runs, by MD5). `test` was first scored once per run, after the recipes were fixed; no parameter was chosen on it. The own photo set (`own`) is not collected yet.
 
-**Model and parameters.** A5-E001 (v1) and A10-E001 (v2) as trained; scoring with `--bootstrap 1000` (group resampling, seed 42). A new metric was added to `ml.evaluate`: `crop_masked_product_top3_acc` (and `_field`), the right class among the best three inside the selected crop plus `unknown`. The earlier numbers were re-scored with it and did not change.
+**Model and parameters.** A5-E001 (v1) and A10-E001 (v2) as trained; scoring with `--bootstrap 1000` (group resampling, seed 42). Two metrics were added to `ml.evaluate` after the first scoring: `crop_masked_product_top3_acc` (the right class among the best three inside the selected crop plus `unknown`; also for field photos and per crop) and `diseased_called_healthy` (diseased photos answered with the crop's healthy class). All six scores (two runs, `val`, `test`, `bench`) were then recomputed from commit `e7d63da` on a clean tree (`git_dirty: false`); every earlier number and interval was reproduced exactly (0 differences).
 
 **Results (crop-masked, with `unknown`).**
 
@@ -246,7 +246,7 @@ Laboratory photos: 0.982–0.986 accuracy on `test`; `unknown` on `test`: A5-E00
 
 **Limitations.** One seed per run; `bench` has no healthy leaves and no `unknown`, so the false-alarm rate on healthy leaves is not measured; the choice between the two runs is made on `bench`; no calibration (A7); `unknown` does not recognize unknown diseases.
 
-**Conclusion.** The target is met only on photos from the training sources (A10-E001: 0.949 / 0.998 on `test`). On independent field photos the best candidate, A5-E001, reaches 0.563 correct answers and 0.876 top-3; A10-E001, better on its own sources, is significantly worse there. Wheat stripe rust, tomato bacterial spot and gray leaf spot of corn are the weakest classes.
+**Conclusion.** The target is met only on photos from the training sources (A10-E001: 0.949 / 0.998 on `test`). On independent field photos the best candidate, A5-E001, reaches 0.563 correct answers and 0.876 top-3; A10-E001, better on its own sources, is significantly worse there and answers "healthy" for 4.9 % of the diseased `bench` photos (A5-E001: 1.1 %). By F1 on `bench` the weakest classes are `wheat__stripe_rust` (0.03–0.14), `wheat__septoria` (0.25–0.37), `wheat__leaf_rust` (0.32–0.33) and `tomato__bacterial_spot` (0.26–0.33). Top-3 in the crop is below 95 % for tomato and wheat on `bench` in both runs.
 
 **Next step.** A7 (calibration) on field data and a check on `bench`; collect the own set, healthy leaves first (`docs/ai/own-photos.md`); more field data from other sources for wheat and tomato before the next training run. The choice of the model for the service stays with the lead.
 

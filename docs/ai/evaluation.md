@@ -1,8 +1,10 @@
 # Model evaluation (A6)
 
-Result in one line: **the target of 85 % correct answers and 95 % top-3 is reached only on photos from the same sources the model trained on; on an independent field benchmark neither candidate gets close (0.52–0.56 accuracy, 0.86–0.88 top-3).** The model is not ready to answer `ok` on its own; confidence calibration (A7) and more field data come first.
+Result in one line: **the target of 85 % correct answers and 95 % top-3 is reached only on photos from the same sources the model trained on; on an independent field benchmark neither candidate gets close (0.52–0.56 accuracy, 0.86–0.88 top-3), and A10-E001 answers "healthy" for 4.9 % of the diseased bench photos (A5-E001: 1.1 %).** The model is not ready to answer `ok` on its own; confidence calibration (A7) and more field data come first.
 
-All numbers below are copied from `ml/runs/<ID>/results.json` by `python -m ml.eval_report` (tables) and are reproducible with the commands at the end. Intervals are 95 % bootstrap intervals over *groups* of photos (1000 resamples, seed 42), not over single photos.
+**Status of A6: part 1.** The evaluation on `val`, `test` and `bench` and the tools are done. The own photo set (`own`, 50–100 photos taken by the team, healthy leaves first) is **not collected**, so the task stays open until it is scored.
+
+All numbers below are copied from `ml/runs/<ID>/results.json` by `python -m ml.eval_report` (tables) and are reproducible with the commands at the end. Intervals are 95 % bootstrap intervals over *groups* of photos (1000 resamples, seed 42), not over single photos. The runs were scored from commit `e7d63da` on a clean working tree (`git_dirty: false` in the `*_scored_with` records of `results.json`).
 
 ## What was evaluated
 
@@ -15,8 +17,8 @@ A5-E002 is not scored on `bench` or `test`: it had no significant effect over A5
 
 Three splits of dataset v2, with the photos each model trained on left out (by MD5), so both runs are scored on exactly the same photos:
 
-- **`val` and `test`** come from the same sources as the v2 training photos. They measure how well a model does on *more of the same data*. A10-E001 trained on those sources, A5-E001 did not.
-- **`bench`** is an external field benchmark from sources that are never in training (PlantWild, PlantSeg; 2 792 photos). It is the only split that estimates how the model behaves on photos from somewhere else, which is the situation of a farmer.
+- **`val` and `test`** come from the same sources as the v2 training photos. They measure how well a model does on *more of the same data*. A10-E001 trained on those sources. A5-E001 never saw these photos, but part of them come from sources it did train on (the laboratory photos of PlantVillage, the field wheat of one Kaggle source), so its gap to A10-E001 there is not a clean "seen the source against not".
+- **`bench`** is an external field benchmark from sources that are never in training (PlantWild, PlantSeg; 2 792 photos). It is the only split that estimates how the model behaves on photos from somewhere else, which is the situation of a farmer. The "Left out" column shows 31 `bench` photos that are exact copies (same MD5) of v1 training photos; they are not scored.
 - **`own`** (photos taken by the team) is prepared but **not collected yet**, see below.
 
 `test` was scored once per candidate, after the recipe was fixed; no parameter was chosen on it. `bench` was scored for the same two runs; the choice between the two runs below is a choice on `bench`, so it is not a clean selection (see Limits).
@@ -31,14 +33,18 @@ Three splits of dataset v2, with the photos each model trained on left out (by M
 
 Target: correct answer ≥ 85 %, right class in the top three ≥ 95 % (checked on field and `bench`, not on the whole validation set).
 
+All rows are **field photos** (the whole of `bench` is field).
+
 | Where | Run | Correct (crop-masked) | Top-3 in the crop | Target met |
 | --- | --- | ---: | ---: | --- |
 | `bench` (independent field photos) | A5-E001 | 0.563 | 0.876 | no / no |
 | `bench` (independent field photos) | A10-E001 | 0.520 | 0.863 | no / no |
-| `test` (same sources as training) | A10-E001 | 0.949 | 0.998 | yes / yes |
-| `test` (same sources as training) | A5-E001 | 0.629 | 0.891 | no / no |
+| `test`, field photos (same sources as training) | A10-E001 | 0.935 | 0.998 | yes / yes |
+| `test`, field photos (same sources as training) | A5-E001 | 0.477 | 0.845 | no / no |
 
 The yes/yes row is a measurement on photos of the sources the model trained on; it must not be quoted as the accuracy a farmer will see.
+
+Top-3 is easy for a crop with few classes: the answer is chosen among the crop's classes plus `unknown`, that is 8 options for tomato (7 classes), 4 for potato (3), 5 for corn (4) and 6 for wheat (5); for potato a random top-3 is already right in 75 % of the cases. Read the per-crop column below, not the pooled number: on `bench` the top-3 is below 95 % for tomato and wheat in both runs.
 
 ### `bench` (independent field photos)
 
@@ -51,18 +57,25 @@ Top-3 as the app shows it: A5-E001 0.876, A10-E001 0.863.
 
 Difference A10-E001 − A5-E001 (paired bootstrap on the same photos): crop-masked macro-F1 **−0.034 (−0.052 … −0.018)**. The interval does not contain 0: on independent field photos A10-E001 is *worse*, although it is far better on its own sources.
 
+Diseased leaves that the app would answer with the crop's healthy class (a missed disease: the farmer is told the plant is fine). `bench` has no healthy photos, so this is the one error towards "healthy" that can be measured now:
+
+| Run | Diseased photos | Called healthy | Share |
+| --- | ---: | ---: | ---: |
+| A5-E001 | 2792 | 31 | 0.011 |
+| A10-E001 | 2792 | 138 | 0.049 |
+
 Field photos by crop:
 
-| Run | Crop | Field photos | Accuracy | Macro-F1 (95 % CI) |
-| --- | --- | ---: | ---: | --- |
-| A5-E001 | tomato | 1187 | 0.504 | 0.537 (0.509–0.565) |
-| A5-E001 | potato | 419 | 0.644 | 0.702 (0.657–0.745) |
-| A5-E001 | corn | 604 | 0.699 | 0.685 (0.648–0.721) |
-| A5-E001 | wheat | 582 | 0.486 | 0.445 (0.410–0.478) |
-| A10-E001 | tomato | 1187 | 0.435 | 0.483 (0.454–0.514) |
-| A10-E001 | potato | 419 | 0.632 | 0.686 (0.641–0.730) |
-| A10-E001 | corn | 604 | 0.672 | 0.657 (0.618–0.695) |
-| A10-E001 | wheat | 582 | 0.454 | 0.425 (0.384–0.464) |
+| Run | Crop | Field photos | Accuracy | Macro-F1 (95 % CI) | Top-3 in the crop |
+| --- | --- | ---: | ---: | --- | ---: |
+| A5-E001 | tomato | 1187 | 0.504 | 0.537 (0.509–0.565) | 0.824 |
+| A5-E001 | potato | 419 | 0.644 | 0.702 (0.657–0.745) | 1.000 |
+| A5-E001 | corn | 604 | 0.699 | 0.685 (0.648–0.721) | 0.970 |
+| A5-E001 | wheat | 582 | 0.486 | 0.445 (0.410–0.478) | 0.796 |
+| A10-E001 | tomato | 1187 | 0.435 | 0.483 (0.454–0.514) | 0.805 |
+| A10-E001 | potato | 419 | 0.632 | 0.686 (0.641–0.730) | 0.964 |
+| A10-E001 | corn | 604 | 0.672 | 0.657 (0.618–0.695) | 0.954 |
+| A10-E001 | wheat | 582 | 0.454 | 0.425 (0.384–0.464) | 0.816 |
 
 Per class on `bench` (no mask). A dash means the class has no photos in `bench`, so recall and F1 are undefined.
 
@@ -101,11 +114,12 @@ The full per-class tables and the by-crop tables for `test` and `val` are produc
 
 ## What the numbers say
 
-1. **The gap between "more of the same" and "somewhere else" is the main result.** A10-E001: field macro-F1 0.840 on `val` and 0.853 on `test`, 0.530 on `bench`. A5-E001 on the v2 sources it never saw is as low as on `bench` (0.509–0.519 field). A high number on a validation split says how well the sources of the training set are learned, not how the model works elsewhere.
-2. **More field data helped on its own sources and did not carry over to independent ones.** A10-E001 beats A5-E001 by +0.216 (0.198 … 0.234) crop-masked macro-F1 on `test`, but loses by −0.034 (−0.052 … −0.018) on `bench`. The second comparison is the one that matches the product; the first is largely a comparison of "seen the source" against "not".
-3. **Where it fails on independent photos** (confusion matrix `confusion_bench_v2.png`): `wheat__stripe_rust` is recognized in 1–8 % of its photos and goes to `wheat__leaf_rust` (the two rusts look alike; `wheat__leaf_rust` has recall 0.84–0.87 but precision 0.20); `tomato__bacterial_spot` (recall 0.18–0.28) goes mostly to `tomato__septoria_leaf_spot`; `corn__gray_leaf_spot` goes to `corn__northern_leaf_blight` (recall 0.35–0.40). Part of the tomato and potato photos is answered `unknown` even though the crop is chosen.
+1. **The gap between "more of the same" and "somewhere else" is the main result.** A10-E001: field macro-F1 0.840 on `val` and 0.853 on `test`, 0.530 on `bench`. A5-E001, on the v2 field photos from sources it did not train on, is as low as on `bench` (0.509–0.519 field). A high number on a validation split says how well the sources of the training set are learned, not how the model works elsewhere.
+2. **More field data helped on its own sources and did not carry over to independent ones.** A10-E001 beats A5-E001 by +0.216 (0.198 … 0.234) crop-masked macro-F1 on `test`, but loses by −0.034 (−0.052 … −0.018) on `bench`. The second comparison is the one that matches the product. The first is not clean either: A10-E001 knows the field sources of `test`, while A5-E001 does not (it knows only part of them, see above).
+3. **Where it fails on independent photos** (confusion matrix `confusion_bench_v2.png`), by F1 on `bench`: `wheat__stripe_rust` 0.03–0.14 (recognized in 1–8 % of its photos, mostly answered `wheat__leaf_rust`); `wheat__septoria` 0.25–0.37; `wheat__leaf_rust` 0.32–0.33 (recall 0.84–0.87, precision 0.20: it takes the photos of the other wheat classes); `tomato__bacterial_spot` 0.26–0.33 (recall 0.18–0.28, mostly answered `tomato__septoria_leaf_spot`); then `corn__gray_leaf_spot` 0.46–0.50 (recall 0.35–0.40, answered `corn__northern_leaf_blight`). These are pairs that look alike. Part of the tomato and potato photos is answered `unknown` even though the crop is chosen.
 4. **Wheat looked excellent on v1 and is not.** Field wheat macro-F1 is 0.96–0.97 on validation and test (photos from the same Kaggle source as training) and 0.43–0.45 on `bench`. This confirms that the v1 wheat result reflects one source and one shooting style.
-5. **Not measured at all:** `bench` has no healthy leaves and no `unknown` photos. The rate at which the model calls a healthy leaf diseased (the false alarm that costs a farmer a treatment) is therefore **unknown** for tomato, potato, corn and wheat. This is what the `own` set has to cover first.
+5. **Missed diseases are measurable, false alarms are not.** On `bench` A10-E001 answers "healthy" for 138 of 2 792 diseased photos (4.9 %), A5-E001 for 31 (1.1 %): one more reason against A10-E001 as the candidate. The opposite error (a healthy leaf called diseased, which costs a farmer a needless treatment) is **not measured** for tomato, potato, corn and wheat, because `bench` has no healthy leaves and no `unknown` photos. This is what the `own` set has to cover first.
+6. **Top-3 is below 95 % where it is not trivial.** On `bench`, tomato 0.80–0.82 and wheat 0.80–0.82 in both runs; corn 0.95–0.97 and potato 0.96–1.00 reach it, and potato has only 4 options.
 
 ## Own photo set (`own`)
 
@@ -124,7 +138,9 @@ Priority (decision of 26 Oct 2026): healthy leaves of tomato, potato and corn, `
 - `bench` photos come from PlantWild and PlantSeg (CC BY-NC-ND 4.0): they are only used to evaluate, never to train, and are not in the repository. Their labels come from those projects; label noise was not measured.
 - `Top-3 in the crop` is computed with the same crop mask and `unknown` as `/predict`; it does not model any confidence threshold that decides what the app shows.
 - Confidence is not calibrated: A7 decides what the service may answer `ok`. These results are about the ranking of answers, not about how reliable a stated confidence is.
-- Not done: Grad-CAM attention maps (optional in the task), crop-masked top-3 intervals, test-time augmentation.
+- Top-3 depends on how many classes a crop has (4 options for potato, 8 for tomato): compare it per crop, not pooled.
+- `test` was first scored once per candidate after the recipes were fixed. Later the same photos were scored again with metrics added afterwards (top-3 in the crop, missed diseases); no parameter was changed and the earlier numbers were reproduced exactly (checked: 0 differences).
+- Not done: Grad-CAM attention maps (optional in the task), intervals for the top-3 and the missed-disease share, test-time augmentation.
 
 ## Reproduce
 
