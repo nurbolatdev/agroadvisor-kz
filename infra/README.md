@@ -27,6 +27,19 @@ docker compose ps
 
 All three services should show `healthy`. `agroadvisor-seaweedfs-init` shows `Exited (0)` — it only creates the photo bucket and stops.
 
+### Secrets and an older `.env`
+
+`.env` is never committed, so it does not follow `.env.example`: after a `git pull`, compare the two and copy any new keys. The backend refuses to start when a required value is missing or empty, for example:
+
+- `JWT_SECRET` — generate with `openssl rand -base64 48`;
+- `S3_ACCESS_KEY` and `S3_SECRET_KEY` — must match the SeaweedFS credentials above.
+
+Quick check for keys missing from `.env` (prints names only, never values). Ports and the database name have defaults and may be absent; secrets may not:
+
+```bash
+comm -23 <(grep -oE '^[A-Z_]+=' .env.example | sort) <(grep -oE '^[A-Z_]+=' .env | sort)
+```
+
 ## Services
 
 | Service | Container | Host port | Connection |
