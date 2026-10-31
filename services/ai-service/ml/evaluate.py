@@ -170,6 +170,11 @@ def compute_metrics(
     # as /predict answers: the crop's classes plus ``unknown``
     product = mask_logits(logits[has_crop], crop_list, masks, (classes.index(UNKNOWN),))
     product_acc, product_f1 = _acc_f1(targets[has_crop], product.argmax(axis=1))
+    # the three answers the app shows: the best three among the crop's classes and ``unknown``
+    in_top3 = (np.argsort(-product, axis=1)[:, :3] == targets[has_crop][:, None]).any(axis=1)
+    field_of_crop = (np.array(kinds) == "field")[has_crop]
+    product_top3 = float(in_top3.mean()) if len(in_top3) else 0.0
+    product_top3_field = float(in_top3[field_of_crop].mean()) if field_of_crop.any() else 0.0
     product_preds = np.full(len(targets), -1)
     product_preds[has_crop] = product.argmax(axis=1)
     crop_arr = np.array([c or "" for c in crops])
@@ -213,6 +218,8 @@ def compute_metrics(
         "crop_masked_macro_f1": masked_f1,
         "crop_masked_product_acc": product_acc,
         "crop_masked_product_macro_f1": product_f1,
+        "crop_masked_product_top3_acc": product_top3,
+        "crop_masked_product_top3_acc_field": product_top3_field,
         "crop_masked_n": int(has_crop.sum()),
         "crop_masked_product_by_domain": product_by_domain,
         "crop_masked_product_field_by_crop": product_field_by_crop,
