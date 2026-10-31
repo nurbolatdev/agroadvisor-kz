@@ -20,11 +20,11 @@ export const ru = {
     noAccount: 'Нет аккаунта? Зарегистрироваться',
     haveAccount: 'Уже есть аккаунт? Войти',
     signOut: 'Выйти',
-    hello: 'Здравствуйте, {{name}}',
     errors: {
       required: 'Заполните поле',
       passwordShort: 'Минимум 8 символов',
-      passwordLong: 'Не больше 72 символов',
+      passwordLong: 'Пароль слишком длинный',
+      blocked: 'Аккаунт заблокирован. Обратитесь в поддержку',
       invalidCredentials: 'Неверный телефон, e-mail или пароль',
       loginTaken: 'Этот телефон или e-mail уже занят',
       invalidLogin: 'Введите телефон или e-mail',

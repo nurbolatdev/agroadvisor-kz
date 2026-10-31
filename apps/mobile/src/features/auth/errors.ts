@@ -9,6 +9,7 @@ export type FormFailure = {
     | 'auth.errors.invalidLogin'
     | 'auth.errors.passwordShort'
     | 'auth.errors.passwordLong'
+    | 'auth.errors.blocked'
     | 'auth.errors.network'
     | 'auth.errors.generic'
 }
@@ -22,6 +23,8 @@ export function toFormFailure(error: unknown): FormFailure {
         return { messageKey: 'auth.errors.invalidCredentials' }
       case 'login_taken':
         return { field: 'login', messageKey: 'auth.errors.loginTaken' }
+      case 'account_blocked':
+        return { messageKey: 'auth.errors.blocked' }
       case 'invalid_login':
         return { field: 'login', messageKey: 'auth.errors.invalidLogin' }
       case 'password_too_long':

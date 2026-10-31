@@ -64,7 +64,6 @@ export default function LoginScreen() {
           label={t('auth.login')}
           autoCapitalize="none"
           autoCorrect={false}
-          keyboardType="email-address"
           textContentType="username"
           autoComplete="username"
         />

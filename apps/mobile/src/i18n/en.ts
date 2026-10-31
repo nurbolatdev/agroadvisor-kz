@@ -22,11 +22,11 @@ export const en: Translation = {
     noAccount: 'No account? Sign up',
     haveAccount: 'Already have an account? Sign in',
     signOut: 'Sign out',
-    hello: 'Hello, {{name}}',
     errors: {
       required: 'Fill in this field',
       passwordShort: 'At least 8 characters',
-      passwordLong: 'At most 72 characters',
+      passwordLong: 'The password is too long',
+      blocked: 'The account is blocked. Contact support',
       invalidCredentials: 'Wrong phone, e-mail or password',
       loginTaken: 'This phone or e-mail is already taken',
       invalidLogin: 'Enter a phone number or an e-mail',

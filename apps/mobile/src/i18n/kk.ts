@@ -22,11 +22,11 @@ export const kk: Translation = {
     noAccount: 'Аккаунт жоқ па? Тіркелу',
     haveAccount: 'Аккаунт бар ма? Кіру',
     signOut: 'Шығу',
-    hello: 'Сәлеметсіз бе, {{name}}',
     errors: {
       required: 'Өрісті толтырыңыз',
       passwordShort: 'Кемінде 8 таңба',
-      passwordLong: '72 таңбадан аспауы керек',
+      passwordLong: 'Құпиясөз тым ұзын',
+      blocked: 'Аккаунт бұғатталған. Қолдау қызметіне хабарласыңыз',
       invalidCredentials: 'Телефон, e-mail немесе құпиясөз қате',
       loginTaken: 'Бұл телефон немесе e-mail бос емес',
       invalidLogin: 'Телефон нөмірін немесе e-mail енгізіңіз',
