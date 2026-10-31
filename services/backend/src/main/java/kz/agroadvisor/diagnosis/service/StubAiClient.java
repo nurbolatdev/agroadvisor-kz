@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 import kz.agroadvisor.catalog.model.Crop;
 import kz.agroadvisor.catalog.repository.CropRepository;
-import kz.agroadvisor.diagnosis.service.Prediction.ClassScore;
+import kz.agroadvisor.diagnosis.model.ClassScore;
 
 /**
  * Stand-in for the AI service until B9: always answers "healthy" with a placeholder model version.

@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import kz.agroadvisor.catalog.model.Crop;
 import kz.agroadvisor.catalog.repository.CropRepository;
-import kz.agroadvisor.diagnosis.service.Prediction.ClassScore;
+import kz.agroadvisor.diagnosis.model.ClassScore;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;

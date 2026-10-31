@@ -2,6 +2,8 @@ package kz.agroadvisor.diagnosis.service;
 
 import java.util.List;
 
+import kz.agroadvisor.diagnosis.model.ClassScore;
+
 /**
  * Answer of the AI service to {@code POST /predict} (see {@code docs/api/ai-predict.md}).
  *
@@ -12,9 +14,6 @@ public record Prediction(String status, String crop, ClassScore top1, List<Class
         String detectedCrop, String modelVersion, int classesVersion, Integer inferenceMs) {
 
     private static final String PLACEHOLDER_PREFIX = "placeholder";
-
-    public record ClassScore(String code, double confidence) {
-    }
 
     /** The stand-in model answers plausibly for any photo, so its result is not a real diagnosis. */
     public boolean isPlaceholder() {
