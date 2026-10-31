@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native'
 import { Leaf } from 'lucide-react-native'
 
 import { initI18n } from '@/i18n'
+import { colors, sizes } from '@/theme/tokens'
 
 import { Badge } from './Badge'
 import { Button } from './Button'
@@ -39,7 +40,34 @@ describe('Button', () => {
   })
 })
 
+describe('Button sizes', () => {
+  it('uses 52 px, and 40 px with a hit area of 48 px when compact', async () => {
+    const { rerender } = await render(<Button label="Go" onPress={jest.fn()} />)
+    expect(screen.getByRole('button', { name: 'Go' })).toHaveStyle({ minHeight: sizes.control })
+
+    await rerender(<Button label="Go" onPress={jest.fn()} compact />)
+    const button = screen.getByRole('button', { name: 'Go' })
+    expect(button).toHaveStyle({ minHeight: sizes.controlCompact })
+    expect(sizes.controlCompact + 2 * button.props.hitSlop).toBeGreaterThanOrEqual(sizes.touch)
+  })
+})
+
 describe('Input', () => {
+  it('marks the error state for accessibility and by the border color', async () => {
+    await render(<Input label="Phone" error="Required" />)
+    const field = screen.getByLabelText('Phone')
+    expect(field.props.accessibilityHint).toBe('Required')
+    expect(field.props['aria-invalid']).toBe(true)
+    expect(field).toHaveStyle({ borderColor: colors.danger, minHeight: sizes.control })
+  })
+
+  it('highlights the focused field', async () => {
+    await render(<Input label="Phone" />)
+    const field = screen.getByLabelText('Phone')
+    await fireEvent(field, 'focus')
+    expect(field).toHaveStyle({ borderColor: colors.primary })
+  })
+
   it('shows the error text', async () => {
     await render(<Input label="Phone" error="Required" />)
     expect(screen.getByText('Required')).toBeTruthy()

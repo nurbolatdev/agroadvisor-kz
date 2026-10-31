@@ -3,6 +3,7 @@ const preset = require('jest-expo/jest-preset')
 module.exports = {
   ...preset,
   moduleNameMapper: {
+    ...preset.moduleNameMapper,
     '^@/(.*)$': '<rootDir>/src/$1',
     // The "react-native" export of lucide points to ESM; tests use its CommonJS build.
     '^lucide-react-native$':
