@@ -2,12 +2,16 @@ package kz.agroadvisor.common.cache;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.cache.autoconfigure.RedisCacheManagerBuilderCustomizer;
 import org.springframework.cache.Cache;
 import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.interceptor.CacheErrorHandler;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import org.springframework.data.redis.cache.RedisCacheWriter;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 
 /**
  * Redis-backed cache for read-mostly data.
@@ -22,6 +26,17 @@ import org.springframework.core.Ordered;
 class CacheConfig implements CachingConfigurer {
 
     private static final Logger log = LoggerFactory.getLogger(CacheConfig.class);
+
+    /**
+     * Spring Data Redis hands cache writes to the reactive driver and returns at once, while evictions
+     * run on a blocking connection, so an eviction can overtake the write issued before it and leave a
+     * stale entry until the TTL runs out. Immediate writes make every write complete before put() returns.
+     */
+    @Bean
+    RedisCacheManagerBuilderCustomizer immediateCacheWrites(RedisConnectionFactory connectionFactory) {
+        return builder -> builder.cacheWriter(RedisCacheWriter.create(connectionFactory,
+                writer -> writer.immediateWrites()));
+    }
 
     /** A Redis outage must slow requests down, not fail them: the database stays the source of truth. */
     @Override
