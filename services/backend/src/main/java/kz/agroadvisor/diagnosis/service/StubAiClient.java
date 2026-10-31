@@ -2,26 +2,30 @@ package kz.agroadvisor.diagnosis.service;
 
 import java.util.List;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-import kz.agroadvisor.catalog.model.Crop;
-import kz.agroadvisor.catalog.repository.CropRepository;
+import kz.agroadvisor.catalog.service.CatalogService;
+import kz.agroadvisor.catalog.service.CatalogService.CropView;
 import kz.agroadvisor.diagnosis.model.ClassScore;
 
 /**
  * Stand-in for the AI service until B9: always answers "healthy" with a placeholder model version.
- * Crops come from the reference table, which mirrors the AI class registry.
+ * It exists only when {@code app.ai.client=stub} (the local and test profiles), so a deployment without
+ * a real {@link AiClient} fails to start instead of recording invented diagnoses.
+ * Crops come from the cached reference, which mirrors the AI class registry.
  */
 @Component
+@ConditionalOnProperty(name = "app.ai.client", havingValue = "stub")
 class StubAiClient implements AiClient {
 
     static final String MODEL_VERSION = "placeholder-v0";
     private static final int CLASSES_VERSION = 1;
 
-    private final CropRepository crops;
+    private final CatalogService catalog;
 
-    StubAiClient(CropRepository crops) {
-        this.crops = crops;
+    StubAiClient(CatalogService catalog) {
+        this.catalog = catalog;
     }
 
     @Override
@@ -32,6 +36,7 @@ class StubAiClient implements AiClient {
 
     @Override
     public List<String> crops() {
-        return crops.findAllByOrderBySortOrderAscCodeAsc().stream().map(Crop::getCode).toList();
+        // Codes do not depend on the language; any one hits the same cache entry
+        return catalog.crops("en").stream().map(CropView::code).toList();
     }
 }

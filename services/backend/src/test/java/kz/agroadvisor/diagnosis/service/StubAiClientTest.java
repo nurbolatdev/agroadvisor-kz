@@ -1,12 +1,11 @@
 package kz.agroadvisor.diagnosis.service;
 
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import kz.agroadvisor.catalog.model.Crop;
-import kz.agroadvisor.catalog.repository.CropRepository;
+import kz.agroadvisor.catalog.service.CatalogService;
+import kz.agroadvisor.catalog.service.CatalogService.CropView;
 import kz.agroadvisor.diagnosis.model.ClassScore;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -15,8 +14,8 @@ import static org.mockito.Mockito.when;
 
 class StubAiClientTest {
 
-    private final CropRepository crops = mock(CropRepository.class);
-    private final StubAiClient client = new StubAiClient(crops);
+    private final CatalogService catalog = mock(CatalogService.class);
+    private final StubAiClient client = new StubAiClient(catalog);
 
     @Test
     void answersWithTheContractShapeForTheRequestedCrop() {
@@ -47,9 +46,8 @@ class StubAiClientTest {
     }
 
     @Test
-    void listsTheCropsFromTheReferenceInsteadOfHardcodingThem() {
-        when(crops.findAllByOrderBySortOrderAscCodeAsc()).thenReturn(List.of(
-                new Crop("tomato", Map.of("en", "Tomato"), 1), new Crop("wheat", Map.of("en", "Wheat"), 2)));
+    void listsTheCropsFromTheCachedReferenceInsteadOfHardcodingThem() {
+        when(catalog.crops("en")).thenReturn(List.of(new CropView("tomato", "Tomato"), new CropView("wheat", "Wheat")));
 
         assertThat(client.crops()).containsExactly("tomato", "wheat");
     }
