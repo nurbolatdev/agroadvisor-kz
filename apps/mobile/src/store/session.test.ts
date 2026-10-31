@@ -99,6 +99,86 @@ describe('session store', () => {
     expect(a).toBe(b)
   })
 
+  it('stays signed out when logout happens during a refresh', async () => {
+    const api = createMockAuthApi()
+    const first = await api.register(credentials)
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const slowApi: AuthApi = {
+      ...api,
+      refresh: async (token) => {
+        await gate
+        return api.refresh(token)
+      },
+    }
+    const tokens = memoryTokens(first.refreshToken)
+    const session = createSessionStore({ authApi: slowApi, tokens })
+
+    const refreshing = session.getState().refreshAccessToken()
+    await session.getState().logout()
+    release()
+
+    await expect(refreshing).resolves.toBeNull()
+    expect(session.getState().status).toBe('signedOut')
+    expect(session.getState().accessToken).toBeNull()
+    expect(tokens.value).toBeNull()
+  })
+
+  it('does not hang on start when the keystore throws', async () => {
+    const tokens: TokenStorage = {
+      getRefreshToken: async () => {
+        throw new Error('keystore unavailable')
+      },
+      setRefreshToken: async () => undefined,
+      clear: async () => {
+        throw new Error('keystore unavailable')
+      },
+    }
+    const session = createSessionStore({ authApi: createMockAuthApi(), tokens })
+
+    await session.getState().restore()
+    expect(session.getState().status).toBe('signedOut')
+
+    await expect(session.getState().logout()).resolves.toBeUndefined()
+  })
+
+  it('ends the session when the account is blocked', async () => {
+    const api: AuthApi = {
+      ...createMockAuthApi(),
+      refresh: async () => {
+        throw new ApiError(403, 'account_blocked', 'blocked')
+      },
+    }
+    const tokens = memoryTokens('saved')
+    const session = createSessionStore({ authApi: api, tokens })
+
+    await session.getState().restore()
+
+    expect(session.getState().status).toBe('signedOut')
+    expect(tokens.value).toBeNull()
+  })
+
+  it('stays on the splash until the refresh gives a verdict', async () => {
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const api: AuthApi = {
+      ...createMockAuthApi(),
+      refresh: async () => {
+        await gate
+        throw new ApiError(401, 'invalid_refresh_token', '')
+      },
+    }
+    const session = createSessionStore({ authApi: api, tokens: memoryTokens('saved') })
+
+    const restoring = session.getState().restore()
+    await Promise.resolve()
+    expect(session.getState().status).toBe('restoring')
+
+    release()
+    await restoring
+    expect(session.getState().status).toBe('signedOut')
+  })
+
   it('logs out locally even if the server call fails', async () => {
     const api: AuthApi = {
       ...createMockAuthApi(),

@@ -43,6 +43,31 @@ describe('api client', () => {
     expect(calls.map((c) => c.auth)).toEqual(['Bearer old', 'Bearer fresh'])
   })
 
+  it('retries with the current token without a second refresh if it already changed', async () => {
+    let token = 'old'
+    const calls: (string | null)[] = []
+    const fetchFn = jest.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      calls.push(new Headers(init?.headers).get('Authorization'))
+      if (calls.length === 1) {
+        token = 'newer' // a parallel request renewed the token meanwhile
+        return json(401, {})
+      }
+      return json(200, {})
+    })
+    const refreshAccessToken = jest.fn(async () => 'fresh' as string | null)
+    const client = createApiClient({
+      baseUrl: 'http://api',
+      fetchFn: fetchFn as unknown as typeof fetch,
+      getAccessToken: () => token,
+      refreshAccessToken,
+    })
+
+    await client.request('/api/x')
+
+    expect(refreshAccessToken).not.toHaveBeenCalled()
+    expect(calls).toEqual(['Bearer old', 'Bearer newer'])
+  })
+
   it('fails with the 401 when the session cannot be renewed', async () => {
     const { client, refreshAccessToken } = setup([json(401, { code: 'unauthorized' })])
     refreshAccessToken.mockResolvedValueOnce(null)

@@ -24,37 +24,73 @@ type SessionState = {
   refreshAccessToken: () => Promise<string | null>
 }
 
+// ok: new tokens; rejected: the server ended the session; failed: no verdict (offline, 5xx).
+type RefreshResult = { kind: 'ok'; accessToken: string } | { kind: 'rejected' } | { kind: 'failed' }
+
+function sessionEnded(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.status === 401 || (error.status === 403 && error.code === 'account_blocked'))
+  )
+}
+
 export function createSessionStore(deps: { authApi: AuthApi; tokens: TokenStorage }) {
   const { authApi, tokens } = deps
-  let inflight: Promise<string | null> | null = null
+  let inflight: Promise<RefreshResult> | null = null
+  // Bumped whenever the session is closed. A refresh or login that started earlier must not
+  // bring the session back (logout while a refresh is running).
+  let generation = 0
 
   return create<SessionState>((set, get) => {
-    async function accept(response: TokenResponse) {
+    async function accept(response: TokenResponse, startedIn: number) {
+      if (startedIn !== generation) return
       await tokens.setRefreshToken(response.refreshToken)
+      if (startedIn !== generation) return
       set({ status: 'signedIn', accessToken: response.accessToken })
     }
 
     async function dropSession() {
-      await tokens.clear()
+      generation += 1
       set({ status: 'signedOut', accessToken: null })
+      // A broken keystore must not keep the user signed in; clearing is best effort.
+      await tokens.clear().catch(() => undefined)
     }
 
-    async function doRefresh(): Promise<string | null> {
-      const refreshToken = await tokens.getRefreshToken()
+    async function doRefresh(): Promise<RefreshResult> {
+      const startedIn = generation
+      let refreshToken: string | null
+      try {
+        refreshToken = await tokens.getRefreshToken()
+      } catch {
+        await dropSession() // the keystore cannot be read: the saved session is lost
+        return { kind: 'rejected' }
+      }
       if (!refreshToken) {
         await dropSession()
-        return null
+        return { kind: 'rejected' }
       }
       try {
         const response = await authApi.refresh(refreshToken)
-        await accept(response)
-        return response.accessToken
+        await accept(response, startedIn)
+        return startedIn === generation
+          ? { kind: 'ok', accessToken: response.accessToken }
+          : { kind: 'rejected' }
       } catch (error) {
-        // The server rejected the token: the session is over. Anything else (offline, 5xx)
-        // keeps the saved session so the user is not logged out by a bad connection.
-        if (error instanceof ApiError && error.status === 401) await dropSession()
-        return null
+        // Anything but a verdict of the server (offline, 5xx) keeps the saved session,
+        // so a bad connection does not log the user out.
+        if (sessionEnded(error)) {
+          await dropSession()
+          return { kind: 'rejected' }
+        }
+        return { kind: 'failed' }
       }
+    }
+
+    function refresh(): Promise<RefreshResult> {
+      inflight ??= doRefresh().finally(() => {
+        inflight = null
+      })
+      return inflight
     }
 
     return {
@@ -62,26 +98,39 @@ export function createSessionStore(deps: { authApi: AuthApi; tokens: TokenStorag
       accessToken: null,
 
       async restore() {
-        const refreshToken = await tokens.getRefreshToken()
-        if (!refreshToken) {
-          set({ status: 'signedOut' })
+        let saved: string | null = null
+        try {
+          saved = await tokens.getRefreshToken()
+        } catch {
+          // unreadable storage counts as no session
+        }
+        if (!saved) {
+          await dropSession()
           return
         }
-        // Optimistic: open the app right away, the first request renews the access token.
-        set({ status: 'signedIn' })
-        await get().refreshAccessToken()
+        // Wait for the verdict so a dead session never flashes the signed-in screens.
+        // Offline or a server error: open the app, the first request tries again.
+        const result = await refresh()
+        if (result.kind === 'failed') set({ status: 'signedIn' })
       },
 
       async register(body) {
-        await accept(await authApi.register(body))
+        const startedIn = generation
+        await accept(await authApi.register(body), startedIn)
       },
 
       async login(body) {
-        await accept(await authApi.login(body))
+        const startedIn = generation
+        await accept(await authApi.login(body), startedIn)
       },
 
       async logout() {
-        const refreshToken = await tokens.getRefreshToken()
+        let refreshToken: string | null = null
+        try {
+          refreshToken = await tokens.getRefreshToken()
+        } catch {
+          // still sign out locally
+        }
         await dropSession()
         if (refreshToken) {
           // Best effort: the local session is already closed.
@@ -89,11 +138,9 @@ export function createSessionStore(deps: { authApi: AuthApi; tokens: TokenStorag
         }
       },
 
-      refreshAccessToken() {
-        inflight ??= doRefresh().finally(() => {
-          inflight = null
-        })
-        return inflight
+      async refreshAccessToken() {
+        const result = await refresh()
+        return result.kind === 'ok' ? result.accessToken : null
       },
     }
   })

@@ -70,10 +70,13 @@ export function createApiClient(options: ApiClientOptions) {
 
   async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     const withAuth = opts.auth !== false
-    let response = await send(path, opts, withAuth ? options.getAccessToken() : null)
+    const sentWith = withAuth ? options.getAccessToken() : null
+    let response = await send(path, opts, sentWith)
 
     if (response.status === 401 && withAuth) {
-      const fresh = await options.refreshAccessToken()
+      // Another request may have renewed the token while this one was in flight.
+      const current = options.getAccessToken()
+      const fresh = current && current !== sentWith ? current : await options.refreshAccessToken()
       if (fresh) response = await send(path, opts, fresh)
     }
 
