@@ -13,6 +13,14 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD}
 
+app:
+  ai:
+    # The real AI client arrives with B9; until then local runs use the placeholder model
+    client: stub
+  photos:
+    # The S3 port is set in infra/.env together with the container
+    endpoint: ${S3_ENDPOINT:http://localhost:${S3_PORT:8333}}
+
 management:
   endpoint:
     health:
