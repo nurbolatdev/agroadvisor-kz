@@ -141,6 +141,33 @@ def per_class_metrics(targets: np.ndarray, preds: np.ndarray, classes: list[str]
     }
 
 
+def _diseased_called_healthy(
+    targets: np.ndarray, product_preds: np.ndarray, classes: list[str], kinds: np.ndarray
+) -> dict:
+    """Photos of a diseased leaf that the app would answer with the crop's healthy class.
+
+    This is the missed disease: the farmer is told the plant is fine. Photos of healthy leaves,
+    of ``unknown`` and photos without a crop are not counted.
+    """
+    healthy = [i for i, code in enumerate(classes) if code.endswith("__healthy")]
+    skipped = [*healthy, classes.index(UNKNOWN)]
+    diseased = ~np.isin(targets, skipped) & (product_preds >= 0)
+    missed = diseased & np.isin(product_preds, healthy)
+    field = kinds == "field"
+    return {
+        "photos": int(diseased.sum()),
+        "called_healthy": int(missed.sum()),
+        "rate": float(missed.sum() / diseased.sum()) if diseased.any() else None,
+        "field_photos": int((diseased & field).sum()),
+        "field_called_healthy": int((missed & field).sum()),
+        "field_rate": (
+            float((missed & field).sum() / (diseased & field).sum())
+            if (diseased & field).any()
+            else None
+        ),
+    }
+
+
 def compute_metrics(
     logits: np.ndarray,
     targets: np.ndarray,
@@ -170,8 +197,17 @@ def compute_metrics(
     # as /predict answers: the crop's classes plus ``unknown``
     product = mask_logits(logits[has_crop], crop_list, masks, (classes.index(UNKNOWN),))
     product_acc, product_f1 = _acc_f1(targets[has_crop], product.argmax(axis=1))
+    # the three answers the app shows: the best three among the crop's classes and ``unknown``
+    in_top3 = (np.argsort(-product, axis=1)[:, :3] == targets[has_crop][:, None]).any(axis=1)
+    field_of_crop = (np.array(kinds) == "field")[has_crop]
+    # None, not 0.0, when there is nothing to score: "no data" is not "always wrong"
+    product_top3 = float(in_top3.mean()) if len(in_top3) else None
+    product_top3_field = float(in_top3[field_of_crop].mean()) if field_of_crop.any() else None
+    top3_hit = np.full(len(targets), np.nan)
+    top3_hit[has_crop] = in_top3
     product_preds = np.full(len(targets), -1)
     product_preds[has_crop] = product.argmax(axis=1)
+    called_healthy = _diseased_called_healthy(targets, product_preds, classes, np.array(kinds))
     crop_arr = np.array([c or "" for c in crops])
     product_by_domain, product_field_by_crop = {}, {}
     for domain in DOMAINS:
@@ -181,7 +217,12 @@ def compute_metrics(
     for crop in sorted(masks):
         sel = (crop_arr == crop) & (np.array(kinds) == "field")
         c_acc, c_f1 = _acc_f1(targets[sel], product_preds[sel])
-        product_field_by_crop[crop] = {"acc": c_acc, "macro_f1": c_f1, "n": int(sel.sum())}
+        product_field_by_crop[crop] = {
+            "acc": c_acc,
+            "macro_f1": c_f1,
+            "n": int(sel.sum()),
+            "top3_acc": float(top3_hit[sel].mean()) if sel.any() else None,
+        }
 
     kind_arr = np.array(kinds)
     by_domain = {}
@@ -213,6 +254,9 @@ def compute_metrics(
         "crop_masked_macro_f1": masked_f1,
         "crop_masked_product_acc": product_acc,
         "crop_masked_product_macro_f1": product_f1,
+        "crop_masked_product_top3_acc": product_top3,
+        "crop_masked_product_top3_acc_field": product_top3_field,
+        "diseased_called_healthy": called_healthy,
         "crop_masked_n": int(has_crop.sum()),
         "crop_masked_product_by_domain": product_by_domain,
         "crop_masked_product_field_by_crop": product_field_by_crop,
@@ -494,11 +538,13 @@ def main() -> None:
     results_path = args.run_dir / "results.json"
     results = json.loads(results_path.read_text(encoding="utf-8"))
     results[key] = metrics
+    git = git_info()
     results[f"{key}_scored_with"] = {
         "dataset_dir": str(dataset_dir),
         "excluded_train_of": sources,
         "excluded_train_overlap": metrics["excluded_train_overlap"],
-        "git_commit": git_info()["git_commit"],
+        "git_commit": git["git_commit"],
+        "git_dirty": git["git_dirty"],  # uncommitted code: the commit alone does not say what ran
         "scored_at": datetime.now().isoformat(timespec="seconds"),
     }
     results_path.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")

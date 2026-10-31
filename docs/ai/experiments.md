@@ -11,6 +11,7 @@ Training options (all off by default, so earlier runs stay reproducible): `--sel
 | A5-E001 | completed | Baseline, two-stage fine-tuning, balanced sampler | 0.9619 | 0.7325 | 0.9557 | 0.699 |
 | A5-E002 | completed, criterion not met | E001 + field photos are 35 % of the draws in classes that have them | 0.9620 | 0.7338 | 0.9555 | 0.684 |
 | A10-E001 | completed, criterion not met | A5-E001 recipe on dataset v2 (scored on v2 validation, without the training photos of A5-E001) | 0.951 | 0.841 | 0.9456 | — |
+| A6-E001 | completed | Scoring of A5-E001 and A10-E001 on v2 `val`, `test`, `bench` (same photos for both); top-3 inside the crop added. Best on `bench`: A5-E001, 0.564 (0.547–0.581) | — | — | — | — |
 
 ## A5-E001 — baseline
 
@@ -219,6 +220,35 @@ Per-class F1 on field photos (no mask), E001 → E002 (photos in validation). To
 **Conclusion.** The criterion is not met. More field photos from known sources made the model much better on its own validation split, but on independent sources it is significantly worse than the baseline (−0.034, interval below 0), mainly because of tomato. Adding data of this kind with the same recipe does not improve transfer to new places.
 
 **Next step.** A10-E002, one change at a time: stronger augmentation (`--aug strong`), then a larger share of field photos or label smoothing, each with the same scoring and the same criterion.
+
+## A6-E001 — evaluation of the two candidates on `val`, `test` and `bench`
+
+**Status:** part 1 completed (`val`, `test`, `bench`); the own photo set `own` is not collected, so A6 stays open. No training: two finished runs are scored (A5-E001, A10-E001); the scores are stored in their `results.json` under `val@v2`, `test@v2`, `bench@v2` (an evaluation run has no folder of its own). The full report is `docs/ai/evaluation.md`.
+
+**Objective.** Measure how the candidates do on field photos of other sources (the situation of a farmer), compared with the target of 85 % correct answers and 95 % top-3.
+
+**Hypothesis (fixed before scoring).** The numbers on `val` and `test` of dataset v2 overstate the quality on independent photos, because those splits share their sources with the training photos; `bench` shows the real level.
+
+**Data.** Dataset v2, splits `val`, `test` and `bench` (2 677, 2 658 and 2 792 photos after leaving out the training photos of both runs, by MD5). `test` was first scored once per run, after the recipes were fixed; no parameter was chosen on it. The own photo set (`own`) is not collected yet.
+
+**Model and parameters.** A5-E001 (v1) and A10-E001 (v2) as trained; scoring with `--bootstrap 1000` (group resampling, seed 42). Two metrics were added to `ml.evaluate` after the first scoring: `crop_masked_product_top3_acc` (the right class among the best three inside the selected crop plus `unknown`; also for field photos and per crop) and `diseased_called_healthy` (diseased photos answered with the crop's healthy class). All six scores (two runs, `val`, `test`, `bench`) were then recomputed from commit `e7d63da` on a clean tree (`git_dirty: false`); every earlier number and interval was reproduced exactly (0 differences).
+
+**Results (crop-masked, with `unknown`).**
+
+| Split | Run | Crop-masked macro-F1 (95 % CI) | Field macro-F1 (95 % CI) | Correct answers | Top-3 in the crop |
+| --- | --- | --- | --- | ---: | ---: |
+| `bench` | A5-E001 | 0.564 (0.547–0.581) | 0.564 (0.546–0.581) | 0.563 | 0.876 |
+| `bench` | A10-E001 | 0.530 (0.510–0.548) | 0.530 (0.511–0.547) | 0.520 | 0.863 |
+| `test` | A5-E001 | 0.734 (0.715–0.752) | 0.519 (0.493–0.564) | 0.629 | 0.891 |
+| `test` | A10-E001 | 0.950 (0.935–0.964) | 0.853 (0.802–0.898) | 0.949 | 0.998 |
+
+Laboratory photos: 0.982–0.986 accuracy on `test`; `unknown` on `test`: A5-E001 precision 0.466 / recall 0.993, A10-E001 0.986 / 0.993; `bench` has no `unknown` and no healthy photos. A10-E001 minus A5-E001 on `bench`: −0.034 (−0.052 … −0.018).
+
+**Limitations.** One seed per run; `bench` has no healthy leaves and no `unknown`, so the false-alarm rate on healthy leaves is not measured; the choice between the two runs is made on `bench`; no calibration (A7); `unknown` does not recognize unknown diseases.
+
+**Conclusion.** The target is met only on photos from the training sources (A10-E001: 0.949 / 0.998 on `test`). On independent field photos the best candidate, A5-E001, reaches 0.563 correct answers and 0.876 top-3; A10-E001, better on its own sources, is significantly worse there and answers "healthy" for 4.9 % of the diseased `bench` photos (A5-E001: 1.1 %). By F1 on `bench` the weakest classes are `wheat__stripe_rust` (0.03–0.14), `wheat__septoria` (0.25–0.37), `wheat__leaf_rust` (0.32–0.33) and `tomato__bacterial_spot` (0.26–0.33). Top-3 in the crop is below 95 % for tomato and wheat on `bench` in both runs.
+
+**Next step.** A7 (calibration) on field data and a check on `bench`; collect the own set, healthy leaves first (`docs/ai/own-photos.md`); more field data from other sources for wheat and tomato before the next training run. The choice of the model for the service stays with the lead.
 
 ## A5-TRIAL — speed check (not an experiment)
 
