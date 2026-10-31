@@ -257,23 +257,25 @@ Laboratory photos: 0.982–0.986 accuracy on `test`; `unknown` on `test`: A5-E00
 
 **Objective.** Make the confidence mean what it says and set the thresholds `ok`, `low` and `crop_mismatch` on field data; check that a non-plant photo is answered "not recognized".
 
-**Hypothesis (written after a first exploratory look at the saved logits, so it checks the final tool, not a blind prediction).** A single temperature fitted on field photos of sources the model did not train on lowers the expected calibration error (ECE) by at least a factor of 2 on `test` and on the independent `bench`.
+**Hypothesis (written after a first exploratory look at the saved logits, so it checks the final tool, not a blind prediction).** A single temperature fitted on field photos that the model has mostly not seen lowers the expected calibration error (ECE) by at least a factor of 2 on `test` and on the independent `bench`. The premise holds for A5-E001 (82–84 % of its 1 688 `val` field photos come from new sources); it does not hold for A10-E001, whose `val` photos are all from its own training sources.
 
-**Data and method.** Dataset v2, saved logits of `val` (fit: 1 688 field photos), `test` and `bench` (checks only). Probabilities are those of the service: the selected crop's classes plus `unknown`. ECE with 15 bins. From commit `11e7181`, clean working tree.
+**Data and method.** Dataset v2, saved logits of `val` (fit: 1 688 field photos), `test` and `bench` (checks only). Probabilities are those of the service: the selected crop's classes plus `unknown`. ECE with 15 bins. Statuses by `decide_statuses`, a vectorized copy of the service's `decide()` that a test compares with it. From commit `7ca545f`, clean working tree (`scored_with` in `calibration.json`). The first version of the status table did not follow `decide()` (it counted a photo for which `unknown` wins as a wrong `ok` answer); it was found in review, fixed and all tables recomputed. `T` and `low` are chosen on `val`; `test` and `bench` only check them.
 
 **Results, A5-E001 (`T = 3.79`).**
 
-| Split | ECE before → after | Log-loss before → after | `ok` (≥ 0.70) before: photos / right | `ok` after: photos / right |
-| --- | --- | --- | --- | --- |
-| `val` (fit) | 0.331 → 0.067 | 2.139 → 1.301 | 67 % / 53 % | 17 % / 87 % |
-| `test` | 0.320 → 0.071 | 2.083 → 1.268 | 68 % / 56 % | 17 % / 89 % |
-| `bench` | 0.269 → 0.087 | 2.035 → 1.247 | 75 % / 63 % | 19 % / 78 % |
+Statuses as the service gives them (field photos of the crop). Now: no `T`, `ok` 0.70, `low` 0.40. Recommended: `T`, `ok` 0.70, `low` 0.25.
 
-False `crop_mismatch` (threshold 0.70) on `bench`: 5.5 % → 0.07 %. A10-E001 (`T = 1.38`): ECE 0.020 → 0.008 on `val`, but 0.305 → 0.243 on `bench`; answers at confidence ≥ 0.70 are right 61.5 % of the time there, and false `crop_mismatch` stays at 4.3 %.
+| Split | ECE before → after | Log-loss before → after | `ok` now: photos (right) | `ok` recommended: photos (right) | "not recognized" now → recommended |
+| --- | --- | --- | --- | --- | --- |
+| `val` (fit) | 0.331 → 0.067 | 2.139 → 1.301 | 49.0 % (71.7 %) | 14.8 % (97.6 %) | 25.6 % → 31.7 % |
+| `test` | 0.320 → 0.071 | 2.083 → 1.268 | 51.3 % (72.9 %) | 15.8 % (96.2 %) | 23.6 % → 29.4 % |
+| `bench` | 0.269 → 0.087 | 2.035 → 1.247 | 66.2 % (68.4 %) | 18.0 % (80.1 %) | 10.5 % → 17.5 % |
 
-**Limitations.** One scalar for all classes and crops; non-plant photos come from the same sources as the training `unknown` (no independent set); test-time augmentation not measured; no intervals for ECE.
+False `crop_mismatch` (threshold 0.70) on `bench`: 5.5 % → 0.07 %. With `T`, `low` 0.40 instead of 0.25 would call 57 % / 54 % / 40 % of the crop photos "not recognized" (`val` / `test` / `bench`). The largest error left is the rule for `unknown`: it is answered whenever it wins inside the crop, for 18–32 % of field photos of the crop; answering "not recognized" only at p(`unknown`) ≥ 0.5 lowers it to 24.6 % / 21.6 % / 15.4 % and keeps 98.8 % / 99.4 % of non-plant photos rejected (`val` / `test`); a decision for the lead. A10-E001 (`T = 1.38`): ECE 0.020 → 0.008 on `val`, but 0.305 → 0.243 on `bench`; its `ok` answers are right 65.5 % of the time there, and false `crop_mismatch` stays at 4.3 %.
 
-**Conclusion.** The hypothesis is confirmed for A5-E001 (ECE lower by a factor of 4.5 on `test` and 3.1 on `bench`) and rejected for A10-E001 on `bench`: a temperature fitted on photos of the training sources reports a calibration that does not hold on independent photos. Recommended thresholds for A5-E001 with `T` applied: `ok` 0.70, `low` 0.25 (was 0.40), `crop_mismatch` 0.70. Non-plant photos stay rejected (99.6–100 %).
+**Limitations.** One scalar for all classes and crops; non-plant photos come from the same sources as the training `unknown` (no independent set); test-time augmentation not measured; no intervals for ECE or the status shares; the reliability figure in three languages (`ml/report_figures.py`) is not built; the run has no folder of its own (the numbers are in `calibration.json` of the evaluated runs); nothing is applied in the service yet.
+
+**Conclusion.** The hypothesis is confirmed for A5-E001 (ECE lower by a factor of 4.5 on `test` and 3.1 on `bench`). For A10-E001 it is outside the premise: a temperature fitted on photos of the training sources reports a calibration that does not hold on independent photos (`bench` ECE 0.243). Recommended thresholds for A5-E001 with `T` applied: `ok` 0.70, `low` 0.25 (was 0.40), `crop_mismatch` 0.70. Non-plant photos stay rejected (99.6–100 %). Open for the lead: the `unknown` rule (proposal p(`unknown`) ≥ 0.5), the new defaults and `T` in `model_card.json`, and which model to calibrate for the service.
 
 **Next step.** Apply `T` and the thresholds with the real model (A8, item 17); calibrate A10-E001 (or a later model) on photos from independent sources before trusting its confidence.
 

@@ -125,7 +125,9 @@ The full per-class tables and the by-crop tables for `test` and `val` are produc
 
 The service shows the model's probability as its confidence and compares it with thresholds (`ok`, `low`, `crop_mismatch`). That only makes sense if "70 %" means about 70 % right. A network trained with cross-entropy is overconfident; one number fixes most of it, the temperature `T` that divides the logits before the softmax (the answer never changes, only how sure the model says it is).
 
-**Method.** `T` is fitted on the **field** photos of `val` (v2, the photos the model did not train on: 1 688 photos) by minimizing the log-loss of the answer as the service gives it (the selected crop's classes plus `unknown`). It is then *checked*, never fitted, on `test` and on the independent `bench`. Calibration error is ECE (15 bins). Everything is computed from the saved logits by `python -m ml.calibrate` (no new inference), from commit `11e7181`.
+**Method.** `T` is fitted on the **field** photos of `val` (v2; 1 688 photos that A5-E001 has not seen) by minimizing the log-loss of the answer as the service gives it (the selected crop's classes plus `unknown`). It is then *checked*, never fitted, on `test` and on the independent `bench`. Calibration error is ECE (15 bins). Statuses (`ok`, `low_confidence`, `unknown`, `crop_mismatch`) are computed by `decide_statuses`, a vectorized copy of the service's `decide()` that a test compares with the real one on random logits. Everything is computed from the saved logits by `python -m ml.calibrate` (no new inference), from commit `7ca545f`, clean tree (`scored_with` in `calibration.json`).
+
+Where the 1 688 `val` photos come from: 1 390 from sources that are new in v2 (PLDD-UP 673, CCMT 320, TOM2024 255, FieldPlant 142), 265 (16 %) from sources that v1 also has (PlantDoc 42, the Kaggle wheat 223) and 33 John Innes wheat photos, much of the Kaggle wheat being copies of them. So for A5-E001 `val` is *mostly*, not entirely, new sources; for A10-E001 it is all of its own training sources.
 
 ### A5-E001: calibration transfers to independent photos
 
@@ -137,43 +139,69 @@ The service shows the model's probability as its confidence and compares it with
 | `test` | 1666 | 0.477 | 0.797 → 0.493 | 0.320 → **0.071** | 2.083 → 1.268 |
 | `bench` (independent) | 2792 | 0.563 | 0.831 → 0.504 | 0.269 → **0.087** | 2.035 → 1.247 |
 
-Without `T` the model says 79–83 % while being right 46–56 % of the time. After it, the confidence matches the accuracy within about 0.07–0.09 on all three splits, **including `bench`, which was not used for the fit** (`reliability_bench_v2.png` in the run folder; the curve stays near the diagonal: slightly above it below about 0.7, where the model is a little underconfident, and slightly below it between 0.75 and 0.9, where it is a little overconfident).
+Without `T` the model says 79–83 % while being right 46–56 % of the time. After it, the confidence matches the accuracy within about 0.07–0.09 on all three splits, **including `bench`, which was not used for the fit** (`reliability_bench_v2.png` in the run folder; the curve stays near the diagonal: the model is underconfident by up to 0.16 below confidence 0.6 and overconfident by up to 0.13 between 0.75 and 0.9).
 
-What the threshold `ok` (confidence ≥ 0.70) means, share of field photos that reach it and share of those that are right:
+### What the service answers for a field photo of the selected crop (A5-E001)
 
-| Split | Without `T` | With `T` |
-| --- | --- | --- |
-| `val` | 67 % of photos, 53 % right | **17 %** of photos, 87 % right |
-| `test` | 68 % of photos, 56 % right | **17 %** of photos, 89 % right |
-| `bench` | 75 % of photos, 63 % right | **19 %** of photos, 78 % right |
+Share of the field photos of each status, and how often the answers are right. "Now" is the service as it is configured (no `T`; `ok` 0.70, `low` 0.40, `crop_mismatch` 0.70); "Recommended" applies `T = 3.79` and `low` 0.25. A photo answered "not recognized" counts as a miss, not as a wrong answer; "right answers" is the share of all photos that got an answer and the right one.
 
-Without calibration the service would answer "ok" for 67–75 % of the field photos and be wrong for 37–47 % of those answers. With it, "ok" is rare (about one photo in six) and 78–89 % of those answers are right.
+| Split | Setting | `ok` (right) | `low_confidence` (right) | not recognized | false `crop_mismatch` | right answers |
+| --- | --- | --- | --- | ---: | ---: | ---: |
+| `val` | Now | 49.0 % (71.7 %) | 22.5 % (37.9 %) | 25.6 % | 2.9 % | 43.7 % |
+| `val` | Recommended | **14.8 %** (97.6 %) | 53.6 % (53.8 %) | 31.7 % | 0.0 % | 43.2 % |
+| `test` | Now | 51.3 % (72.9 %) | 22.1 % (41.7 %) | 23.6 % | 2.9 % | 46.6 % |
+| `test` | Recommended | **15.8 %** (96.2 %) | 54.7 % (54.8 %) | 29.4 % | 0.0 % | 45.3 % |
+| `bench` | Now | 66.2 % (68.4 %) | 17.8 % (42.5 %) | 10.5 % | 5.5 % | 52.8 % |
+| `bench` | Recommended | **18.0 %** (80.1 %) | 64.4 % (59.8 %) | 17.5 % | 0.1 % | 52.9 % |
 
-The check "this looks like another crop" (`crop_mismatch`, on the unmasked output, threshold 0.70) fires on photos of the selected crop: without `T` on **5.5 %** of `bench` photos (153) and 2.9 % of `val` (49); with `T` on 2 photos of `bench` (0.07 %) and none of `val` or `test`.
+Without `T` the service would answer "ok" for 49–66 % of the field photos and be wrong for 27–32 % of those answers, and it would call 3–5.5 % of the photos "this looks like another crop". With `T` "ok" is rare (15–18 % of the photos) and 80–98 % right; the number of right answers stays about the same (43–53 % of all photos), they are now sorted into honest classes. The photos called "not recognized" still show the three best classes of the crop, and the right class is among them for 89 % (`val`), 92 % (`test`) and 80 % (`bench`) of those photos.
 
 ### A10-E001: calibrating on a split of the training sources does not help
 
-`T = 1.38`. On `val` and `test` (sources it trained on) it is already calibrated (ECE 0.020 → 0.008 and 0.030 → 0.015) and `ok` answers are right 96–97 % of the time. On the independent `bench` it is overconfident and `T` cannot fix it: ECE 0.305 → **0.243**, answers at confidence ≥ 0.70 are right only 61.5 % of the time (63 % of photos reach it), and `crop_mismatch` fires on 4.3 % of `bench` photos even with `T`. A temperature fitted on photos of the training sources reports a calibration that does not exist elsewhere. For this model there is no honest threshold set until it is calibrated on photos from independent sources (the own set, or a held-out source).
+`T = 1.38`. On `val` and `test` (the sources it trained on) it is already calibrated (ECE 0.020 → 0.008 and 0.030 → 0.015); with `T` and thresholds 0.70 / 0.25, `ok` covers 92.5 % / 93.4 % of the photos and is right 96.9 % / 96.3 % of the time. On the independent `bench` it is overconfident and `T` cannot fix it: ECE 0.305 → **0.243**, `ok` covers 56.7 % of the photos and is right only 65.5 % of the time (at confidence ≥ 0.70), and `crop_mismatch` fires on 4.3 % of `bench` photos even with `T`. A temperature fitted on photos of the training sources reports a calibration that does not exist elsewhere. This is outside the premise of the fit (the `val` photos are not new to this model), not a failure of the method; for this model there is no honest threshold set until it is calibrated on photos from independent sources (the own set, or a held-out source).
 
 ### Recommended thresholds (for A5-E001 with `T = 3.79` applied before the softmax)
 
 | Threshold | Now | Recommended | Why |
 | --- | --- | --- | --- |
-| `ok` | 0.70 | **0.70** | With `T` it means what it says: 78–89 % right on field photos; about one photo in six reaches it |
-| `low` (below it: "not recognized", top-3 still shown) | 0.40 | **0.25** | At 0.40 the app would say "not recognized" for 36–41 % of ordinary crop photos, and 34–40 % of them would have been right; at 0.25 it is 9–10 % (29–35 % of them right). The rule is that "crop → `unknown`" is worse than `low_confidence` |
-| `crop_mismatch` | 0.70 | **0.70, only with `T`** | 0.07 % false alarms on `bench` with `T`, 5.5 % without it |
+| `ok` | 0.70 | **0.70** | With `T` it means what it says: 80–98 % right on field photos; 15–18 % of the photos reach it |
+| `low` (below it: "not recognized", top-3 still shown) | 0.40 | **0.25** | Chosen on `val`, confirmed on `test` and `bench`. With `T`, 0.40 would call 57 % (`val`), 54 % (`test`) and 40 % (`bench`) of ordinary crop photos "not recognized"; 0.25 calls 32 %, 29 % and 17.5 %, and gives more right answers (43.2 % against 32.0 % of all photos on `val`; 45.3 % against 34.6 % on `test`; 52.9 % against 42.1 % on `bench`). The rule is that "crop → `unknown`" is worse than `low_confidence` |
+| `crop_mismatch` | 0.70 | **0.70, only with `T`** | False alarms on `bench`: 0.07 % with `T`, 5.5 % without it |
 
-Non-plant photos stay rejected: of 279 (`val`) and 280 (`test`) photos of other plants and objects, 99.6–100 % are answered "not recognized" for every crop at both `low = 0.25` and `low = 0.40`. These photos come from the same sources as the training `unknown` (other plants, Caltech objects); there is no independent set of non-plant photos, so this is a check of the class, not a promise for any object.
+The choice of `low` was made on `val`; `test` and `bench` only show that it holds.
 
-These values change the defaults of `Thresholds` in the service and are applied together with the real model (A8, item 17): the service must apply `T` (it belongs in `model_card.json`) and must not answer `ok` for a model without it. Nothing in the service was changed here.
+### The `unknown` rule: "crop → not recognized" is the largest error that is left
+
+Inside the selected crop the service answers `unknown` whenever `unknown` has the highest probability. For A5-E001 this happens for **18–32 % of ordinary field photos of the selected crop**, and `low` does not change it (it is the winning class, not the confidence). The right class is still among the three classes shown for 80–92 % of those photos, but the status says "not recognized", which is the error the lead ranks worse than `low_confidence`.
+
+A way to reduce it: answer "not recognized" only when the probability of `unknown` is at least a level `u`, and otherwise show the crop's best class (with `low_confidence` if it is below `ok`). Tried with `T`, `ok` 0.70, `low` 0.25, `crop_mismatch` 0.70. Crop photos called "not recognized", and non-plant photos (other plants and objects) correctly rejected:
+
+| Rule | `val`: crop photos / non-plant | `test`: crop photos / non-plant | `bench`: crop photos |
+| --- | --- | --- | --- |
+| `unknown` whenever it wins (today) | 31.7 % / 99.7 % | 29.4 % / 99.8 % | 17.5 % |
+| `u` = 0.4 | 28.0 % / 99.4 % | 25.3 % / 99.8 % | 16.3 % |
+| `u` = 0.5 | **24.6 %** / 98.8 % | 21.6 % / 99.4 % | 15.4 % |
+| `u` = 0.6 | 23.5 % / 98.5 % | 19.9 % / 99.2 % | 15.2 % |
+| `u` = 0.8 | 23.4 % / 98.5 % | 19.7 % / 98.9 % | 15.2 % |
+
+The rest (about 15–23 %) are photos where the best class of the crop is below `low`: the model is truly unsure. `u` = 0.5 removes 7.1 points of false "not recognized" on `val` (7.8 on `test`, 2.1 on `bench`) and loses 0.9 points of non-plant rejection on `val` (0.4 on `test`); the share of right answers rises from 43.2 % to 46.7 % on `val`. This changes step 5 of `decide()` and the contract, so it is a **decision for the lead**; the proposal is `u` = 0.5. Nothing in the service was changed here.
+
+### Non-plant photos
+
+Of 279 (`val`) and 280 (`test`) photos of other plants and objects, 99.6–100 % are answered "not recognized" for every crop at `low` 0.25 and 0.40 with today's rule (A5-E001, with `T`; the status `crop_mismatch` takes priority over `unknown`, and is counted as not rejected). These photos come from the same sources as the training `unknown` (other plants, Caltech objects); there is no independent set of non-plant photos, so this is a check of the class, not a promise for any object.
+
+### Applying it
+
+These values change the defaults of `Thresholds` and the `unknown` rule of the service, and are applied together with the real model (A8, item 17): the service must apply `T` (it belongs in `model_card.json`) and must not answer `ok` for a model without it. Nothing in the service was changed here.
 
 ### Limits of the calibration
 
 - One scalar for all classes and crops. The residual ECE is 0.07–0.09; per-crop temperatures were not tried.
-- The fit uses 1 688 field photos of the v2 sources the model did not train on. The result is checked on `test` (same distribution) and `bench` (independent), which is the strongest check available; a new region, season or camera can still shift it.
-- Only 17–19 % of field photos can be answered `ok`; calibration makes the confidence honest, it does not make the model more accurate.
-- Test-time augmentation (several crops) was **not measured** (it needs the photos, not the saved logits).
-- Intervals for ECE were not computed.
+- The fit uses 1 688 field photos of `val`, mostly (82–84 %) from sources the model did not train on. The result is checked on `test` (same distribution as `val`) and `bench` (independent), the strongest check available; a new region, season or camera can still shift it.
+- Only 15–18 % of field photos can be answered `ok`; calibration makes the confidence honest, it does not make the model more accurate.
+- `T` and the thresholds are chosen on `val`; `test` and `bench` only check them. `bench` has no `unknown` and no healthy photos, so the non-plant and healthy-leaf behaviour is checked on `val` and `test` only.
+- A5-E001 and A10-E001 were calibrated and compared on the same saved logits; no calibration was fitted on `bench`.
+- Not done (debt): test-time augmentation (it needs the photos, not the saved logits); intervals for ECE and for the status shares; the reliability figure in three languages through `ml/report_figures.py` (the diploma rule), only the working PNG exists; applying `T` and the thresholds in the service (A8, item 17). The evaluation-only runs A6-E001 and A7-E001 have no run folder of their own: the numbers are in `results.json` and `calibration.json` of the runs they evaluate.
 
 ## Own photo set (`own`)
 
