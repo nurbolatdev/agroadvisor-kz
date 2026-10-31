@@ -17,6 +17,10 @@ public record Prediction(String status, String crop, ClassScore top1, List<Class
 
     /** The stand-in model answers plausibly for any photo, so its result is not a real diagnosis. */
     public boolean isPlaceholder() {
+        return isPlaceholderVersion(modelVersion);
+    }
+
+    public static boolean isPlaceholderVersion(String modelVersion) {
         return modelVersion.startsWith(PLACEHOLDER_PREFIX);
     }
 }
