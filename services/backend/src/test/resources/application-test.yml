@@ -4,6 +4,10 @@ spring:
     show-sql: false
 
 app:
+  photos:
+    # Test-only keys: the client connects lazily and tests replace the storage with a fake
+    access-key: test-access-key
+    secret-key: test-secret-key
   security:
     jwt:
       # Test-only secret (32+ bytes, Base64). Never used outside the test profile.

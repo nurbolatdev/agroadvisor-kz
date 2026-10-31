@@ -22,6 +22,12 @@ spring:
 
 app:
   version: '@project.version@'
+  photos:
+    # S3-compatible server from infra/ (SeaweedFS); keys come from the environment, never from git
+    endpoint: ${S3_ENDPOINT:http://localhost:8333}
+    bucket: ${S3_BUCKET:diagnosis-photos}
+    access-key: ${S3_ACCESS_KEY:}
+    secret-key: ${S3_SECRET_KEY:}
   rate-limit:
     diagnosis-per-minute: 5 # photos per user per minute; there are no daily limits
   security:
