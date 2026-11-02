@@ -28,6 +28,8 @@ Java 21, Spring Boot 4.1, Maven (wrapper included), PostgreSQL 16 + PostGIS, spr
 
 The default profile is `local`: it connects to PostgreSQL on `localhost:5433` and reads the database name, user and password from `infra/.env`, so passwords are kept in one place.
 
+Diagnoses call the AI service at `AI_SERVICE_URL` (default `http://localhost:8000`; `cd infra && docker compose --profile ai up -d`). To work without it set `AI_CLIENT=stub` (a fake that always answers "healthy"; `allow-placeholder` is already `true` in the local profile).
+
 | URL | What |
 | --- | --- |
 | http://localhost:8080/swagger-ui.html | Swagger UI |

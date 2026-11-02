@@ -166,6 +166,28 @@ class DiagnosisServiceTest {
     }
 
     @Test
+    void keepsThePhotoWhenOnlyBuildingTheAnswerFailsAfterTheDiagnosisIsSaved() {
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__late_blight", "efficientnet-b0-v3"));
+        when(diseases.findAllById(any())).thenThrow(new IllegalStateException("reference down"));
+
+        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG))
+                .isInstanceOf(IllegalStateException.class).hasMessage("reference down");
+
+        verify(diagnoses).save(any(Diagnosis.class)); // the row exists, so its photo must stay
+        verify(photos, never()).delete(anyString());
+    }
+
+    @Test
+    void removesThePhotoWhenTheModelFailsAndNothingIsSaved() {
+        when(ai.predict("tomato", JPEG)).thenThrow(new IllegalStateException("model down"));
+
+        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG)).isInstanceOf(IllegalStateException.class);
+
+        verify(photos).delete("diagnoses/key.jpg");
+        verify(diagnoses, never()).save(any(Diagnosis.class)); // no row without a photo, no photo without a row
+    }
+
+    @Test
     void historyIsTheCallersPageNewestFirst() {
         Diagnosis stored = new Diagnosis(userId, "tomato", "k.jpg", "ok", "tomato__healthy", new BigDecimal("0.99"),
                 List.of(new ClassScore("tomato__healthy", 0.99)), null, "placeholder-v0", 1, 0);
