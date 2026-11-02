@@ -33,6 +33,14 @@ app:
     bucket: ${S3_BUCKET:diagnosis-photos}
     access-key: ${S3_ACCESS_KEY:}
     secret-key: ${S3_SECRET_KEY:}
+  ai:
+    # http: the AI service (docs/api/ai-predict.md); stub: a fake that answers "healthy" (experiments only)
+    client: ${AI_CLIENT:http}
+    url: ${AI_SERVICE_URL:http://localhost:8000}
+    connect-timeout: 2s
+    read-timeout: 10s # inference takes ~100 ms on a CPU (p95 172 ms)
+    retries: 1 # only for a service that is down or not ready; never after a read timeout or a 500
+    retry-delay: 400ms # a model that is still loading gets a moment before the retry
   rate-limit:
     diagnosis-per-minute: 5 # photos per user per minute; there are no daily limits
   security:

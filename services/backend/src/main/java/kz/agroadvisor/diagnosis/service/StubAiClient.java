@@ -10,9 +10,9 @@ import kz.agroadvisor.catalog.service.CatalogService.CropView;
 import kz.agroadvisor.diagnosis.model.ClassScore;
 
 /**
- * Stand-in for the AI service until B9: always answers "healthy" with a placeholder model version.
- * It exists only when {@code app.ai.client=stub} (the local and test profiles), so a deployment without
- * a real {@link AiClient} fails to start instead of recording invented diagnoses.
+ * Fake AI service: always answers "healthy" with a placeholder model version. It exists only when
+ * {@code app.ai.client=stub} (the test profile, or {@code AI_CLIENT=stub} for local experiments); the
+ * default is the real {@link HttpAiClient}, so a deployment never records invented diagnoses by accident.
  * Crops come from the cached reference, which mirrors the AI class registry.
  */
 @Component
