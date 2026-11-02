@@ -39,10 +39,13 @@ import kz.agroadvisor.diagnosis.model.ClassScore;
  *
  * <p>Failures are mapped to what the farmer can act on, never to a bare 500:
  * <ul>
- * <li>{@code 422 low_quality} (blurry, dark, too small) is passed on as {@code 422 low_quality};
+ * <li>{@code 422 low_quality} is passed on as {@code 422 low_quality} with the {@code reason}
+ * ({@code blurry}, {@code dark}, {@code too_small});
  * <li>{@code 400 invalid_image} is passed on as {@code 400 invalid_image};
  * <li>the service down, not ready ({@code 503 model_not_loaded}) or too slow is {@code 503 ai_unavailable};
- * <li>a {@code 500}, a rejected crop or an answer that breaks the contract is {@code 502 ai_error}.
+ * <li>a {@code 500}, a rejected crop or an answer that breaks the contract is {@code 502 ai_error};
+ * <li>an answer of the placeholder model is refused as {@code 503 ai_unavailable} unless
+ * {@code app.ai.allow-placeholder} is set (local and test profiles).
  * </ul>
  * One extra try is made only when the service could not be reached or is not ready yet
  * ({@link AiProperties#retries()}); a timeout while waiting for the answer and a {@code 500} are not
@@ -60,6 +63,7 @@ class HttpAiClient implements AiClient {
     private final CatalogService catalog;
     private final int retries;
     private final Duration retryDelay;
+    private final boolean allowPlaceholder;
 
     HttpAiClient(AiProperties props, CatalogService catalog) {
         HttpClient jdk = HttpClient.newBuilder()
@@ -72,6 +76,7 @@ class HttpAiClient implements AiClient {
         this.catalog = catalog;
         this.retries = props.retries();
         this.retryDelay = props.retryDelay();
+        this.allowPlaceholder = props.allowPlaceholder();
     }
 
     @Override
@@ -146,7 +151,7 @@ class HttpAiClient implements AiClient {
         }
         if (code == 422 && "low_quality".equals(errorCode)) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, DiagnosisErrors.LOW_QUALITY,
-                    error.reason() != null ? error.reason() : "The photo is not good enough");
+                    lowQualityText(error.reason()), error.reason());
         }
         if (code == 400 && "invalid_image".equals(errorCode)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IMAGE,
@@ -157,12 +162,28 @@ class HttpAiClient implements AiClient {
         throw aiError();
     }
 
+    /** English text for logs and developers; the app shows its own localized message for code and reason. */
+    private static String lowQualityText(String reason) {
+        return switch (reason == null ? "" : reason) {
+            case "blurry" -> "The photo is blurry, retake it in focus";
+            case "dark" -> "The photo is too dark, retake it in better light";
+            case "too_small" -> "The photo is too small, retake it closer to the leaf";
+            default -> "The photo is not good enough, retake it";
+        };
+    }
+
     private Prediction toPrediction(WirePrediction body, String crop) {
         if (body == null || body.status() == null || !STATUSES.contains(body.status())
                 || body.top1() == null || body.top3() == null || body.top3().isEmpty()
                 || body.modelVersion() == null || body.classesVersion() == null) {
             log.error("The AI service answer breaks the contract: {}", body);
             throw aiError();
+        }
+        if (Prediction.isPlaceholderVersion(body.modelVersion()) && !allowPlaceholder) {
+            // A fake model answers plausibly for any photo: never record it as a diagnosis
+            log.error("The AI service runs the placeholder model {}; its answer is refused "
+                    + "(app.ai.allow-placeholder is false)", body.modelVersion());
+            throw unavailable();
         }
         return new Prediction(body.status(), crop, body.top1(), body.top3(), body.detectedCrop(),
                 body.modelVersion(), body.classesVersion(), body.inferenceMs());

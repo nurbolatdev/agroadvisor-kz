@@ -19,7 +19,9 @@ import org.springframework.validation.annotation.Validated;
  * {@code readTimeout} of 10 s leaves a wide margin. {@code retries} extra tries are made only for a
  * service that is not up or not ready (connection errors and {@code 503 model_not_loaded}), after a
  * pause of {@code retryDelay} so that a model that is still loading gets a moment; a read timeout or
- * a {@code 500} is never retried, because the model may already have run.
+ * a {@code 500} is never retried, because the model may already have run. An answer of the
+ * placeholder model ({@code model_version} starting with {@code placeholder}) is refused unless
+ * {@code allowPlaceholder} is true; it is true only in the local and test profiles.
  */
 @Validated
 @ConfigurationProperties("app.ai")
@@ -29,5 +31,6 @@ public record AiProperties(
         @NotNull @DefaultValue("PT2S") Duration connectTimeout,
         @NotNull @DefaultValue("PT10S") Duration readTimeout,
         @Min(0) @Max(3) @DefaultValue("1") int retries,
-        @NotNull @DefaultValue("PT0.4S") Duration retryDelay) {
+        @NotNull @DefaultValue("PT0.4S") Duration retryDelay,
+        @DefaultValue("false") boolean allowPlaceholder) {
 }

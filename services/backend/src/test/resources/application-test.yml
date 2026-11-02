@@ -6,6 +6,7 @@ spring:
 app:
   ai:
     client: stub
+    allow-placeholder: true
   photos:
     # Test-only keys: the client connects lazily and tests replace the storage with a fake
     access-key: test-access-key

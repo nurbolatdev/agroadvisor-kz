@@ -41,6 +41,9 @@ app:
     read-timeout: 10s # inference takes ~100 ms on a CPU (p95 172 ms)
     retries: 1 # only for a service that is down or not ready; never after a read timeout or a 500
     retry-delay: 400ms # a model that is still loading gets a moment before the retry
+    # An answer of the placeholder model (model_version "placeholder...") is refused as 503 ai_unavailable;
+    # true only in the local and test profiles
+    allow-placeholder: false
   rate-limit:
     diagnosis-per-minute: 5 # photos per user per minute; there are no daily limits
   security:

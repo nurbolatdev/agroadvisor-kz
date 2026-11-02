@@ -104,10 +104,14 @@ class HttpAiClientTest {
     }
 
     private static HttpAiClient client(String url, int retries, Duration retryDelay) {
+        return client(url, retries, retryDelay, false);
+    }
+
+    private static HttpAiClient client(String url, int retries, Duration retryDelay, boolean allowPlaceholder) {
         CatalogService catalog = mock(CatalogService.class);
         when(catalog.crops("en")).thenReturn(List.of(new CropView("tomato", "Tomato"), new CropView("wheat", "Wheat")));
         return new HttpAiClient(new AiProperties("http", url, Duration.ofSeconds(1), Duration.ofMillis(400), retries,
-                retryDelay), catalog);
+                retryDelay, allowPlaceholder), catalog);
     }
 
     private static ApiException failure(ThrowingCallable call) {
@@ -167,7 +171,8 @@ class HttpAiClientTest {
 
         assertThat(e.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(e.getCode()).isEqualTo(DiagnosisErrors.LOW_QUALITY);
-        assertThat(e.getMessage()).isEqualTo("blurry");
+        assertThat(e.getReason()).isEqualTo("blurry");
+        assertThat(e.getMessage()).isEqualTo("The photo is blurry, retake it in focus"); // human text, not the reason
         assertThat(requests.get()).isEqualTo(1); // asked once per call: a bad photo is not retried
     }
 
@@ -321,10 +326,33 @@ class HttpAiClientTest {
     }
 
     @Test
-    void aPlaceholderModelAnswerIsReadAndStillMarkedAsPlaceholder() {
+    void aPlaceholderModelAnswerIsRefusedByDefault() {
         reply(200, OK.replace("effnet-b0-v1", "placeholder-v0"));
 
-        assertThat(client(1).predict("tomato", JPEG).isPlaceholder()).isTrue();
+        ApiException e = failure(() -> client(1).predict("tomato", JPEG));
+
+        assertThat(e.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(e.getCode()).isEqualTo(DiagnosisErrors.AI_UNAVAILABLE);
+        assertThat(requests.get()).isEqualTo(1); // a fake model is not asked again
+    }
+
+    @Test
+    void aPlaceholderModelAnswerIsReadAndMarkedWhenItIsAllowed() {
+        reply(200, OK.replace("effnet-b0-v1", "placeholder-v0"));
+        HttpAiClient allowing = client("http://127.0.0.1:" + server.getAddress().getPort(), 1,
+                Duration.ofMillis(20), true);
+
+        Prediction prediction = allowing.predict("tomato", JPEG);
+
+        assertThat(prediction.isPlaceholder()).isTrue();
+        assertThat(prediction.modelVersion()).isEqualTo("placeholder-v0");
+    }
+
+    @Test
+    void aRealModelAnswerIsAcceptedWhateverThePlaceholderSetting() {
+        reply(200, OK);
+
+        assertThat(client(1).predict("tomato", JPEG).isPlaceholder()).isFalse();
     }
 
     @Test
