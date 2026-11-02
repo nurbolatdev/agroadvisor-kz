@@ -302,6 +302,23 @@ class HttpAiClientTest {
     }
 
     @Test
+    void aTopClassWithoutACodeIsAnAiErrorNotARawServerError() {
+        reply(200, OK.replace("\"top1\": {\"code\": \"tomato__late_blight\", \"confidence\": 0.91}",
+                "\"top1\": {\"confidence\": 0.91}"));
+
+        assertThatThrownBy(() -> client(1).predict("tomato", JPEG))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.getCode()).isEqualTo(DiagnosisErrors.AI_ERROR));
+    }
+
+    @Test
+    void anEmptyEntryInTopThreeIsAnAiError() {
+        reply(200, OK.replace("{\"code\": \"tomato__early_blight\", \"confidence\": 0.05}", "null"));
+
+        assertThatThrownBy(() -> client(1).predict("tomato", JPEG))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.getCode()).isEqualTo(DiagnosisErrors.AI_ERROR));
+    }
+
+    @Test
     void anUnknownStatusIsAnAiError() {
         reply(200, OK.replace("\"status\": \"ok\"", "\"status\": \"maybe\""));
 

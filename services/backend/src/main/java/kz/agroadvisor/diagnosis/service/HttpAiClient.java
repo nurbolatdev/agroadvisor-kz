@@ -174,7 +174,9 @@ class HttpAiClient implements AiClient {
 
     private Prediction toPrediction(WirePrediction body, String crop) {
         if (body == null || body.status() == null || !STATUSES.contains(body.status())
-                || body.top1() == null || body.top3() == null || body.top3().isEmpty()
+                || body.top1() == null || body.top1().code() == null
+                || body.top3() == null || body.top3().isEmpty()
+                || !body.top3().stream().allMatch(score -> score != null && score.code() != null)
                 || body.modelVersion() == null || body.classesVersion() == null) {
             log.error("The AI service answer breaks the contract: {}", body);
             throw aiError();
@@ -199,7 +201,7 @@ class HttpAiClient implements AiClient {
         return parts;
     }
 
-    private static WireError readError(org.springframework.web.client.RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse response) {
+    private static WireError readError(RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse response) {
         try {
             return response.bodyTo(WireError.class);
         } catch (RuntimeException e) {
@@ -237,8 +239,8 @@ class HttpAiClient implements AiClient {
             if (health == null) {
                 log.warn("AI service is up but not ready (/health is not 200)");
             } else if (health.modelVersion() == null || Prediction.isPlaceholderVersion(health.modelVersion())) {
-                log.warn("AI service runs the placeholder model ({}): its answers are marked as not real",
-                        health.modelVersion());
+                log.warn("AI service runs the placeholder model ({}): its answers are {}", health.modelVersion(),
+                        allowPlaceholder ? "saved and marked as not real" : "refused with 503 ai_unavailable");
             } else if (!Boolean.TRUE.equals(health.calibrated())) {
                 log.warn("AI service model {} is not calibrated: it will not answer ok", health.modelVersion());
             } else {
