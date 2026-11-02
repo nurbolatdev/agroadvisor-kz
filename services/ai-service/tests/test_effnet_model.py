@@ -1,6 +1,8 @@
+import hashlib
 import json
 
 import pytest
+import torch
 from PIL import Image
 from weights import write_weights
 
@@ -90,6 +92,48 @@ def test_rejects_another_classes_version(tmp_path):
     settings = write_weights(tmp_path / "m", version=REGISTRY.version + 1)
 
     with pytest.raises(ModelLoadError, match="classes_version"):
+        load_model(settings, REGISTRY)
+
+
+def test_rejects_an_unsupported_architecture(tmp_path):
+    settings = write_weights(tmp_path / "m", architecture="resnet50")
+    card_path = tmp_path / "m" / "model_card.json"
+    card = json.loads(card_path.read_text())
+    card["architecture"] = "resnet50"
+    card_path.write_text(json.dumps(card))
+
+    with pytest.raises(ModelLoadError, match="architecture"):
+        load_model(settings, REGISTRY)
+
+
+@pytest.mark.parametrize("name", ["model_card.json", "class_index.json"])
+@pytest.mark.parametrize("content", ["{not json", "[1, 2]"])
+def test_rejects_a_broken_card_or_index(tmp_path, name, content):
+    settings = write_weights(tmp_path / "m")
+    (tmp_path / "m" / name).write_text(content)
+
+    with pytest.raises(ModelLoadError):
+        load_model(settings, REGISTRY)
+
+
+def test_rejects_a_checkpoint_that_is_not_a_torch_file_even_with_a_matching_hash(tmp_path):
+    settings = write_weights(tmp_path / "m")
+    (tmp_path / "m" / "model.pt").write_bytes(b"not a checkpoint")
+    card_path = tmp_path / "m" / "model_card.json"
+    card = json.loads(card_path.read_text())
+    card["checkpoint_sha256"] = hashlib.sha256(b"not a checkpoint").hexdigest()
+    card_path.write_text(json.dumps(card))
+
+    with pytest.raises(ModelLoadError, match="cannot load model.pt"):
+        load_model(settings, REGISTRY)
+
+
+def test_rejects_a_device_the_machine_does_not_have(tmp_path):
+    settings = write_weights(tmp_path / "m").model_copy(update={"device": "cuda"})
+    if torch.cuda.is_available():
+        pytest.skip("this machine has CUDA")
+
+    with pytest.raises(ModelLoadError, match="cannot load model.pt"):
         load_model(settings, REGISTRY)
 
 

@@ -16,6 +16,7 @@ import hashlib
 import json
 import logging
 import math
+import pickle
 import random
 from collections.abc import Collection, Mapping, Sequence
 from pathlib import Path
@@ -149,6 +150,8 @@ def load_efficientnet(settings: Settings, registry: Registry) -> EfficientNetPre
         actual = _sha256(checkpoint_path)
     except (OSError, ValueError) as exc:
         raise ModelLoadError(f"cannot read the weights in {folder}: {exc}") from exc
+    if not isinstance(card, dict) or not isinstance(index, dict):
+        raise ModelLoadError(f"model_card.json and class_index.json in {folder} must be objects")
 
     if card.get("architecture") != "efficientnet_b0":
         raise ModelLoadError(f"unsupported architecture: {card.get('architecture')!r}")
@@ -179,7 +182,6 @@ def load_efficientnet(settings: Settings, registry: Registry) -> EfficientNetPre
             settings.model_version,
         )
 
-    device = _resolve_device(settings.device)
     # The same network as ml/train.py build_model, rebuilt here so the image does not need the
     # training code: EfficientNet-B0 with a fresh head of len(classes) outputs.
     model = torchvision.models.efficientnet_b0(weights=None)
@@ -189,9 +191,21 @@ def load_efficientnet(settings: Settings, registry: Registry) -> EfficientNetPre
         if state.get("classes") != classes:
             raise ModelLoadError("the checkpoint's classes differ from class_index.json")
         model.load_state_dict(state["model"])
-    except (OSError, RuntimeError, KeyError, ValueError, AttributeError) as exc:
+        device = _resolve_device(settings.device)
+        model.eval().to(device)
+    except ModelLoadError:
+        raise
+    except (
+        OSError,
+        EOFError,
+        RuntimeError,
+        KeyError,
+        ValueError,
+        AttributeError,
+        AssertionError,  # torch: "Torch not compiled with CUDA enabled"
+        pickle.UnpicklingError,
+    ) as exc:
         raise ModelLoadError(f"cannot load model.pt: {exc}") from exc
-    model.eval().to(device)
     # Evaluation preprocessing of the card (ml/data.py eval_transform): resize 256, center crop
     # 224, ImageNet normalization.
     transform = v2.Compose(
