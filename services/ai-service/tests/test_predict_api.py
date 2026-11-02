@@ -26,6 +26,7 @@ class FakePredictor:
     """Returns fixed probabilities and counts calls."""
 
     model_version = "fake-test-model"
+    calibrated = True
 
     def __init__(self, probs: dict[str, float]):
         self.probs = probs
@@ -318,3 +319,23 @@ def test_swagger_documents_contract_errors_not_fastapi_defaults(client):
         ref = responses[code]["content"]["application/json"]["schema"]["$ref"]
         assert ref.endswith("/ErrorResponse")
     assert "503" in schema["paths"]["/health"]["get"]["responses"]
+
+
+def test_uncalibrated_model_is_never_ok_through_the_api(serve):
+    predictor, client = serve(spread({"corn__common_rust": 0.95}, crop_codes("corn")))
+    predictor.calibrated = False
+
+    body = post(client, encode(noise_image()), crop="corn").json()
+
+    assert body["status"] == "low_confidence"
+    assert body["top1"]["code"] == "corn__common_rust"
+
+
+def test_unknown_rule_comes_from_settings(app, serve):
+    probs = spread({"corn__common_rust": 0.38, "unknown": 0.40}, crop_codes("corn"))
+    _, client = serve(probs)
+    assert post(client, encode(noise_image()), crop="corn").json()["status"] == "low_confidence"
+
+    app.state.settings = Settings(_env_file=None, unknown_threshold=0.4)
+
+    assert post(client, encode(noise_image()), crop="corn").json()["status"] == "unknown"

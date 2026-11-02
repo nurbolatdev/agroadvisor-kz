@@ -13,6 +13,10 @@ class Thresholds:
     ok: float
     low: float
     crop_mismatch: float
+    # The photo is "not recognized" when p(unknown) inside the crop reaches this.
+    unknown_at: float = 0.5
+    # False for a model whose confidences were never calibrated: never "ok", never "crop_mismatch".
+    calibrated: bool = True
 
 
 @dataclass(frozen=True)
@@ -35,7 +39,11 @@ def decide(
     # Step 4: the photo looks like another crop, judged on the unmasked output.
     best_overall = _best(probs)
     looks_like = crop_of[best_overall]
-    mismatch = looks_like not in (None, crop) and probs[best_overall] >= thresholds.crop_mismatch
+    mismatch = (
+        thresholds.calibrated
+        and looks_like not in (None, crop)
+        and probs[best_overall] >= thresholds.crop_mismatch
+    )
 
     # Step 5: keep the requested crop's classes plus unknown, renormalize.
     crop_codes = [c.code for c in registry.for_crop(crop)]
@@ -49,12 +57,19 @@ def decide(
     if mismatch:
         return Decision("crop_mismatch", top3[0], top3, looks_like)
 
-    best = _best(masked)
+    # The answer is the crop's best class; unknown decides only when it is likely enough.
+    best = ranked[0]
     confidence = masked[best]
-    if best == UNKNOWN or confidence < thresholds.low:
-        # "unknown" is reported with the probability of the unknown class itself.
+    if masked[UNKNOWN] >= thresholds.unknown_at:
+        # (a) the photo is probably not a plant of this crop: top1 is unknown, with its own
+        # probability (>= unknown_at, so never a tiny number).
         return Decision("unknown", _score(UNKNOWN, masked[UNKNOWN]), top3, None)
-    status = "ok" if confidence >= thresholds.ok else "low_confidence"
+    if confidence < thresholds.low:
+        # (b) the model is unsure: top1 is the crop's best class with its low confidence, the
+        # same as top3[0]. The probability of unknown says nothing here, so it is not reported.
+        return Decision("unknown", top3[0], top3, None)
+    ok = thresholds.calibrated and confidence >= thresholds.ok
+    status = "ok" if ok else "low_confidence"
     return Decision(status, _score(best, confidence), top3, None)
 
 

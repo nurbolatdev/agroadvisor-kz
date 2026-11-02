@@ -28,8 +28,9 @@ def test_threshold_defaults_match_contract():
     settings = Settings(_env_file=None)
 
     assert settings.ok_threshold == 0.70
-    assert settings.low_threshold == 0.40
+    assert settings.low_threshold == 0.25
     assert settings.crop_mismatch_threshold == 0.70
+    assert settings.unknown_threshold == 0.5
 
 
 def test_rejects_low_threshold_not_below_ok(monkeypatch):

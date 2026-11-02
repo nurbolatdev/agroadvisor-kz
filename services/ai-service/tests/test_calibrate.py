@@ -119,9 +119,11 @@ def test_the_statuses_are_those_the_service_gives(temperature, ok, low, mismatch
     logits = rng.normal(0, 3.0, (400, len(CLASSES)))
     crops = [CROPS[i % 4] for i in range(400)]
 
-    got = decide_statuses(logits, crops, CLASSES, REGISTRY, temperature, ok, low, mismatch)
+    got = decide_statuses(
+        logits, crops, CLASSES, REGISTRY, temperature, ok, low, mismatch, unknown_at=0.5
+    )
 
-    thresholds = Thresholds(ok=ok, low=low, crop_mismatch=mismatch)
+    thresholds = Thresholds(ok=ok, low=low, crop_mismatch=mismatch, unknown_at=0.5)
     for i in range(400):
         probs = dict(zip(CLASSES, softmax(logits[i] / temperature), strict=True))
         want = decide(probs, crops[i], REGISTRY, thresholds)
