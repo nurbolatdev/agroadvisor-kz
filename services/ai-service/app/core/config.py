@@ -18,9 +18,13 @@ class Settings(BaseSettings):
     device: Literal["auto", "cpu", "cuda", "mps"] = "auto"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
-    # Model. "placeholder" is a fake model for wiring and tests, not a real classifier.
-    model_kind: Literal["placeholder"] = "placeholder"
+    # Model. "placeholder" is a fake model for wiring and tests, not a real classifier (the
+    # default, so tests and a clone without weights work; the Docker image sets "effnet");
+    # "effnet" loads the EfficientNet-B0 weights from weights_dir / model_version.
+    model_kind: Literal["placeholder", "effnet"] = "placeholder"
+    model_version: str = "effnet-b0-v1"
     # Fail startup if the model cannot be loaded (otherwise /health and /predict answer 503).
+    # The placeholder is not accepted as a loaded model when this is set.
     require_model: bool = False
 
     # Upload limits

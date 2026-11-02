@@ -18,4 +18,5 @@ def health(request: Request, response: Response) -> HealthResponse:
         status="ok" if model_version else "model_not_loaded",
         model_version=model_version,
         classes_version=request.app.state.classes_version,
+        calibrated=request.app.state.calibrated,
     )

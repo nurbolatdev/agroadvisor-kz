@@ -40,7 +40,7 @@ def test_rejects_low_threshold_not_below_ok(monkeypatch):
 
 
 def test_rejects_unknown_model_kind(monkeypatch):
-    monkeypatch.setenv("AI_MODEL_KIND", "effnet")
+    monkeypatch.setenv("AI_MODEL_KIND", "resnet")
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None)

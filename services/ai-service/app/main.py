@@ -24,6 +24,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             raise
     else:
         app.state.model_version = app.state.predictor.model_version
+        app.state.calibrated = app.state.predictor.calibrated
     yield
 
 
@@ -39,6 +40,7 @@ def create_app() -> FastAPI:
     # Filled in at startup by the model loader; until then /health reports model_not_loaded.
     app.state.predictor = None
     app.state.model_version = None
+    app.state.calibrated = None
 
     register_error_handlers(app)
     app.include_router(health.router)
