@@ -148,6 +148,7 @@ def load_efficientnet(settings: Settings, registry: Registry) -> EfficientNetPre
         index = json.loads((folder / "class_index.json").read_text(encoding="utf-8"))
         checkpoint_path = folder / "model.pt"
         actual = _sha256(checkpoint_path)
+        actual_index = _sha256(folder / "class_index.json")
     except (OSError, ValueError) as exc:
         raise ModelLoadError(f"cannot read the weights in {folder}: {exc}") from exc
     if not isinstance(card, dict) or not isinstance(index, dict):
@@ -157,6 +158,10 @@ def load_efficientnet(settings: Settings, registry: Registry) -> EfficientNetPre
         raise ModelLoadError(f"unsupported architecture: {card.get('architecture')!r}")
     if actual != card.get("checkpoint_sha256"):
         raise ModelLoadError("model.pt does not match checkpoint_sha256 in model_card.json")
+    if actual_index != card.get("class_index_sha256"):
+        raise ModelLoadError(
+            "class_index.json does not match class_index_sha256 in model_card.json"
+        )
 
     classes = list(index.get("classes", []))
     if index.get("classes_version") != registry.version:

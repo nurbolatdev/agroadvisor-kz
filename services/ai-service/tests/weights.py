@@ -31,6 +31,9 @@ def write_weights(
     card = {
         "architecture": "efficientnet_b0",
         "checkpoint_sha256": hashlib.sha256((folder / "model.pt").read_bytes()).hexdigest(),
+        "class_index_sha256": hashlib.sha256(
+            (folder / "class_index.json").read_bytes()
+        ).hexdigest(),
         **card_extra,
     }
     if temperature is not None:

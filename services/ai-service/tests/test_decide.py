@@ -6,7 +6,7 @@ from ml.registry import UNKNOWN, load_registry
 
 REGISTRY = load_registry()
 CODES = [c.code for c in REGISTRY.active()]
-THRESHOLDS = Thresholds(ok=0.70, low=0.40, crop_mismatch=0.70)
+THRESHOLDS = Thresholds(ok=0.70, low=0.40, crop_mismatch=0.70, calibrated=True)
 
 
 def probs_for(crop: str, main: dict[str, float], **other: float) -> dict[str, float]:
@@ -171,7 +171,7 @@ def test_probabilities_must_match_the_registry():
 
 # --- A7: the `unknown` rule and a model without a temperature ---------------------------------
 
-CALIBRATED = Thresholds(ok=0.70, low=0.25, crop_mismatch=0.70, unknown_at=0.5)
+CALIBRATED = Thresholds(ok=0.70, low=0.25, crop_mismatch=0.70, unknown_at=0.5, calibrated=True)
 
 
 def test_unknown_below_its_level_does_not_hide_the_crops_best_class():
@@ -232,6 +232,16 @@ def test_uncalibrated_model_never_answers_ok():
 
     assert decision.status == "low_confidence"
     assert decision.top1.code == "tomato__late_blight"
+
+
+def test_thresholds_without_the_calibrated_flag_are_fail_safe():
+    forgot_the_flag = Thresholds(ok=0.70, low=0.25, crop_mismatch=0.70)
+    ok_probs = probs_for("tomato", {"tomato__late_blight": 0.95})
+    other_crop = probs_for("potato", {}, **{"tomato-late_blight": 0.95})
+
+    assert forgot_the_flag.calibrated is False
+    assert decide(ok_probs, "tomato", REGISTRY, forgot_the_flag).status == "low_confidence"
+    assert decide(other_crop, "potato", REGISTRY, forgot_the_flag).status != "crop_mismatch"
 
 
 def test_uncalibrated_model_never_answers_crop_mismatch():

@@ -78,11 +78,32 @@ def test_rejects_classes_that_differ_from_the_registry(tmp_path):
         load_model(settings, REGISTRY)
 
 
-def test_rejects_a_checkpoint_whose_classes_differ_from_class_index(tmp_path):
-    settings = write_weights(tmp_path / "m")
-    swapped = CODES[:2][::-1] + CODES[2:]  # same set, two outputs swapped
-    index_path = tmp_path / "m" / "class_index.json"
+def swap_two_classes_in_the_index(folder, *, update_card_hash: bool):
+    """Same set of classes, two outputs swapped: the labels would silently point at the wrong
+    outputs. With `update_card_hash` the card is made to agree with the new file."""
+    swapped = CODES[:2][::-1] + CODES[2:]
+    index_path = folder / "class_index.json"
     index_path.write_text(json.dumps({"classes_version": REGISTRY.version, "classes": swapped}))
+    if update_card_hash:
+        card_path = folder / "model_card.json"
+        card = json.loads(card_path.read_text())
+        card["class_index_sha256"] = hashlib.sha256(index_path.read_bytes()).hexdigest()
+        card_path.write_text(json.dumps(card))
+
+
+def test_rejects_a_replaced_class_index_with_the_same_classes_in_another_order(tmp_path):
+    settings = write_weights(tmp_path / "m", classes=CODES)
+    swap_two_classes_in_the_index(tmp_path / "m", update_card_hash=False)
+
+    with pytest.raises(ModelLoadError, match="class_index_sha256"):
+        load_model(settings, REGISTRY)
+
+
+def test_rejects_a_checkpoint_whose_classes_differ_from_class_index(tmp_path):
+    # Defence in depth: even with a card that agrees with the file, the checkpoint's own class
+    # list must match.
+    settings = write_weights(tmp_path / "m", classes=CODES)
+    swap_two_classes_in_the_index(tmp_path / "m", update_card_hash=True)
 
     with pytest.raises(ModelLoadError, match="checkpoint's classes"):
         load_model(settings, REGISTRY)

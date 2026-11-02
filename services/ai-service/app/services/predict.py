@@ -16,7 +16,8 @@ class Thresholds:
     # The photo is "not recognized" when p(unknown) inside the crop reaches this.
     unknown_at: float = 0.5
     # False for a model whose confidences were never calibrated: never "ok", never "crop_mismatch".
-    calibrated: bool = True
+    # Fail-safe default: the caller has to say that the model is calibrated.
+    calibrated: bool = False
 
 
 @dataclass(frozen=True)

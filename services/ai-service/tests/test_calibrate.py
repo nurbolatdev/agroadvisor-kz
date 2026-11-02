@@ -123,7 +123,7 @@ def test_the_statuses_are_those_the_service_gives(temperature, ok, low, mismatch
         logits, crops, CLASSES, REGISTRY, temperature, ok, low, mismatch, unknown_at=0.5
     )
 
-    thresholds = Thresholds(ok=ok, low=low, crop_mismatch=mismatch, unknown_at=0.5)
+    thresholds = Thresholds(ok=ok, low=low, crop_mismatch=mismatch, unknown_at=0.5, calibrated=True)
     for i in range(400):
         probs = dict(zip(CLASSES, softmax(logits[i] / temperature), strict=True))
         want = decide(probs, crops[i], REGISTRY, thresholds)
@@ -288,8 +288,9 @@ def test_calibrating_a_run_writes_the_temperature_and_the_before_after_numbers(t
     after = check["status_after"]["ok=0.7,low=0.25"]
     assert sum(after["shares"].values()) == pytest.approx(1.0)
     assert after["photos"] == check["after"]["photos"]
-    assert json.loads((run / "calibration.json").read_text(encoding="utf-8"))["temperature"] == (
-        result["temperature"]
+    assert (
+        json.loads((run / "calibration.json").read_text(encoding="utf-8"))["temperature"]
+        == (result["temperature"])
     )
     assert {"git_commit", "git_dirty"} <= set(result["scored_with"])
 
