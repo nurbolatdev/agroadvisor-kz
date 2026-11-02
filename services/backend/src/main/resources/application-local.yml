@@ -15,8 +15,8 @@ spring:
 
 app:
   ai:
-    # The real AI client arrives with B9; until then local runs use the placeholder model
-    client: stub
+    # Local runs may use an ai-service with the placeholder model (AI_MODEL_KIND=placeholder)
+    allow-placeholder: true
   photos:
     # The S3 port is set in infra/.env together with the container
     endpoint: ${S3_ENDPOINT:http://localhost:${S3_PORT:8333}}

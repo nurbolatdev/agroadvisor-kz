@@ -199,13 +199,38 @@ Error body:
 | 503 | `model_not_loaded` | — | Weights are not loaded yet (startup) or failed to load |
 | 500 | `internal_error` | — | The model returned probabilities that do not match the class registry; details are in the service log only |
 
-Timeouts and retries on the backend side are defined in the backend integration (tasks B6, B9). `503` is the only error worth retrying; `500 internal_error` is a service fault and is not retried.
+`503` is the only error worth retrying; `500 internal_error` is a service fault and is not retried.
+
+### How the backend calls the service (B9)
+
+Connect timeout 2 s, read timeout 10 s (inference takes about 100 ms on a CPU, p95 172 ms). One extra try, after a pause of 0.4 s, only when the service cannot be connected to or answers `503 model_not_loaded`; never after a read timeout or a `500`, because the model may already have run. Settings: `app.ai.*` (`AI_SERVICE_URL`, `AI_CLIENT`). What the farmer's app gets from `POST /api/diagnoses`:
+
+| The service answers | The backend answers | `code` | `reason` |
+| --- | --- | --- | --- |
+| `200` | `201` with the diagnosis | — | — |
+| `200` with a placeholder `model_version` (`placeholder…`), unless `app.ai.allow-placeholder` | `503` | `ai_unavailable` | — |
+| `422 low_quality` | `422`, `detail` is a human text | `low_quality` | `blurry` \| `dark` \| `too_small` |
+| `400 invalid_image` | `400` | `invalid_image` | — |
+| `503` (after the retry), no connection, read timeout | `503` | `ai_unavailable` | — |
+| `500`, `400 unknown_crop`, any other answer, a body that breaks this contract | `502` | `ai_error` | — |
+
+`code` and `reason` are separate properties of the Problem Details body; `reason` is present only when it narrows the code. `detail` is English text for logs, the app shows its own localized message for `code` and `reason`.
+
+In every failure the stored photo is deleted and no diagnosis is saved. For a saved diagnosis `status` is the source of truth: with `status=unknown` `top1` may be a class of the crop with a low probability and must not be shown as a diagnosis.
+
+The placeholder guard applies to every answer, not only at startup: `app.ai.allow-placeholder` is `false` by default and `true` only in the local and test profiles; with `true` the diagnosis is saved and flagged `placeholder: true`.
+
+#### Time budget and the app's timeout
+
+Worst case spent on the AI service in one `POST /api/diagnoses` with the defaults: two tries × (2 s connect + 10 s read) + 0.4 s pause = **24.4 s**. Normally it is about 100 ms; the worst case needs a service that is slow to connect or slow to answer twice. Before the AI call the photo is stored in S3 (bounded by `app.photos`: 10 s per try, 25 s in total), so with a slow storage the whole request can take longer.
+
+The mobile app must use a request timeout of **at least 30 s** for `POST /api/diagnoses`. If it still gives up, it must not resend the photo blindly: the backend may have finished the diagnosis (it shows in the history). Protection against a repeated send is planned (task B9.1, `Idempotency-Key`).
 
 Other framework responses (`404`, `405`, a malformed multipart body) are outside this contract and use the FastAPI default body.
 
 ### Placeholder model
 
-When run with `AI_MODEL_KIND=placeholder` (tests, a clone without weights; the Docker image refuses it) the service reports `model_version: "placeholder-v0"`. Its probabilities are artificial, so a response with this version must never be shown to farmers as a diagnosis. The backend must check `model_version` and block or clearly mark such results.
+When run with `AI_MODEL_KIND=placeholder` (tests, a clone without weights; the Docker image refuses it) the service reports `model_version: "placeholder-v0"`. Its probabilities are artificial, so a response with this version must never be shown to farmers as a diagnosis. The backend checks `model_version` of every answer and refuses such results unless `app.ai.allow-placeholder` is set (see above).
 
 ## `GET /classes`
 

@@ -66,18 +66,20 @@ public class DiagnosisService {
                     "Send a JPEG or PNG photo of up to 10 MB");
         }
         String photoKey = photos.store(userId, photo, contentType);
+        Diagnosis saved;
         try {
             Prediction prediction = ai.predict(crop, photo);
-            Diagnosis saved = diagnoses.save(new Diagnosis(userId, crop, photoKey, prediction.status(),
+            saved = diagnoses.save(new Diagnosis(userId, crop, photoKey, prediction.status(),
                     prediction.top1().code(),
                     BigDecimal.valueOf(prediction.top1().confidence()).setScale(4, RoundingMode.HALF_UP),
                     prediction.top3(), prediction.detectedCrop(), prediction.modelVersion(),
                     prediction.classesVersion(), prediction.inferenceMs()));
-            return views(List.of(saved)).get(0);
         } catch (RuntimeException e) {
             discard(photoKey, e);
             throw e;
         }
+        // Outside the try: the row is committed, so a failure here must not delete the photo it points to
+        return views(List.of(saved)).get(0);
     }
 
     /** A photo without a diagnosis row is garbage; a failed cleanup must not hide the original error. */

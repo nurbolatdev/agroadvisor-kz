@@ -2,7 +2,7 @@ package kz.agroadvisor.diagnosis.service;
 
 import java.util.List;
 
-/** The AI service as seen by the diagnosis module; the HTTP implementation arrives with B9. */
+/** The AI service as seen by the diagnosis module; {@link HttpAiClient} is the real one, {@code StubAiClient} a fake. */
 public interface AiClient {
 
     /** Recognizes the disease on a photo of the given crop. */

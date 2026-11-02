@@ -21,8 +21,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 /**
  * Turns every error into RFC 9457 Problem Details ({@code application/problem+json})
- * with two extra properties: {@code code} — stable machine-readable error code, and
- * {@code errors} — field errors for validation failures.
+ * with extra properties: {@code code} — stable machine-readable error code, {@code reason} — an
+ * optional narrowing of the code, and {@code errors} — field errors for validation failures.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
@@ -33,6 +33,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ProblemDetail handleApiException(ApiException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.getStatus(), ex.getMessage());
         problem.setProperty("code", ex.getCode());
+        if (ex.getReason() != null) {
+            problem.setProperty("reason", ex.getReason());
+        }
         return problem;
     }
 
