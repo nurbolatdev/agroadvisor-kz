@@ -38,22 +38,34 @@ curl -X POST http://localhost:8000/predict \
 2. Check photo quality: blur, darkness, minimum size. A bad photo stops here with `422 low_quality` — the model is not called.
 3. Run the model over all active classes.
 4. If the unmasked top prediction belongs to another crop with confidence ≥ 0.70 → `crop_mismatch`.
-5. Otherwise mask to the classes of the requested crop (plus `unknown`), renormalize and apply thresholds.
+5. Otherwise mask to the classes of the requested crop (plus `unknown`), renormalize and apply thresholds. The answer is the best class of the crop; the photo is "not recognized" (`unknown`) when the probability of `unknown` after masking is ≥ 0.5, or when that best class is below 0.25.
 
 ### Status and thresholds
 
-Confidence is the calibrated probability of the class, `0.0–1.0`.
+Confidence is the probability of the class, `0.0–1.0`, after the model's temperature `T` (`model_card.json`, `temperature`) has been applied to the logits before the softmax. A model without `T` is uncalibrated: the service never answers `ok` or `crop_mismatch` for it (`low_confidence` instead).
 
 | `status` | Condition | What the farmer sees |
 | --- | --- | --- |
 | `ok` | top1 ≥ 0.70 | One diagnosis |
-| `low_confidence` | 0.40 ≤ top1 < 0.70 | Top-3 candidates and advice to ask an agrochemist |
-| `unknown` | top1 < 0.40, or the top class is `unknown` | "Not recognized", suggestion to retake the photo |
-| `crop_mismatch` | Photo looks like another crop | "This looks like another crop", suggestion to change the crop |
+| `low_confidence` | 0.25 ≤ top1 < 0.70 (and `unknown` < 0.5) | Top-3 candidates and advice to ask an agrochemist |
+| `unknown` | `unknown` probability ≥ 0.5, or top1 < 0.25 | "Not recognized", suggestion to retake the photo |
+| `crop_mismatch` | Photo looks like another crop (calibrated model only) | "This looks like another crop", suggestion to change the crop |
 
-When `status` is `unknown` only because the best class is below 0.40, `top1.confidence` is the probability of the `unknown` class and can be very small. Clients must not read it as confidence that the photo is really unknown; this is revisited after calibration.
+`top1` and `top3` for each status (probabilities are those after masking to the requested crop plus `unknown` and renormalizing):
 
-Thresholds are preliminary and will be finalized after calibration (`docs/ai/evaluation.md`). They are configured in the service, not in clients — clients rely on `status` only.
+| `status` | Why | `top1` | `top3` |
+| --- | --- | --- | --- |
+| `ok` | best class ≥ 0.70 | The best class of the crop and its probability | The crop's three best classes, without `unknown` |
+| `low_confidence` | 0.25 ≤ best class < 0.70, `unknown` < 0.5 | The best class and its probability | Same |
+| `unknown`, case (a) | p(`unknown`) ≥ 0.5 | `code: "unknown"`, `confidence` = p(`unknown`), so always ≥ 0.5 | Same |
+| `unknown`, case (b) | p(`unknown`) < 0.5 and best class < 0.25 | The crop's best class and its probability (< 0.25), equal to `top3[0]` | Same |
+| `crop_mismatch` | Unmasked top class belongs to another crop, probability ≥ 0.70 | `top3[0]`, within the requested crop | Same, from the requested crop |
+
+`top3` always holds the three best classes of the requested crop, sorted by probability, and never contains `unknown`. When `status` is `unknown`, the case is told by `top1.code`: `unknown` is case (a), a disease or `healthy` code is case (b). In both cases the client shows "not recognized" and `top3` as candidates, not as a diagnosis; in case (b) `top1` is the model's weak guess, not an answer. The probability of `unknown` is never reported as `confidence` when it is below 0.5.
+
+When both conditions hold, (a) wins. `crop_mismatch` is checked first and takes priority over `unknown`.
+
+Thresholds were chosen on A5-E001 with `T = 3.79` (`docs/ai/evaluation.md`, A7). They are configured in the service (`AI_OK_THRESHOLD`, `AI_LOW_THRESHOLD`, `AI_CROP_MISMATCH_THRESHOLD`, `AI_UNKNOWN_THRESHOLD`), not in clients — clients rely on `status` only.
 
 ### Response `200 OK`
 
@@ -61,7 +73,7 @@ Thresholds are preliminary and will be finalized after calibration (`docs/ai/eva
 | --- | --- | --- |
 | `status` | string | `ok` \| `low_confidence` \| `unknown` \| `crop_mismatch` |
 | `crop` | string | Crop from the request |
-| `top1` | object | `{ code, confidence }` — best class within the requested crop; `code` is `unknown` when `status` is `unknown` |
+| `top1` | object | `{ code, confidence }` — best class within the requested crop; `code` is `unknown` only when `status` is `unknown` and p(`unknown`) ≥ 0.5 (see the table above) |
 | `top3` | array | Up to 3 `{ code, confidence }` within the requested crop, sorted by confidence, `unknown` excluded |
 | `detected_crop` | string \| null | Crop the photo looks like; set only for `crop_mismatch` |
 | `model_version` | string | For example `effnet-b0-v1` |
@@ -106,7 +118,26 @@ Thresholds are preliminary and will be finalized after calibration (`docs/ai/eva
 }
 ```
 
-`unknown`:
+`unknown`, case (b) (the model is unsure; `top1` is the weak guess):
+
+```json
+{
+  "status": "unknown",
+  "crop": "wheat",
+  "top1": { "code": "wheat__leaf_rust", "confidence": 0.21 },
+  "top3": [
+    { "code": "wheat__leaf_rust", "confidence": 0.21 },
+    { "code": "wheat__septoria", "confidence": 0.19 },
+    { "code": "wheat__stripe_rust", "confidence": 0.17 }
+  ],
+  "detected_crop": null,
+  "model_version": "effnet-b0-v1",
+  "classes_version": 1,
+  "inference_ms": 83
+}
+```
+
+`unknown`, case (a) (probably not a plant of this crop):
 
 ```json
 {
@@ -174,7 +205,7 @@ Other framework responses (`404`, `405`, a malformed multipart body) are outside
 
 ### Placeholder model
 
-Until trained weights exist the service reports `model_version: "placeholder-v0"`. Its probabilities are artificial, so a response with this version must never be shown to farmers as a diagnosis. The backend must check `model_version` and block or clearly mark such results.
+When run with `AI_MODEL_KIND=placeholder` (tests, a clone without weights; the Docker image refuses it) the service reports `model_version: "placeholder-v0"`. Its probabilities are artificial, so a response with this version must never be shown to farmers as a diagnosis. The backend must check `model_version` and block or clearly mark such results.
 
 ## `GET /classes`
 
@@ -204,13 +235,15 @@ Returns the registry with `active` classes only. The backend and the mobile app 
 `200 OK` when the model is loaded:
 
 ```json
-{ "status": "ok", "model_version": "effnet-b0-v1", "classes_version": 1 }
+{ "status": "ok", "model_version": "effnet-b0-v1", "classes_version": 1, "calibrated": true }
 ```
+
+`calibrated` is `false` when the model has no temperature in its card (and for the placeholder): the service then never answers `ok` or `crop_mismatch`. The backend should treat `calibrated: false` as a deployment fault.
 
 `503 Service Unavailable` while the model is loading or failed to load:
 
 ```json
-{ "status": "model_not_loaded", "model_version": null, "classes_version": 1 }
+{ "status": "model_not_loaded", "model_version": null, "classes_version": 1, "calibrated": null }
 ```
 
 ## Compatibility rules

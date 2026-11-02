@@ -201,7 +201,7 @@ Of 279 (`val`) and 280 (`test`) photos of other plants and objects, 99.6–100 %
 
 ### Applying it
 
-These values change the defaults of `Thresholds` and the `unknown` rule of the service, and are applied together with the real model (A8, item 17): the service must apply `T` (it belongs in `model_card.json`) and must not answer `ok` for a model without it. Nothing in the service was changed here.
+These values change the defaults of `Thresholds` and the `unknown` rule of the service, and are applied together with the real model (A8, item 17): the service must apply `T` (it belongs in `model_card.json`) and must not answer `ok` for a model without it. Done in A8, item 17: `Thresholds` defaults `low` 0.25 and `unknown` at p ≥ 0.5, `T` read from `model_card.json` (`temperature`), `ok` and `crop_mismatch` blocked for a model without it. The release `model-effnet-b0-v1` must carry the card with `temperature` (`python -m ml.fetch_weights` downloads the card from the release).
 
 ### Limits of the calibration
 
