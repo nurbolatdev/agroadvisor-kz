@@ -18,9 +18,13 @@ class Settings(BaseSettings):
     device: Literal["auto", "cpu", "cuda", "mps"] = "auto"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
-    # Model. "placeholder" is a fake model for wiring and tests, not a real classifier.
-    model_kind: Literal["placeholder"] = "placeholder"
+    # Model. "placeholder" is a fake model for wiring and tests, not a real classifier (the
+    # default, so tests and a clone without weights work; the Docker image sets "effnet");
+    # "effnet" loads the EfficientNet-B0 weights from weights_dir / model_version.
+    model_kind: Literal["placeholder", "effnet"] = "placeholder"
+    model_version: str = "effnet-b0-v1"
     # Fail startup if the model cannot be loaded (otherwise /health and /predict answer 503).
+    # The placeholder is not accepted as a loaded model when this is set.
     require_model: bool = False
 
     # Upload limits
@@ -32,10 +36,12 @@ class Settings(BaseSettings):
     min_brightness: float = Field(default=40.0, ge=0, le=255)  # mean luminance, 0-255
     min_sharpness: float = Field(default=50.0, ge=0)  # Laplacian variance at 512 px
 
-    # Status thresholds (preliminary, finalized after calibration)
+    # Status thresholds, chosen on the calibrated A5-E001 (docs/ai/evaluation.md, A7)
     ok_threshold: float = Field(default=0.70, gt=0, le=1)
-    low_threshold: float = Field(default=0.40, gt=0, le=1)
+    low_threshold: float = Field(default=0.25, gt=0, le=1)
     crop_mismatch_threshold: float = Field(default=0.70, gt=0, le=1)
+    # "Not recognized" when the probability of unknown inside the crop is at least this.
+    unknown_threshold: float = Field(default=0.5, gt=0, le=1)
 
     @model_validator(mode="after")
     def _check_thresholds(self) -> "Settings":

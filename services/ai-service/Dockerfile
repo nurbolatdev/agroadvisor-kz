@@ -26,7 +26,13 @@ COPY ml/__init__.py ml/registry.py ml/classes.yaml ./ml/
 RUN useradd --system --uid 10001 --no-create-home appuser
 USER appuser
 
-ENV AI_CLASSES_PATH=/srv/ml/classes.yaml
+# The image serves the real model and refuses to start without it. Weights are not in git or in
+# the image: mount them at /srv/ml/weights (python -m ml.fetch_weights effnet-b0-v1). To run with
+# the fake model, override both: -e AI_MODEL_KIND=placeholder -e AI_REQUIRE_MODEL=false
+ENV AI_CLASSES_PATH=/srv/ml/classes.yaml \
+    AI_WEIGHTS_DIR=/srv/ml/weights \
+    AI_MODEL_KIND=effnet \
+    AI_REQUIRE_MODEL=true
 
 EXPOSE 8000
 

@@ -279,6 +279,8 @@ False `crop_mismatch` (threshold 0.70) on `bench`: 5.5 % → 0.07 %. With `T`, `
 
 **Next step.** Apply `T` and the thresholds with the real model (A8, item 17); calibrate A10-E001 (or a later model) on photos from independent sources before trusting its confidence.
 
+**Model artifact with `T` (A8, item 17).** The service reads `temperature` from `model_card.json`. The card of `effnet-b0-v1` in the release `model-effnet-b0-v1` has to be replaced by the one with `"temperature": 3.793539568704939`, `"calibrated": true` and `"calibration": "A7-E001"`; `model.pt` and `class_index.json` are unchanged, their SHA-256 in the card are the same (`checkpoint_sha256` `db65d4ff…322d77a`, `class_index_sha256` `7654ae1f…be9643`). SHA-256 of the new `model_card.json`: `67335c6a434e602bf305b062eb78d85f3ab494168d94919041261ec3f5fd49b7`. Upload (run by the lead): `gh release upload model-effnet-b0-v1 services/ai-service/ml/weights/effnet-b0-v1/model_card.json --clobber`. Check after upload: `python -m ml.fetch_weights effnet-b0-v1 --dest /tmp/check-weights` and `shasum -a 256 /tmp/check-weights/effnet-b0-v1/model_card.json` gives the value above.
+
 ## A5-TRIAL — speed check (not an experiment)
 
 A smoke run on 5 % of the train and validation images (1 head epoch + 1 full epoch) to measure epoch time on the Apple M4 (MPS); it did not follow the `<task>-E<NNN>` ID format. It reached 0.556 macro-F1 on validation. By mistake it was started with `--eval-test`, so the test split was scored once with this smoke model (macro-F1 0.571, accuracy 0.586). Its test numbers were not used to choose any parameter (only its epoch time informed the plan), and `--eval-test` is now refused for runs on a subset.

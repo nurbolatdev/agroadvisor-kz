@@ -7,3 +7,5 @@ class HealthResponse(BaseModel):
     status: Literal["ok", "model_not_loaded"]
     model_version: str | None
     classes_version: int | None
+    # False: the model has no temperature, so the service never answers ok or crop_mismatch.
+    calibrated: bool | None = None

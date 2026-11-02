@@ -6,7 +6,7 @@ from ml.registry import UNKNOWN, load_registry
 
 REGISTRY = load_registry()
 CODES = [c.code for c in REGISTRY.active()]
-THRESHOLDS = Thresholds(ok=0.70, low=0.40, crop_mismatch=0.70)
+THRESHOLDS = Thresholds(ok=0.70, low=0.40, crop_mismatch=0.70, calibrated=True)
 
 
 def probs_for(crop: str, main: dict[str, float], **other: float) -> dict[str, float]:
@@ -68,10 +68,10 @@ def test_unknown_when_best_disease_is_below_low_threshold():
     decision = decide(probs, "tomato", REGISTRY, THRESHOLDS)
 
     assert decision.status == "unknown"
-    assert decision.top1.code == UNKNOWN
-    # Reported with the unknown class's own probability.
-    assert decision.top1.confidence == 0.10
-    assert decision.top3[0].code == "tomato__late_blight"
+    # Case (b): top1 is the crop's best class with its own low confidence, not unknown's 0.10.
+    assert decision.top1.code == "tomato__late_blight"
+    assert decision.top1.confidence == 0.30
+    assert decision.top1 == decision.top3[0]
 
 
 @pytest.mark.parametrize(
@@ -167,3 +167,86 @@ def test_probabilities_must_match_the_registry():
 
     with pytest.raises(ModelOutputError):
         decide(probs, "tomato", REGISTRY, THRESHOLDS)
+
+
+# --- A7: the `unknown` rule and a model without a temperature ---------------------------------
+
+CALIBRATED = Thresholds(ok=0.70, low=0.25, crop_mismatch=0.70, unknown_at=0.5, calibrated=True)
+
+
+def test_unknown_below_its_level_does_not_hide_the_crops_best_class():
+    # unknown wins (0.40) but is under 0.5: the answer is the crop's best class
+    probs = probs_for("tomato", {"tomato__late_blight": 0.38, UNKNOWN: 0.40})
+
+    decision = decide(probs, "tomato", REGISTRY, CALIBRATED)
+
+    assert decision.status == "low_confidence"
+    assert decision.top1.code == "tomato__late_blight"
+
+
+@pytest.mark.parametrize(
+    ("crop", "main", "case"),
+    [
+        ("potato", {UNKNOWN: 0.62, "potato__early_blight": 0.21}, "a"),  # p(unknown) >= 0.5
+        # wheat has five classes: the rest of the mass spreads thin, best class 0.20 < low 0.25
+        ("wheat", {"wheat__leaf_rust": 0.20}, "b"),
+    ],
+)
+def test_top1_and_top3_of_an_unknown_answer(crop, main, case):
+    probs = probs_for(crop, main)
+
+    decision = decide(probs, crop, REGISTRY, CALIBRATED)
+
+    assert decision.status == "unknown"
+    assert UNKNOWN not in [s.code for s in decision.top3]
+    assert len(decision.top3) == 3
+    if case == "a":
+        assert (decision.top1.code, decision.top1.confidence) == (UNKNOWN, 0.62)
+        assert decision.top1.confidence >= CALIBRATED.unknown_at
+    else:
+        assert decision.top1 == decision.top3[0]
+        assert decision.top1.code == "wheat__leaf_rust"
+        assert decision.top1.confidence == 0.20
+
+
+def test_unknown_at_its_level_is_not_recognized():
+    probs = probs_for("tomato", {"tomato__late_blight": 0.40, UNKNOWN: 0.50})
+
+    decision = decide(probs, "tomato", REGISTRY, CALIBRATED)
+
+    assert decision.status == "unknown"
+    assert decision.top1.code == UNKNOWN
+
+
+def test_best_class_below_low_is_unknown_even_when_unknown_is_unlikely():
+    probs = probs_for("wheat", {UNKNOWN: 0.10})  # nine classes share 0.9 -> 0.1 each
+
+    assert decide(probs, "wheat", REGISTRY, CALIBRATED).status == "unknown"
+
+
+def test_uncalibrated_model_never_answers_ok():
+    probs = probs_for("tomato", {"tomato__late_blight": 0.95})
+    uncalibrated = Thresholds(ok=0.70, low=0.25, crop_mismatch=0.70, calibrated=False)
+
+    decision = decide(probs, "tomato", REGISTRY, uncalibrated)
+
+    assert decision.status == "low_confidence"
+    assert decision.top1.code == "tomato__late_blight"
+
+
+def test_thresholds_without_the_calibrated_flag_are_fail_safe():
+    forgot_the_flag = Thresholds(ok=0.70, low=0.25, crop_mismatch=0.70)
+    ok_probs = probs_for("tomato", {"tomato__late_blight": 0.95})
+    other_crop = probs_for("potato", {}, **{"tomato-late_blight": 0.95})
+
+    assert forgot_the_flag.calibrated is False
+    assert decide(ok_probs, "tomato", REGISTRY, forgot_the_flag).status == "low_confidence"
+    assert decide(other_crop, "potato", REGISTRY, forgot_the_flag).status != "crop_mismatch"
+
+
+def test_uncalibrated_model_never_answers_crop_mismatch():
+    probs = probs_for("potato", {}, **{"tomato-late_blight": 0.95})
+    uncalibrated = Thresholds(ok=0.70, low=0.25, crop_mismatch=0.70, calibrated=False)
+
+    assert decide(probs, "potato", REGISTRY, CALIBRATED).status == "crop_mismatch"
+    assert decide(probs, "potato", REGISTRY, uncalibrated).status != "crop_mismatch"

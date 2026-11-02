@@ -61,6 +61,8 @@ def predict(
             ok=settings.ok_threshold,
             low=settings.low_threshold,
             crop_mismatch=settings.crop_mismatch_threshold,
+            unknown_at=settings.unknown_threshold,
+            calibrated=predictor.calibrated,
         ),
     )
     inference_ms = round((time.perf_counter() - started) * 1000)

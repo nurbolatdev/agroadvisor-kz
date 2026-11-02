@@ -77,6 +77,22 @@ services:
         echo "s3.bucket.create -name ${S3_BUCKET:-diagnosis-photos}"
         | weed shell -master=seaweedfs:9333 2>&1 | grep -v "already exists" || true
 
+  # AI service with the real model. Not started by default (needs the weights fetched on the
+  # host): docker compose --profile ai up -d ai-service. Weights are mounted, not in the image.
+  ai-service:
+    profiles: ["ai"]
+    build: ../services/ai-service
+    container_name: agroadvisor-ai-service
+    restart: unless-stopped
+    environment:
+      AI_MODEL_KIND: effnet
+      AI_REQUIRE_MODEL: "true"
+      AI_MODEL_VERSION: ${AI_MODEL_VERSION:-effnet-b0-v1}
+    ports:
+      - "${AI_SERVICE_PORT:-8000}:8000"
+    volumes:
+      - ../services/ai-service/ml/weights:/srv/ml/weights:ro
+
 configs:
   s3-config:
     content: |
