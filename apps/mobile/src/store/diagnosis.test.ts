@@ -396,6 +396,28 @@ describe('diagnosis flow', () => {
       expect(useDiagnosis.getState().sendingKeys).toEqual([])
     })
 
+    it('signing out clears the answers, the banner and their photos, but not the queue', async () => {
+      const { useDiagnosis, queue, files } = setup([
+        result(),
+        new NetworkError(),
+        new NetworkError(),
+      ])
+      await start(useDiagnosis)
+      expect(useDiagnosis.getState().unseenResultIds).toEqual(['d1'])
+      useDiagnosis.getState().setPhoto(PHOTO)
+      await useDiagnosis.getState().analyze() // fails twice: stays in the queue
+
+      useDiagnosis.getState().clearAnswers()
+
+      const s = useDiagnosis.getState()
+      expect(s.results).toEqual({})
+      expect(s.unseenResultIds).toEqual([])
+      expect(s.rejected).toEqual([])
+      expect(s.phase).toBe('idle')
+      expect(queue.list()).toHaveLength(1)
+      expect([...files]).toEqual(['file:///documents/key-00000002.jpg'])
+    })
+
     it('discard works for an entry whose photo is already gone', async () => {
       const { useDiagnosis, queue, files } = setup([new NetworkError(), new NetworkError()])
       await start(useDiagnosis)

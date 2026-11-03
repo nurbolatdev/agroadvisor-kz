@@ -70,5 +70,12 @@ export const useDiagnosis = createDiagnosisStore({
   },
 })
 
+// Another farmer may sign in on the same phone: after a sign-out nothing of the previous one's answers stays.
+useSession.subscribe((state, previous) => {
+  if (previous.status === 'signedIn' && state.status === 'signedOut') {
+    useDiagnosis.getState().clearAnswers()
+  }
+})
+
 // Diagnoses that were not answered before the app was closed wait in the queue; the store learns of them now.
 useDiagnosis.getState().restore()

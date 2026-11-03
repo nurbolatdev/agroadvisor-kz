@@ -66,6 +66,9 @@ type DiagnosisState = {
   // throws an entry of the queue away together with its photo
   discard: (key: string) => void
   reset: () => void
+  // the farmer signed out: the answers, the banner, the notes and the photos of answers go; another farmer
+  // may sign in on this phone. The queue stays untouched.
+  clearAnswers: () => void
 }
 
 type Deps = {
@@ -263,6 +266,12 @@ export function createDiagnosisStore(deps: Deps) {
       reset: () => {
         flow += 1
         set({ crop: null, ...INITIAL })
+      },
+      clearAnswers: () => {
+        flow += 1
+        set({ crop: null, ...INITIAL, results: {}, unseenResultIds: [], rejected: [] })
+        // no answer is known any more, so the photos kept for them are not needed
+        queue.sweep()
       },
     }
   })
