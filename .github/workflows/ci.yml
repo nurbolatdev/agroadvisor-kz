@@ -81,15 +81,18 @@ jobs:
             -c 'import sys; assert sys.version_info[:2] == (3, 12), sys.version'
       - name: Refuses to start without the model weights
         run: |
-          if docker run --rm --platform linux/amd64 agroadvisor-ai-service:ci; then
-            echo "the image started without weights, AI_REQUIRE_MODEL is not enforced"; exit 1
-          fi
+          # Exit code 3 is uvicorn's "application startup failed"; docker errors (125-127) or an import crash (1) must not pass
+          set +e
+          timeout 120 docker run --rm --platform linux/amd64 agroadvisor-ai-service:ci
+          code=$?
+          set -e
+          [ "$code" -eq 3 ] || { echo "expected exit 3 (startup refused without weights), got $code"; exit 1; }
       - name: Serves /health with the placeholder model
         run: |
           docker run -d --name ai --platform linux/amd64 -p 8000:8000 \
             -e AI_MODEL_KIND=placeholder -e AI_REQUIRE_MODEL=false agroadvisor-ai-service:ci
           for i in $(seq 1 30); do
-            curl -fsS http://127.0.0.1:8000/health && exit 0
+            curl -fsS --max-time 5 http://127.0.0.1:8000/health | grep -q '"status":"ok"' && exit 0
             sleep 2
           done
           docker logs ai
