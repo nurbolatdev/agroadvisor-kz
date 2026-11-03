@@ -224,7 +224,24 @@ The placeholder guard applies to every answer, not only at startup: `app.ai.allo
 
 Worst case spent on the AI service in one `POST /api/diagnoses` with the defaults: two tries × (2 s connect + 10 s read) + 0.4 s pause = **24.4 s**. Normally it is about 100 ms; the worst case needs a service that is slow to connect or slow to answer twice. Before the AI call the photo is stored in S3 (bounded by `app.photos`: 10 s per try, 25 s in total), so with a slow storage the whole request can take longer.
 
-The mobile app must use a request timeout of **at least 30 s** for `POST /api/diagnoses`. If it still gives up, it must not resend the photo blindly: the backend may have finished the diagnosis (it shows in the history). Protection against a repeated send is planned (task B9.1, `Idempotency-Key`).
+The mobile app must use a request timeout of **at least 30 s** for `POST /api/diagnoses`. If it still gives up, it resends the same request with the **same `Idempotency-Key`**: the backend may have finished the diagnosis (it shows in the history).
+
+#### `Idempotency-Key`
+
+The app generates one key per diagnosis attempt (a UUID fits; 8-80 characters of letters, digits, `-`, `_`, `.`, `:`) and sends it as the `Idempotency-Key` header of `POST /api/diagnoses`. The header is optional; without it every request is a new diagnosis.
+
+| Case | Answer |
+| --- | --- |
+| First request with the key | The normal `201`; the key is saved with the diagnosis. |
+| Repeat with the same key (same user, same crop) | `201` with the diagnosis made the first time and the header `Idempotent-Replayed: true`. The photo is not stored again and the model is not called. |
+| Same key, another crop | `422`, `code: idempotency_key_reused`. |
+| Malformed key | `400`, `code: invalid_idempotency_key`. |
+
+The key is unique per user (unique index on `(user_id, idempotency_key)`), so two users may use the same value. If a repeat arrives while the first request is still being processed, both run and the unique index lets one diagnosis win; the other request returns it, so there is never a second diagnosis (the model may still be called twice in that overlap). A key is kept as long as its diagnosis.
+
+#### Metrics
+
+The model call is timed as `agroadvisor.ai.predict` (Micrometer timer; its count is the number of calls) with the tags `outcome` (`ok` or `error`) and `code` (the answer's `status` for `ok`, the farmer-facing error code for `error`: `low_quality`, `ai_unavailable`, `ai_error`, `internal_error`). `agroadvisor.diagnosis.replays` counts repeated requests answered from a saved diagnosis. The metrics are not exposed over HTTP yet: only `health` and `info` actuator endpoints are enabled.
 
 Other framework responses (`404`, `405`, a malformed multipart body) are outside this contract and use the FastAPI default body.
 
