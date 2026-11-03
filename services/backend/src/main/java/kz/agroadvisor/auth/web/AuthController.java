@@ -40,8 +40,8 @@ public class AuthController {
             @NotBlank @Size(min = 8, max = 72) String password,
             @NotBlank @Size(max = 120) String fullName,
             @Pattern(regexp = "ru|kk|en") @Schema(allowableValues = {"ru", "kk", "en"}) String language,
-            @Size(max = 20) @Schema(allowableValues = {"FARMER", "AGROCHEMIST"},
-                    description = "Upper case here; the roles in MeResponse are the lower case codes") String role) {
+            @Size(max = 20) @Schema(allowableValues = {"farmer", "agrochemist"},
+                    description = "Lower case, like the roles in MeResponse; upper case is still accepted") String role) {
     }
 
     public record LoginRequest(@NotBlank @Size(max = 120) String login, @NotBlank @Size(max = 72) String password) {

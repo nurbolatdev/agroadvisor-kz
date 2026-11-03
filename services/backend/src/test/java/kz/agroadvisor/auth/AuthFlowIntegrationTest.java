@@ -55,6 +55,17 @@ class AuthFlowIntegrationTest {
     // ---- registration
 
     @Test
+    void theRoleIsLowerCaseInTheContractButUpperCaseIsStillAccepted() throws Exception {
+        Session lower = register(newPhone(), "agrochemist");
+        Session upper = register(newPhone(), "AGROCHEMIST");
+
+        for (Session s : List.of(lower, upper)) {
+            mvc.perform(get("/api/users/me").header("Authorization", "Bearer " + s.access()))
+                    .andExpect(jsonPath("$.roles[0]").value("agrochemist"));
+        }
+    }
+
+    @Test
     void farmerRegistersWithPhoneAndGetsTokens() throws Exception {
         String phone = newPhone();
         Session s = register(phone, "farmer");
