@@ -32,7 +32,9 @@ import tools.jackson.databind.json.JsonMapper;
 @Import(TestcontainersConfiguration.class)
 class OpenApiExportTest {
 
-    private static final Path SNAPSHOT = Path.of("..", "..", "docs", "api", "openapi.json");
+    // Maven sets basedir to services/backend, whatever directory the build is started from
+    private static final Path SNAPSHOT =
+            Path.of(System.getProperty("basedir", "."), "..", "..", "docs", "api", "openapi.json").normalize();
 
     private final JsonMapper mapper = JsonMapper.builder()
             .enable(SerializationFeature.INDENT_OUTPUT)
@@ -53,8 +55,15 @@ class OpenApiExportTest {
         String json = mapper.writeValueAsString(schema) + "\n";
 
         assertThat(json).contains("\"/api/auth/login\"");
-        Files.createDirectories(SNAPSHOT.getParent());
-        if (!Files.exists(SNAPSHOT) || !Files.readString(SNAPSHOT, StandardCharsets.UTF_8).equals(json)) {
+        boolean upToDate = Files.exists(SNAPSHOT)
+                && Files.readString(SNAPSHOT, StandardCharsets.UTF_8).equals(json);
+        if (System.getenv("CI") != null) {
+            // CI never rewrites the file: a stale snapshot must fail the build
+            assertThat(upToDate)
+                    .as("docs/api/openapi.json is stale, run: cd services/backend && ./mvnw test -Dtest=OpenApiExportTest")
+                    .isTrue();
+        } else if (!upToDate) {
+            Files.createDirectories(SNAPSHOT.getParent());
             Files.writeString(SNAPSHOT, json, StandardCharsets.UTF_8);
         }
     }
