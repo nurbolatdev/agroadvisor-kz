@@ -397,6 +397,22 @@ describe('diagnosis flow', () => {
       expect(memory.files.size).toBe(0)
     })
 
+    it('keeps the answer by diagnosis id and links the queue key to it', async () => {
+      const { useDiagnosis } = setup([
+        new NetworkError(),
+        new NetworkError(),
+        result('low_confidence'),
+      ])
+      await start(useDiagnosis)
+      expect(useDiagnosis.getState().results).toEqual({})
+
+      await useDiagnosis.getState().resend('key-00000001')
+
+      const s = useDiagnosis.getState()
+      expect(s.results.d1.status).toBe('low_confidence')
+      expect(s.answeredKeys).toEqual({ 'key-00000001': 'd1' })
+    })
+
     it('discard removes the entry with its photo', async () => {
       const { useDiagnosis, queue, files } = setup([new NetworkError(), new NetworkError()])
       await start(useDiagnosis)

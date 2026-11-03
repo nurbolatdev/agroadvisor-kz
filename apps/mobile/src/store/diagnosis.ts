@@ -25,6 +25,11 @@ type DiagnosisState = {
   attempts: number
   // what the offline queue holds: diagnoses that still wait for an answer
   queued: QueueEntry[]
+  // every answer received in this session, by diagnosis id: screens get a diagnosis by its id, never
+  // through route params (M6 reads the same place for the history)
+  results: Record<string, DiagnosisResult>
+  // queue key -> diagnosis id, so the queue screen can open the answer of an entry that was just sent
+  answeredKeys: Record<string, string>
   selectCrop: (crop: Crop) => void
   setPhoto: (photo: PickedPhoto) => void
   analyze: () => Promise<void>
@@ -81,6 +86,10 @@ export function createDiagnosisStore(deps: Deps) {
             // the server has the diagnosis, so the entry leaves the queue even if the screen moved on
             queue.remove(pending.key)
             refreshQueued()
+            set((s) => ({
+              results: { ...s.results, [result.id]: result },
+              answeredKeys: { ...s.answeredKeys, [pending.key]: result.id },
+            }))
             if (startedIn === flow) set({ phase: 'done', result, failure: null })
             return
           } catch (error) {
@@ -111,6 +120,8 @@ export function createDiagnosisStore(deps: Deps) {
       crop: null,
       ...INITIAL,
       queued: [],
+      results: {},
+      answeredKeys: {},
       selectCrop: (crop) => {
         flow += 1
         set({ crop, ...INITIAL })
