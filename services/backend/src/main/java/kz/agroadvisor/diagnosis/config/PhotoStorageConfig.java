@@ -29,6 +29,8 @@ class PhotoStorageConfig {
      * CRC32, and SeaweedFS 4.48 sometimes answers that with 400 "Content-Md5 you specified is not valid"
      * (seen in CI and reproduced with stress runs, mostly on the first uploads after the container starts).
      * Without the trailer the upload still goes as signed aws-chunked, but the error did not occur.
+     * Response validation is switched off for symmetry (the backend only uploads and deletes photos; reads
+     * are not made by this client), so downloads are not checksum-verified.
      */
     @Bean(destroyMethod = "close")
     S3Client s3Client(PhotoStorageProperties props) {
