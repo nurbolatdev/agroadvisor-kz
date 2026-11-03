@@ -110,7 +110,8 @@ public class CatalogService {
             @Schema(requiredMode = REQUIRED) String code,
             @Schema(nullable = true) String cropCode,
             @Schema(requiredMode = REQUIRED,
-                    allowableValues = {"fungal", "bacterial", "viral", "pest", "healthy", "other"}) String kind,
+                    allowableValues = {"fungal", "bacterial", "viral", "oomycete", "pest", "healthy", "other"})
+            String kind,
             @Schema(nullable = true, allowableValues = {"low", "medium", "high"}) String severity,
             @Schema(nullable = true) String latinName,
             @Schema(requiredMode = REQUIRED) String name) implements Serializable {

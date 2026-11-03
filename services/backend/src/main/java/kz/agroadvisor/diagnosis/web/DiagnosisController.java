@@ -5,6 +5,9 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -53,8 +56,13 @@ public class DiagnosisController {
     @PostMapping(consumes = "multipart/form-data")
     @PreAuthorize(FEATURE)
     @ApiResponse(responseCode = "201", description = "The diagnosis; for a repeated Idempotency-Key the one made "
-            + "the first time, with the header Idempotent-Replayed: true")
+            + "the first time, with the header Idempotent-Replayed: true",
+            headers = @Header(name = REPLAYED_HEADER, description = "\"true\" when the diagnosis already existed",
+                    schema = @Schema(type = "string", allowableValues = "true")))
     public ResponseEntity<DiagnosisView> create(@RequestParam String crop, @RequestParam("image") MultipartFile image,
+            @Parameter(description = "One key per diagnosis attempt (a UUID fits); resend it when the answer was "
+                    + "lost. Errors: 400 invalid_idempotency_key, 422 idempotency_key_reused.",
+                    schema = @Schema(pattern = "[A-Za-z0-9_.:-]{8,80}", minLength = 8, maxLength = 80))
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             Authentication authentication) throws IOException {
         rateLimiter.check("diagnosis", authentication.getName(), limits.diagnosisPerMinute(), Duration.ofMinutes(1));
