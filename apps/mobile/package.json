@@ -44,6 +44,7 @@
     "eslint-config-prettier": "^10.1.8",
     "jest": "^30.5.2",
     "jest-expo": "^58.0.13",
+    "openapi-typescript": "^7.13.0",
     "prettier": "^3.9.10",
     "typescript": "~6.0.3"
   },
@@ -52,10 +53,16 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "lint": "expo lint",
+    "gen:api": "openapi-typescript ../../docs/api/openapi.json -o src/api/schema.d.ts",
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   },
   "private": true
 }
