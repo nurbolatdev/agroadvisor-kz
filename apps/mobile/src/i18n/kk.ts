@@ -43,6 +43,7 @@ export const kk: Translation = {
     title: 'Басты бет',
     scaffoldReady: 'Қосымша каркасы дайын',
     diagnose: 'Сурет бойынша диагностика',
+    queue: 'Жіберілмеген: {{count}}',
   },
   diagnosis: {
     title: 'Диагностика',
@@ -93,6 +94,19 @@ export const kk: Translation = {
       },
       again: 'Жаңа диагностика',
       home: 'Басты бетке',
+    },
+    queue: {
+      title: 'Жіберілмегендер',
+      empty: 'Кезекте диагноз жоқ',
+      status: {
+        waiting: 'Жіберілуін күтуде',
+        sending: 'Жіберілуде',
+        error: 'Жіберу мүмкін болмады',
+        photoLost: 'Сурет жоғалған',
+      },
+      retry: 'Қайталау',
+      discard: 'Жою',
+      newPhoto: 'Жаңа сурет',
     },
     errors: {
       network: 'Сервермен байланыс жоқ. Интернетті тексеріп, қайталаңыз',

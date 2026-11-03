@@ -43,6 +43,7 @@ export const en: Translation = {
     title: 'Home',
     scaffoldReady: 'The app scaffold is ready',
     diagnose: 'Diagnose by photo',
+    queue: 'Not sent: {{count}}',
   },
   diagnosis: {
     title: 'Diagnosis',
@@ -93,6 +94,19 @@ export const en: Translation = {
       },
       again: 'New diagnosis',
       home: 'Home',
+    },
+    queue: {
+      title: 'Not sent yet',
+      empty: 'No diagnoses in the queue',
+      status: {
+        waiting: 'Waiting to be sent',
+        sending: 'Sending',
+        error: 'Could not send',
+        photoLost: 'Photo is gone',
+      },
+      retry: 'Retry',
+      discard: 'Delete',
+      newPhoto: 'New photo',
     },
     errors: {
       network: 'No connection to the server. Check the internet and try again',

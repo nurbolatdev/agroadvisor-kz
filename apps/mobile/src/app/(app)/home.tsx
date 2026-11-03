@@ -14,6 +14,7 @@ export default function HomeScreen() {
   const router = useRouter()
   const logout = useSession((s) => s.logout)
   const resetDiagnosis = useDiagnosis((s) => s.reset)
+  const queuedCount = useDiagnosis((s) => s.queued.length)
   const language = useSettings((s) => s.language)
   const setLanguage = useSettings((s) => s.setLanguage)
 
@@ -34,6 +35,13 @@ export default function HomeScreen() {
             router.push('/diagnosis')
           }}
         />
+        {queuedCount > 0 ? (
+          <Button
+            label={t('home.queue', { count: queuedCount })}
+            variant="secondary"
+            onPress={() => router.push('/diagnosis/queue')}
+          />
+        ) : null}
       </View>
 
       <AppText variant="caption" color={colors.textMuted} style={styles.section}>
