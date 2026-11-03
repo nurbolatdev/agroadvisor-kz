@@ -4,12 +4,20 @@ import { IDEMPOTENCY_KEY_PATTERN, type PendingDiagnosis } from './pending'
 // The offline queue: diagnoses the farmer asked for that are not answered yet. It survives a restart of the
 // app, so the key and the compressed file stay together until the server has answered. The photo from the
 // camera or the gallery lies in the cache, which the system may clear, so the queue keeps its own copy in
-// the documents folder and stores the path to that copy.
+// the documents folder. Only the name of the copy is stored, not its address: the address of the documents
+// folder on iOS contains an id that changes when the app is updated or installed again, and a stored
+// absolute path would then point at nothing although the file is there.
 
 const QUEUE_KEY = 'diagnosis.queue'
 const RECORD_VERSION = 1
 
-type StoredRecord = { version: typeof RECORD_VERSION } & PendingDiagnosis
+type StoredRecord = {
+  version: typeof RECORD_VERSION
+  key: string
+  crop: PendingDiagnosis['crop']
+  fileName: string
+  createdAt: number
+}
 
 export type KeyValueStore = {
   getString(key: string): string | undefined
@@ -19,6 +27,8 @@ export type KeyValueStore = {
 export type QueueFiles = {
   // Copies the file into a folder the system does not clean and returns the address of the copy.
   copyIn(uri: string, name: string): Promise<string>
+  // the current address of a stored copy, built from its name
+  resolve(name: string): string
   exists(uri: string): boolean
   remove(uri: string): void
   // every file the queue's folder holds
@@ -52,20 +62,12 @@ function isStoredRecord(value: unknown): value is StoredRecord {
     typeof record.key === 'string' &&
     IDEMPOTENCY_KEY_PATTERN.test(record.key) &&
     isCrop(record.crop) &&
-    typeof record.fileUri === 'string' &&
-    record.fileUri.length > 0 &&
+    typeof record.fileName === 'string' &&
+    record.fileName.length > 0 &&
+    !record.fileName.includes('/') &&
     typeof record.createdAt === 'number' &&
     Number.isFinite(record.createdAt)
   )
-}
-
-function toPending(record: StoredRecord): PendingDiagnosis {
-  return {
-    key: record.key,
-    crop: record.crop,
-    fileUri: record.fileUri,
-    createdAt: record.createdAt,
-  }
 }
 
 export function createPendingQueue(deps: {
@@ -105,14 +107,31 @@ export function createPendingQueue(deps: {
   // adds that have copied their file but not yet written the record; sweep must not touch their files
   let adding = 0
 
+  const toPending = (record: StoredRecord): PendingDiagnosis => ({
+    key: record.key,
+    crop: record.crop,
+    fileUri: files.resolve(record.fileName),
+    createdAt: record.createdAt,
+  })
+
   return {
     async add(pending) {
       adding += 1
       try {
-        const copy = await files.copyIn(pending.fileUri, `${pending.key}.jpg`)
-        const stored: PendingDiagnosis = { ...pending, fileUri: copy }
+        const name = `${pending.key}.jpg`
+        await files.copyIn(pending.fileUri, name)
+        const stored: PendingDiagnosis = { ...pending, fileUri: files.resolve(name) }
         const others = read().filter((record) => record.key !== pending.key)
-        write([...others, { version: RECORD_VERSION, ...stored }])
+        write([
+          ...others,
+          {
+            version: RECORD_VERSION,
+            key: pending.key,
+            crop: pending.crop,
+            fileName: name,
+            createdAt: pending.createdAt,
+          },
+        ])
         return stored
       } finally {
         adding -= 1
@@ -122,7 +141,7 @@ export function createPendingQueue(deps: {
     sweep(keep = []) {
       if (adding > 0) return
       const referenced = new Set([
-        ...read().map((record) => fileName(record.fileUri)),
+        ...read().map((record) => record.fileName),
         ...keep.map(fileName),
       ])
       for (const uri of files.list()) {
@@ -131,10 +150,13 @@ export function createPendingQueue(deps: {
     },
 
     list() {
-      return read().map((record) => ({
-        pending: toPending(record),
-        status: files.exists(record.fileUri) ? ('ready' as const) : ('fileMissing' as const),
-      }))
+      return read().map((record) => {
+        const pending = toPending(record)
+        return {
+          pending,
+          status: files.exists(pending.fileUri) ? ('ready' as const) : ('fileMissing' as const),
+        }
+      })
     },
 
     release(key) {
@@ -142,7 +164,7 @@ export function createPendingQueue(deps: {
       const target = records.find((record) => record.key === key)
       if (!target) return null
       write(records.filter((record) => record.key !== key))
-      return target.fileUri
+      return files.resolve(target.fileName)
     },
 
     // Removes the record and the copy of the photo.
@@ -150,7 +172,7 @@ export function createPendingQueue(deps: {
       const records = read()
       const target = records.find((record) => record.key === key)
       write(records.filter((record) => record.key !== key))
-      if (target) files.remove(target.fileUri)
+      if (target) files.remove(files.resolve(target.fileName))
     },
   }
 }

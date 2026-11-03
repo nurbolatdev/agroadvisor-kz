@@ -43,6 +43,7 @@ function memoryQueue() {
         files.add(copy)
         return copy
       },
+      resolve: (name) => `file:///documents/${name}`,
       exists: (uri) => files.has(uri),
       remove: (uri) => {
         files.delete(uri)

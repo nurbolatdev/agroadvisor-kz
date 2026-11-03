@@ -13,6 +13,7 @@ export const expoQueueFiles: QueueFiles = {
     await new File(uri).copy(target, { overwrite: true })
     return target.uri
   },
+  resolve: (name) => new File(new Directory(Paths.document, FOLDER), name).uri,
   exists: (uri) => new File(uri).exists,
   remove: (uri) => {
     const file = new File(uri)

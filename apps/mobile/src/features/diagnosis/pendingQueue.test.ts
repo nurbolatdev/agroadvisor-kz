@@ -20,6 +20,7 @@ function fakeFiles(present: string[] = []) {
       files.add(target)
       return target
     },
+    resolve: (name) => `file:///documents/${name}`,
     exists: (uri) => files.has(uri),
     remove: (uri) => {
       files.delete(uri)
@@ -187,9 +188,16 @@ describe('pending queue with broken data', () => {
   })
 
   it('drops broken records but keeps the good one', () => {
-    const good = { version: 1, ...pending('key-12345678'), fileUri: 'file:///documents/a.jpg' }
+    const good = {
+      version: 1,
+      key: 'key-12345678',
+      crop: 'tomato',
+      fileName: 'a.jpg',
+      createdAt: 1_700_000_000_000,
+    }
     const raw = JSON.stringify([
       good,
+      { ...good, key: 'key-33333333', fileName: '/etc/passwd' },
       { ...good, key: 'key-87654321', version: 2 },
       { ...good, key: 'short' },
       { ...good, key: 'key-11111111', crop: 'banana' },
@@ -205,7 +213,33 @@ describe('pending queue with broken data', () => {
     const entries = queue.list()
 
     expect(entries.map((entry) => entry.pending.key)).toEqual(['key-12345678'])
-    expect(warn).toHaveBeenCalledWith('[diagnosis] dropped 5 broken pending record(s)')
+    expect(warn).toHaveBeenCalledWith('[diagnosis] dropped 6 broken pending record(s)')
+  })
+
+  it('stores the name of the photo copy, not its address, so a moved documents folder is fine', async () => {
+    const store = fakeStore()
+    const files = fakeFiles()
+    await createPendingQueue({ store, files: files.api }).add(pending('key-12345678'))
+    expect(store.raw()).toContain('"fileName":"key-12345678.jpg"')
+    expect(store.raw()).not.toContain('file:///')
+
+    // the app was installed again: the same folder has another address now
+    const movedFiles = new Set(['file:///other-container/key-12345678.jpg'])
+    const moved = createPendingQueue({
+      store,
+      files: {
+        ...files.api,
+        resolve: (name) => `file:///other-container/${name}`,
+        exists: (uri) => movedFiles.has(uri),
+      },
+    })
+
+    expect(moved.list()).toEqual([
+      {
+        pending: expect.objectContaining({ fileUri: 'file:///other-container/key-12345678.jpg' }),
+        status: 'ready',
+      },
+    ])
   })
 
   it('adds a new entry after a broken queue was dropped', async () => {
