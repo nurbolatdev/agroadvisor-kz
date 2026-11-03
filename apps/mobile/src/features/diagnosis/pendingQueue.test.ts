@@ -24,6 +24,7 @@ function fakeFiles(present: string[] = []) {
     remove: (uri) => {
       files.delete(uri)
     },
+    list: () => [...files],
   }
   return { api, files }
 }
@@ -80,6 +81,49 @@ describe('pending queue', () => {
     await queue.add(pending('key-12345678'))
     queue.remove('other-key-1234')
     expect(queue.list()).toHaveLength(1)
+  })
+
+  it('removing an entry whose photo copy is already gone does not fail', async () => {
+    const files = fakeFiles()
+    const queue = createPendingQueue({ store: fakeStore(), files: files.api })
+    const stored = await queue.add(pending('key-12345678'))
+    files.files.delete(stored.fileUri)
+
+    expect(() => queue.remove('key-12345678')).not.toThrow()
+    expect(queue.list()).toEqual([])
+  })
+
+  it('sweep deletes photo copies without a record and keeps the ones with a record', async () => {
+    const files = fakeFiles(['file:///documents/orphan.jpg'])
+    const queue = createPendingQueue({ store: fakeStore(), files: files.api })
+    const stored = await queue.add(pending('key-12345678'))
+
+    queue.sweep()
+    queue.sweep() // calling it again changes nothing
+
+    expect([...files.files]).toEqual([stored.fileUri])
+    expect(queue.list()).toHaveLength(1)
+  })
+
+  it('sweep leaves alone a file whose record is still being written', async () => {
+    const files = fakeFiles()
+    let finishCopy: () => void = () => undefined
+    const slow: QueueFiles = {
+      ...files.api,
+      copyIn: (uri, name) =>
+        new Promise((resolve) => {
+          finishCopy = () => resolve(files.api.copyIn(uri, name))
+        }),
+    }
+    const queue = createPendingQueue({ store: fakeStore(), files: slow })
+
+    const adding = queue.add(pending('key-12345678'))
+    files.files.add('file:///documents/key-12345678.jpg') // the copy exists, the record does not yet
+    queue.sweep()
+    finishCopy()
+    await adding
+
+    expect(files.files.has('file:///documents/key-12345678.jpg')).toBe(true)
   })
 
   it('marks an entry whose photo copy is gone instead of failing', async () => {

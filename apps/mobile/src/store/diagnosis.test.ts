@@ -1,4 +1,5 @@
-import type { DiagnosisApi, DiagnosisResult } from '@/api/diagnosis'
+import { createApiClient } from '@/api/client'
+import { type DiagnosisApi, type DiagnosisResult, createDiagnosisApi } from '@/api/diagnosis'
 import { ApiError, NetworkError } from '@/api/errors'
 import { PhotoError, type PickedPhoto } from '@/features/diagnosis/photo'
 import type { PendingDiagnosis } from '@/features/diagnosis/pending'
@@ -46,6 +47,7 @@ function memoryQueue() {
       remove: (uri) => {
         files.delete(uri)
       },
+      list: () => [...files],
     },
     warn: () => undefined,
   })
@@ -338,6 +340,61 @@ describe('diagnosis flow', () => {
         action: 'newPhoto',
       })
       expect(queue.list()[0].status).toBe('fileMissing')
+    })
+
+    it('restore only loads: it sends nothing, can be called twice and removes stray photo files', async () => {
+      const { useDiagnosis, sent, files } = setup([new NetworkError(), new NetworkError()])
+      await start(useDiagnosis)
+      const sentBefore = sent.length
+      files.add('file:///documents/stray.jpg')
+
+      useDiagnosis.getState().restore()
+      useDiagnosis.getState().restore()
+
+      expect(useDiagnosis.getState().queued).toHaveLength(1)
+      expect(sent).toHaveLength(sentBefore)
+      expect([...files]).toEqual(['file:///documents/key-00000001.jpg'])
+    })
+
+    it('discard works for an entry whose photo is already gone', async () => {
+      const { useDiagnosis, queue, files } = setup([new NetworkError(), new NetworkError()])
+      await start(useDiagnosis)
+      files.clear()
+
+      expect(() => useDiagnosis.getState().discard('key-00000001')).not.toThrow()
+      expect(queue.list()).toEqual([])
+    })
+
+    it('treats 201 with Idempotent-Replayed: true as a normal success and empties the queue', async () => {
+      const memory = memoryQueue()
+      const body = JSON.stringify(result())
+      const fetchFn = jest.fn(
+        async () =>
+          new Response(body, {
+            status: 201,
+            headers: { 'Content-Type': 'application/json', 'Idempotent-Replayed': 'true' },
+          }),
+      )
+      const useDiagnosis = createDiagnosisStore({
+        api: createDiagnosisApi(
+          createApiClient({
+            baseUrl: 'http://api',
+            fetchFn: fetchFn as unknown as typeof fetch,
+            getAccessToken: () => 'token',
+            refreshAccessToken: async () => null,
+          }),
+          () => ({ append: () => undefined }) as unknown as FormData,
+        ),
+        prepare: async () => ({ uri: 'file:///p.jpg' }),
+        queue: memory.queue,
+      })
+
+      await start(useDiagnosis)
+
+      expect(useDiagnosis.getState().phase).toBe('done')
+      expect(useDiagnosis.getState().result?.id).toBe('d1')
+      expect(memory.queue.list()).toEqual([])
+      expect(memory.files.size).toBe(0)
     })
 
     it('discard removes the entry with its photo', async () => {

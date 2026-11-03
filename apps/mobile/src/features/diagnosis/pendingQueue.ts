@@ -21,6 +21,8 @@ export type QueueFiles = {
   copyIn(uri: string, name: string): Promise<string>
   exists(uri: string): boolean
   remove(uri: string): void
+  // every file the queue's folder holds
+  list(): string[]
 }
 
 // "ready" can be sent. "fileMissing": the record is there but the copy of the photo is gone, so the entry
@@ -31,7 +33,12 @@ export type PendingQueue = {
   add(pending: PendingDiagnosis): Promise<PendingDiagnosis>
   list(): QueueEntry[]
   remove(key: string): void
+  // Deletes photo copies that no record points to. The copy is made before the record is written, so a
+  // crash between the two leaves such a file behind.
+  sweep(): void
 }
+
+const fileName = (uri: string) => uri.slice(uri.lastIndexOf('/') + 1)
 
 function isStoredRecord(value: unknown): value is StoredRecord {
   if (typeof value !== 'object' || value === null) return false
@@ -91,13 +98,29 @@ export function createPendingQueue(deps: {
     store.set(QUEUE_KEY, JSON.stringify(records))
   }
 
+  // adds that have copied their file but not yet written the record; sweep must not touch their files
+  let adding = 0
+
   return {
     async add(pending) {
-      const copy = await files.copyIn(pending.fileUri, `${pending.key}.jpg`)
-      const stored: PendingDiagnosis = { ...pending, fileUri: copy }
-      const others = read().filter((record) => record.key !== pending.key)
-      write([...others, { version: RECORD_VERSION, ...stored }])
-      return stored
+      adding += 1
+      try {
+        const copy = await files.copyIn(pending.fileUri, `${pending.key}.jpg`)
+        const stored: PendingDiagnosis = { ...pending, fileUri: copy }
+        const others = read().filter((record) => record.key !== pending.key)
+        write([...others, { version: RECORD_VERSION, ...stored }])
+        return stored
+      } finally {
+        adding -= 1
+      }
+    },
+
+    sweep() {
+      if (adding > 0) return
+      const referenced = new Set(read().map((record) => fileName(record.fileUri)))
+      for (const uri of files.list()) {
+        if (!referenced.has(fileName(uri))) files.remove(uri)
+      }
     },
 
     list() {

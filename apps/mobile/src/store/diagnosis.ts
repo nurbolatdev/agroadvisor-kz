@@ -150,7 +150,11 @@ export function createDiagnosisStore(deps: Deps) {
         if (!pending || phase !== 'failed') return
         await send(pending, flow)
       },
-      restore: refreshQueued,
+      // Only loads: nothing is sent until the farmer presses "Retry". Safe to call again (fast refresh).
+      restore: () => {
+        queue.sweep()
+        refreshQueued()
+      },
       resend: async (key) => {
         const entry = queue.list().find((item) => item.pending.key === key)
         if (!entry || inFlight.has(key)) return
