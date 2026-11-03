@@ -5,7 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
 import type { Treatment } from '@/api/diseases'
 import { AppText, Chip, EmptyState, ErrorState, GlassCard, Screen } from '@/components/ui'
-import { canShowTreatment } from '@/features/diagnosis/resultScreen'
+import { hasTreatment } from '@/features/diagnosis/resultScreen'
 import {
   TREATMENT_TYPES,
   type TreatmentType,
@@ -23,7 +23,7 @@ export default function TreatmentScreen() {
   const view = useDiagnosis((s) => s.results[id])
 
   if (!view) return <Redirect href={`/diagnosis/result/${id}`} />
-  if (!canShowTreatment(view.status)) return <Redirect href={`/diagnosis/result/${id}`} />
+  if (!hasTreatment(view)) return <Redirect href={`/diagnosis/result/${id}`} />
   return <Plan code={view.top1.code} />
 }
 

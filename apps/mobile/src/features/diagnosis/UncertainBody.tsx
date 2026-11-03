@@ -51,8 +51,13 @@ export function UncertainBody({
   const run = (action: ResultAction) => {
     switch (action.type) {
       case 'retake':
-        selectCrop(view.crop as Crop)
-        router.replace('/diagnosis/camera')
+        // a crop the app does not know cannot be kept for the next photo: the farmer picks one again
+        if (isCrop(view.crop)) {
+          selectCrop(view.crop)
+          router.replace('/diagnosis/camera')
+        } else {
+          router.replace('/diagnosis')
+        }
         return
       case 'useCrop':
         analyzeAs(action.crop)

@@ -14,7 +14,7 @@ import {
   Screen,
 } from '@/components/ui'
 import { isCrop } from '@/features/diagnosis/crops'
-import { canShowTreatment, resolveResultScreen } from '@/features/diagnosis/resultScreen'
+import { hasTreatment, resolveResultScreen } from '@/features/diagnosis/resultScreen'
 import { UncertainBody } from '@/features/diagnosis/UncertainBody'
 import type { StoredResult } from '@/store/diagnosis'
 import { useDiseaseDetail } from '@/features/diseases/useDiseaseDetail'
@@ -131,7 +131,7 @@ function OkBody({ view }: { view: DiagnosisResult }) {
       {state.status === 'error' ? (
         <Button label={t('common.retry')} variant="secondary" compact onPress={reload} />
       ) : null}
-      {canShowTreatment(view.status) ? (
+      {hasTreatment(view) ? (
         <Button
           label={t('diagnosis.treatment.open')}
           onPress={() => router.push(`/diagnosis/treatment/${view.id}`)}

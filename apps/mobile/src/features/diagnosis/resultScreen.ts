@@ -15,6 +15,8 @@ export type ResultScreen =
   | { kind: 'cropMismatch'; detectedCrop: Crop | null }
 
 export function resolveResultScreen(view: DiagnosisResult): ResultScreen {
+  // a crop outside the MVP list cannot be analyzed again or get a plan: it is treated as "unknown"
+  if (!isCrop(view.crop)) return { kind: 'unknown' }
   const status: DiagnosisStatus = view.status
   switch (status) {
     case 'ok':
@@ -36,6 +38,11 @@ export function resolveResultScreen(view: DiagnosisResult): ResultScreen {
 // The treatment plan is shown only for a confident diagnosis.
 export function canShowTreatment(status: DiagnosisStatus): boolean {
   return status === 'ok'
+}
+
+// The same rule for a whole diagnosis: a confident one of a crop the app knows.
+export function hasTreatment(view: DiagnosisResult): boolean {
+  return resolveResultScreen(view).kind === 'ok' && canShowTreatment(view.status)
 }
 
 function assertNever(value: never): never {

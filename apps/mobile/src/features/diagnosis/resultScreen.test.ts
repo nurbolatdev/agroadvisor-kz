@@ -1,6 +1,6 @@
 import type { DiagnosisResult } from '@/api/diagnosis'
 
-import { canShowTreatment, resolveResultScreen } from './resultScreen'
+import { canShowTreatment, hasTreatment, resolveResultScreen } from './resultScreen'
 
 function view(
   status: DiagnosisResult['status'],
@@ -53,6 +53,21 @@ describe('which result screen a diagnosis gets', () => {
       kind: 'cropMismatch',
       detectedCrop: null,
     })
+  })
+})
+
+describe('a crop outside the MVP list', () => {
+  it('behaves like unknown for every status and has no treatment', () => {
+    for (const status of ['ok', 'low_confidence', 'unknown', 'crop_mismatch'] as const) {
+      const odd = { ...view(status), crop: 'banana' }
+      expect(resolveResultScreen(odd)).toEqual({ kind: 'unknown' })
+      expect(hasTreatment(odd)).toBe(false)
+    }
+  })
+
+  it('a known crop with ok has a treatment, with any other status it has none', () => {
+    expect(hasTreatment(view('ok'))).toBe(true)
+    expect(hasTreatment(view('low_confidence'))).toBe(false)
   })
 })
 
