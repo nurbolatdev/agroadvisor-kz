@@ -12,6 +12,12 @@ export type ApiClientOptions = {
 export type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: unknown
+  // multipart upload instead of a JSON body; the content type with its boundary is set by fetch
+  formData?: FormData
+  // extra request headers, for example Idempotency-Key
+  headers?: Record<string, string>
+  // overrides the client's timeout for slow calls such as a photo diagnosis
+  timeoutMs?: number
   // false for login, register and refresh: no token, no retry on 401
   auth?: boolean
 }
@@ -49,7 +55,7 @@ export function createApiClient(options: ApiClientOptions) {
 
   async function send(path: string, opts: RequestOptions, token: string | null) {
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? timeoutMs)
     try {
       return await fetchFn(`${options.baseUrl}${path}`, {
         method: opts.method ?? 'GET',
@@ -57,8 +63,9 @@ export function createApiClient(options: ApiClientOptions) {
           Accept: 'application/json',
           ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...opts.headers,
         },
-        body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+        body: opts.formData ?? (opts.body !== undefined ? JSON.stringify(opts.body) : undefined),
         signal: controller.signal,
       })
     } catch {

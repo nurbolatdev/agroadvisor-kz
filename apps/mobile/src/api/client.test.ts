@@ -110,6 +110,84 @@ describe('api client', () => {
     await expect(client.request('/api/x')).rejects.toBeInstanceOf(NetworkError)
   })
 
+  it('sends a multipart body untouched, without a JSON content type, and adds headers', async () => {
+    const seen: { body?: unknown; headers: Headers }[] = []
+    const fetchFn = jest.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      seen.push({ body: init?.body, headers: new Headers(init?.headers) })
+      return json(201, { id: 'd1' })
+    })
+    const client = createApiClient({
+      baseUrl: 'http://api',
+      fetchFn: fetchFn as unknown as typeof fetch,
+      getAccessToken: () => 'old',
+      refreshAccessToken: async () => null,
+    })
+    const form = new FormData()
+    form.append('crop', 'tomato')
+
+    await client.request('/api/diagnoses', {
+      method: 'POST',
+      formData: form,
+      headers: { 'Idempotency-Key': 'key-12345678' },
+    })
+
+    expect(seen[0].body).toBe(form)
+    expect(seen[0].headers.get('Content-Type')).toBeNull()
+    expect(seen[0].headers.get('Idempotency-Key')).toBe('key-12345678')
+    expect(seen[0].headers.get('Authorization')).toBe('Bearer old')
+  })
+
+  it('sends the same form again after the token was renewed', async () => {
+    const bodies: unknown[] = []
+    const fetchFn = jest.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      bodies.push(init?.body)
+      return bodies.length === 1 ? json(401, {}) : json(201, {})
+    })
+    const client = createApiClient({
+      baseUrl: 'http://api',
+      fetchFn: fetchFn as unknown as typeof fetch,
+      getAccessToken: () => 'old',
+      refreshAccessToken: async () => 'fresh',
+    })
+    const form = new FormData()
+    form.append('crop', 'tomato')
+
+    await client.request('/api/diagnoses', { method: 'POST', formData: form })
+
+    expect(bodies).toEqual([form, form])
+  })
+
+  it('uses the timeout of the request instead of the default one', async () => {
+    jest.useFakeTimers()
+    try {
+      const fetchFn = jest.fn(
+        (_url: RequestInfo | URL, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(new TypeError('aborted')))
+          }),
+      )
+      const client = createApiClient({
+        baseUrl: 'http://api',
+        fetchFn: fetchFn as unknown as typeof fetch,
+        getAccessToken: () => null,
+        refreshAccessToken: async () => null,
+        timeoutMs: 1_000,
+      })
+
+      const slow = client.request('/api/diagnoses', { timeoutMs: 30_000 }).catch((e: unknown) => e)
+      await jest.advanceTimersByTimeAsync(29_999)
+      let settled = false
+      void slow.then(() => (settled = true))
+      await Promise.resolve()
+      expect(settled).toBe(false)
+
+      await jest.advanceTimersByTimeAsync(1)
+      expect(await slow).toBeInstanceOf(NetworkError)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
   it('falls back to code "unknown" for a non-JSON error body', async () => {
     const { client } = setup([new Response('<html>', { status: 502 })])
     await expect(client.request('/api/x')).rejects.toMatchObject({ status: 502, code: 'unknown' })
