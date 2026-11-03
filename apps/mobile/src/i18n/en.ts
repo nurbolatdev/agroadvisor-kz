@@ -73,7 +73,9 @@ export const en: Translation = {
         analyze: 'Sending and analyzing',
         done: 'Done',
       },
+      slow: 'The network is slow, still waiting…',
       retry: 'Try again',
+      retryIn: 'You can try again in {{seconds}} s',
       newPhoto: 'Another photo',
     },
     result: {
@@ -107,7 +109,6 @@ export const en: Translation = {
       keyReused: 'The sending got out of sync. Choose the photo again',
       photoUnreadable: 'The photo could not be read. Choose another one',
       photoTooLarge: 'The photo is too large. Choose another one',
-      photoMetadata: 'The photo could not be prepared safely. Choose another one',
       generic: 'It did not work. Try again later',
     },
   },

@@ -7,8 +7,12 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { AppText, Button, ProgressBar, Screen } from '@/components/ui'
 import { ResultDraft } from '@/features/diagnosis/ResultDraft'
 import { STEPS, progressOf, stepStates } from '@/features/diagnosis/steps'
+import { useAfter, useCountdown } from '@/features/diagnosis/timers'
 import { useDiagnosis } from '@/services'
 import { colors, sizes, spacing } from '@/theme/tokens'
+
+// After this long without an answer the screen says that the network is slow.
+const SLOW_AFTER_MS = 15_000
 
 // Screen 09: the photo is compressed once, then sent with one Idempotency-Key; every resend (the
 // automatic one and the "Retry" button) sends that key and that file again.
@@ -26,6 +30,10 @@ export default function AnalysisScreen() {
   useEffect(() => {
     if (phase === 'idle') void analyze()
   }, [phase, analyze])
+
+  // "Slow network" after a while in flight; the "Retry" button waits as long as the server asks
+  const slow = useAfter(phase === 'sending', SLOW_AFTER_MS)
+  const wait = useCountdown(failure?.retryAfterSeconds, failure)
 
   if (photo === null) return <Redirect href="/diagnosis" />
 
@@ -56,15 +64,29 @@ export default function AnalysisScreen() {
               </View>
             ))}
           </View>
+          {slow ? (
+            <AppText variant="small" color={colors.textMuted}>
+              {t('diagnosis.analysis.slow')}
+            </AppText>
+          ) : null}
         </View>
       ) : null}
 
       {phase === 'failed' && failure ? (
         <View style={styles.block}>
           <AppText color={colors.danger}>{t(failure.messageKey)}</AppText>
+          {failure.action === 'retry' && wait > 0 ? (
+            <AppText variant="small" color={colors.textMuted}>
+              {t('diagnosis.analysis.retryIn', { seconds: wait })}
+            </AppText>
+          ) : null}
           <View style={styles.actions}>
             {failure.action === 'retry' ? (
-              <Button label={t('diagnosis.analysis.retry')} onPress={() => void retry()} />
+              <Button
+                label={t('diagnosis.analysis.retry')}
+                disabled={wait > 0}
+                onPress={() => void retry()}
+              />
             ) : null}
             <Button
               label={t('diagnosis.analysis.newPhoto')}
