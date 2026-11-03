@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "AgroAdvisor ауру жапырақты диагностика үшін суретке түсіру мақсатында камераны пайдаланады.",
+    "NSPhotoLibraryUsageDescription": "AgroAdvisor диагностика үшін жапырақтың суретін таңдауыңыз үшін галереяны ашады."
+  }
+}

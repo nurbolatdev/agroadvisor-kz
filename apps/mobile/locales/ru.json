@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "AgroAdvisor использует камеру, чтобы сфотографировать больной лист для диагностики.",
+    "NSPhotoLibraryUsageDescription": "AgroAdvisor открывает галерею, чтобы вы выбрали фото листа для диагностики."
+  }
+}

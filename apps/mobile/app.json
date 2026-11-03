@@ -7,9 +7,18 @@
     "icon": "./assets/images/icon.png",
     "scheme": "agroadvisor",
     "userInterfaceStyle": "light",
+    "locales": {
+      "ru": "./locales/ru.json",
+      "kk": "./locales/kk.json",
+      "en": "./locales/en.json"
+    },
     "ios": {
       "bundleIdentifier": "kz.agroadvisor.mobile",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
+        "CFBundleLocalizations": ["ru", "kk", "en"]
+      }
     },
     "android": {
       "package": "kz.agroadvisor.mobile",
