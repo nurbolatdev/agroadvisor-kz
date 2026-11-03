@@ -7,11 +7,16 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import io.swagger.v3.oas.annotations.media.Schema;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import kz.agroadvisor.catalog.model.Disease;
 import kz.agroadvisor.catalog.repository.DiseaseRepository;
 import kz.agroadvisor.common.web.ApiException;
+import kz.agroadvisor.common.web.ErrorCodes;
 import kz.agroadvisor.diagnosis.model.ClassScore;
 import kz.agroadvisor.diagnosis.model.Diagnosis;
 import kz.agroadvisor.diagnosis.repository.DiagnosisRepository;
@@ -36,17 +42,22 @@ public class DiagnosisService {
     private static final byte[] JPEG_SIGNATURE = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF};
     private static final byte[] PNG_SIGNATURE = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
 
+    /** A UUID fits; the mobile app sends one per attempt group. */
+    private static final Pattern IDEMPOTENCY_KEY = Pattern.compile("[A-Za-z0-9_.:-]{8,80}");
+
     private final AiClient ai;
     private final PhotoStorage photos;
     private final DiagnosisRepository diagnoses;
     private final DiseaseRepository diseases;
+    private final MeterRegistry meters;
 
     public DiagnosisService(AiClient ai, PhotoStorage photos, DiagnosisRepository diagnoses,
-            DiseaseRepository diseases) {
+            DiseaseRepository diseases, MeterRegistry meters) {
         this.ai = ai;
         this.photos = photos;
         this.diagnoses = diagnoses;
         this.diseases = diseases;
+        this.meters = meters;
     }
 
     /**
@@ -69,7 +80,24 @@ public class DiagnosisService {
             @Schema(requiredMode = REQUIRED) Instant createdAt) {
     }
 
+    /** {@code replayed} is true when the diagnosis already existed for the request's Idempotency-Key. */
+    public record Created(DiagnosisView view, boolean replayed) {
+    }
+
     public DiagnosisView create(UUID userId, String crop, byte[] photo) {
+        return create(userId, crop, photo, null).view();
+    }
+
+    /**
+     * With an {@code idempotencyKey} a repeated request returns the diagnosis made the first time: the
+     * photo is not stored again and the model is not called. If two requests with the same key race,
+     * the unique index lets one of them win and the other returns its row.
+     */
+    public Created create(UUID userId, String crop, byte[] photo, String idempotencyKey) {
+        if (idempotencyKey != null && !IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IDEMPOTENCY_KEY,
+                    "Idempotency-Key must be 8-80 characters: letters, digits, '-', '_', '.', ':'");
+        }
         if (!ai.crops().contains(crop)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.UNKNOWN_CROP, "Unsupported crop: " + crop);
         }
@@ -78,21 +106,67 @@ public class DiagnosisService {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IMAGE,
                     "Send a JPEG or PNG photo of up to 10 MB");
         }
+        if (idempotencyKey != null) {
+            Optional<Diagnosis> existing = diagnoses.findByUserIdAndIdempotencyKey(userId, idempotencyKey);
+            if (existing.isPresent()) {
+                return replay(existing.get(), crop);
+            }
+        }
         String photoKey = photos.store(userId, photo, contentType);
         Diagnosis saved;
         try {
-            Prediction prediction = ai.predict(crop, photo);
+            Prediction prediction = predict(crop, photo);
             saved = diagnoses.save(new Diagnosis(userId, crop, photoKey, prediction.status(),
                     prediction.top1().code(),
                     BigDecimal.valueOf(prediction.top1().confidence()).setScale(4, RoundingMode.HALF_UP),
                     prediction.top3(), prediction.detectedCrop(), prediction.modelVersion(),
-                    prediction.classesVersion(), prediction.inferenceMs()));
+                    prediction.classesVersion(), prediction.inferenceMs(), idempotencyKey));
+        } catch (DataIntegrityViolationException e) {
+            discard(photoKey, e);
+            // Lost the race on (user_id, idempotency_key): the other request's row is the answer
+            Optional<Diagnosis> winner = idempotencyKey == null ? Optional.empty()
+                    : diagnoses.findByUserIdAndIdempotencyKey(userId, idempotencyKey);
+            if (winner.isEmpty()) {
+                throw e;
+            }
+            return replay(winner.get(), crop);
         } catch (RuntimeException e) {
             discard(photoKey, e);
             throw e;
         }
         // Outside the try: the row is committed, so a failure here must not delete the photo it points to
-        return views(List.of(saved)).get(0);
+        return new Created(views(List.of(saved)).get(0), false);
+    }
+
+    private Created replay(Diagnosis existing, String crop) {
+        if (!existing.getCropCode().equals(crop)) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, DiagnosisErrors.IDEMPOTENCY_KEY_REUSED,
+                    "This Idempotency-Key was used for a diagnosis of another crop");
+        }
+        meters.counter("agroadvisor.diagnosis.replays").increment();
+        return new Created(views(List.of(existing)).get(0), true);
+    }
+
+    /**
+     * The model call, timed: {@code agroadvisor.ai.predict} with {@code outcome} (ok or error) and
+     * {@code code} (the status of the answer, or the error code the farmer gets). Tags stay few: the
+     * statuses and error codes are fixed sets.
+     */
+    private Prediction predict(String crop, byte[] photo) {
+        Timer.Sample sample = Timer.start(meters);
+        String outcome = "error";
+        String code = ErrorCodes.INTERNAL_ERROR;
+        try {
+            Prediction prediction = ai.predict(crop, photo);
+            outcome = "ok";
+            code = prediction.status();
+            return prediction;
+        } catch (ApiException e) {
+            code = e.getCode();
+            throw e;
+        } finally {
+            sample.stop(meters.timer("agroadvisor.ai.predict", "outcome", outcome, "code", code));
+        }
     }
 
     /** A photo without a diagnosis row is garbage; a failed cleanup must not hide the original error. */

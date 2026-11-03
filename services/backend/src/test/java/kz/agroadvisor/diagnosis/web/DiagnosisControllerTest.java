@@ -35,10 +35,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -153,6 +156,72 @@ class DiagnosisControllerTest {
     void rejectsARequestWithoutAPhoto() throws Exception {
         mvc.perform(multipart("/api/diagnoses").param("crop", "tomato").header("Authorization", token))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void aRepeatedIdempotencyKeyReturnsTheSameDiagnosisAndStoresOnePhoto() throws Exception {
+        String key = UUID.randomUUID().toString();
+        String first = mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                        .header("Authorization", token).header("Idempotency-Key", key))
+                .andExpect(status().isCreated())
+                .andExpect(header().doesNotExist("Idempotent-Replayed"))
+                .andReturn().getResponse().getContentAsString();
+
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                        .header("Authorization", token).header("Idempotency-Key", key))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Idempotent-Replayed", "true"))
+                .andExpect(content().json(first));
+
+        assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10))).hasSize(1);
+        verify(photos, times(1)).store(eq(farmer.getId()), any(byte[].class), anyString());
+    }
+
+    @Test
+    void theSameKeyOfAnotherUserIsAnotherDiagnosis() throws Exception {
+        String key = UUID.randomUUID().toString();
+        User other = newUser();
+        String otherToken = "Bearer " + jwt.issueAccessToken(other.getId());
+
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                .header("Authorization", token).header("Idempotency-Key", key)).andExpect(status().isCreated());
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                        .header("Authorization", otherToken).header("Idempotency-Key", key))
+                .andExpect(status().isCreated())
+                .andExpect(header().doesNotExist("Idempotent-Replayed"));
+
+        assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(other.getId(), PageRequest.of(0, 10))).hasSize(1);
+    }
+
+    @Test
+    void theKeyIsOptional() throws Exception {
+        for (int i = 0; i < 2; i++) {
+            mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                    .header("Authorization", token)).andExpect(status().isCreated());
+        }
+
+        assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10))).hasSize(2);
+    }
+
+    @Test
+    void aKeyUsedForAnotherCropIsRefused() throws Exception {
+        String key = UUID.randomUUID().toString();
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                .header("Authorization", token).header("Idempotency-Key", key)).andExpect(status().isCreated());
+
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "potato")
+                        .header("Authorization", token).header("Idempotency-Key", key))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.code").value("idempotency_key_reused"));
+    }
+
+    @Test
+    void aMalformedKeyIsABadRequest() throws Exception {
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                        .header("Authorization", token).header("Idempotency-Key", "bad key"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("invalid_idempotency_key"));
+        verify(photos, never()).store(any(UUID.class), any(byte[].class), anyString());
     }
 
     @Test

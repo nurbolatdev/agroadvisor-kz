@@ -3,11 +3,14 @@ package kz.agroadvisor.diagnosis.service;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 
@@ -40,7 +43,8 @@ class DiagnosisServiceTest {
     private final PhotoStorage photos = mock(PhotoStorage.class);
     private final DiagnosisRepository diagnoses = mock(DiagnosisRepository.class);
     private final DiseaseRepository diseases = mock(DiseaseRepository.class);
-    private final DiagnosisService service = new DiagnosisService(ai, photos, diagnoses, diseases);
+    private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    private final DiagnosisService service = new DiagnosisService(ai, photos, diagnoses, diseases, meters);
     private final UUID userId = UUID.randomUUID();
 
     @BeforeEach
@@ -185,6 +189,123 @@ class DiagnosisServiceTest {
 
         verify(photos).delete("diagnoses/key.jpg");
         verify(diagnoses, never()).save(any(Diagnosis.class)); // no row without a photo, no photo without a row
+    }
+
+    private Diagnosis storedWithKey(String key) {
+        return new Diagnosis(userId, "tomato", "k.jpg", "ok", "tomato__healthy", new BigDecimal("0.99"),
+                List.of(new ClassScore("tomato__healthy", 0.99)), null, "efficientnet-b0-v3", 3, 25, key);
+    }
+
+    @Test
+    void aRepeatedKeyReturnsTheFirstDiagnosisWithoutStoringAPhotoOrCallingTheModel() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678"))
+                .thenReturn(Optional.of(storedWithKey("key-12345678")));
+        when(diseases.findAllById(any())).thenReturn(List.of());
+
+        DiagnosisService.Created created = service.create(userId, "tomato", JPEG, "key-12345678");
+
+        assertThat(created.replayed()).isTrue();
+        assertThat(created.view().top1().code()).isEqualTo("tomato__healthy");
+        verify(photos, never()).store(any(), any(), anyString());
+        verify(ai, never()).predict(anyString(), any());
+        verify(diagnoses, never()).save(any(Diagnosis.class));
+        assertThat(meters.counter("agroadvisor.diagnosis.replays").count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void aFirstRequestWithAKeySavesItWithTheKey() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678")).thenReturn(Optional.empty());
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__late_blight", "efficientnet-b0-v3"));
+
+        DiagnosisService.Created created = service.create(userId, "tomato", JPEG, "key-12345678");
+
+        ArgumentCaptor<Diagnosis> saved = ArgumentCaptor.forClass(Diagnosis.class);
+        verify(diagnoses).save(saved.capture());
+        assertThat(saved.getValue().getIdempotencyKey()).isEqualTo("key-12345678");
+        assertThat(created.replayed()).isFalse();
+    }
+
+    @Test
+    void withoutAKeyNothingIsLookedUp() {
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+
+        assertThat(service.create(userId, "tomato", JPEG, null).replayed()).isFalse();
+
+        verify(diagnoses, never()).findByUserIdAndIdempotencyKey(any(), anyString());
+    }
+
+    @Test
+    void whenTwoRequestsRaceTheLoserDropsItsPhotoAndReturnsTheWinnersRow() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678"))
+                .thenReturn(Optional.empty(), Optional.of(storedWithKey("key-12345678")));
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+        when(diagnoses.save(any(Diagnosis.class))).thenThrow(new DataIntegrityViolationException("unique"));
+        when(diseases.findAllById(any())).thenReturn(List.of());
+
+        DiagnosisService.Created created = service.create(userId, "tomato", JPEG, "key-12345678");
+
+        assertThat(created.replayed()).isTrue();
+        verify(photos).delete("diagnoses/key.jpg");
+    }
+
+    @Test
+    void aConstraintViolationWithoutAKeyIsNotHidden() {
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+        when(diagnoses.save(any(Diagnosis.class))).thenThrow(new DataIntegrityViolationException("other"));
+
+        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG, null))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        verify(photos).delete("diagnoses/key.jpg");
+    }
+
+    @Test
+    void aKeyUsedForAnotherCropIsRejected() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678"))
+                .thenReturn(Optional.of(storedWithKey("key-12345678")));
+
+        assertThatThrownBy(() -> service.create(userId, "potato", JPEG, "key-12345678"))
+                .isInstanceOfSatisfying(ApiException.class, e -> {
+                    assertThat(e.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
+                    assertThat(e.getCode()).isEqualTo("idempotency_key_reused");
+                });
+        verify(ai, never()).predict(anyString(), any());
+    }
+
+    @Test
+    void rejectsAMalformedKeyBeforeTouchingAnything() {
+        for (String bad : List.of("short", "has space in it", "x".repeat(81), "кириллица-ключ-1")) {
+            assertThatThrownBy(() -> service.create(userId, "tomato", JPEG, bad))
+                    .isInstanceOfSatisfying(ApiException.class, e -> {
+                        assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                        assertThat(e.getCode()).isEqualTo("invalid_idempotency_key");
+                    });
+        }
+        verify(photos, never()).store(any(), any(), anyString());
+    }
+
+    @Test
+    void timesTheModelCallByOutcomeAndStatus() {
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+
+        service.create(userId, "tomato", JPEG);
+
+        assertThat(meters.get("agroadvisor.ai.predict").tag("outcome", "ok").tag("code", "ok").timer().count())
+                .isEqualTo(1);
+    }
+
+    @Test
+    void countsModelFailuresByTheErrorCodeTheFarmerGets() {
+        when(ai.predict("tomato", JPEG)).thenThrow(
+                new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ai_unavailable", "AI is down"),
+                new IllegalStateException("boom"));
+
+        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG)).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG)).isInstanceOf(IllegalStateException.class);
+
+        assertThat(meters.get("agroadvisor.ai.predict").tag("outcome", "error").tag("code", "ai_unavailable")
+                .timer().count()).isEqualTo(1);
+        assertThat(meters.get("agroadvisor.ai.predict").tag("outcome", "error").tag("code", "internal_error")
+                .timer().count()).isEqualTo(1);
     }
 
     @Test
