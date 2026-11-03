@@ -446,6 +446,117 @@ describe('diagnosis flow', () => {
       expect(useDiagnosis.getState().queued.map((e) => e.pending.key)).toEqual(['key-00000001'])
     })
 
+    describe('an answer that arrives after the farmer signed out', () => {
+      function inFlight() {
+        const releases: ((outcome: DiagnosisResult | Error) => void)[] = []
+        const memory = memoryQueue()
+        const useDiagnosis = createDiagnosisStore({
+          api: {
+            create: () =>
+              new Promise<DiagnosisResult>((resolve, reject) =>
+                releases.push((outcome) =>
+                  outcome instanceof Error ? reject(outcome) : resolve(outcome),
+                ),
+              ),
+          },
+          prepare: async () => ({ uri: 'file:///p.jpg' }),
+          queue: memory.queue,
+          newKey: () => 'key-00000001',
+          now: () => 1_700_000_000_000,
+        })
+        useDiagnosis.getState().selectCrop('tomato')
+        useDiagnosis.getState().setPhoto(PHOTO)
+        return { useDiagnosis, releases }
+      }
+
+      it('does not reach the results or the banner of the next user', async () => {
+        const { useDiagnosis, releases } = inFlight()
+        const running = useDiagnosis.getState().analyze()
+        await new Promise((resolve) => setImmediate(resolve))
+
+        useDiagnosis.getState().clearAnswers() // A signs out while the request is on its way
+        releases[0](result())
+        await running
+
+        expect(useDiagnosis.getState().results).toEqual({})
+        expect(useDiagnosis.getState().unseenResultIds).toEqual([])
+      })
+
+      it('does not leave a refusal note for the next user either', async () => {
+        let calls = 0
+        let refuse: (error: Error) => void = () => undefined
+        const memory = memoryQueue()
+        const useDiagnosis = createDiagnosisStore({
+          api: {
+            create: () => {
+              calls += 1
+              // the first send (with its one automatic retry) fails offline; the next one is held
+              if (calls <= 2) return Promise.reject(new NetworkError())
+              return new Promise<DiagnosisResult>((_resolve, reject) => (refuse = reject))
+            },
+          },
+          prepare: async () => ({ uri: 'file:///p.jpg' }),
+          queue: memory.queue,
+          newKey: () => 'key-00000001',
+          now: () => 1_700_000_000_000,
+        })
+        useDiagnosis.getState().selectCrop('tomato')
+        useDiagnosis.getState().setPhoto(PHOTO)
+        await useDiagnosis.getState().analyze()
+        expect(useDiagnosis.getState().queued).toHaveLength(1)
+
+        // "Retry" on the queue screen, then the farmer signs out while it is on its way
+        const resent = useDiagnosis.getState().resend('key-00000001')
+        await new Promise((resolve) => setImmediate(resolve))
+        useDiagnosis.getState().clearAnswers()
+        refuse(new ApiError(422, 'low_quality', 'blurry', [], 'blurry'))
+        await resent
+
+        expect(useDiagnosis.getState().rejected).toEqual([])
+      })
+
+      it('the same refusal does leave a note when nobody signed out', async () => {
+        let calls = 0
+        let refuse: (error: Error) => void = () => undefined
+        const memory = memoryQueue()
+        const useDiagnosis = createDiagnosisStore({
+          api: {
+            create: () => {
+              calls += 1
+              if (calls <= 2) return Promise.reject(new NetworkError())
+              return new Promise<DiagnosisResult>((_resolve, reject) => (refuse = reject))
+            },
+          },
+          prepare: async () => ({ uri: 'file:///p.jpg' }),
+          queue: memory.queue,
+          newKey: () => 'key-00000001',
+          now: () => 1_700_000_000_000,
+        })
+        useDiagnosis.getState().selectCrop('tomato')
+        useDiagnosis.getState().setPhoto(PHOTO)
+        await useDiagnosis.getState().analyze()
+
+        const resent = useDiagnosis.getState().resend('key-00000001')
+        await new Promise((resolve) => setImmediate(resolve))
+        refuse(new ApiError(422, 'low_quality', 'blurry', [], 'blurry'))
+        await resent
+
+        expect(useDiagnosis.getState().rejected.map((r) => r.key)).toEqual(['key-00000001'])
+      })
+
+      it('an answer of the same session still arrives as before', async () => {
+        const { useDiagnosis, releases } = inFlight()
+        const running = useDiagnosis.getState().analyze()
+        await new Promise((resolve) => setImmediate(resolve))
+
+        releases[0](result())
+        await running
+
+        expect(Object.keys(useDiagnosis.getState().results)).toEqual(['d1'])
+        expect(useDiagnosis.getState().unseenResultIds).toEqual(['d1'])
+      })
+    })
+
     it('discard works for an entry whose photo is already gone', async () => {
       const { useDiagnosis, queue, files } = setup([new NetworkError(), new NetworkError()])
       await start(useDiagnosis)

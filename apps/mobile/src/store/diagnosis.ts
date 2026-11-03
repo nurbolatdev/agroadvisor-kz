@@ -95,6 +95,9 @@ export function createDiagnosisStore(deps: Deps) {
   const { api, prepare, queue, autoRetries = 1, now, newKey } = deps
   // Bumped when the flow is cancelled or started over, so an answer that arrives late is dropped.
   let flow = 0
+  // Bumped when the answers are cleared (sign-out). A request that started before and is answered later
+  // belongs to the previous user: its answer must not appear in the next user's session.
+  let answersEpoch = 0
   // Keys that are being sent right now: a second tap on "Retry" must not start a second request.
   const inFlight = new Set<string>()
 
@@ -106,6 +109,7 @@ export function createDiagnosisStore(deps: Deps) {
     async function send(pending: PendingDiagnosis, startedIn: number, fromQueue = false) {
       if (inFlight.has(pending.key)) return
       inFlight.add(pending.key)
+      const epoch = answersEpoch
       set((s) => ({ sendingKeys: [...s.sendingKeys, pending.key] }))
       try {
         set({ phase: 'sending', failure: null })
@@ -118,10 +122,12 @@ export function createDiagnosisStore(deps: Deps) {
             // the photo stays for the result screen
             const photoPath = queue.release(pending.key)
             refreshQueued()
-            set((s) => ({
-              results: { ...s.results, [result.id]: { ...result, photoPath } },
-              unseenResultIds: [...s.unseenResultIds.filter((id) => id !== result.id), result.id],
-            }))
+            if (epoch === answersEpoch) {
+              set((s) => ({
+                results: { ...s.results, [result.id]: { ...result, photoPath } },
+                unseenResultIds: [...s.unseenResultIds.filter((id) => id !== result.id), result.id],
+              }))
+            }
             if (startedIn === flow) set({ phase: 'done', result, failure: null })
             return
           } catch (error) {
@@ -132,7 +138,7 @@ export function createDiagnosisStore(deps: Deps) {
             if (failure.action === 'newPhoto') {
               queue.remove(pending.key)
               refreshQueued()
-              if (fromQueue) {
+              if (fromQueue && epoch === answersEpoch) {
                 const note: RejectedEntry = {
                   key: pending.key,
                   crop: pending.crop,
@@ -270,6 +276,7 @@ export function createDiagnosisStore(deps: Deps) {
       },
       clearAnswers: () => {
         flow += 1
+        answersEpoch += 1
         set({ crop: null, ...INITIAL, results: {}, unseenResultIds: [], rejected: [] })
         // no answer is known any more, so the photos kept for them are not needed
         queue.sweep()
