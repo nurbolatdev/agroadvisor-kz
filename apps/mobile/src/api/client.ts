@@ -31,6 +31,12 @@ type ProblemBody = {
 
 const DEFAULT_TIMEOUT_MS = 15_000
 
+// Retry-After is a number of seconds or a date; only the number is used.
+function parseRetryAfter(value: string | null): number | undefined {
+  if (value === null || !/^\d+$/.test(value.trim())) return undefined
+  return Number(value.trim())
+}
+
 async function toApiError(response: Response): Promise<ApiError> {
   let body: ProblemBody = {}
   try {
@@ -48,6 +54,7 @@ async function toApiError(response: Response): Promise<ApiError> {
     body.detail ?? response.statusText,
     fieldErrors,
     body.reason,
+    parseRetryAfter(response.headers.get('Retry-After')),
   )
 }
 

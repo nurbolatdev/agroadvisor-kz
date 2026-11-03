@@ -108,6 +108,27 @@ describe('api client', () => {
     expect(error).toMatchObject({ status: 422, code: 'low_quality', reason: 'blurry' })
   })
 
+  it('keeps Retry-After in seconds and ignores a date', async () => {
+    const withHeader = (value: string) =>
+      new Response(JSON.stringify({ code: 'rate_limited' }), {
+        status: 429,
+        headers: { 'Retry-After': value },
+      })
+    const { client } = setup([
+      withHeader('30'),
+      withHeader('Wed, 21 Oct 2026 07:28:00 GMT'),
+      json(429, {}),
+    ])
+
+    const seconds = await client.request('/api/x').catch((e: unknown) => e)
+    const date = await client.request('/api/x').catch((e: unknown) => e)
+    const none = await client.request('/api/x').catch((e: unknown) => e)
+
+    expect((seconds as ApiError).retryAfterSeconds).toBe(30)
+    expect((date as ApiError).retryAfterSeconds).toBeUndefined()
+    expect((none as ApiError).retryAfterSeconds).toBeUndefined()
+  })
+
   it('returns undefined for 204', async () => {
     const { client } = setup([json(204)])
     await expect(client.request('/api/auth/logout', { method: 'POST' })).resolves.toBeUndefined()

@@ -168,12 +168,12 @@ describe('diagnosis flow', () => {
 
   it('stops with a message and sends nothing when the photo cannot be prepared', async () => {
     const { useDiagnosis, sent, prepare } = setup([result()])
-    prepare.mockRejectedValueOnce(new PhotoError('metadata'))
+    prepare.mockRejectedValueOnce(new PhotoError('too_large'))
 
     await start(useDiagnosis)
 
     expect(useDiagnosis.getState().phase).toBe('failed')
-    expect(useDiagnosis.getState().failure?.messageKey).toBe('diagnosis.errors.photoMetadata')
+    expect(useDiagnosis.getState().failure?.messageKey).toBe('diagnosis.errors.photoTooLarge')
     expect(useDiagnosis.getState().pending).toBeNull()
     expect(sent).toHaveLength(0)
   })

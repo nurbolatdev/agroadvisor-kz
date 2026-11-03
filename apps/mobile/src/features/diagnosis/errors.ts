@@ -17,67 +17,83 @@ export type DiagnosisErrorKey =
   | 'diagnosis.errors.keyReused'
   | 'diagnosis.errors.photoUnreadable'
   | 'diagnosis.errors.photoTooLarge'
-  | 'diagnosis.errors.photoMetadata'
   | 'diagnosis.errors.generic'
 
 export type DiagnosisFailure = {
   messageKey: DiagnosisErrorKey
-  // retry: the same request again, with the same key and the same file (the cause may pass);
-  // newPhoto: this photo will not work, the farmer has to take or pick another one.
+  // retry: the same request again, with the same key and the same file (the cause is temporary);
+  // newPhoto: sending it again would fail the same way, the farmer has to take or pick another photo.
   action: 'retry' | 'newPhoto'
+  // when the server says how long to wait (Retry-After), in seconds
+  retryAfterSeconds?: number
 }
 
-const retry = (messageKey: DiagnosisErrorKey): DiagnosisFailure => ({ messageKey, action: 'retry' })
-const newPhoto = (messageKey: DiagnosisErrorKey): DiagnosisFailure => ({
-  messageKey,
-  action: 'newPhoto',
-})
-
-// Maps what went wrong to a message the farmer can act on. Statuses such as unknown, crop_mismatch and
-// low_confidence are answers (HTTP 201 with a status in the body), not errors, and never get here.
-export function toDiagnosisFailure(error: unknown): DiagnosisFailure {
-  if (error instanceof PhotoError) {
-    switch (error.code) {
-      case 'too_large':
-        return newPhoto('diagnosis.errors.photoTooLarge')
-      case 'metadata':
-        return newPhoto('diagnosis.errors.photoMetadata')
-      default:
-        return newPhoto('diagnosis.errors.photoUnreadable')
-    }
+// The one rule for resending: only a temporary error is worth another try of the very same request.
+// Temporary: no answer at all (offline, timeout), 408, 429 and 5xx (the AI service or the storage is
+// down or busy: 502, 503, 504, also 500). Every other 4xx - an image the server refused, a payload
+// that is too large, an unsupported type, a refused key, 401, 403, 422 - would be refused again.
+export function isTemporary(error: unknown): boolean {
+  if (error instanceof NetworkError) return true
+  if (error instanceof ApiError) {
+    return error.status === 408 || error.status === 429 || error.status >= 500
   }
-  if (error instanceof NetworkError) return retry('diagnosis.errors.network')
+  return false
+}
+
+// What the farmer is told. The code says it best; a status stands in for a code the app does not know
+// (a proxy in front of the backend may answer 413 or 415 without our body).
+function messageFor(error: unknown): DiagnosisErrorKey {
+  if (error instanceof PhotoError) {
+    return error.code === 'too_large'
+      ? 'diagnosis.errors.photoTooLarge'
+      : 'diagnosis.errors.photoUnreadable'
+  }
+  if (error instanceof NetworkError) return 'diagnosis.errors.network'
   if (error instanceof ApiError) {
     switch (error.code) {
       case 'low_quality':
         switch (error.reason) {
           case 'blurry':
-            return newPhoto('diagnosis.errors.blurry')
+            return 'diagnosis.errors.blurry'
           case 'dark':
-            return newPhoto('diagnosis.errors.dark')
+            return 'diagnosis.errors.dark'
           case 'too_small':
-            return newPhoto('diagnosis.errors.tooSmall')
+            return 'diagnosis.errors.tooSmall'
           default:
-            return newPhoto('diagnosis.errors.lowQuality')
+            return 'diagnosis.errors.lowQuality'
         }
       case 'invalid_image':
-        return newPhoto('diagnosis.errors.invalidImage')
+        return 'diagnosis.errors.invalidImage'
       case 'unknown_crop':
-        return newPhoto('diagnosis.errors.unknownCrop')
+        return 'diagnosis.errors.unknownCrop'
       case 'idempotency_key_reused':
       case 'invalid_idempotency_key':
-        // should not happen: the key and the file are created together; sending the same request again
-        // would fail the same way, so start over with a new photo (and a new key)
-        return newPhoto('diagnosis.errors.keyReused')
+        return 'diagnosis.errors.keyReused'
       case 'ai_unavailable':
-        return retry('diagnosis.errors.aiUnavailable')
+        return 'diagnosis.errors.aiUnavailable'
       case 'ai_error':
-        return retry('diagnosis.errors.aiError')
+        return 'diagnosis.errors.aiError'
       case 'storage_unavailable':
-        return retry('diagnosis.errors.storage')
+        return 'diagnosis.errors.storage'
       case 'rate_limited':
-        return retry('diagnosis.errors.rateLimited')
+        return 'diagnosis.errors.rateLimited'
     }
+    if (error.status === 413) return 'diagnosis.errors.photoTooLarge'
+    if (error.status === 415) return 'diagnosis.errors.invalidImage'
   }
-  return retry('diagnosis.errors.generic')
+  return 'diagnosis.errors.generic'
+}
+
+// Maps what went wrong to a message and to what the farmer can do next. Statuses such as unknown,
+// crop_mismatch and low_confidence are answers (HTTP 201 with a status in the body), not errors, and
+// never get here.
+export function toDiagnosisFailure(error: unknown): DiagnosisFailure {
+  const failure: DiagnosisFailure = {
+    messageKey: messageFor(error),
+    action: isTemporary(error) ? 'retry' : 'newPhoto',
+  }
+  if (error instanceof ApiError && error.retryAfterSeconds !== undefined) {
+    failure.retryAfterSeconds = error.retryAfterSeconds
+  }
+  return failure
 }
