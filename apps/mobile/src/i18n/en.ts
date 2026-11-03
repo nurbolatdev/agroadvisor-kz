@@ -65,7 +65,6 @@ export const en: Translation = {
         'The camera is needed to photograph a sick leaf. You can also pick a photo from the gallery',
       allow: 'Allow',
       openSettings: 'Open settings',
-      galleryDenied: 'No access to the gallery. Allow it in the settings',
     },
     analysis: {
       title: 'Analysis',

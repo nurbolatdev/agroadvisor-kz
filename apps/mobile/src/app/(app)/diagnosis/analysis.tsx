@@ -82,16 +82,17 @@ export default function AnalysisScreen() {
             <Button
               label={t('diagnosis.result.again')}
               onPress={() => {
-                reset()
+                // leave first: after the reset there is no photo, and this screen would redirect itself
                 router.replace('/diagnosis')
+                reset()
               }}
             />
             <Button
               label={t('diagnosis.result.home')}
               variant="secondary"
               onPress={() => {
-                reset()
                 router.dismissTo('/home')
+                reset()
               }}
             />
           </View>

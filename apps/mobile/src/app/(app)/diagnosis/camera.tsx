@@ -61,7 +61,8 @@ export default function CameraScreen() {
         analyze({ uri: asset.uri, width: asset.width, height: asset.height })
       }
     } catch {
-      setMessage(t('diagnosis.camera.galleryDenied'))
+      // the gallery needs no permission on iOS 14+ and Android 13+, so a failure is not "denied"
+      setMessage(t('diagnosis.errors.generic'))
     } finally {
       setBusy(false)
     }
