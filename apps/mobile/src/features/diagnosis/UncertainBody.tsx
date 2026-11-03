@@ -43,7 +43,11 @@ export function UncertainBody({
 
   const actions = resultActions(screen, { hasPhoto: photoPath !== null, features: FEATURE_FLAGS })
 
+  const phase = useDiagnosis((s) => s.phase)
+
   const analyzeAs = (crop: Crop) => {
+    // another diagnosis is being prepared or sent: opening its analysis screen would show it as this one
+    if (phase === 'preparing' || phase === 'sending') return
     void reanalyze(view.id, crop)
     router.replace('/diagnosis/analysis')
   }

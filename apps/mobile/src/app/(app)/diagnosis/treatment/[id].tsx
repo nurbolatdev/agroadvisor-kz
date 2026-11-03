@@ -97,8 +97,8 @@ function Plan({ code, placeholder }: { code: string; placeholder: boolean }) {
                   {plan[tab].length === 0 ? (
                     <EmptyState title={t('diagnosis.treatment.empty')} />
                   ) : (
-                    plan[tab].map((treatment) => (
-                      <TreatmentCard key={treatment.product} treatment={treatment} />
+                    plan[tab].map((treatment, index) => (
+                      <TreatmentCard key={`${treatment.product}-${index}`} treatment={treatment} />
                     ))
                   )}
                 </>

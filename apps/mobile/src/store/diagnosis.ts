@@ -110,7 +110,8 @@ export function createDiagnosisStore(deps: Deps) {
       try {
         set({ phase: 'sending', failure: null })
         for (let attempt = 0; ; attempt += 1) {
-          set((s) => ({ attempts: s.attempts + 1 }))
+          // a request that was left behind (the farmer went on) does not count for the current flow
+          if (startedIn === flow) set((s) => ({ attempts: s.attempts + 1 }))
           try {
             const result = await api.create(pending)
             // the server has the diagnosis, so the entry leaves the queue even if the screen moved on;
