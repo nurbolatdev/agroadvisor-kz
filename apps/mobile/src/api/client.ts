@@ -12,17 +12,30 @@ export type ApiClientOptions = {
 export type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: unknown
+  // multipart upload instead of a JSON body; the content type with its boundary is set by fetch
+  formData?: FormData
+  // extra request headers, for example Idempotency-Key
+  headers?: Record<string, string>
+  // overrides the client's timeout for slow calls such as a photo diagnosis
+  timeoutMs?: number
   // false for login, register and refresh: no token, no retry on 401
   auth?: boolean
 }
 
 type ProblemBody = {
   code?: string
+  reason?: string
   detail?: string
   errors?: { field?: string; message?: string }[]
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000
+
+// Retry-After is a number of seconds or a date; only the number is used.
+function parseRetryAfter(value: string | null): number | undefined {
+  if (value === null || !/^\d+$/.test(value.trim())) return undefined
+  return Number(value.trim())
+}
 
 async function toApiError(response: Response): Promise<ApiError> {
   let body: ProblemBody = {}
@@ -40,6 +53,8 @@ async function toApiError(response: Response): Promise<ApiError> {
     body.code ?? 'unknown',
     body.detail ?? response.statusText,
     fieldErrors,
+    body.reason,
+    parseRetryAfter(response.headers.get('Retry-After')),
   )
 }
 
@@ -49,7 +64,7 @@ export function createApiClient(options: ApiClientOptions) {
 
   async function send(path: string, opts: RequestOptions, token: string | null) {
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? timeoutMs)
     try {
       return await fetchFn(`${options.baseUrl}${path}`, {
         method: opts.method ?? 'GET',
@@ -57,8 +72,9 @@ export function createApiClient(options: ApiClientOptions) {
           Accept: 'application/json',
           ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...opts.headers,
         },
-        body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+        body: opts.formData ?? (opts.body !== undefined ? JSON.stringify(opts.body) : undefined),
         signal: controller.signal,
       })
     } catch {

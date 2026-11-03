@@ -7,9 +7,18 @@
     "icon": "./assets/images/icon.png",
     "scheme": "agroadvisor",
     "userInterfaceStyle": "light",
+    "locales": {
+      "ru": "./locales/ru.json",
+      "kk": "./locales/kk.json",
+      "en": "./locales/en.json"
+    },
     "ios": {
       "bundleIdentifier": "kz.agroadvisor.mobile",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
+        "CFBundleLocalizations": ["ru", "kk", "en"]
+      }
     },
     "android": {
       "package": "kz.agroadvisor.mobile",
@@ -32,7 +41,22 @@
       ],
       "expo-localization",
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "AgroAdvisor использует камеру, чтобы сфотографировать больной лист для диагностики.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "AgroAdvisor открывает галерею, чтобы вы выбрали фото листа для диагностики.",
+          "microphonePermission": false
+        }
+      ]
     ]
   }
 }

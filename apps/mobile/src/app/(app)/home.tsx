@@ -1,16 +1,19 @@
+import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { StyleSheet, View } from 'react-native'
 
 import { AppText, Button, Chip, Screen } from '@/components/ui'
 import { LANGUAGES } from '@/i18n'
-import { useSession } from '@/services'
+import { useDiagnosis, useSession } from '@/services'
 import { useSettings } from '@/store/settings'
 import { colors, spacing } from '@/theme/tokens'
 
 // Placeholder for the home screen of signed-in users; the tabs come with M5-M8.
 export default function HomeScreen() {
   const { t } = useTranslation()
+  const router = useRouter()
   const logout = useSession((s) => s.logout)
+  const resetDiagnosis = useDiagnosis((s) => s.reset)
   const language = useSettings((s) => s.language)
   const setLanguage = useSettings((s) => s.setLanguage)
 
@@ -22,6 +25,16 @@ export default function HomeScreen() {
       <AppText color={colors.textMuted} style={styles.gap}>
         {t('app.tagline')}
       </AppText>
+
+      <View style={styles.section}>
+        <Button
+          label={t('home.diagnose')}
+          onPress={() => {
+            resetDiagnosis()
+            router.push('/diagnosis')
+          }}
+        />
+      </View>
 
       <AppText variant="caption" color={colors.textMuted} style={styles.section}>
         {t('language.title')}

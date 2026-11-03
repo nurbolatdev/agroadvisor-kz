@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "AgroAdvisor uses the camera to photograph a sick leaf for diagnosis.",
+    "NSPhotoLibraryUsageDescription": "AgroAdvisor opens the gallery so you can choose a photo of a leaf for diagnosis."
+  }
+}
