@@ -306,6 +306,30 @@ class DiagnosisControllerTest {
     }
 
     @Test
+    void aRepeatWithTheSameKeyStillWorksWhenTheLimitIsUsedUp() throws Exception {
+        String key = UUID.randomUUID().toString();
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                .header("Authorization", token).header("Idempotency-Key", key)).andExpect(status().isCreated());
+        for (int i = 0; i < 4; i++) {
+            mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                    .header("Authorization", token)).andExpect(status().isCreated());
+        }
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                        .header("Authorization", token))
+                .andExpect(status().isTooManyRequests());
+
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                        .header("Authorization", token).header("Idempotency-Key", key))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Idempotent-Replayed", "true"));
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                        .header("Authorization", token).header("Idempotency-Key", UUID.randomUUID().toString()))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("rate_limited"));
+        assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10))).hasSize(5);
+    }
+
+    @Test
     void theSixthPhotoWithinAMinuteIsRefused() throws Exception {
         for (int i = 0; i < 5; i++) {
             mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")

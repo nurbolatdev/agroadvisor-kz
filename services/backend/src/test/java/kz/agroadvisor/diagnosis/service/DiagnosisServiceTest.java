@@ -1,6 +1,7 @@
 package kz.agroadvisor.diagnosis.service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -10,12 +11,15 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 
 import kz.agroadvisor.catalog.model.Disease;
 import kz.agroadvisor.catalog.repository.DiseaseRepository;
+import kz.agroadvisor.common.ratelimit.RateLimitProperties;
+import kz.agroadvisor.common.ratelimit.RateLimiter;
 import kz.agroadvisor.common.web.ApiException;
 import kz.agroadvisor.diagnosis.model.ClassScore;
 import kz.agroadvisor.diagnosis.model.Diagnosis;
@@ -25,9 +29,11 @@ import kz.agroadvisor.diagnosis.service.DiagnosisService.DiagnosisView;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -44,7 +50,9 @@ class DiagnosisServiceTest {
     private final DiagnosisRepository diagnoses = mock(DiagnosisRepository.class);
     private final DiseaseRepository diseases = mock(DiseaseRepository.class);
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
-    private final DiagnosisService service = new DiagnosisService(ai, photos, diagnoses, diseases, meters);
+    private final RateLimiter limiter = mock(RateLimiter.class);
+    private final DiagnosisService service = new DiagnosisService(ai, photos, diagnoses, diseases, meters, limiter,
+            new RateLimitProperties(5));
     private final UUID userId = UUID.randomUUID();
 
     @BeforeEach
@@ -307,14 +315,39 @@ class DiagnosisServiceTest {
     }
 
     @Test
-    void aRowSavedWithoutAFingerprintIsReplayedWhateverThePhoto() {
-        Diagnosis old = new Diagnosis(userId, "tomato", "k.jpg", "ok", "tomato__healthy", new BigDecimal("0.99"),
-                List.of(new ClassScore("tomato__healthy", 0.99)), null, "efficientnet-b0-v3", 3, 25,
-                "key-12345678", null);
-        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678")).thenReturn(Optional.of(old));
+    void aReplaySpendsNoDiagnosisLimit() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678"))
+                .thenReturn(Optional.of(storedWithKey("key-12345678")));
         when(diseases.findAllById(any())).thenReturn(List.of());
 
-        assertThat(service.create(userId, "tomato", PNG, "key-12345678").replayed()).isTrue();
+        assertThat(service.create(userId, "tomato", JPEG, "key-12345678").replayed()).isTrue();
+
+        verify(limiter, never()).check(anyString(), anyString(), anyInt(), any(Duration.class));
+    }
+
+    @Test
+    void aNewDiagnosisSpendsOneTokenOfTheCallersLimit() {
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+
+        create("tomato", JPEG);
+
+        verify(limiter).check("diagnosis", userId.toString(), 5, Duration.ofMinutes(1));
+    }
+
+    @Test
+    void theLimitIsCheckedAfterTheKeyLookupAndBeforeAnythingIsStoredOrAsked() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678")).thenReturn(Optional.empty());
+        doThrow(new ApiException(HttpStatus.TOO_MANY_REQUESTS, "rate_limited", "Too many requests"))
+                .when(limiter).check(anyString(), anyString(), anyInt(), any(Duration.class));
+
+        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG, "key-12345678"))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.getCode()).isEqualTo("rate_limited"));
+
+        InOrder order = inOrder(diagnoses, limiter);
+        order.verify(diagnoses).findByUserIdAndIdempotencyKey(userId, "key-12345678");
+        order.verify(limiter).check(anyString(), anyString(), anyInt(), any(Duration.class));
+        verify(photos, never()).store(any(), any(), anyString());
+        verify(ai, never()).predict(anyString(), any());
     }
 
     @Test

@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HexFormat;
@@ -27,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import kz.agroadvisor.catalog.model.Disease;
 import kz.agroadvisor.catalog.repository.DiseaseRepository;
+import kz.agroadvisor.common.ratelimit.RateLimitProperties;
+import kz.agroadvisor.common.ratelimit.RateLimiter;
 import kz.agroadvisor.common.web.ApiException;
 import kz.agroadvisor.common.web.ErrorCodes;
 import kz.agroadvisor.diagnosis.model.ClassScore;
@@ -53,14 +56,18 @@ public class DiagnosisService {
     private final DiagnosisRepository diagnoses;
     private final DiseaseRepository diseases;
     private final MeterRegistry meters;
+    private final RateLimiter rateLimiter;
+    private final RateLimitProperties limits;
 
     public DiagnosisService(AiClient ai, PhotoStorage photos, DiagnosisRepository diagnoses,
-            DiseaseRepository diseases, MeterRegistry meters) {
+            DiseaseRepository diseases, MeterRegistry meters, RateLimiter rateLimiter, RateLimitProperties limits) {
         this.ai = ai;
         this.photos = photos;
         this.diagnoses = diagnoses;
         this.diseases = diseases;
         this.meters = meters;
+        this.rateLimiter = rateLimiter;
+        this.limits = limits;
     }
 
     /**
@@ -93,19 +100,14 @@ public class DiagnosisService {
      * SHA-256 of the photo: the same key with another crop or another photo is refused (422
      * {@code idempotency_key_reused}, reason {@code crop} or {@code photo}). If two requests with the
      * same key race, the unique index lets one of them win and the other returns its row.
+     *
+     * <p>Order matters: the key is looked up before the rate limit, so a replay never spends the user's
+     * diagnosis limit; the limit is checked before the photo is validated, stored or sent to the model.
      */
     public Created create(UUID userId, String crop, byte[] photo, String idempotencyKey) {
         if (idempotencyKey != null && !IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IDEMPOTENCY_KEY,
                     "Idempotency-Key must be 8-80 characters: letters, digits, '-', '_', '.', ':'");
-        }
-        if (!ai.crops().contains(crop)) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.UNKNOWN_CROP, "Unsupported crop: " + crop);
-        }
-        String contentType = photo.length > MAX_PHOTO_BYTES ? null : imageType(photo);
-        if (contentType == null) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IMAGE,
-                    "Send a JPEG or PNG photo of up to 10 MB");
         }
         String fingerprint = fingerprint(photo);
         if (idempotencyKey != null) {
@@ -113,6 +115,15 @@ public class DiagnosisService {
             if (existing.isPresent()) {
                 return replay(existing.get(), crop, fingerprint);
             }
+        }
+        rateLimiter.check("diagnosis", userId.toString(), limits.diagnosisPerMinute(), Duration.ofMinutes(1));
+        if (!ai.crops().contains(crop)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.UNKNOWN_CROP, "Unsupported crop: " + crop);
+        }
+        String contentType = photo.length > MAX_PHOTO_BYTES ? null : imageType(photo);
+        if (contentType == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IMAGE,
+                    "Send a JPEG or PNG photo of up to 10 MB");
         }
         String photoKey = photos.store(userId, photo, contentType);
         Diagnosis saved;
@@ -145,8 +156,8 @@ public class DiagnosisService {
             throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, DiagnosisErrors.IDEMPOTENCY_KEY_REUSED,
                     "This Idempotency-Key was used for a diagnosis of another crop", "crop");
         }
-        // A row saved before the fingerprint existed has none: nothing to compare, treat it as the same photo
-        if (existing.getRequestFingerprint() != null && !existing.getRequestFingerprint().equals(fingerprint)) {
+        // A row with a key always has a fingerprint (CHECK in V12)
+        if (!existing.getRequestFingerprint().equals(fingerprint)) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, DiagnosisErrors.IDEMPOTENCY_KEY_REUSED,
                     "This Idempotency-Key was used for another photo; make a new key for a new photo", "photo");
         }

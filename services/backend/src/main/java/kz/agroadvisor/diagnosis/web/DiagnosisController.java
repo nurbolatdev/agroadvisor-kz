@@ -1,7 +1,6 @@
 package kz.agroadvisor.diagnosis.web;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,8 +23,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import kz.agroadvisor.common.ratelimit.RateLimitProperties;
-import kz.agroadvisor.common.ratelimit.RateLimiter;
 import kz.agroadvisor.diagnosis.service.DiagnosisService;
 import kz.agroadvisor.diagnosis.service.DiagnosisService.Created;
 import kz.agroadvisor.diagnosis.service.DiagnosisService.DiagnosisView;
@@ -39,19 +36,16 @@ public class DiagnosisController {
     private static final String REPLAYED_HEADER = "Idempotent-Replayed";
 
     private final DiagnosisService diagnoses;
-    private final RateLimiter rateLimiter;
-    private final RateLimitProperties limits;
 
-    public DiagnosisController(DiagnosisService diagnoses, RateLimiter rateLimiter, RateLimitProperties limits) {
+    public DiagnosisController(DiagnosisService diagnoses) {
         this.diagnoses = diagnoses;
-        this.rateLimiter = rateLimiter;
-        this.limits = limits;
     }
 
     /**
-     * The limit is checked before the photo is read, stored or sent to the model. A repeated request with
-     * the same {@code Idempotency-Key} returns the diagnosis made the first time (same 201 body) and the
-     * header {@code Idempotent-Replayed: true}; the photo is not stored again and the model is not called.
+     * A repeated request with the same {@code Idempotency-Key} returns the diagnosis made the first time
+     * (same 201 body) and the header {@code Idempotent-Replayed: true}; the photo is not stored again, the
+     * model is not called and the diagnosis rate limit is not spent. The limit itself is checked in
+     * {@link DiagnosisService#create} before the photo is stored or sent to the model.
      */
     @PostMapping(consumes = "multipart/form-data")
     @PreAuthorize(FEATURE)
@@ -64,11 +58,10 @@ public class DiagnosisController {
                     + "when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): "
                     + "another crop or another photo under the same key is 422 idempotency_key_reused with reason "
                     + "crop or photo, so a retry must send the same file. A malformed key is 400 "
-                    + "invalid_idempotency_key.",
+                    + "invalid_idempotency_key. A repeat does not spend the diagnosis rate limit.",
                     schema = @Schema(pattern = "[A-Za-z0-9_.:-]{8,80}", minLength = 8, maxLength = 80))
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             Authentication authentication) throws IOException {
-        rateLimiter.check("diagnosis", authentication.getName(), limits.diagnosisPerMinute(), Duration.ofMinutes(1));
         Created created = diagnoses.create(UUID.fromString(authentication.getName()), crop, image.getBytes(),
                 idempotencyKey);
         ResponseEntity.BodyBuilder response = ResponseEntity.status(HttpStatus.CREATED);
