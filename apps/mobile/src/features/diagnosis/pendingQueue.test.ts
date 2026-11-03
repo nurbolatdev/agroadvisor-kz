@@ -105,6 +105,32 @@ describe('pending queue', () => {
     expect(queue.list()).toHaveLength(1)
   })
 
+  it('release drops the record and keeps the photo', async () => {
+    const files = fakeFiles()
+    const queue = createPendingQueue({ store: fakeStore(), files: files.api })
+    const stored = await queue.add(pending('key-12345678'))
+
+    expect(queue.release('key-12345678')).toBe(stored.fileUri)
+
+    expect(queue.list()).toEqual([])
+    expect(files.files.has(stored.fileUri)).toBe(true)
+    expect(queue.release('key-12345678')).toBeNull()
+  })
+
+  it('sweep keeps the photos it is told to keep and deletes a released photo otherwise', async () => {
+    const files = fakeFiles()
+    const queue = createPendingQueue({ store: fakeStore(), files: files.api })
+    const kept = (await queue.add(pending('key-12345678'))).fileUri
+    const other = (await queue.add(pending('key-87654321'))).fileUri
+    queue.release('key-12345678')
+    queue.release('key-87654321')
+
+    queue.sweep([kept])
+
+    expect([...files.files]).toEqual([kept])
+    expect(files.files.has(other)).toBe(false)
+  })
+
   it('sweep leaves alone a file whose record is still being written', async () => {
     const files = fakeFiles()
     let finishCopy: () => void = () => undefined

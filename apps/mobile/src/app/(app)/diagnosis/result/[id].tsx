@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { StyleSheet, View } from 'react-native'
+import { Image, StyleSheet, View } from 'react-native'
 
 import type { DiagnosisResult } from '@/api/diagnosis'
 import {
@@ -17,7 +17,7 @@ import { isCrop } from '@/features/diagnosis/crops'
 import { resolveResultScreen } from '@/features/diagnosis/resultScreen'
 import { useDiseaseDetail } from '@/features/diseases/useDiseaseDetail'
 import { useDiagnosis } from '@/services'
-import { colors, spacing } from '@/theme/tokens'
+import { colors, radii, spacing } from '@/theme/tokens'
 
 const TONE: Record<DiagnosisResult['status'], BadgeTone> = {
   ok: 'success',
@@ -66,6 +66,7 @@ export default function ResultScreen() {
       <View style={styles.block}>
         <GlassCard style={styles.card}>
           <Badge label={t(`diagnosis.result.status.${view.status}`)} tone={TONE[view.status]} />
+          {view.photoPath ? <ResultPhoto uri={view.photoPath} /> : null}
           <ResultBody view={view} />
           {view.placeholder ? (
             <AppText variant="small" color={colors.danger}>
@@ -136,7 +137,16 @@ function OkBody({ view }: { view: DiagnosisResult }) {
   )
 }
 
+// The photo the diagnosis was made from. If the file cannot be read (the system removed it), the screen
+// goes on without the photo and shows no error.
+function ResultPhoto({ uri }: { uri: string }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return null
+  return <Image source={{ uri }} style={styles.photo} onError={() => setFailed(true)} />
+}
+
 const styles = StyleSheet.create({
+  photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: radii.md },
   block: { marginTop: spacing.xl, gap: spacing.lg },
   card: { padding: spacing.lg, gap: spacing.md },
   rows: { gap: spacing.sm },

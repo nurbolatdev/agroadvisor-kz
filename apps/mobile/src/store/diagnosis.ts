@@ -8,6 +8,12 @@ import { type PendingDiagnosis, createPending } from '@/features/diagnosis/pendi
 import type { PendingQueue, QueueEntry } from '@/features/diagnosis/pendingQueue'
 import type { PickedPhoto } from '@/features/diagnosis/photo'
 
+// An answer of the server with the photo it was made from. The server sends no address of the photo, so the
+// app keeps the file it sent: the queue gives up its record but not the file. `photoPath` is null when the
+// photo is not known, and the screen then shows the result without it. Answers live in memory only; the
+// photos of an earlier run are cleaned up by the queue's sweep on start.
+export type StoredResult = DiagnosisResult & { photoPath: string | null }
+
 // idle: choosing the crop and the photo; preparing: compressing the photo; sending: waiting for the
 // answer; done: `result` holds it (any status, they are all answers); failed: `failure` says what to do.
 export type DiagnosisPhase = 'idle' | 'preparing' | 'sending' | 'done' | 'failed'
@@ -27,7 +33,7 @@ type DiagnosisState = {
   queued: QueueEntry[]
   // every answer received in this session, by diagnosis id: screens get a diagnosis by its id, never
   // through route params (M6 reads the same place for the history)
-  results: Record<string, DiagnosisResult>
+  results: Record<string, StoredResult>
   // queue key -> diagnosis id, so the queue screen can open the answer of an entry that was just sent
   answeredKeys: Record<string, string>
   // answers whose result screen was not opened yet; the home screen offers to open the latest one
@@ -87,11 +93,12 @@ export function createDiagnosisStore(deps: Deps) {
           set((s) => ({ attempts: s.attempts + 1 }))
           try {
             const result = await api.create(pending)
-            // the server has the diagnosis, so the entry leaves the queue even if the screen moved on
-            queue.remove(pending.key)
+            // the server has the diagnosis, so the entry leaves the queue even if the screen moved on;
+            // the photo stays for the result screen
+            const photoPath = queue.release(pending.key)
             refreshQueued()
             set((s) => ({
-              results: { ...s.results, [result.id]: result },
+              results: { ...s.results, [result.id]: { ...result, photoPath } },
               answeredKeys: { ...s.answeredKeys, [pending.key]: result.id },
               unseenResultIds: [...s.unseenResultIds.filter((id) => id !== result.id), result.id],
             }))
@@ -171,7 +178,9 @@ export function createDiagnosisStore(deps: Deps) {
       },
       // Only loads: nothing is sent until the farmer presses "Retry". Safe to call again (fast refresh).
       restore: () => {
-        queue.sweep()
+        // photos of answers of this session are kept; on a fresh start there are none, so the old ones go
+        const keep = Object.values(get().results).flatMap((r) => (r.photoPath ? [r.photoPath] : []))
+        queue.sweep(keep)
         refreshQueued()
       },
       resend: async (key) => {

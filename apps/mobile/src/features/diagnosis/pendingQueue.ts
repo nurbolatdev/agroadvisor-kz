@@ -33,9 +33,13 @@ export type PendingQueue = {
   add(pending: PendingDiagnosis): Promise<PendingDiagnosis>
   list(): QueueEntry[]
   remove(key: string): void
-  // Deletes photo copies that no record points to. The copy is made before the record is written, so a
-  // crash between the two leaves such a file behind.
-  sweep(): void
+  // The answer came: the record leaves the queue but the photo stays, for the result screen. Returns the
+  // address of the kept photo, or null when the key is not in the queue.
+  release(key: string): string | null
+  // Deletes photo copies that no record points to and that are not in `keep`. The copy is made before
+  // the record is written, so a crash between the two leaves such a file behind; photos of answers of
+  // this session are passed in `keep` and the rest (those of a previous run) go.
+  sweep(keep?: readonly string[]): void
 }
 
 const fileName = (uri: string) => uri.slice(uri.lastIndexOf('/') + 1)
@@ -115,9 +119,12 @@ export function createPendingQueue(deps: {
       }
     },
 
-    sweep() {
+    sweep(keep = []) {
       if (adding > 0) return
-      const referenced = new Set(read().map((record) => fileName(record.fileUri)))
+      const referenced = new Set([
+        ...read().map((record) => fileName(record.fileUri)),
+        ...keep.map(fileName),
+      ])
       for (const uri of files.list()) {
         if (!referenced.has(fileName(uri))) files.remove(uri)
       }
@@ -128,6 +135,14 @@ export function createPendingQueue(deps: {
         pending: toPending(record),
         status: files.exists(record.fileUri) ? ('ready' as const) : ('fileMissing' as const),
       }))
+    },
+
+    release(key) {
+      const records = read()
+      const target = records.find((record) => record.key === key)
+      if (!target) return null
+      write(records.filter((record) => record.key !== key))
+      return target.fileUri
     },
 
     // Removes the record and the copy of the photo.

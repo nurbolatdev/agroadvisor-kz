@@ -394,7 +394,8 @@ describe('diagnosis flow', () => {
       expect(useDiagnosis.getState().phase).toBe('done')
       expect(useDiagnosis.getState().result?.id).toBe('d1')
       expect(memory.queue.list()).toEqual([])
-      expect(memory.files.size).toBe(0)
+      // the photo stays for the result screen
+      expect([...memory.files]).toEqual([useDiagnosis.getState().results.d1.photoPath])
     })
 
     it('keeps the answer by diagnosis id and links the queue key to it', async () => {
@@ -432,6 +433,66 @@ describe('diagnosis flow', () => {
       useDiagnosis.getState().setPhoto(PHOTO)
       await useDiagnosis.getState().analyze()
       expect(useDiagnosis.getState().unseenResultIds).toEqual(['d1'])
+    })
+
+    describe('the photo of an answer', () => {
+      it('stays after the answer and its path goes to the result', async () => {
+        const { useDiagnosis, queue, files } = setup([result()])
+
+        await start(useDiagnosis)
+
+        expect(queue.list()).toEqual([])
+        expect(files.has('file:///documents/key-00000001.jpg')).toBe(true)
+        expect(useDiagnosis.getState().results.d1.photoPath).toBe(
+          'file:///documents/key-00000001.jpg',
+        )
+      })
+
+      it('is kept by a restore during the session', async () => {
+        const { useDiagnosis, files } = setup([result()])
+        await start(useDiagnosis)
+
+        useDiagnosis.getState().restore()
+
+        expect(files.has('file:///documents/key-00000001.jpg')).toBe(true)
+      })
+
+      it('is deleted by the restore of the next start, when no answers are known yet', async () => {
+        const first = setup([result()])
+        await start(first.useDiagnosis)
+        expect(first.files.size).toBe(1)
+
+        // "restart": a new store over the same queue has no results
+        const after = createDiagnosisStore({
+          api: { create: async () => result() },
+          prepare: jest.fn(),
+          queue: first.queue,
+        })
+        after.getState().restore()
+
+        expect(first.files.size).toBe(0)
+      })
+
+      it('a refused photo is deleted at once, it has no result to belong to', async () => {
+        const { useDiagnosis, files } = setup([
+          new ApiError(422, 'low_quality', 'blurry', [], 'blurry'),
+        ])
+        await start(useDiagnosis)
+        expect(files.size).toBe(0)
+      })
+    })
+
+    it('going through the analysis screen (redirect, then markSeen) leaves nothing unseen', async () => {
+      const { useDiagnosis } = setup([result()])
+
+      await start(useDiagnosis)
+      // the analysis screen sees phase "done" and redirects to the result, which marks it seen
+      const { phase, result: answer } = useDiagnosis.getState()
+      expect(phase).toBe('done')
+      expect(useDiagnosis.getState().unseenResultIds).toEqual(['d1'])
+      useDiagnosis.getState().markSeen(answer!.id)
+
+      expect(useDiagnosis.getState().unseenResultIds).toEqual([])
     })
 
     it('discard removes the entry with its photo', async () => {
