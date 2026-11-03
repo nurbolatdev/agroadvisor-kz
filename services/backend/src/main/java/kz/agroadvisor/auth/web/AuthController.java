@@ -33,15 +33,18 @@ public class AuthController {
 
     /**
      * Only these fields are read: roles, status and verification cannot be set through the request.
-     * {@code role} may be FARMER (default) or AGROCHEMIST; ADMIN is rejected.
+     * {@code role} is lower case: farmer (default) or agrochemist; admin is rejected with role_not_allowed,
+     * another case is a validation error.
      */
     public record RegisterRequest(
             @NotBlank @Size(max = 120) String login,
             @NotBlank @Size(min = 8, max = 72) String password,
             @NotBlank @Size(max = 120) String fullName,
             @Pattern(regexp = "ru|kk|en") @Schema(allowableValues = {"ru", "kk", "en"}) String language,
-            @Size(max = 20) @Schema(allowableValues = {"FARMER", "AGROCHEMIST"},
-                    description = "Upper case here; the roles in MeResponse are the lower case codes") String role) {
+            @Size(max = 20) @Pattern(regexp = "[a-z]+", message = "must be lower case")
+            @Schema(allowableValues = {"farmer", "agrochemist"},
+                    description = "Lower case, like the roles in MeResponse; another case is 400 validation_failed")
+            String role) {
     }
 
     public record LoginRequest(@NotBlank @Size(max = 120) String login, @NotBlank @Size(max = 72) String password) {

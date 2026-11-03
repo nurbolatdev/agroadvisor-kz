@@ -98,6 +98,24 @@ class DiagnosisRepositoryTest {
     }
 
     @Test
+    void aKeyWithoutAPhotoFingerprintCannotBeSaved() {
+        Diagnosis keyOnly = new Diagnosis(userId, "tomato", "photos/x.jpg", "ok", "tomato__healthy",
+                new BigDecimal("0.9100"), List.of(new ClassScore("tomato__healthy", 0.91)), null, "placeholder-v0",
+                1, 12, "key-12345678", null);
+
+        assertThatThrownBy(() -> diagnoses.saveAndFlush(keyOnly)).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void aFingerprintWithoutAKeyIsFine() {
+        Diagnosis fingerprintOnly = new Diagnosis(userId, "tomato", "photos/y.jpg", "ok", "tomato__healthy",
+                new BigDecimal("0.9100"), List.of(new ClassScore("tomato__healthy", 0.91)), null, "placeholder-v0",
+                1, 12, null, "0".repeat(64));
+
+        assertThat(diagnoses.saveAndFlush(fingerprintOnly).getId()).isNotNull();
+    }
+
+    @Test
     void historyIsNewestFirstAndOnlyTheOwners() {
         UUID other = users.saveAndFlush(new User(Login.parse("+77049" + (100_000 + (int) (Math.random() * 899_999))),
                 "x", "Other", "ru", Set.of(Role.FARMER))).getId();
