@@ -1,4 +1,4 @@
-import type { FeatureFlags } from '@/features/access/featureAccess'
+import { FEATURE_FLAGS, type FeatureFlags } from '@/features/access/featureAccess'
 
 import { resultActions } from './resultActions'
 import type { ResultScreen } from './resultScreen'
@@ -11,6 +11,27 @@ const unknown: ResultScreen = { kind: 'unknown' }
 const mismatch = (detectedCrop: 'potato' | null): ResultScreen => ({
   kind: 'cropMismatch',
   detectedCrop,
+})
+
+describe('with the real flags (both off now)', () => {
+  it('no result has an "ask" button, whatever its kind or photo', () => {
+    const screens: ResultScreen[] = [
+      { kind: 'ok' },
+      low,
+      unknown,
+      mismatch('potato'),
+      mismatch(null),
+    ]
+    for (const screen of screens) {
+      for (const hasPhoto of [true, false]) {
+        const types = resultActions(screen, { hasPhoto, features: FEATURE_FLAGS }).map(
+          (action) => action.type,
+        )
+        expect(types).not.toContain('askAgronomist')
+        expect(types).not.toContain('askCommunity')
+      }
+    }
+  })
 })
 
 describe('what to do next', () => {
