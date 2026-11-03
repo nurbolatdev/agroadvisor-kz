@@ -1,7 +1,11 @@
 package kz.agroadvisor.auth.web;
 
+import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
+
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
+@SecurityRequirements // public endpoints: no access token
 public class AuthController {
 
     private final AuthService auth;
@@ -35,8 +40,8 @@ public class AuthController {
             @NotBlank @Size(max = 120) String login,
             @NotBlank @Size(min = 8, max = 72) String password,
             @NotBlank @Size(max = 120) String fullName,
-            @Pattern(regexp = "ru|kk|en") String language,
-            @Size(max = 20) String role) {
+            @Pattern(regexp = "ru|kk|en") @Schema(allowableValues = {"ru", "kk", "en"}) String language,
+            @Size(max = 20) @Schema(allowableValues = {"FARMER", "AGROCHEMIST"}) String role) {
     }
 
     public record LoginRequest(@NotBlank @Size(max = 120) String login, @NotBlank @Size(max = 72) String password) {
@@ -45,7 +50,11 @@ public class AuthController {
     public record RefreshRequest(@NotBlank @Size(max = 200) String refreshToken) {
     }
 
-    public record TokenResponse(String accessToken, String refreshToken, String tokenType, long expiresIn) {
+    public record TokenResponse(
+            @Schema(requiredMode = REQUIRED) String accessToken,
+            @Schema(requiredMode = REQUIRED) String refreshToken,
+            @Schema(requiredMode = REQUIRED, allowableValues = "Bearer") String tokenType,
+            @Schema(requiredMode = REQUIRED, description = "Access token lifetime, seconds") long expiresIn) {
 
         static TokenResponse of(AuthService.Tokens tokens) {
             return new TokenResponse(tokens.accessToken(), tokens.refreshToken(), "Bearer", tokens.expiresInSeconds());

@@ -1,5 +1,7 @@
 package kz.agroadvisor.diagnosis.service;
 
+import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -9,6 +11,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -51,9 +54,19 @@ public class DiagnosisService {
      * not be shown as a diagnosis; {@code descriptionReady} is false when the model knows a class the
      * reference does not describe yet ("description is being prepared").
      */
-    public record DiagnosisView(UUID id, String crop, String status, ClassScore top1, List<ClassScore> top3,
-            String detectedCrop, String modelVersion, int classesVersion, boolean placeholder,
-            boolean descriptionReady, Instant createdAt) {
+    public record DiagnosisView(
+            @Schema(requiredMode = REQUIRED) UUID id,
+            @Schema(requiredMode = REQUIRED) String crop,
+            @Schema(requiredMode = REQUIRED, allowableValues = {"ok", "low_confidence", "unknown", "crop_mismatch"})
+            String status,
+            @Schema(requiredMode = REQUIRED) ClassScore top1,
+            @Schema(requiredMode = REQUIRED) List<ClassScore> top3,
+            @Schema(nullable = true, description = "Set only when status is crop_mismatch") String detectedCrop,
+            @Schema(requiredMode = REQUIRED) String modelVersion,
+            @Schema(requiredMode = REQUIRED) int classesVersion,
+            @Schema(requiredMode = REQUIRED) boolean placeholder,
+            @Schema(requiredMode = REQUIRED) boolean descriptionReady,
+            @Schema(requiredMode = REQUIRED) Instant createdAt) {
     }
 
     public DiagnosisView create(UUID userId, String crop, byte[] photo) {
