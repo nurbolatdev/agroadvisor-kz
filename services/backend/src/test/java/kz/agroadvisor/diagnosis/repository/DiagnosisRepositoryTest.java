@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ import kz.agroadvisor.users.model.User;
 import kz.agroadvisor.users.repository.UserRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -67,6 +69,31 @@ class DiagnosisRepositoryTest {
                 new ClassScore("tomato__healthy", 0.05));
         assertThat(loaded.getModelVersion()).isEqualTo("placeholder-v0");
         assertThat(loaded.getCreatedAt()).isBetween(Instant.now().minusSeconds(60), Instant.now().plusSeconds(60));
+    }
+
+    private Diagnosis withKey(UUID owner, String code, String key) {
+        return new Diagnosis(owner, "tomato", "photos/" + code + ".jpg", "ok", code, new BigDecimal("0.9100"),
+                List.of(new ClassScore(code, 0.91)), null, "placeholder-v0", 1, 12, key);
+    }
+
+    @Test
+    void findsTheDiagnosisByItsOwnersKey() {
+        Diagnosis saved = diagnoses.saveAndFlush(withKey(userId, "tomato__healthy", "key-12345678"));
+        em.clear();
+
+        assertThat(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678"))
+                .get().extracting(Diagnosis::getId).isEqualTo(saved.getId());
+        assertThat(diagnoses.findByUserIdAndIdempotencyKey(UUID.randomUUID(), "key-12345678")).isEmpty();
+    }
+
+    @Test
+    void aKeyIsUniquePerUserButRowsWithoutAKeyDoNotCollide() {
+        diagnoses.saveAndFlush(withKey(userId, "tomato__healthy", "key-12345678"));
+        diagnoses.saveAndFlush(diagnosis(userId, "tomato__late_blight"));
+        diagnoses.saveAndFlush(diagnosis(userId, "tomato__early_blight"));
+
+        assertThatThrownBy(() -> diagnoses.saveAndFlush(withKey(userId, "tomato__late_blight", "key-12345678")))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
