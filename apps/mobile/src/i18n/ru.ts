@@ -69,8 +69,8 @@ export const ru = {
       title: 'Анализ',
       steps: {
         prepare: 'Готовим фото',
-        send: 'Отправляем',
-        analyze: 'Анализируем',
+        analyze: 'Отправляем и анализируем',
+        done: 'Готово',
       },
       retry: 'Повторить',
       newPhoto: 'Другое фото',

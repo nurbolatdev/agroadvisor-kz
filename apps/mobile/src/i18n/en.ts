@@ -71,8 +71,8 @@ export const en: Translation = {
       title: 'Analysis',
       steps: {
         prepare: 'Preparing the photo',
-        send: 'Sending',
-        analyze: 'Analyzing',
+        analyze: 'Sending and analyzing',
+        done: 'Done',
       },
       retry: 'Try again',
       newPhoto: 'Another photo',

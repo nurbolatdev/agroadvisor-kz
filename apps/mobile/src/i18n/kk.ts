@@ -71,8 +71,8 @@ export const kk: Translation = {
       title: 'Талдау',
       steps: {
         prepare: 'Суретті дайындау',
-        send: 'Жіберу',
-        analyze: 'Талдау',
+        analyze: 'Жіберу және талдау',
+        done: 'Дайын',
       },
       retry: 'Қайталау',
       newPhoto: 'Басқа сурет',
