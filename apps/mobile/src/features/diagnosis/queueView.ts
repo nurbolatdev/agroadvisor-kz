@@ -13,6 +13,8 @@ export type QueueRow = {
   status: QueueStatus
   // why the last try failed; only for status "error"
   messageKey?: DiagnosisErrorKey
+  // the whole failure of status "error", for the wait the server asked for (Retry-After)
+  failure?: DiagnosisFailure
   actions: QueueAction[]
 }
 
@@ -40,6 +42,7 @@ export function queueRow(entry: QueueEntry, current: Current): QueueRow {
       pending,
       status: 'error',
       messageKey: current.failure.messageKey,
+      failure: current.failure,
       actions: ['retry', 'discard'],
     }
   }

@@ -53,6 +53,7 @@ describe('queue rows', () => {
       pending: pending('key-00000001'),
       status: 'error',
       messageKey: 'diagnosis.errors.network',
+      failure: { messageKey: 'diagnosis.errors.network', action: 'retry' },
       actions: ['retry', 'discard'],
     })
   })
