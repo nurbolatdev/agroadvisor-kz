@@ -421,7 +421,7 @@ export interface components {
             login: string;
             password: string;
             /**
-             * @description Lower case, like the roles in MeResponse; upper case is still accepted
+             * @description Lower case, like the roles in MeResponse; another case is 400 validation_failed
              * @enum {string}
              */
             role?: "farmer" | "agrochemist";
