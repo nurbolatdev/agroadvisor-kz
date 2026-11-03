@@ -54,6 +54,11 @@ class DiagnosisServiceTest {
         when(diagnoses.save(any(Diagnosis.class))).thenAnswer(call -> call.getArgument(0));
     }
 
+    /** A request without an Idempotency-Key. */
+    private DiagnosisView create(String crop, byte[] photo) {
+        return service.create(userId, crop, photo, null).view();
+    }
+
     private Prediction prediction(String topCode, String modelVersion) {
         ClassScore top = new ClassScore(topCode, 0.8);
         return new Prediction("ok", "tomato", top, List.of(top, new ClassScore("tomato__healthy", 0.1)), null,
@@ -64,7 +69,7 @@ class DiagnosisServiceTest {
     void storesThePhotoAsksTheModelAndSavesTheResult() {
         when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__late_blight", "efficientnet-b0-v3"));
 
-        DiagnosisView view = service.create(userId, "tomato", JPEG);
+        DiagnosisView view = create("tomato", JPEG);
 
         ArgumentCaptor<Diagnosis> saved = ArgumentCaptor.forClass(Diagnosis.class);
         verify(diagnoses).save(saved.capture());
@@ -84,7 +89,7 @@ class DiagnosisServiceTest {
     void aPlaceholderModelResultIsFlaggedSoItIsNotShownAsADiagnosis() {
         when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "placeholder-v0"));
 
-        assertThat(service.create(userId, "tomato", JPEG).placeholder()).isTrue();
+        assertThat(create("tomato", JPEG).placeholder()).isTrue();
     }
 
     @Test
@@ -92,7 +97,7 @@ class DiagnosisServiceTest {
         when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__brand_new", "efficientnet-b0-v3"));
         when(diseases.findAllById(any())).thenReturn(List.of());
 
-        DiagnosisView view = service.create(userId, "tomato", JPEG);
+        DiagnosisView view = create("tomato", JPEG);
 
         verify(diagnoses).save(any(Diagnosis.class));
         assertThat(view.descriptionReady()).isFalse();
@@ -105,21 +110,21 @@ class DiagnosisServiceTest {
                 Map.of("en", "Late blight"), Map.of(), null, null);
         when(diseases.findAllById(any())).thenReturn(List.of(known));
 
-        assertThat(service.create(userId, "tomato", JPEG).descriptionReady()).isTrue();
+        assertThat(create("tomato", JPEG).descriptionReady()).isTrue();
     }
 
     @Test
     void recognizesAPngByItsBytes() {
         when(ai.predict("tomato", PNG)).thenReturn(prediction("tomato__healthy", "placeholder-v0"));
 
-        service.create(userId, "tomato", PNG);
+        create("tomato", PNG);
 
         verify(photos).store(userId, PNG, "image/png");
     }
 
     @Test
     void rejectsACropTheModelDoesNotSupportBeforeTouchingStorage() {
-        assertThatThrownBy(() -> service.create(userId, "banana", JPEG))
+        assertThatThrownBy(() -> create("banana", JPEG))
                 .isInstanceOfSatisfying(ApiException.class, e -> {
                     assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
                     assertThat(e.getCode()).isEqualTo("unknown_crop");
@@ -131,7 +136,7 @@ class DiagnosisServiceTest {
     @Test
     void rejectsAnEmptyFileAndBytesThatAreNotAnImage() {
         for (byte[] bad : List.of(new byte[0], "not an image".getBytes(), new byte[] {(byte) 0xFF, (byte) 0xD8})) {
-            assertThatThrownBy(() -> service.create(userId, "tomato", bad))
+            assertThatThrownBy(() -> create("tomato", bad))
                     .isInstanceOfSatisfying(ApiException.class,
                             e -> assertThat(e.getCode()).isEqualTo("invalid_image"));
         }
@@ -143,7 +148,7 @@ class DiagnosisServiceTest {
         byte[] huge = new byte[10 * 1024 * 1024 + 1];
         System.arraycopy(JPEG, 0, huge, 0, JPEG.length);
 
-        assertThatThrownBy(() -> service.create(userId, "tomato", huge))
+        assertThatThrownBy(() -> create("tomato", huge))
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.getCode()).isEqualTo("invalid_image"));
     }
 
@@ -151,7 +156,7 @@ class DiagnosisServiceTest {
     void removesTheStoredPhotoWhenTheModelFails() {
         when(ai.predict("tomato", JPEG)).thenThrow(new IllegalStateException("model down"));
 
-        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(IllegalStateException.class);
 
         verify(photos).delete("diagnoses/key.jpg");
         verify(diagnoses, never()).save(any(Diagnosis.class));
@@ -163,7 +168,7 @@ class DiagnosisServiceTest {
         when(diagnoses.save(any(Diagnosis.class))).thenThrow(new IllegalStateException("db down"));
         doThrow(new IllegalStateException("s3 down")).when(photos).delete(eq("diagnoses/key.jpg"));
 
-        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG))
+        assertThatThrownBy(() -> create("tomato", JPEG))
                 .isInstanceOf(IllegalStateException.class).hasMessage("db down");
 
         verify(photos).delete("diagnoses/key.jpg");
@@ -174,7 +179,7 @@ class DiagnosisServiceTest {
         when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__late_blight", "efficientnet-b0-v3"));
         when(diseases.findAllById(any())).thenThrow(new IllegalStateException("reference down"));
 
-        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG))
+        assertThatThrownBy(() -> create("tomato", JPEG))
                 .isInstanceOf(IllegalStateException.class).hasMessage("reference down");
 
         verify(diagnoses).save(any(Diagnosis.class)); // the row exists, so its photo must stay
@@ -185,7 +190,7 @@ class DiagnosisServiceTest {
     void removesThePhotoWhenTheModelFailsAndNothingIsSaved() {
         when(ai.predict("tomato", JPEG)).thenThrow(new IllegalStateException("model down"));
 
-        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(IllegalStateException.class);
 
         verify(photos).delete("diagnoses/key.jpg");
         verify(diagnoses, never()).save(any(Diagnosis.class)); // no row without a photo, no photo without a row
@@ -193,7 +198,8 @@ class DiagnosisServiceTest {
 
     private Diagnosis storedWithKey(String key) {
         return new Diagnosis(userId, "tomato", "k.jpg", "ok", "tomato__healthy", new BigDecimal("0.99"),
-                List.of(new ClassScore("tomato__healthy", 0.99)), null, "efficientnet-b0-v3", 3, 25, key);
+                List.of(new ClassScore("tomato__healthy", 0.99)), null, "efficientnet-b0-v3", 3, 25, key,
+                DiagnosisService.fingerprint(JPEG));
     }
 
     @Test
@@ -267,8 +273,48 @@ class DiagnosisServiceTest {
                 .isInstanceOfSatisfying(ApiException.class, e -> {
                     assertThat(e.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
                     assertThat(e.getCode()).isEqualTo("idempotency_key_reused");
+                    assertThat(e.getReason()).isEqualTo("crop");
                 });
         verify(ai, never()).predict(anyString(), any());
+    }
+
+    @Test
+    void aKeyUsedForAnotherPhotoOfTheSameCropIsRejected() {
+        byte[] otherPhoto = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 9, 9, 9};
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678"))
+                .thenReturn(Optional.of(storedWithKey("key-12345678")));
+
+        assertThatThrownBy(() -> service.create(userId, "tomato", otherPhoto, "key-12345678"))
+                .isInstanceOfSatisfying(ApiException.class, e -> {
+                    assertThat(e.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
+                    assertThat(e.getCode()).isEqualTo("idempotency_key_reused");
+                    assertThat(e.getReason()).isEqualTo("photo");
+                });
+        verify(photos, never()).store(any(), any(), anyString());
+        verify(ai, never()).predict(anyString(), any());
+    }
+
+    @Test
+    void theSavedRowKeepsTheFingerprintOfThePhoto() {
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+
+        service.create(userId, "tomato", JPEG, "key-12345678");
+
+        ArgumentCaptor<Diagnosis> saved = ArgumentCaptor.forClass(Diagnosis.class);
+        verify(diagnoses).save(saved.capture());
+        assertThat(saved.getValue().getRequestFingerprint()).hasSize(64)
+                .isEqualTo(DiagnosisService.fingerprint(JPEG));
+    }
+
+    @Test
+    void aRowSavedWithoutAFingerprintIsReplayedWhateverThePhoto() {
+        Diagnosis old = new Diagnosis(userId, "tomato", "k.jpg", "ok", "tomato__healthy", new BigDecimal("0.99"),
+                List.of(new ClassScore("tomato__healthy", 0.99)), null, "efficientnet-b0-v3", 3, 25,
+                "key-12345678", null);
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678")).thenReturn(Optional.of(old));
+        when(diseases.findAllById(any())).thenReturn(List.of());
+
+        assertThat(service.create(userId, "tomato", PNG, "key-12345678").replayed()).isTrue();
     }
 
     @Test
@@ -287,7 +333,7 @@ class DiagnosisServiceTest {
     void timesTheModelCallByOutcomeAndStatus() {
         when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
 
-        service.create(userId, "tomato", JPEG);
+        create("tomato", JPEG);
 
         assertThat(meters.get("agroadvisor.ai.predict").tag("outcome", "ok").tag("code", "ok").timer().count())
                 .isEqualTo(1);
@@ -299,8 +345,8 @@ class DiagnosisServiceTest {
                 new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ai_unavailable", "AI is down"),
                 new IllegalStateException("boom"));
 
-        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG)).isInstanceOf(ApiException.class);
-        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(IllegalStateException.class);
 
         assertThat(meters.get("agroadvisor.ai.predict").tag("outcome", "error").tag("code", "ai_unavailable")
                 .timer().count()).isEqualTo(1);

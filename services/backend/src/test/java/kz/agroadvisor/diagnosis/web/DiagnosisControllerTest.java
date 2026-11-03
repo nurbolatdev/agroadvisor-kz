@@ -30,6 +30,7 @@ import kz.agroadvisor.diagnosis.model.ClassScore;
 import kz.agroadvisor.diagnosis.model.Diagnosis;
 import kz.agroadvisor.diagnosis.repository.DiagnosisRepository;
 import kz.agroadvisor.diagnosis.service.AiClient;
+import kz.agroadvisor.diagnosis.service.DiagnosisService;
 import kz.agroadvisor.diagnosis.service.PhotoStorage;
 import kz.agroadvisor.users.model.Login;
 import kz.agroadvisor.users.model.Role;
@@ -196,7 +197,7 @@ class DiagnosisControllerTest {
         doAnswer(call -> {
             diagnoses.saveAndFlush(new Diagnosis(farmer.getId(), "tomato", "diagnoses/test/winner.jpg", "ok",
                     "tomato__healthy", new BigDecimal("0.9000"), List.of(new ClassScore("tomato__healthy", 0.9)),
-                    null, "placeholder-v0", 1, 5, key));
+                    null, "placeholder-v0", 1, 5, key, DiagnosisService.fingerprint(JPEG)));
             return call.callRealMethod();
         }).when(ai).predict(eq("tomato"), any(byte[].class));
 
@@ -245,7 +246,23 @@ class DiagnosisControllerTest {
         mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "potato")
                         .header("Authorization", token).header("Idempotency-Key", key))
                 .andExpect(status().isUnprocessableContent())
-                .andExpect(jsonPath("$.code").value("idempotency_key_reused"));
+                .andExpect(jsonPath("$.code").value("idempotency_key_reused"))
+                .andExpect(jsonPath("$.reason").value("crop"));
+    }
+
+    @Test
+    void aKeyUsedForAnotherPhotoOfTheSameCropIsRefused() throws Exception {
+        String key = UUID.randomUUID().toString();
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                .header("Authorization", token).header("Idempotency-Key", key)).andExpect(status().isCreated());
+
+        mvc.perform(multipart("/api/diagnoses").file(image("image/png")).param("crop", "tomato")
+                        .header("Authorization", token).header("Idempotency-Key", key))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.code").value("idempotency_key_reused"))
+                .andExpect(jsonPath("$.reason").value("photo"));
+        assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10))).hasSize(1);
+        verify(photos, times(1)).store(eq(farmer.getId()), any(byte[].class), anyString());
     }
 
     @Test

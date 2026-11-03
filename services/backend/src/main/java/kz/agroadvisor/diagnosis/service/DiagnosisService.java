@@ -4,8 +4,11 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -84,14 +87,12 @@ public class DiagnosisService {
     public record Created(DiagnosisView view, boolean replayed) {
     }
 
-    public DiagnosisView create(UUID userId, String crop, byte[] photo) {
-        return create(userId, crop, photo, null).view();
-    }
-
     /**
      * With an {@code idempotencyKey} a repeated request returns the diagnosis made the first time: the
-     * photo is not stored again and the model is not called. If two requests with the same key race,
-     * the unique index lets one of them win and the other returns its row.
+     * photo is not stored again and the model is not called. The key is matched with the crop and the
+     * SHA-256 of the photo: the same key with another crop or another photo is refused (422
+     * {@code idempotency_key_reused}, reason {@code crop} or {@code photo}). If two requests with the
+     * same key race, the unique index lets one of them win and the other returns its row.
      */
     public Created create(UUID userId, String crop, byte[] photo, String idempotencyKey) {
         if (idempotencyKey != null && !IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {
@@ -106,10 +107,11 @@ public class DiagnosisService {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IMAGE,
                     "Send a JPEG or PNG photo of up to 10 MB");
         }
+        String fingerprint = fingerprint(photo);
         if (idempotencyKey != null) {
             Optional<Diagnosis> existing = diagnoses.findByUserIdAndIdempotencyKey(userId, idempotencyKey);
             if (existing.isPresent()) {
-                return replay(existing.get(), crop);
+                return replay(existing.get(), crop, fingerprint);
             }
         }
         String photoKey = photos.store(userId, photo, contentType);
@@ -120,7 +122,7 @@ public class DiagnosisService {
                     prediction.top1().code(),
                     BigDecimal.valueOf(prediction.top1().confidence()).setScale(4, RoundingMode.HALF_UP),
                     prediction.top3(), prediction.detectedCrop(), prediction.modelVersion(),
-                    prediction.classesVersion(), prediction.inferenceMs(), idempotencyKey));
+                    prediction.classesVersion(), prediction.inferenceMs(), idempotencyKey, fingerprint));
         } catch (DataIntegrityViolationException e) {
             discard(photoKey, e);
             // Lost the race on (user_id, idempotency_key): the other request's row is the answer
@@ -129,7 +131,7 @@ public class DiagnosisService {
             if (winner.isEmpty()) {
                 throw e;
             }
-            return replay(winner.get(), crop);
+            return replay(winner.get(), crop, fingerprint);
         } catch (RuntimeException e) {
             discard(photoKey, e);
             throw e;
@@ -138,13 +140,27 @@ public class DiagnosisService {
         return new Created(views(List.of(saved)).get(0), false);
     }
 
-    private Created replay(Diagnosis existing, String crop) {
+    private Created replay(Diagnosis existing, String crop, String fingerprint) {
         if (!existing.getCropCode().equals(crop)) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, DiagnosisErrors.IDEMPOTENCY_KEY_REUSED,
-                    "This Idempotency-Key was used for a diagnosis of another crop");
+                    "This Idempotency-Key was used for a diagnosis of another crop", "crop");
+        }
+        // A row saved before the fingerprint existed has none: nothing to compare, treat it as the same photo
+        if (existing.getRequestFingerprint() != null && !existing.getRequestFingerprint().equals(fingerprint)) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, DiagnosisErrors.IDEMPOTENCY_KEY_REUSED,
+                    "This Idempotency-Key was used for another photo; make a new key for a new photo", "photo");
         }
         meters.counter("agroadvisor.diagnosis.replays").increment();
         return new Created(views(List.of(existing)).get(0), true);
+    }
+
+    /** SHA-256 of the photo bytes as lower-case hex (64 characters). */
+    public static String fingerprint(byte[] photo) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(photo));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is required by the JDK", e);
+        }
     }
 
     /**

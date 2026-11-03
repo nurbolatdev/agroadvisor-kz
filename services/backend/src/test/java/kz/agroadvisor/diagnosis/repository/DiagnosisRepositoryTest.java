@@ -73,7 +73,8 @@ class DiagnosisRepositoryTest {
 
     private Diagnosis withKey(UUID owner, String code, String key) {
         return new Diagnosis(owner, "tomato", "photos/" + code + ".jpg", "ok", code, new BigDecimal("0.9100"),
-                List.of(new ClassScore(code, 0.91)), null, "placeholder-v0", 1, 12, key);
+                List.of(new ClassScore(code, 0.91)), null, "placeholder-v0", 1, 12, key,
+                "0".repeat(64));
     }
 
     @Test
