@@ -65,7 +65,9 @@ export function toDiagnosisFailure(error: unknown): DiagnosisFailure {
       case 'unknown_crop':
         return newPhoto('diagnosis.errors.unknownCrop')
       case 'idempotency_key_reused':
-        // should not happen: the key and the file are created together; start over with a new photo
+      case 'invalid_idempotency_key':
+        // should not happen: the key and the file are created together; sending the same request again
+        // would fail the same way, so start over with a new photo (and a new key)
         return newPhoto('diagnosis.errors.keyReused')
       case 'ai_unavailable':
         return retry('diagnosis.errors.aiUnavailable')

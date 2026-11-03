@@ -8,8 +8,9 @@ import type { components } from './schema'
 export type DiagnosisResult = components['schemas']['DiagnosisView']
 export type DiagnosisStatus = DiagnosisResult['status']
 
-// The backend may spend up to ~24.4 s on the model (docs/api/ai-predict.md), the app waits at least 30 s.
-export const DIAGNOSIS_TIMEOUT_MS = 35_000
+// docs/api/ai-predict.md: up to ~24.4 s on the model plus up to 25 s for the photo storage, about 49 s in
+// the worst case. The app waits longer than that, so a slow answer is not cut off and sent a second time.
+export const DIAGNOSIS_TIMEOUT_MS = 60_000
 
 export type DiagnosisApi = {
   // The same PendingDiagnosis always sends the same key and the same file.

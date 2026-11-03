@@ -41,6 +41,13 @@ describe('toDiagnosisFailure', () => {
     })
   })
 
+  it('does not offer a retry of a request whose key the server refused', () => {
+    expect(toDiagnosisFailure(api(400, 'invalid_idempotency_key'))).toEqual({
+      messageKey: 'diagnosis.errors.keyReused',
+      action: 'newPhoto',
+    })
+  })
+
   it('lets the farmer retry when the server side is temporarily down or busy', () => {
     expect(toDiagnosisFailure(api(503, 'ai_unavailable'))).toEqual({
       messageKey: 'diagnosis.errors.aiUnavailable',
