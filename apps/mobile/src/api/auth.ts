@@ -1,24 +1,20 @@
 import type { Language } from '@/i18n'
 
 import type { ApiClient } from './client'
+import type { components } from './schema'
 
-// Shapes of services/backend AuthController (kz.agroadvisor.auth.web).
-export type RegisterRequest = {
-  login: string
-  password: string
-  fullName: string
+type Schemas = components['schemas']
+
+// Generated from docs/api/openapi.json (npm run gen:api). The backend does not mark response
+// fields as required yet, and language/role are plain strings in the schema, so narrow them here.
+export type RegisterRequest = Omit<Schemas['RegisterRequest'], 'language' | 'role'> & {
   language?: Language
   role?: 'FARMER' | 'AGROCHEMIST'
 }
 
-export type LoginRequest = { login: string; password: string }
+export type LoginRequest = Schemas['LoginRequest']
 
-export type TokenResponse = {
-  accessToken: string
-  refreshToken: string
-  tokenType: 'Bearer'
-  expiresIn: number
-}
+export type TokenResponse = Required<Schemas['TokenResponse']>
 
 export type AuthApi = {
   register: (body: RegisterRequest) => Promise<TokenResponse>
