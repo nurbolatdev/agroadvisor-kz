@@ -15,6 +15,8 @@ import {
 } from '@/components/ui'
 import { isCrop } from '@/features/diagnosis/crops'
 import { resolveResultScreen } from '@/features/diagnosis/resultScreen'
+import { UncertainBody } from '@/features/diagnosis/UncertainBody'
+import type { StoredResult } from '@/store/diagnosis'
 import { useDiseaseDetail } from '@/features/diseases/useDiseaseDetail'
 import { useDiagnosis } from '@/services'
 import { colors, radii, spacing } from '@/theme/tokens'
@@ -27,7 +29,8 @@ const TONE: Record<DiagnosisResult['status'], BadgeTone> = {
 }
 
 // The diagnosis comes from the store by its id: the route carries only the id, never the diagnosis. The
-// photo is not shown: after the answer the app deletes its local copy and the answer has no photo address.
+// photo is the file the app sent: the answer has no photo address, so the store keeps the file with the
+// answer (`photoPath`) and the screen goes without the photo if it is gone.
 export default function ResultScreen() {
   const { t } = useTranslation()
   const router = useRouter()
@@ -95,18 +98,12 @@ function useCropName() {
   return (code: string) => (isCrop(code) ? t(`diagnosis.crops.${code}`) : code)
 }
 
-// `resolveResultScreen` decides which branch this is; the uncertain branches get their own layout next.
-function ResultBody({ view }: { view: DiagnosisResult }) {
-  const { t } = useTranslation()
-  const cropName = useCropName()
+// `resolveResultScreen` decides which branch this is.
+function ResultBody({ view }: { view: StoredResult }) {
   const screen = resolveResultScreen(view)
 
   if (screen.kind !== 'ok') {
-    return (
-      <AppText color={colors.textMuted}>
-        {t('diagnosis.result.crop')}: {cropName(view.crop)}
-      </AppText>
-    )
+    return <UncertainBody view={view} screen={screen} photoPath={view.photoPath} />
   }
   return <OkBody view={view} />
 }
