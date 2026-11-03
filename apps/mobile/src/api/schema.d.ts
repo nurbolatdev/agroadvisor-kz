@@ -939,7 +939,9 @@ export interface operations {
             query: {
                 crop: string;
             };
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -952,7 +954,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Created */
+            /** @description The diagnosis; for a repeated Idempotency-Key the one made the first time, with the header Idempotent-Replayed: true */
             201: {
                 headers: {
                     [name: string]: unknown;

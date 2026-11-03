@@ -1094,6 +1094,13 @@
           "schema" : {
             "type" : "string"
           }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "requestBody" : {
           "content" : {
@@ -1120,7 +1127,7 @@
                 }
               }
             },
-            "description" : "Created"
+            "description" : "The diagnosis; for a repeated Idempotency-Key the one made the first time, with the header Idempotent-Replayed: true"
           }
         },
         "tags" : [ "diagnosis-controller" ]
