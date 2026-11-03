@@ -12,7 +12,7 @@ API contract: [`docs/api/ai-predict.md`](../../docs/api/ai-predict.md) · classe
 
 ## Stack
 
-Python 3.11+, FastAPI, PyTorch (EfficientNet-B0 via torchvision), Pillow, pytest, Ruff.
+Python 3.12+, FastAPI, PyTorch (EfficientNet-B0 via torchvision), Pillow, pytest, Ruff.
 
 ## Setup
 
