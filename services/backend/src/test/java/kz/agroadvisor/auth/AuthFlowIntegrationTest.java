@@ -55,13 +55,16 @@ class AuthFlowIntegrationTest {
     // ---- registration
 
     @Test
-    void theRoleIsLowerCaseInTheContractButUpperCaseIsStillAccepted() throws Exception {
+    void theRoleIsLowerCaseAndAnotherCaseIsAValidationError() throws Exception {
         Session lower = register(newPhone(), "agrochemist");
-        Session upper = register(newPhone(), "AGROCHEMIST");
+        mvc.perform(get("/api/users/me").header("Authorization", "Bearer " + lower.access()))
+                .andExpect(jsonPath("$.roles[0]").value("agrochemist"));
 
-        for (Session s : List.of(lower, upper)) {
-            mvc.perform(get("/api/users/me").header("Authorization", "Bearer " + s.access()))
-                    .andExpect(jsonPath("$.roles[0]").value("agrochemist"));
+        for (String wrong : List.of("AGROCHEMIST", "FARMER", "Farmer")) {
+            String phone = newPhone();
+            expectPost("/api/auth/register", body(phone, PASSWORD, wrong), 400, "validation_failed");
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM users WHERE phone = ?", Integer.class, phone))
+                    .isZero();
         }
     }
 
@@ -94,7 +97,7 @@ class AuthFlowIntegrationTest {
     @Test
     void adminCannotBeRegisteredPublicly() throws Exception {
         expectPost("/api/auth/register", body(newPhone(), PASSWORD, "admin"), 400, "role_not_allowed");
-        expectPost("/api/auth/register", body(newPhone(), PASSWORD, "ADMIN"), 400, "role_not_allowed");
+        expectPost("/api/auth/register", body(newPhone(), PASSWORD, "ADMIN"), 400, "validation_failed");
         expectPost("/api/auth/register", body(newPhone(), PASSWORD, "superuser"), 400, "role_not_allowed");
     }
 
