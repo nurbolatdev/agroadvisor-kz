@@ -1,6 +1,7 @@
 package kz.agroadvisor.diagnosis.repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Pageable;
@@ -12,4 +13,7 @@ public interface DiagnosisRepository extends JpaRepository<Diagnosis, UUID> {
 
     /** A user's history, newest first (index {@code (user_id, created_at DESC)}). */
     List<Diagnosis> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable page);
+
+    /** The diagnosis a client already made with this key (unique index {@code (user_id, idempotency_key)}). */
+    Optional<Diagnosis> findByUserIdAndIdempotencyKey(UUID userId, String idempotencyKey);
 }

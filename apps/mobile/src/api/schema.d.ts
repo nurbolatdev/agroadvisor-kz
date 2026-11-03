@@ -284,9 +284,9 @@ export interface components {
             id?: number;
         };
         ClassScore: {
-            code?: string;
+            code: string;
             /** Format: double */
-            confidence?: number;
+            confidence: number;
         };
         CreateCrop: {
             code: string;
@@ -323,24 +323,26 @@ export interface components {
             sortOrder?: number;
         };
         CropView: {
-            code?: string;
-            name?: string;
+            code: string;
+            name: string;
         };
         DiagnosisView: {
             /** Format: int32 */
-            classesVersion?: number;
+            classesVersion: number;
             /** Format: date-time */
-            createdAt?: string;
-            crop?: string;
-            descriptionReady?: boolean;
-            detectedCrop?: string;
+            createdAt: string;
+            crop: string;
+            descriptionReady: boolean;
+            /** @description Set only when status is crop_mismatch */
+            detectedCrop?: string | null;
             /** Format: uuid */
-            id?: string;
-            modelVersion?: string;
-            placeholder?: boolean;
-            status?: string;
-            top1?: components["schemas"]["ClassScore"];
-            top3?: components["schemas"]["ClassScore"][];
+            id: string;
+            modelVersion: string;
+            placeholder: boolean;
+            /** @enum {string} */
+            status: "ok" | "low_confidence" | "unknown" | "crop_mismatch";
+            top1: components["schemas"]["ClassScore"];
+            top3: components["schemas"]["ClassScore"][];
         };
         DiseaseBody: {
             conditions?: {
@@ -380,48 +382,60 @@ export interface components {
         };
         DiseaseDetail: {
             conditions?: unknown;
-            disease?: components["schemas"]["DiseaseSummary"];
+            disease: components["schemas"]["DiseaseSummary"];
             prevention?: unknown;
             symptoms?: unknown;
-            treatments?: components["schemas"]["TreatmentView"][];
+            treatments: components["schemas"]["TreatmentView"][];
         };
         DiseaseSummary: {
-            code?: string;
-            cropCode?: string;
-            kind?: string;
-            latinName?: string;
-            name?: string;
-            severity?: string;
+            code: string;
+            cropCode?: string | null;
+            /** @enum {string} */
+            kind: "fungal" | "bacterial" | "viral" | "oomycete" | "pest" | "healthy" | "other";
+            latinName?: string | null;
+            name: string;
+            /** @enum {string|null} */
+            severity?: "low" | "medium" | "high" | null;
         };
         LoginRequest: {
             login: string;
             password: string;
         };
         MeResponse: {
-            email?: string;
-            fullName?: string;
+            email?: string | null;
+            fullName: string;
             /** Format: uuid */
-            id?: string;
-            language?: string;
-            phone?: string;
-            roles?: string[];
+            id: string;
+            /** @enum {string} */
+            language: "ru" | "kk" | "en";
+            phone?: string | null;
+            roles: ("farmer" | "agrochemist" | "admin")[];
         };
         RefreshRequest: {
             refreshToken: string;
         };
         RegisterRequest: {
             fullName: string;
-            language?: string;
+            /** @enum {string} */
+            language?: "ru" | "kk" | "en";
             login: string;
             password: string;
-            role?: string;
+            /**
+             * @description Upper case here; the roles in MeResponse are the lower case codes
+             * @enum {string}
+             */
+            role?: "FARMER" | "AGROCHEMIST";
         };
         TokenResponse: {
-            accessToken?: string;
-            /** Format: int64 */
-            expiresIn?: number;
-            refreshToken?: string;
-            tokenType?: string;
+            accessToken: string;
+            /**
+             * Format: int64
+             * @description Access token lifetime, seconds
+             */
+            expiresIn: number;
+            refreshToken: string;
+            /** @enum {string} */
+            tokenType: "Bearer";
         };
         TreatmentBody: {
             activeIngredient?: string;
@@ -450,11 +464,12 @@ export interface components {
             type?: string;
         };
         TreatmentView: {
-            activeIngredient?: string;
-            dosage?: string;
-            method?: string;
-            product?: string;
-            type?: string;
+            activeIngredient?: string | null;
+            dosage?: string | null;
+            method?: string | null;
+            product: string;
+            /** @enum {string} */
+            type: "chemical" | "biological";
         };
     };
     responses: never;
@@ -927,7 +942,10 @@ export interface operations {
             query: {
                 crop: string;
             };
-            header?: never;
+            header?: {
+                /** @description One key per diagnosis attempt (a UUID fits); resend the same request with it when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -940,9 +958,11 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Created */
+            /** @description The diagnosis; for a repeated Idempotency-Key the one made the first time, with the header Idempotent-Replayed: true */
             201: {
                 headers: {
+                    /** @description "true" when the diagnosis already existed */
+                    "Idempotent-Replayed"?: "true";
                     [name: string]: unknown;
                 };
                 content: {

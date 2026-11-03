@@ -56,6 +56,7 @@
             "type" : "number"
           }
         },
+        "required" : [ "code", "confidence" ],
         "type" : "object"
       },
       "CreateCrop" : {
@@ -149,6 +150,7 @@
             "type" : "string"
           }
         },
+        "required" : [ "code", "name" ],
         "type" : "object"
       },
       "DiagnosisView" : {
@@ -168,7 +170,8 @@
             "type" : "boolean"
           },
           "detectedCrop" : {
-            "type" : "string"
+            "description" : "Set only when status is crop_mismatch",
+            "type" : [ "string", "null" ]
           },
           "id" : {
             "format" : "uuid",
@@ -181,6 +184,7 @@
             "type" : "boolean"
           },
           "status" : {
+            "enum" : [ "ok", "low_confidence", "unknown", "crop_mismatch" ],
             "type" : "string"
           },
           "top1" : {
@@ -193,6 +197,7 @@
             "type" : "array"
           }
         },
+        "required" : [ "classesVersion", "createdAt", "crop", "descriptionReady", "id", "modelVersion", "placeholder", "status", "top1", "top3" ],
         "type" : "object"
       },
       "DiseaseBody" : {
@@ -283,6 +288,7 @@
             "type" : "array"
           }
         },
+        "required" : [ "disease", "treatments" ],
         "type" : "object"
       },
       "DiseaseSummary" : {
@@ -291,21 +297,24 @@
             "type" : "string"
           },
           "cropCode" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "kind" : {
+            "enum" : [ "fungal", "bacterial", "viral", "oomycete", "pest", "healthy", "other" ],
             "type" : "string"
           },
           "latinName" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "name" : {
             "type" : "string"
           },
           "severity" : {
-            "type" : "string"
+            "enum" : [ "low", "medium", "high" ],
+            "type" : [ "string", "null" ]
           }
         },
+        "required" : [ "code", "kind", "name" ],
         "type" : "object"
       },
       "LoginRequest" : {
@@ -327,7 +336,7 @@
       "MeResponse" : {
         "properties" : {
           "email" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "fullName" : {
             "type" : "string"
@@ -337,18 +346,21 @@
             "type" : "string"
           },
           "language" : {
+            "enum" : [ "ru", "kk", "en" ],
             "type" : "string"
           },
           "phone" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "roles" : {
             "items" : {
+              "enum" : [ "farmer", "agrochemist", "admin" ],
               "type" : "string"
             },
             "type" : "array"
           }
         },
+        "required" : [ "fullName", "id", "language", "roles" ],
         "type" : "object"
       },
       "RefreshRequest" : {
@@ -370,6 +382,7 @@
             "type" : "string"
           },
           "language" : {
+            "enum" : [ "ru", "kk", "en" ],
             "pattern" : "ru|kk|en",
             "type" : "string"
           },
@@ -384,6 +397,8 @@
             "type" : "string"
           },
           "role" : {
+            "description" : "Upper case here; the roles in MeResponse are the lower case codes",
+            "enum" : [ "FARMER", "AGROCHEMIST" ],
             "maxLength" : 20,
             "minLength" : 0,
             "type" : "string"
@@ -398,6 +413,7 @@
             "type" : "string"
           },
           "expiresIn" : {
+            "description" : "Access token lifetime, seconds",
             "format" : "int64",
             "type" : "integer"
           },
@@ -405,9 +421,11 @@
             "type" : "string"
           },
           "tokenType" : {
+            "enum" : [ "Bearer" ],
             "type" : "string"
           }
         },
+        "required" : [ "accessToken", "expiresIn", "refreshToken", "tokenType" ],
         "type" : "object"
       },
       "TreatmentBody" : {
@@ -478,22 +496,31 @@
       "TreatmentView" : {
         "properties" : {
           "activeIngredient" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "dosage" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "method" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "product" : {
             "type" : "string"
           },
           "type" : {
+            "enum" : [ "chemical", "biological" ],
             "type" : "string"
           }
         },
+        "required" : [ "product", "type" ],
         "type" : "object"
+      }
+    },
+    "securitySchemes" : {
+      "bearerAuth" : {
+        "bearerFormat" : "JWT",
+        "scheme" : "bearer",
+        "type" : "http"
       }
     }
   },
@@ -885,6 +912,7 @@
             "description" : "OK"
           }
         },
+        "security" : [ ],
         "tags" : [ "auth-controller" ]
       }
     },
@@ -906,6 +934,7 @@
             "description" : "No Content"
           }
         },
+        "security" : [ ],
         "tags" : [ "auth-controller" ]
       }
     },
@@ -945,6 +974,7 @@
             "description" : "OK"
           }
         },
+        "security" : [ ],
         "tags" : [ "auth-controller" ]
       }
     },
@@ -973,6 +1003,7 @@
             "description" : "Created"
           }
         },
+        "security" : [ ],
         "tags" : [ "auth-controller" ]
       }
     },
@@ -1063,6 +1094,17 @@
           "schema" : {
             "type" : "string"
           }
+        }, {
+          "description" : "One key per diagnosis attempt (a UUID fits); resend the same request with it when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key.",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : false,
+          "schema" : {
+            "maxLength" : 80,
+            "minLength" : 8,
+            "pattern" : "[A-Za-z0-9_.:-]{8,80}",
+            "type" : "string"
+          }
         } ],
         "requestBody" : {
           "content" : {
@@ -1089,7 +1131,17 @@
                 }
               }
             },
-            "description" : "Created"
+            "description" : "The diagnosis; for a repeated Idempotency-Key the one made the first time, with the header Idempotent-Replayed: true",
+            "headers" : {
+              "Idempotent-Replayed" : {
+                "description" : "\"true\" when the diagnosis already existed",
+                "schema" : {
+                  "enum" : [ "true" ],
+                  "type" : "string"
+                },
+                "style" : "simple"
+              }
+            }
           }
         },
         "tags" : [ "diagnosis-controller" ]
@@ -1196,5 +1248,8 @@
         "tags" : [ "user-controller" ]
       }
     }
-  }
+  },
+  "security" : [ {
+    "bearerAuth" : [ ]
+  } ]
 }

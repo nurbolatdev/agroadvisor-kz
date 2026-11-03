@@ -1,8 +1,12 @@
 package kz.agroadvisor.users.web;
 
+import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
+
 import java.util.List;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Schema;
 import kz.agroadvisor.common.web.ApiException;
 import kz.agroadvisor.users.model.Role;
 import kz.agroadvisor.users.model.User;
@@ -32,7 +36,13 @@ public class UserController {
                 user.getLanguage(), user.getRoles().stream().map(Role::code).sorted().toList());
     }
 
-    public record MeResponse(UUID id, String phone, String email, String fullName, String language,
-                             List<String> roles) {
+    public record MeResponse(
+            @Schema(requiredMode = REQUIRED) UUID id,
+            @Schema(nullable = true) String phone,
+            @Schema(nullable = true) String email,
+            @Schema(requiredMode = REQUIRED) String fullName,
+            @Schema(requiredMode = REQUIRED, allowableValues = {"ru", "kk", "en"}) String language,
+            @ArraySchema(schema = @Schema(allowableValues = {"farmer", "agrochemist", "admin"}))
+            @Schema(requiredMode = REQUIRED) List<String> roles) {
     }
 }

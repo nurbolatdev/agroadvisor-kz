@@ -13,6 +13,11 @@ public final class DiagnosisErrors {
     /** The AI service answered with a fault or with something the contract does not allow (502). */
     public static final String AI_ERROR = "ai_error";
 
+    /** The {@code Idempotency-Key} header is not 8-80 characters of letters, digits, {@code - _ . :} (400). */
+    public static final String INVALID_IDEMPOTENCY_KEY = "invalid_idempotency_key";
+    /** The key was already used for a diagnosis of another crop (422). */
+    public static final String IDEMPOTENCY_KEY_REUSED = "idempotency_key_reused";
+
     private DiagnosisErrors() {
     }
 }

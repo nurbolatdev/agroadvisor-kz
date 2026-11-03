@@ -1,8 +1,10 @@
 package kz.agroadvisor.diagnosis.web;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -19,11 +21,16 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import kz.agroadvisor.TestcontainersConfiguration;
 import kz.agroadvisor.auth.service.JwtService;
+import kz.agroadvisor.diagnosis.model.ClassScore;
+import kz.agroadvisor.diagnosis.model.Diagnosis;
 import kz.agroadvisor.diagnosis.repository.DiagnosisRepository;
+import kz.agroadvisor.diagnosis.service.AiClient;
+import kz.agroadvisor.diagnosis.service.DiagnosisService;
 import kz.agroadvisor.diagnosis.service.PhotoStorage;
 import kz.agroadvisor.users.model.Login;
 import kz.agroadvisor.users.model.Role;
@@ -34,11 +41,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -58,6 +69,8 @@ class DiagnosisControllerTest {
     private JwtService jwt;
     @MockitoBean
     private PhotoStorage photos;
+    @MockitoSpyBean
+    private AiClient ai;
 
     private User farmer;
     private String token;
@@ -153,6 +166,112 @@ class DiagnosisControllerTest {
     void rejectsARequestWithoutAPhoto() throws Exception {
         mvc.perform(multipart("/api/diagnoses").param("crop", "tomato").header("Authorization", token))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void aRepeatedIdempotencyKeyReturnsTheSameDiagnosisAndStoresOnePhoto() throws Exception {
+        String key = UUID.randomUUID().toString();
+        String first = mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                        .header("Authorization", token).header("Idempotency-Key", key))
+                .andExpect(status().isCreated())
+                .andExpect(header().doesNotExist("Idempotent-Replayed"))
+                .andReturn().getResponse().getContentAsString();
+
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                        .header("Authorization", token).header("Idempotency-Key", key))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Idempotent-Replayed", "true"))
+                .andExpect(content().json(first));
+
+        assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10))).hasSize(1);
+        verify(photos, times(1)).store(eq(farmer.getId()), any(byte[].class), anyString());
+    }
+
+    /**
+     * The real race: another request with the same key commits its row while this one is in the model call.
+     * The unique index rejects this request's insert; it must drop its photo and return the winner's row.
+     */
+    @Test
+    void aRequestThatLosesTheRaceOnTheKeyReturnsTheWinnersDiagnosis() throws Exception {
+        String key = UUID.randomUUID().toString();
+        doAnswer(call -> {
+            diagnoses.saveAndFlush(new Diagnosis(farmer.getId(), "tomato", "diagnoses/test/winner.jpg", "ok",
+                    "tomato__healthy", new BigDecimal("0.9000"), List.of(new ClassScore("tomato__healthy", 0.9)),
+                    null, "placeholder-v0", 1, 5, key, DiagnosisService.fingerprint(JPEG)));
+            return call.callRealMethod();
+        }).when(ai).predict(eq("tomato"), any(byte[].class));
+
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                        .header("Authorization", token).header("Idempotency-Key", key))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Idempotent-Replayed", "true"));
+
+        assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10)))
+                .singleElement().satisfies(d -> assertThat(d.getPhotoKey()).isEqualTo("diagnoses/test/winner.jpg"));
+        verify(photos).delete("diagnoses/test/photo.jpg"); // the loser's photo is removed, the winner's stays
+    }
+
+    @Test
+    void theSameKeyOfAnotherUserIsAnotherDiagnosis() throws Exception {
+        String key = UUID.randomUUID().toString();
+        User other = newUser();
+        String otherToken = "Bearer " + jwt.issueAccessToken(other.getId());
+
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                .header("Authorization", token).header("Idempotency-Key", key)).andExpect(status().isCreated());
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                        .header("Authorization", otherToken).header("Idempotency-Key", key))
+                .andExpect(status().isCreated())
+                .andExpect(header().doesNotExist("Idempotent-Replayed"));
+
+        assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(other.getId(), PageRequest.of(0, 10))).hasSize(1);
+    }
+
+    @Test
+    void theKeyIsOptional() throws Exception {
+        for (int i = 0; i < 2; i++) {
+            mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                    .header("Authorization", token)).andExpect(status().isCreated());
+        }
+
+        assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10))).hasSize(2);
+    }
+
+    @Test
+    void aKeyUsedForAnotherCropIsRefused() throws Exception {
+        String key = UUID.randomUUID().toString();
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                .header("Authorization", token).header("Idempotency-Key", key)).andExpect(status().isCreated());
+
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "potato")
+                        .header("Authorization", token).header("Idempotency-Key", key))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.code").value("idempotency_key_reused"))
+                .andExpect(jsonPath("$.reason").value("crop"));
+    }
+
+    @Test
+    void aKeyUsedForAnotherPhotoOfTheSameCropIsRefused() throws Exception {
+        String key = UUID.randomUUID().toString();
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                .header("Authorization", token).header("Idempotency-Key", key)).andExpect(status().isCreated());
+
+        mvc.perform(multipart("/api/diagnoses").file(image("image/png")).param("crop", "tomato")
+                        .header("Authorization", token).header("Idempotency-Key", key))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.code").value("idempotency_key_reused"))
+                .andExpect(jsonPath("$.reason").value("photo"));
+        assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10))).hasSize(1);
+        verify(photos, times(1)).store(eq(farmer.getId()), any(byte[].class), anyString());
+    }
+
+    @Test
+    void aMalformedKeyIsABadRequest() throws Exception {
+        mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                        .header("Authorization", token).header("Idempotency-Key", "bad key"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("invalid_idempotency_key"));
+        verify(photos, never()).store(any(UUID.class), any(byte[].class), anyString());
     }
 
     @Test

@@ -68,12 +68,29 @@ public class Diagnosis {
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
 
+    /** The client's {@code Idempotency-Key}; null when the request had none. Unique per user. */
+    @Column(name = "idempotency_key")
+    private String idempotencyKey;
+
+    /** SHA-256 (hex) of the photo bytes, to tell a resend of the same photo from a new photo under the same key. */
+    @Column(name = "request_fingerprint")
+    private String requestFingerprint;
+
     protected Diagnosis() {
     }
 
     public Diagnosis(UUID userId, String cropCode, String photoKey, String status, String top1Code,
             BigDecimal top1Confidence, List<ClassScore> top3, String detectedCrop, String modelVersion,
             int classesVersion, Integer inferenceMs) {
+        this(userId, cropCode, photoKey, status, top1Code, top1Confidence, top3, detectedCrop, modelVersion,
+                classesVersion, inferenceMs, null, null);
+    }
+
+    public Diagnosis(UUID userId, String cropCode, String photoKey, String status, String top1Code,
+            BigDecimal top1Confidence, List<ClassScore> top3, String detectedCrop, String modelVersion,
+            int classesVersion, Integer inferenceMs, String idempotencyKey, String requestFingerprint) {
+        this.idempotencyKey = idempotencyKey;
+        this.requestFingerprint = requestFingerprint;
         this.userId = userId;
         this.cropCode = cropCode;
         this.photoKey = photoKey;
@@ -97,6 +114,14 @@ public class Diagnosis {
 
     public String getCropCode() {
         return cropCode;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public String getRequestFingerprint() {
+        return requestFingerprint;
     }
 
     public String getPhotoKey() {

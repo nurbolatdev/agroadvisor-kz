@@ -25,6 +25,12 @@ management:
   endpoint:
     health:
       show-details: always
+  endpoints:
+    web:
+      exposure:
+        # Metrics (agroadvisor.ai.predict, ...) are readable over HTTP only locally, with an access token;
+        # Prometheus and a separate management port are planned for staging
+        include: health, info, metrics
 
 springdoc:
   api-docs:

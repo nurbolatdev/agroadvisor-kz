@@ -1,20 +1,14 @@
-import type { Language } from '@/i18n'
-
 import type { ApiClient } from './client'
 import type { components } from './schema'
 
 type Schemas = components['schemas']
 
-// Generated from docs/api/openapi.json (npm run gen:api). The backend does not mark response
-// fields as required yet, and language/role are plain strings in the schema, so narrow them here.
-export type RegisterRequest = Omit<Schemas['RegisterRequest'], 'language' | 'role'> & {
-  language?: Language
-  role?: 'FARMER' | 'AGROCHEMIST'
-}
+// Generated from docs/api/openapi.json (npm run gen:api)
+export type RegisterRequest = Schemas['RegisterRequest']
 
 export type LoginRequest = Schemas['LoginRequest']
 
-export type TokenResponse = Required<Schemas['TokenResponse']>
+export type TokenResponse = Schemas['TokenResponse']
 
 export type AuthApi = {
   register: (body: RegisterRequest) => Promise<TokenResponse>

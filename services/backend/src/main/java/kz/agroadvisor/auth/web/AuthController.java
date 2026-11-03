@@ -1,7 +1,11 @@
 package kz.agroadvisor.auth.web;
 
+import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
+
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -35,8 +39,9 @@ public class AuthController {
             @NotBlank @Size(max = 120) String login,
             @NotBlank @Size(min = 8, max = 72) String password,
             @NotBlank @Size(max = 120) String fullName,
-            @Pattern(regexp = "ru|kk|en") String language,
-            @Size(max = 20) String role) {
+            @Pattern(regexp = "ru|kk|en") @Schema(allowableValues = {"ru", "kk", "en"}) String language,
+            @Size(max = 20) @Schema(allowableValues = {"FARMER", "AGROCHEMIST"},
+                    description = "Upper case here; the roles in MeResponse are the lower case codes") String role) {
     }
 
     public record LoginRequest(@NotBlank @Size(max = 120) String login, @NotBlank @Size(max = 72) String password) {
@@ -45,13 +50,19 @@ public class AuthController {
     public record RefreshRequest(@NotBlank @Size(max = 200) String refreshToken) {
     }
 
-    public record TokenResponse(String accessToken, String refreshToken, String tokenType, long expiresIn) {
+    public record TokenResponse(
+            @Schema(requiredMode = REQUIRED) String accessToken,
+            @Schema(requiredMode = REQUIRED) String refreshToken,
+            @Schema(requiredMode = REQUIRED, allowableValues = "Bearer") String tokenType,
+            @Schema(requiredMode = REQUIRED, description = "Access token lifetime, seconds") long expiresIn) {
 
         static TokenResponse of(AuthService.Tokens tokens) {
             return new TokenResponse(tokens.accessToken(), tokens.refreshToken(), "Bearer", tokens.expiresInSeconds());
         }
     }
 
+    // register, login, refresh and logout are public: an empty @SecurityRequirements means no access token
+    @SecurityRequirements
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public TokenResponse register(@Valid @RequestBody RegisterRequest request) {
@@ -59,17 +70,20 @@ public class AuthController {
                 request.language(), request.role()));
     }
 
+    @SecurityRequirements
     @PostMapping("/login")
     public TokenResponse login(@Valid @RequestBody LoginRequest request) {
         return TokenResponse.of(auth.login(request.login(), request.password()));
     }
 
+    @SecurityRequirements
     @PostMapping("/refresh")
     public TokenResponse refresh(@Valid @RequestBody RefreshRequest request) {
         return TokenResponse.of(auth.refresh(request.refreshToken()));
     }
 
     /** Ends this session. The refresh token is the credential, so no access token is needed. */
+    @SecurityRequirements
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logout(@Valid @RequestBody RefreshRequest request) {

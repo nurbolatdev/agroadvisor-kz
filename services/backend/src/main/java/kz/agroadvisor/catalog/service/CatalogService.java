@@ -1,8 +1,11 @@
 package kz.agroadvisor.catalog.service;
 
+import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
+
 import java.io.Serializable;
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -98,19 +101,36 @@ public class CatalogService {
                 CatalogLanguage.pick(treatment.getDosage(), lang), CatalogLanguage.pick(treatment.getMethod(), lang));
     }
 
-    public record CropView(String code, String name) implements Serializable {
+    public record CropView(@Schema(requiredMode = REQUIRED) String code, @Schema(requiredMode = REQUIRED) String name)
+            implements Serializable {
     }
 
-    public record DiseaseSummary(String code, String cropCode, String kind, String severity, String latinName,
-            String name) implements Serializable {
+    /** {@code cropCode} is empty only for the {@code unknown} class. */
+    public record DiseaseSummary(
+            @Schema(requiredMode = REQUIRED) String code,
+            @Schema(nullable = true) String cropCode,
+            @Schema(requiredMode = REQUIRED,
+                    allowableValues = {"fungal", "bacterial", "viral", "oomycete", "pest", "healthy", "other"})
+            String kind,
+            @Schema(nullable = true, allowableValues = {"low", "medium", "high"}) String severity,
+            @Schema(nullable = true) String latinName,
+            @Schema(requiredMode = REQUIRED) String name) implements Serializable {
     }
 
     /** {@code symptoms}, {@code conditions} and {@code prevention} are a string or a list of strings. */
-    public record DiseaseDetail(DiseaseSummary disease, Object symptoms, Object conditions, Object prevention,
-            List<TreatmentView> treatments) implements Serializable {
+    public record DiseaseDetail(
+            @Schema(requiredMode = REQUIRED) DiseaseSummary disease,
+            Object symptoms,
+            Object conditions,
+            Object prevention,
+            @Schema(requiredMode = REQUIRED) List<TreatmentView> treatments) implements Serializable {
     }
 
-    public record TreatmentView(String type, String product, String activeIngredient, String dosage,
-            String method) implements Serializable {
+    public record TreatmentView(
+            @Schema(requiredMode = REQUIRED, allowableValues = {"chemical", "biological"}) String type,
+            @Schema(requiredMode = REQUIRED) String product,
+            @Schema(nullable = true) String activeIngredient,
+            @Schema(nullable = true) String dosage,
+            @Schema(nullable = true) String method) implements Serializable {
     }
 }
