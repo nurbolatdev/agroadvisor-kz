@@ -1,19 +1,22 @@
+import { unsignedToken } from '@/lib/jwt'
+
 import type { AuthApi, TokenResponse } from '../auth'
 import { ApiError } from '../errors'
 
 // Same behavior as the backend for the cases the screens handle: wrong password, taken login,
-// short password and refresh-token rotation (an old refresh token stops working).
+// short password and refresh-token rotation (an old refresh token stops working). Like the backend's,
+// the access token carries the user's id in `sub`, so the app knows whose data it holds.
 export function createMockAuthApi(): AuthApi {
-  const users = new Map<string, string>()
-  const refreshTokens = new Set<string>()
+  const users = new Map<string, { password: string; id: string }>()
+  const refreshTokens = new Map<string, string>()
   let counter = 0
 
-  function issue(): TokenResponse {
+  function issue(userId: string): TokenResponse {
     counter += 1
     const refreshToken = `mock-refresh-${counter}`
-    refreshTokens.add(refreshToken)
+    refreshTokens.set(refreshToken, userId)
     return {
-      accessToken: `mock-access-${counter}`,
+      accessToken: unsignedToken({ sub: userId, jti: counter }),
       refreshToken,
       tokenType: 'Bearer',
       expiresIn: 900,
@@ -28,20 +31,24 @@ export function createMockAuthApi(): AuthApi {
         ])
       }
       if (users.has(login)) throw new ApiError(409, 'login_taken', 'Login is already taken')
-      users.set(login, password)
-      return issue()
+      const id = `00000000-0000-4000-8000-${String(users.size + 1).padStart(12, '0')}`
+      users.set(login, { password, id })
+      return issue(id)
     },
     async login({ login, password }) {
-      if (users.get(login) !== password) {
+      const user = users.get(login)
+      if (!user || user.password !== password) {
         throw new ApiError(401, 'invalid_credentials', 'Invalid login or password')
       }
-      return issue()
+      return issue(user.id)
     },
     async refresh(refreshToken) {
-      if (!refreshTokens.delete(refreshToken)) {
+      const userId = refreshTokens.get(refreshToken)
+      if (userId === undefined) {
         throw new ApiError(401, 'invalid_refresh_token', 'Invalid refresh token')
       }
-      return issue()
+      refreshTokens.delete(refreshToken)
+      return issue(userId)
     },
     async logout(refreshToken) {
       refreshTokens.delete(refreshToken)

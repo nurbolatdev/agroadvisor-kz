@@ -1,6 +1,16 @@
 import { ApiError, NetworkError } from '@/api/errors'
 
-import { isTemporary, toDiagnosisFailure } from './errors'
+import { en } from '@/i18n/en'
+import { kk } from '@/i18n/kk'
+import { ru } from '@/i18n/ru'
+
+import {
+  type DiagnosisProblem,
+  isTemporary,
+  messageKeyOf,
+  problemOf,
+  toDiagnosisFailure,
+} from './errors'
 import { PhotoError } from './photo'
 
 const api = (status: number, code: string, reason?: string, retryAfter?: number) =>
@@ -106,5 +116,87 @@ describe('toDiagnosisFailure', () => {
       messageKey: 'diagnosis.errors.rateLimited',
       action: 'retry',
     })
+  })
+})
+
+describe('problems and their texts', () => {
+  it('narrows the reason of low_quality and falls back to the code for an unknown reason', () => {
+    expect(problemOf(api(422, 'low_quality', 'blurry'))).toEqual({
+      kind: 'lowQuality',
+      reason: 'blurry',
+    })
+    expect(problemOf(api(422, 'low_quality', 'overexposed'))).toEqual({
+      kind: 'lowQuality',
+      reason: null,
+    })
+    expect(problemOf(api(422, 'low_quality'))).toEqual({ kind: 'lowQuality', reason: null })
+  })
+
+  it('narrows the reason of idempotency_key_reused', () => {
+    expect(problemOf(api(422, 'idempotency_key_reused', 'photo'))).toEqual({
+      kind: 'keyReused',
+      reason: 'photo',
+    })
+    expect(problemOf(api(422, 'idempotency_key_reused', 'crop'))).toEqual({
+      kind: 'keyReused',
+      reason: 'crop',
+    })
+    expect(problemOf(api(422, 'idempotency_key_reused', 'whatever'))).toEqual({
+      kind: 'keyReused',
+      reason: null,
+    })
+  })
+
+  it('has a text for every reason of every problem', () => {
+    const problems: DiagnosisProblem[] = [
+      { kind: 'network' },
+      { kind: 'lowQuality', reason: 'blurry' },
+      { kind: 'lowQuality', reason: 'dark' },
+      { kind: 'lowQuality', reason: 'too_small' },
+      { kind: 'lowQuality', reason: null },
+      { kind: 'invalidImage' },
+      { kind: 'unknownCrop' },
+      { kind: 'keyReused', reason: 'crop' },
+      { kind: 'keyReused', reason: 'photo' },
+      { kind: 'keyReused', reason: null },
+      { kind: 'invalidKey' },
+      { kind: 'aiUnavailable' },
+      { kind: 'aiError' },
+      { kind: 'storage' },
+      { kind: 'rateLimited' },
+      { kind: 'photoUnreadable' },
+      { kind: 'photoTooLarge' },
+      { kind: 'photoLost' },
+      { kind: 'generic' },
+    ]
+    for (const problem of problems) {
+      expect(messageKeyOf(problem)).toMatch(/^diagnosis\.errors\.[a-zA-Z]+$/)
+    }
+  })
+
+  it('every text key exists in all three languages', () => {
+    const keys = [
+      'network',
+      'blurry',
+      'dark',
+      'tooSmall',
+      'lowQuality',
+      'invalidImage',
+      'unknownCrop',
+      'aiUnavailable',
+      'aiError',
+      'storage',
+      'rateLimited',
+      'keyReused',
+      'photoUnreadable',
+      'photoTooLarge',
+      'photoLost',
+      'generic',
+    ] satisfies string[]
+    for (const dictionary of [ru, kk, en]) {
+      for (const key of keys) {
+        expect(dictionary.diagnosis.errors).toHaveProperty(key)
+      }
+    }
   })
 })

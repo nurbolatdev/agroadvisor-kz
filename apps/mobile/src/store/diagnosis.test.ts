@@ -1,7 +1,9 @@
-import type { DiagnosisApi, DiagnosisResult } from '@/api/diagnosis'
+import { createApiClient } from '@/api/client'
+import { type DiagnosisApi, type DiagnosisResult, createDiagnosisApi } from '@/api/diagnosis'
 import { ApiError, NetworkError } from '@/api/errors'
 import { PhotoError, type PickedPhoto } from '@/features/diagnosis/photo'
 import type { PendingDiagnosis } from '@/features/diagnosis/pending'
+import { createPendingQueue } from '@/features/diagnosis/pendingQueue'
 
 import { createDiagnosisStore } from './diagnosis'
 
@@ -24,8 +26,41 @@ function result(status: DiagnosisResult['status'] = 'ok'): DiagnosisResult {
   }
 }
 
+// The real queue over memory instead of MMKV and the documents folder.
+function memoryQueue() {
+  let user: string | null = 'user-a'
+  let raw: string | undefined
+  const files = new Set<string>()
+  const queue = createPendingQueue({
+    store: {
+      getString: () => raw,
+      set: (_key, value) => {
+        raw = value
+      },
+    },
+    files: {
+      copyIn: async (_uri, name) => {
+        const copy = `file:///documents/${name}`
+        files.add(copy)
+        return copy
+      },
+      resolve: (name) => `file:///documents/${name}`,
+      exists: (uri) => files.has(uri),
+      remove: (uri) => {
+        files.delete(uri)
+      },
+      list: () => [...files],
+    },
+    currentUser: () => user,
+    now: () => 1_700_000_000_000,
+    warn: () => undefined,
+  })
+  return { queue, files, setUser: (next: string | null) => void (user = next) }
+}
+
 function setup(outcomes: (DiagnosisResult | Error)[]) {
   const sent: PendingDiagnosis[] = []
+  const memory = memoryQueue()
   const api: DiagnosisApi = {
     create: jest.fn(async (pending) => {
       sent.push(pending)
@@ -39,10 +74,11 @@ function setup(outcomes: (DiagnosisResult | Error)[]) {
   const useDiagnosis = createDiagnosisStore({
     api,
     prepare,
+    queue: memory.queue,
     newKey: () => `key-0000000${(keys += 1)}`,
     now: () => 1_700_000_000_000,
   })
-  return { useDiagnosis, sent, prepare }
+  return { useDiagnosis, sent, prepare, ...memory }
 }
 
 async function start(useDiagnosis: ReturnType<typeof setup>['useDiagnosis']) {
@@ -65,7 +101,8 @@ describe('diagnosis flow', () => {
     expect(s.pending).toEqual({
       key: 'key-00000001',
       crop: 'tomato',
-      fileUri: 'file:///camera/IMG_1.jpg.prepared.jpg',
+      // the queue keeps its own copy of the prepared file
+      fileUri: 'file:///documents/key-00000001.jpg',
       createdAt: 1_700_000_000_000,
     })
   })
@@ -91,7 +128,7 @@ describe('diagnosis flow', () => {
     expect(sent).toHaveLength(3)
     expect(new Set(sent.map((p) => p.key))).toEqual(new Set(['key-00000001']))
     expect(new Set(sent.map((p) => p.fileUri))).toEqual(
-      new Set(['file:///camera/IMG_1.jpg.prepared.jpg']),
+      new Set(['file:///documents/key-00000001.jpg']),
     )
     expect(prepare).toHaveBeenCalledTimes(1) // the original is not compressed again
   })
@@ -162,7 +199,7 @@ describe('diagnosis flow', () => {
     await useDiagnosis.getState().analyze()
 
     expect(sent.map((p) => p.key)).toEqual(['key-00000001', 'key-00000002'])
-    expect(sent[1].fileUri).toBe('file:///camera/IMG_2.jpg.prepared.jpg')
+    expect(sent[1].fileUri).toBe('file:///documents/key-00000002.jpg')
     expect(prepare).toHaveBeenCalledTimes(2)
   })
 
@@ -186,6 +223,7 @@ describe('diagnosis flow', () => {
     const useDiagnosis = createDiagnosisStore({
       api,
       prepare: async () => ({ uri: 'file:///p.jpg' }),
+      queue: memoryQueue().queue,
     })
     useDiagnosis.getState().selectCrop('tomato')
     useDiagnosis.getState().setPhoto(PHOTO)
@@ -211,6 +249,551 @@ describe('diagnosis flow', () => {
     await useDiagnosis.getState().analyze()
     expect(sent).toHaveLength(0)
     expect(useDiagnosis.getState().phase).toBe('idle')
+  })
+
+  describe('offline queue', () => {
+    it('keeps the entry while the answer is missing and drops it when the answer comes', async () => {
+      const { useDiagnosis, queue } = setup([new ApiError(503, 'ai_unavailable', 'down'), result()])
+
+      await start(useDiagnosis)
+      expect(queue.list().map((e) => e.pending.key)).toEqual(['key-00000001'])
+      expect(useDiagnosis.getState().queued).toHaveLength(1)
+
+      await useDiagnosis.getState().retry()
+
+      expect(queue.list()).toEqual([])
+      expect(useDiagnosis.getState().queued).toEqual([])
+    })
+
+    it('removes the entry and its photo when the server refuses the photo for good', async () => {
+      const { useDiagnosis, queue, files } = setup([
+        new ApiError(422, 'low_quality', 'blurry', [], 'blurry'),
+      ])
+
+      await start(useDiagnosis)
+
+      expect(queue.list()).toEqual([])
+      expect(files.size).toBe(0)
+      expect(useDiagnosis.getState().pending).toBeNull()
+    })
+
+    it('restores the entries after a restart and resends one with its own key and file', async () => {
+      const first = setup([new NetworkError(), new NetworkError()])
+      await start(first.useDiagnosis)
+      expect(first.useDiagnosis.getState().phase).toBe('failed')
+
+      // "restart": a new store over the same queue
+      const sent: PendingDiagnosis[] = []
+      const after = createDiagnosisStore({
+        api: {
+          create: async (pending) => {
+            sent.push(pending)
+            return result()
+          },
+        },
+        prepare: jest.fn(),
+        queue: first.queue,
+      })
+      expect(after.getState().queued).toEqual([])
+      after.getState().restore()
+      expect(after.getState().queued).toHaveLength(1)
+
+      await after.getState().resend('key-00000001')
+
+      expect(sent).toHaveLength(1)
+      expect(sent[0].key).toBe('key-00000001')
+      expect(sent[0].fileUri).toBe('file:///documents/key-00000001.jpg')
+      expect(after.getState().phase).toBe('done')
+      expect(first.queue.list()).toEqual([])
+    })
+
+    it('does not start a second request for the same key on a double tap', async () => {
+      let release: (value: DiagnosisResult) => void = () => undefined
+      const create = jest.fn(() => new Promise<DiagnosisResult>((resolve) => (release = resolve)))
+      const memory = memoryQueue()
+      const useDiagnosis = createDiagnosisStore({
+        api: { create },
+        prepare: async () => ({ uri: 'file:///p.jpg' }),
+        queue: memory.queue,
+        newKey: () => 'key-00000001',
+      })
+      useDiagnosis.getState().selectCrop('tomato')
+      useDiagnosis.getState().setPhoto(PHOTO)
+      const running = useDiagnosis.getState().analyze()
+      await new Promise((resolve) => setImmediate(resolve))
+
+      await useDiagnosis.getState().resend('key-00000001')
+      await useDiagnosis.getState().resend('key-00000001')
+
+      expect(create).toHaveBeenCalledTimes(1)
+      release(result())
+      await running
+      expect(useDiagnosis.getState().phase).toBe('done')
+    })
+
+    it('shows an error instead of crashing when the copy of the photo is gone', async () => {
+      const { useDiagnosis, queue, files } = setup([new NetworkError(), new NetworkError()])
+      await start(useDiagnosis)
+      files.clear()
+
+      await useDiagnosis.getState().resend('key-00000001')
+
+      expect(useDiagnosis.getState().phase).toBe('failed')
+      expect(useDiagnosis.getState().failure).toEqual({
+        messageKey: 'diagnosis.errors.photoLost',
+        action: 'newPhoto',
+      })
+      expect(queue.list()[0].status).toBe('fileMissing')
+    })
+
+    it('restore only loads: it sends nothing, can be called twice and removes stray photo files', async () => {
+      const { useDiagnosis, sent, files } = setup([new NetworkError(), new NetworkError()])
+      await start(useDiagnosis)
+      const sentBefore = sent.length
+      files.add('file:///documents/stray.jpg')
+
+      useDiagnosis.getState().restore()
+      useDiagnosis.getState().restore()
+
+      expect(useDiagnosis.getState().queued).toHaveLength(1)
+      expect(sent).toHaveLength(sentBefore)
+      expect([...files]).toEqual(['file:///documents/key-00000001.jpg'])
+    })
+
+    it('two entries sent one after the other are both in flight, and neither can be discarded', async () => {
+      const releases: ((value: DiagnosisResult) => void)[] = []
+      const create = jest.fn(
+        () => new Promise<DiagnosisResult>((resolve) => releases.push(resolve)),
+      )
+      const memory = memoryQueue()
+      const keys = ['key-0000000A', 'key-0000000B']
+      let n = 0
+      const useDiagnosis = createDiagnosisStore({
+        api: { create },
+        prepare: async () => ({ uri: 'file:///p.jpg' }),
+        queue: memory.queue,
+        newKey: () => keys[n++],
+      })
+      // two photos waiting in the queue, as after an offline session
+      for (const key of keys) {
+        await memory.queue.add({
+          key,
+          crop: 'tomato',
+          fileUri: 'file:///p.jpg',
+          createdAt: 1_700_000_000_000,
+        })
+      }
+      useDiagnosis.getState().restore()
+
+      void useDiagnosis.getState().resend(keys[0])
+      await new Promise((resolve) => setImmediate(resolve))
+      void useDiagnosis.getState().resend(keys[1])
+      await new Promise((resolve) => setImmediate(resolve))
+
+      expect(useDiagnosis.getState().sendingKeys).toEqual(keys)
+      useDiagnosis.getState().discard(keys[0])
+      expect(memory.queue.list()).toHaveLength(2)
+
+      releases.forEach((release) => release(result()))
+      await new Promise((resolve) => setImmediate(resolve))
+      expect(useDiagnosis.getState().sendingKeys).toEqual([])
+    })
+
+    it('signing out clears the answers, the banner and their photos, but not the queue', async () => {
+      const { useDiagnosis, queue, files } = setup([
+        result(),
+        new NetworkError(),
+        new NetworkError(),
+      ])
+      await start(useDiagnosis)
+      expect(useDiagnosis.getState().unseenResultIds).toEqual(['d1'])
+      useDiagnosis.getState().setPhoto(PHOTO)
+      await useDiagnosis.getState().analyze() // fails twice: stays in the queue
+
+      useDiagnosis.getState().clearAnswers()
+
+      const s = useDiagnosis.getState()
+      expect(s.results).toEqual({})
+      expect(s.unseenResultIds).toEqual([])
+      expect(s.rejected).toEqual([])
+      expect(s.phase).toBe('idle')
+      expect(queue.list()).toHaveLength(1)
+      expect([...files]).toEqual(['file:///documents/key-00000002.jpg'])
+    })
+
+    it('A signs out, B signs in: B sees no entries and a zero counter; A back sees them again', async () => {
+      const { useDiagnosis, setUser, sent } = setup([new NetworkError(), new NetworkError()])
+      await start(useDiagnosis)
+      expect(useDiagnosis.getState().queued).toHaveLength(1)
+
+      // sign-out of A, sign-in of B: what services.ts does when the user changes
+      setUser(null)
+      useDiagnosis.getState().clearAnswers()
+      useDiagnosis.getState().restore()
+      expect(useDiagnosis.getState().queued).toEqual([])
+      setUser('user-b')
+      useDiagnosis.getState().restore()
+      expect(useDiagnosis.getState().queued).toEqual([])
+
+      // B cannot send or throw away A's entry
+      const sentBefore = sent.length
+      await useDiagnosis.getState().resend('key-00000001')
+      useDiagnosis.getState().discard('key-00000001')
+      expect(sent).toHaveLength(sentBefore)
+
+      setUser('user-a')
+      useDiagnosis.getState().restore()
+      expect(useDiagnosis.getState().queued.map((e) => e.pending.key)).toEqual(['key-00000001'])
+    })
+
+    describe('an answer that arrives after the farmer signed out', () => {
+      function inFlight() {
+        const releases: ((outcome: DiagnosisResult | Error) => void)[] = []
+        const memory = memoryQueue()
+        const useDiagnosis = createDiagnosisStore({
+          api: {
+            create: () =>
+              new Promise<DiagnosisResult>((resolve, reject) =>
+                releases.push((outcome) =>
+                  outcome instanceof Error ? reject(outcome) : resolve(outcome),
+                ),
+              ),
+          },
+          prepare: async () => ({ uri: 'file:///p.jpg' }),
+          queue: memory.queue,
+          newKey: () => 'key-00000001',
+          now: () => 1_700_000_000_000,
+        })
+        useDiagnosis.getState().selectCrop('tomato')
+        useDiagnosis.getState().setPhoto(PHOTO)
+        return { useDiagnosis, releases }
+      }
+
+      it('does not reach the results or the banner of the next user', async () => {
+        const { useDiagnosis, releases } = inFlight()
+        const running = useDiagnosis.getState().analyze()
+        await new Promise((resolve) => setImmediate(resolve))
+
+        useDiagnosis.getState().clearAnswers() // A signs out while the request is on its way
+        releases[0](result())
+        await running
+
+        expect(useDiagnosis.getState().results).toEqual({})
+        expect(useDiagnosis.getState().unseenResultIds).toEqual([])
+      })
+
+      it('does not leave a refusal note for the next user either', async () => {
+        let calls = 0
+        let refuse: (error: Error) => void = () => undefined
+        const memory = memoryQueue()
+        const useDiagnosis = createDiagnosisStore({
+          api: {
+            create: () => {
+              calls += 1
+              // the first send (with its one automatic retry) fails offline; the next one is held
+              if (calls <= 2) return Promise.reject(new NetworkError())
+              return new Promise<DiagnosisResult>((_resolve, reject) => (refuse = reject))
+            },
+          },
+          prepare: async () => ({ uri: 'file:///p.jpg' }),
+          queue: memory.queue,
+          newKey: () => 'key-00000001',
+          now: () => 1_700_000_000_000,
+        })
+        useDiagnosis.getState().selectCrop('tomato')
+        useDiagnosis.getState().setPhoto(PHOTO)
+        await useDiagnosis.getState().analyze()
+        expect(useDiagnosis.getState().queued).toHaveLength(1)
+
+        // "Retry" on the queue screen, then the farmer signs out while it is on its way
+        const resent = useDiagnosis.getState().resend('key-00000001')
+        await new Promise((resolve) => setImmediate(resolve))
+        useDiagnosis.getState().clearAnswers()
+        refuse(new ApiError(422, 'low_quality', 'blurry', [], 'blurry'))
+        await resent
+
+        expect(useDiagnosis.getState().rejected).toEqual([])
+      })
+
+      it('the same refusal does leave a note when nobody signed out', async () => {
+        let calls = 0
+        let refuse: (error: Error) => void = () => undefined
+        const memory = memoryQueue()
+        const useDiagnosis = createDiagnosisStore({
+          api: {
+            create: () => {
+              calls += 1
+              if (calls <= 2) return Promise.reject(new NetworkError())
+              return new Promise<DiagnosisResult>((_resolve, reject) => (refuse = reject))
+            },
+          },
+          prepare: async () => ({ uri: 'file:///p.jpg' }),
+          queue: memory.queue,
+          newKey: () => 'key-00000001',
+          now: () => 1_700_000_000_000,
+        })
+        useDiagnosis.getState().selectCrop('tomato')
+        useDiagnosis.getState().setPhoto(PHOTO)
+        await useDiagnosis.getState().analyze()
+
+        const resent = useDiagnosis.getState().resend('key-00000001')
+        await new Promise((resolve) => setImmediate(resolve))
+        refuse(new ApiError(422, 'low_quality', 'blurry', [], 'blurry'))
+        await resent
+
+        expect(useDiagnosis.getState().rejected.map((r) => r.key)).toEqual(['key-00000001'])
+      })
+
+      it('an answer of the same session still arrives as before', async () => {
+        const { useDiagnosis, releases } = inFlight()
+        const running = useDiagnosis.getState().analyze()
+        await new Promise((resolve) => setImmediate(resolve))
+
+        releases[0](result())
+        await running
+
+        expect(Object.keys(useDiagnosis.getState().results)).toEqual(['d1'])
+        expect(useDiagnosis.getState().unseenResultIds).toEqual(['d1'])
+      })
+    })
+
+    it('discard works for an entry whose photo is already gone', async () => {
+      const { useDiagnosis, queue, files } = setup([new NetworkError(), new NetworkError()])
+      await start(useDiagnosis)
+      files.clear()
+
+      expect(() => useDiagnosis.getState().discard('key-00000001')).not.toThrow()
+      expect(queue.list()).toEqual([])
+    })
+
+    it('treats 201 with Idempotent-Replayed: true as a normal success and empties the queue', async () => {
+      const memory = memoryQueue()
+      const body = JSON.stringify(result())
+      const fetchFn = jest.fn(
+        async () =>
+          new Response(body, {
+            status: 201,
+            headers: { 'Content-Type': 'application/json', 'Idempotent-Replayed': 'true' },
+          }),
+      )
+      const useDiagnosis = createDiagnosisStore({
+        api: createDiagnosisApi(
+          createApiClient({
+            baseUrl: 'http://api',
+            fetchFn: fetchFn as unknown as typeof fetch,
+            getAccessToken: () => 'token',
+            refreshAccessToken: async () => null,
+          }),
+          () => ({ append: () => undefined }) as unknown as FormData,
+        ),
+        prepare: async () => ({ uri: 'file:///p.jpg' }),
+        queue: memory.queue,
+      })
+
+      await start(useDiagnosis)
+
+      expect(useDiagnosis.getState().phase).toBe('done')
+      expect(useDiagnosis.getState().result?.id).toBe('d1')
+      expect(memory.queue.list()).toEqual([])
+      // the photo stays for the result screen
+      expect([...memory.files]).toEqual([useDiagnosis.getState().results.d1.photoPath])
+    })
+
+    it('keeps the answer by diagnosis id', async () => {
+      const { useDiagnosis } = setup([
+        new NetworkError(),
+        new NetworkError(),
+        result('low_confidence'),
+      ])
+      await start(useDiagnosis)
+      expect(useDiagnosis.getState().results).toEqual({})
+
+      await useDiagnosis.getState().resend('key-00000001')
+
+      const s = useDiagnosis.getState()
+      expect(s.results.d1.status).toBe('low_confidence')
+    })
+
+    it('an answer that arrives after the farmer left is unseen until its result is opened', async () => {
+      const { useDiagnosis } = setup([new NetworkError(), new NetworkError(), result()])
+      await start(useDiagnosis)
+      expect(useDiagnosis.getState().unseenResultIds).toEqual([])
+
+      // the farmer went to the queue screen and sent the entry from there
+      await useDiagnosis.getState().resend('key-00000001')
+      expect(useDiagnosis.getState().unseenResultIds).toEqual(['d1'])
+
+      useDiagnosis.getState().markSeen('d1')
+      expect(useDiagnosis.getState().unseenResultIds).toEqual([])
+    })
+
+    it('lists an answer once even if the same diagnosis is answered again', async () => {
+      const { useDiagnosis } = setup([result(), result()])
+      await start(useDiagnosis)
+      useDiagnosis.getState().setPhoto(PHOTO)
+      await useDiagnosis.getState().analyze()
+      expect(useDiagnosis.getState().unseenResultIds).toEqual(['d1'])
+    })
+
+    describe('a refusal while sending from the queue screen', () => {
+      it('is kept as a note with the reason, so the entry does not vanish without a word', async () => {
+        const { useDiagnosis, queue } = setup([
+          new NetworkError(),
+          new NetworkError(),
+          new ApiError(422, 'low_quality', 'blurry', [], 'blurry'),
+        ])
+        await start(useDiagnosis)
+
+        await useDiagnosis.getState().resend('key-00000001')
+
+        expect(queue.list()).toEqual([])
+        expect(useDiagnosis.getState().rejected).toEqual([
+          {
+            key: 'key-00000001',
+            crop: 'tomato',
+            createdAt: 1_700_000_000_000,
+            failure: { messageKey: 'diagnosis.errors.blurry', action: 'newPhoto' },
+          },
+        ])
+      })
+
+      it('can be dismissed', async () => {
+        const { useDiagnosis } = setup([
+          new NetworkError(),
+          new NetworkError(),
+          new ApiError(422, 'low_quality', 'blurry', [], 'blurry'),
+        ])
+        await start(useDiagnosis)
+        await useDiagnosis.getState().resend('key-00000001')
+
+        useDiagnosis.getState().dismissRejected('key-00000001')
+
+        expect(useDiagnosis.getState().rejected).toEqual([])
+      })
+
+      it('is not added for a fresh analysis: the analysis screen shows that refusal', async () => {
+        const { useDiagnosis } = setup([new ApiError(422, 'low_quality', 'blurry', [], 'blurry')])
+
+        await start(useDiagnosis)
+
+        expect(useDiagnosis.getState().rejected).toEqual([])
+        expect(useDiagnosis.getState().failure?.messageKey).toBe('diagnosis.errors.blurry')
+      })
+    })
+
+    describe('the photo of an answer', () => {
+      it('stays after the answer and its path goes to the result', async () => {
+        const { useDiagnosis, queue, files } = setup([result()])
+
+        await start(useDiagnosis)
+
+        expect(queue.list()).toEqual([])
+        expect(files.has('file:///documents/key-00000001.jpg')).toBe(true)
+        expect(useDiagnosis.getState().results.d1.photoPath).toBe(
+          'file:///documents/key-00000001.jpg',
+        )
+      })
+
+      it('is kept by a restore during the session', async () => {
+        const { useDiagnosis, files } = setup([result()])
+        await start(useDiagnosis)
+
+        useDiagnosis.getState().restore()
+
+        expect(files.has('file:///documents/key-00000001.jpg')).toBe(true)
+      })
+
+      it('is deleted by the restore of the next start, when no answers are known yet', async () => {
+        const first = setup([result()])
+        await start(first.useDiagnosis)
+        expect(first.files.size).toBe(1)
+
+        // "restart": a new store over the same queue has no results
+        const after = createDiagnosisStore({
+          api: { create: async () => result() },
+          prepare: jest.fn(),
+          queue: first.queue,
+        })
+        after.getState().restore()
+
+        expect(first.files.size).toBe(0)
+      })
+
+      it('a refused photo is deleted at once, it has no result to belong to', async () => {
+        const { useDiagnosis, files } = setup([
+          new ApiError(422, 'low_quality', 'blurry', [], 'blurry'),
+        ])
+        await start(useDiagnosis)
+        expect(files.size).toBe(0)
+      })
+    })
+
+    it('analyzes the photo of an answer again as another crop with a new key', async () => {
+      const { useDiagnosis, sent, files, prepare } = setup([result('crop_mismatch'), result()])
+      await start(useDiagnosis)
+      const firstPhoto = useDiagnosis.getState().results.d1.photoPath
+
+      await useDiagnosis.getState().reanalyze('d1', 'potato')
+
+      expect(sent.map((p) => [p.key, p.crop])).toEqual([
+        ['key-00000001', 'tomato'],
+        ['key-00000002', 'potato'],
+      ])
+      // the first answer keeps its photo, the new one has its own copy; the photo is not prepared again
+      expect(sent[1].fileUri).toBe('file:///documents/key-00000002.jpg')
+      expect(files.has(firstPhoto!)).toBe(true)
+      expect(prepare).toHaveBeenCalledTimes(1)
+      expect(useDiagnosis.getState().phase).toBe('done')
+    })
+
+    it('has nothing to analyze again when the photo of the answer is unknown', async () => {
+      const { useDiagnosis, sent } = setup([result('crop_mismatch')])
+      await start(useDiagnosis)
+      useDiagnosis.setState((s) => ({
+        results: { d1: { ...s.results.d1, photoPath: null } },
+      }))
+
+      await useDiagnosis.getState().reanalyze('d1', 'potato')
+
+      expect(sent).toHaveLength(1)
+    })
+
+    it('going through the analysis screen (redirect, then markSeen) leaves nothing unseen', async () => {
+      const { useDiagnosis } = setup([result()])
+
+      await start(useDiagnosis)
+      // the analysis screen sees phase "done" and redirects to the result, which marks it seen
+      const { phase, result: answer } = useDiagnosis.getState()
+      expect(phase).toBe('done')
+      expect(useDiagnosis.getState().unseenResultIds).toEqual(['d1'])
+      useDiagnosis.getState().markSeen(answer!.id)
+
+      expect(useDiagnosis.getState().unseenResultIds).toEqual([])
+    })
+
+    it('discard removes the entry with its photo', async () => {
+      const { useDiagnosis, queue, files } = setup([new NetworkError(), new NetworkError()])
+      await start(useDiagnosis)
+
+      useDiagnosis.getState().discard('key-00000001')
+
+      expect(queue.list()).toEqual([])
+      expect(files.size).toBe(0)
+      expect(useDiagnosis.getState().queued).toEqual([])
+      expect(useDiagnosis.getState().pending).toBeNull()
+    })
+
+    it('drops the entry when the flow was started over while it was being prepared', async () => {
+      const { useDiagnosis, queue } = setup([result()])
+      useDiagnosis.getState().selectCrop('tomato')
+      useDiagnosis.getState().setPhoto(PHOTO)
+
+      const running = useDiagnosis.getState().analyze()
+      useDiagnosis.getState().reset()
+      await running
+
+      expect(queue.list()).toEqual([])
+    })
   })
 
   it('choosing another crop starts over', async () => {

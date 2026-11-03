@@ -2,13 +2,20 @@ import { createAuthApi } from '@/api/auth'
 import { createApiClient } from '@/api/client'
 import { API_MODE, API_URL } from '@/api/config'
 import { createDiagnosisApi } from '@/api/diagnosis'
+import { createDiseaseApi } from '@/api/diseases'
 import { createMockAuthApi } from '@/api/mock/auth'
 import { createMockDiagnosisApi } from '@/api/mock/diagnosis'
+import { createMockDiseaseApi } from '@/api/mock/diseases'
+import { createDiseaseCatalog } from '@/features/diseases/catalog'
+import { createPendingQueue } from '@/features/diagnosis/pendingQueue'
 import { preparePhoto } from '@/features/diagnosis/photo'
 import { expoPhotoToolkit } from '@/features/diagnosis/photoToolkit'
+import { expoQueueFiles } from '@/features/diagnosis/queueFiles'
+import { storage } from '@/lib/storage'
 import { tokenStorage } from '@/lib/tokenStorage'
 import { createDiagnosisStore } from '@/store/diagnosis'
 import { createSessionStore } from '@/store/session'
+import { useSettings } from '@/store/settings'
 
 // Wiring of the real objects: API client <-> session. Screens import from here.
 // The client needs the session (token, refresh) and the session needs the auth API, which uses
@@ -21,7 +28,20 @@ const authClient = createApiClient({
 
 export const authApi = API_MODE === 'mock' ? createMockAuthApi() : createAuthApi(authClient)
 
-export const useSession = createSessionStore({ authApi, tokens: tokenStorage })
+const USER_ID_KEY = 'session.userId'
+
+export const useSession = createSessionStore({
+  authApi,
+  tokens: tokenStorage,
+  // the id of the user is not a secret; it is kept so the app knows whose queue to show while offline
+  userIds: {
+    get: () => storage.getString(USER_ID_KEY) ?? null,
+    set: (userId) => {
+      if (userId === null) storage.remove(USER_ID_KEY)
+      else storage.set(USER_ID_KEY, userId)
+    },
+  },
+})
 
 export const apiClient = createApiClient({
   baseUrl: API_URL,
@@ -32,9 +52,25 @@ export const apiClient = createApiClient({
 export const diagnosisApi =
   API_MODE === 'mock' ? createMockDiagnosisApi() : createDiagnosisApi(apiClient)
 
+export const diseaseApi = API_MODE === 'mock' ? createMockDiseaseApi() : createDiseaseApi(apiClient)
+
+// The reference of diseases in the language the farmer chose; the cache follows a change of language.
+export const diseaseCatalog = createDiseaseCatalog(
+  diseaseApi,
+  () => useSettings.getState().language,
+)
+
+// The offline queue belongs to the signed-in user: another farmer on the same phone does not see it.
+const pendingQueue = createPendingQueue({
+  store: storage,
+  files: expoQueueFiles,
+  currentUser: () => useSession.getState().userId,
+})
+
 // The flow of one diagnosis: crop, photo, compression once, send with a stable Idempotency-Key.
 export const useDiagnosis = createDiagnosisStore({
   api: diagnosisApi,
+  queue: pendingQueue,
   prepare: async (photo) => {
     const prepared = await preparePhoto(photo, expoPhotoToolkit)
     if (__DEV__) {
@@ -51,3 +87,15 @@ export const useDiagnosis = createDiagnosisStore({
     return prepared
   },
 })
+
+// Another farmer may sign in on the same phone. When the user changes (a sign-out or another sign-in),
+// nothing of the previous one's answers stays, and the queue is read again: it shows the new user's
+// entries, and none after a sign-out.
+useSession.subscribe((state, previous) => {
+  if (state.userId === previous.userId) return
+  if (previous.userId !== null) useDiagnosis.getState().clearAnswers()
+  useDiagnosis.getState().restore()
+})
+
+// Diagnoses that were not answered before the app was closed wait in the queue; the store learns of them now.
+useDiagnosis.getState().restore()

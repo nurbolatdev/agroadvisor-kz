@@ -17,6 +17,7 @@ export type DiagnosisErrorKey =
   | 'diagnosis.errors.keyReused'
   | 'diagnosis.errors.photoUnreadable'
   | 'diagnosis.errors.photoTooLarge'
+  | 'diagnosis.errors.photoLost'
   | 'diagnosis.errors.generic'
 
 export type DiagnosisFailure = {
@@ -40,48 +41,137 @@ export function isTemporary(error: unknown): boolean {
   return false
 }
 
-// What the farmer is told. The code says it best; a status stands in for a code the app does not know
-// (a proxy in front of the backend may answer 413 or 415 without our body).
-function messageFor(error: unknown): DiagnosisErrorKey {
+// What went wrong, in the app's own closed vocabulary. `code` and `reason` come from the server as free
+// strings; here they are narrowed to the values the app has a text for. A reason the app does not know
+// falls back to the text of its code.
+export type LowQualityReason = 'blurry' | 'dark' | 'too_small'
+export type KeyReusedReason = 'crop' | 'photo'
+
+export type DiagnosisProblem =
+  | { kind: 'network' }
+  | { kind: 'lowQuality'; reason: LowQualityReason | null }
+  | { kind: 'invalidImage' }
+  | { kind: 'unknownCrop' }
+  | { kind: 'keyReused'; reason: KeyReusedReason | null }
+  | { kind: 'invalidKey' }
+  | { kind: 'aiUnavailable' }
+  | { kind: 'aiError' }
+  | { kind: 'storage' }
+  | { kind: 'rateLimited' }
+  | { kind: 'photoUnreadable' }
+  | { kind: 'photoTooLarge' }
+  | { kind: 'photoLost' }
+  | { kind: 'generic' }
+
+const LOW_QUALITY_REASONS: readonly string[] = ['blurry', 'dark', 'too_small']
+const KEY_REUSED_REASONS: readonly string[] = ['crop', 'photo']
+
+function lowQualityReason(reason: string | undefined): LowQualityReason | null {
+  return reason !== undefined && LOW_QUALITY_REASONS.includes(reason)
+    ? (reason as LowQualityReason)
+    : null
+}
+
+function keyReusedReason(reason: string | undefined): KeyReusedReason | null {
+  return reason !== undefined && KEY_REUSED_REASONS.includes(reason)
+    ? (reason as KeyReusedReason)
+    : null
+}
+
+// The code says it best; a status stands in for a code the app does not know (a proxy in front of the
+// backend may answer 413 or 415 without our body).
+export function problemOf(error: unknown): DiagnosisProblem {
   if (error instanceof PhotoError) {
-    return error.code === 'too_large'
-      ? 'diagnosis.errors.photoTooLarge'
-      : 'diagnosis.errors.photoUnreadable'
+    return { kind: error.code === 'too_large' ? 'photoTooLarge' : 'photoUnreadable' }
   }
-  if (error instanceof NetworkError) return 'diagnosis.errors.network'
+  if (error instanceof NetworkError) return { kind: 'network' }
   if (error instanceof ApiError) {
     switch (error.code) {
       case 'low_quality':
-        switch (error.reason) {
-          case 'blurry':
-            return 'diagnosis.errors.blurry'
-          case 'dark':
-            return 'diagnosis.errors.dark'
-          case 'too_small':
-            return 'diagnosis.errors.tooSmall'
-          default:
-            return 'diagnosis.errors.lowQuality'
-        }
+        return { kind: 'lowQuality', reason: lowQualityReason(error.reason) }
       case 'invalid_image':
-        return 'diagnosis.errors.invalidImage'
+        return { kind: 'invalidImage' }
       case 'unknown_crop':
-        return 'diagnosis.errors.unknownCrop'
+        return { kind: 'unknownCrop' }
       case 'idempotency_key_reused':
+        return { kind: 'keyReused', reason: keyReusedReason(error.reason) }
       case 'invalid_idempotency_key':
-        return 'diagnosis.errors.keyReused'
+        return { kind: 'invalidKey' }
       case 'ai_unavailable':
-        return 'diagnosis.errors.aiUnavailable'
+        return { kind: 'aiUnavailable' }
       case 'ai_error':
-        return 'diagnosis.errors.aiError'
+        return { kind: 'aiError' }
       case 'storage_unavailable':
-        return 'diagnosis.errors.storage'
+        return { kind: 'storage' }
       case 'rate_limited':
-        return 'diagnosis.errors.rateLimited'
+        return { kind: 'rateLimited' }
     }
-    if (error.status === 413) return 'diagnosis.errors.photoTooLarge'
-    if (error.status === 415) return 'diagnosis.errors.invalidImage'
+    if (error.status === 413) return { kind: 'photoTooLarge' }
+    if (error.status === 415) return { kind: 'invalidImage' }
   }
-  return 'diagnosis.errors.generic'
+  return { kind: 'generic' }
+}
+
+// The text for a problem. Exhaustive: a new problem or reason without a text does not compile.
+export function messageKeyOf(problem: DiagnosisProblem): DiagnosisErrorKey {
+  switch (problem.kind) {
+    case 'network':
+      return 'diagnosis.errors.network'
+    case 'lowQuality': {
+      const reason = problem.reason
+      switch (reason) {
+        case 'blurry':
+          return 'diagnosis.errors.blurry'
+        case 'dark':
+          return 'diagnosis.errors.dark'
+        case 'too_small':
+          return 'diagnosis.errors.tooSmall'
+        case null:
+          return 'diagnosis.errors.lowQuality'
+        default:
+          return assertNever(reason)
+      }
+    }
+    case 'invalidImage':
+      return 'diagnosis.errors.invalidImage'
+    case 'unknownCrop':
+      return 'diagnosis.errors.unknownCrop'
+    case 'keyReused': {
+      const reason = problem.reason
+      switch (reason) {
+        case 'crop':
+        case 'photo':
+        case null:
+          return 'diagnosis.errors.keyReused'
+        default:
+          return assertNever(reason)
+      }
+    }
+    case 'invalidKey':
+      return 'diagnosis.errors.keyReused'
+    case 'aiUnavailable':
+      return 'diagnosis.errors.aiUnavailable'
+    case 'aiError':
+      return 'diagnosis.errors.aiError'
+    case 'storage':
+      return 'diagnosis.errors.storage'
+    case 'rateLimited':
+      return 'diagnosis.errors.rateLimited'
+    case 'photoUnreadable':
+      return 'diagnosis.errors.photoUnreadable'
+    case 'photoTooLarge':
+      return 'diagnosis.errors.photoTooLarge'
+    case 'photoLost':
+      return 'diagnosis.errors.photoLost'
+    case 'generic':
+      return 'diagnosis.errors.generic'
+    default:
+      return assertNever(problem)
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unhandled value: ${JSON.stringify(value)}`)
 }
 
 // Maps what went wrong to a message and to what the farmer can do next. Statuses such as unknown,
@@ -89,7 +179,7 @@ function messageFor(error: unknown): DiagnosisErrorKey {
 // never get here.
 export function toDiagnosisFailure(error: unknown): DiagnosisFailure {
   const failure: DiagnosisFailure = {
-    messageKey: messageFor(error),
+    messageKey: messageKeyOf(problemOf(error)),
     action: isTemporary(error) ? 'retry' : 'newPhoto',
   }
   if (error instanceof ApiError && error.retryAfterSeconds !== undefined) {
