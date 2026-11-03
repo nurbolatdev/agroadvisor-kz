@@ -233,13 +233,14 @@ The app generates one key per diagnosis attempt (a UUID fits; 8-80 characters of
 | Case | Answer |
 | --- | --- |
 | First request with the key | The normal `201`; the key is saved with the diagnosis. |
-| Repeat with the same key (same user, same crop) | `201` with the diagnosis made the first time and the header `Idempotent-Replayed: true`. The photo is not stored again and the model is not called. |
-| Same key, another crop | `422`, `code: idempotency_key_reused`. |
+| Repeat with the same key (same user, same crop, same photo bytes) | `201` with the diagnosis made the first time and the header `Idempotent-Replayed: true`. The photo is not stored again and the model is not called. |
+| Same key, another crop | `422`, `code: idempotency_key_reused`, `reason: crop`. |
+| Same key, other photo bytes | `422`, `code: idempotency_key_reused`, `reason: photo`. |
 | Malformed key | `400`, `code: invalid_idempotency_key`. |
 
 The key is unique per user (unique index on `(user_id, idempotency_key)`), so two users may use the same value. If a repeat arrives while the first request is still being processed, both run and the unique index lets one diagnosis win; the other request returns it, so there is never a second diagnosis (the model may still be called twice in that overlap). A key is kept as long as its diagnosis.
 
-Limits of this version: the rate limit (5 photos per minute per user) is checked before the key, so a repeat also uses one token and can get `429` instead of the saved diagnosis (the app waits and retries). The key is matched together with the user and the crop only: the same key with a different photo of the same crop returns the first diagnosis, so the app must make a new key for every new photo.
+Limits of this version: the rate limit (5 photos per minute per user) is checked before the key, so a repeat also uses one token and can get `429` instead of the saved diagnosis (the app waits and retries). The photo is compared by the SHA-256 of its bytes (stored in `diagnoses.request_fingerprint`). A retry must therefore send the **same file**: the app compresses the photo once, keeps the key and the compressed file together and resends that file; compressing the original again gives other bytes and a `422`. A new photo always needs a new key.
 
 #### Metrics
 
