@@ -2,8 +2,11 @@ import { createAuthApi } from '@/api/auth'
 import { createApiClient } from '@/api/client'
 import { API_MODE, API_URL } from '@/api/config'
 import { createDiagnosisApi } from '@/api/diagnosis'
+import { createDiseaseApi } from '@/api/diseases'
 import { createMockAuthApi } from '@/api/mock/auth'
 import { createMockDiagnosisApi } from '@/api/mock/diagnosis'
+import { createMockDiseaseApi } from '@/api/mock/diseases'
+import { createDiseaseCatalog } from '@/features/diseases/catalog'
 import { createPendingQueue } from '@/features/diagnosis/pendingQueue'
 import { preparePhoto } from '@/features/diagnosis/photo'
 import { expoPhotoToolkit } from '@/features/diagnosis/photoToolkit'
@@ -12,6 +15,7 @@ import { storage } from '@/lib/storage'
 import { tokenStorage } from '@/lib/tokenStorage'
 import { createDiagnosisStore } from '@/store/diagnosis'
 import { createSessionStore } from '@/store/session'
+import { useSettings } from '@/store/settings'
 
 // Wiring of the real objects: API client <-> session. Screens import from here.
 // The client needs the session (token, refresh) and the session needs the auth API, which uses
@@ -34,6 +38,14 @@ export const apiClient = createApiClient({
 
 export const diagnosisApi =
   API_MODE === 'mock' ? createMockDiagnosisApi() : createDiagnosisApi(apiClient)
+
+export const diseaseApi = API_MODE === 'mock' ? createMockDiseaseApi() : createDiseaseApi(apiClient)
+
+// The reference of diseases in the language the farmer chose; the cache follows a change of language.
+export const diseaseCatalog = createDiseaseCatalog(
+  diseaseApi,
+  () => useSettings.getState().language,
+)
 
 const pendingQueue = createPendingQueue({ store: storage, files: expoQueueFiles })
 
