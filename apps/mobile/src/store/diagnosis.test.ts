@@ -356,6 +356,45 @@ describe('diagnosis flow', () => {
       expect([...files]).toEqual(['file:///documents/key-00000001.jpg'])
     })
 
+    it('two entries sent one after the other are both in flight, and neither can be discarded', async () => {
+      const releases: ((value: DiagnosisResult) => void)[] = []
+      const create = jest.fn(
+        () => new Promise<DiagnosisResult>((resolve) => releases.push(resolve)),
+      )
+      const memory = memoryQueue()
+      const keys = ['key-0000000A', 'key-0000000B']
+      let n = 0
+      const useDiagnosis = createDiagnosisStore({
+        api: { create },
+        prepare: async () => ({ uri: 'file:///p.jpg' }),
+        queue: memory.queue,
+        newKey: () => keys[n++],
+      })
+      // two photos waiting in the queue, as after an offline session
+      for (const key of keys) {
+        await memory.queue.add({
+          key,
+          crop: 'tomato',
+          fileUri: 'file:///p.jpg',
+          createdAt: 1_700_000_000_000,
+        })
+      }
+      useDiagnosis.getState().restore()
+
+      void useDiagnosis.getState().resend(keys[0])
+      await new Promise((resolve) => setImmediate(resolve))
+      void useDiagnosis.getState().resend(keys[1])
+      await new Promise((resolve) => setImmediate(resolve))
+
+      expect(useDiagnosis.getState().sendingKeys).toEqual(keys)
+      useDiagnosis.getState().discard(keys[0])
+      expect(memory.queue.list()).toHaveLength(2)
+
+      releases.forEach((release) => release(result()))
+      await new Promise((resolve) => setImmediate(resolve))
+      expect(useDiagnosis.getState().sendingKeys).toEqual([])
+    })
+
     it('discard works for an entry whose photo is already gone', async () => {
       const { useDiagnosis, queue, files } = setup([new NetworkError(), new NetworkError()])
       await start(useDiagnosis)

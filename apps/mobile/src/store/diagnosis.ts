@@ -41,6 +41,8 @@ type DiagnosisState = {
   attempts: number
   // what the offline queue holds: diagnoses that still wait for an answer
   queued: QueueEntry[]
+  // keys being sent right now, in any flow; an entry in this list cannot be deleted: its photo is being read
+  sendingKeys: string[]
   rejected: RejectedEntry[]
   dismissRejected: (key: string) => void
   // every answer received in this session, by diagnosis id: screens get a diagnosis by its id, never
@@ -103,6 +105,7 @@ export function createDiagnosisStore(deps: Deps) {
     async function send(pending: PendingDiagnosis, startedIn: number, fromQueue = false) {
       if (inFlight.has(pending.key)) return
       inFlight.add(pending.key)
+      set((s) => ({ sendingKeys: [...s.sendingKeys, pending.key] }))
       try {
         set({ phase: 'sending', failure: null })
         for (let attempt = 0; ; attempt += 1) {
@@ -150,6 +153,7 @@ export function createDiagnosisStore(deps: Deps) {
         }
       } finally {
         inFlight.delete(pending.key)
+        set((s) => ({ sendingKeys: s.sendingKeys.filter((key) => key !== pending.key) }))
       }
     }
 
@@ -157,6 +161,7 @@ export function createDiagnosisStore(deps: Deps) {
       crop: null,
       ...INITIAL,
       queued: [],
+      sendingKeys: [],
       rejected: [],
       dismissRejected: (key) => set((s) => ({ rejected: s.rejected.filter((r) => r.key !== key) })),
       results: {},
@@ -250,6 +255,8 @@ export function createDiagnosisStore(deps: Deps) {
         await send(entry.pending, flow, true)
       },
       discard: (key) => {
+        // the photo of a request in flight is being read; wait for the answer
+        if (inFlight.has(key)) return
         queue.remove(key)
         if (get().pending?.key === key) flow += 1
         set((s) => ({

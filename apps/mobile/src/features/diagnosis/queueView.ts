@@ -17,22 +17,24 @@ export type QueueRow = {
 }
 
 type Current = {
+  // keys being sent right now; the entry of each is "sending" and cannot be deleted
+  sendingKeys: readonly string[]
   phase: DiagnosisPhase
   pending: PendingDiagnosis | null
   failure: DiagnosisFailure | null
 }
 
-// "sending" and "error" are known only for the entry the store works on right now; every other entry
-// just waits for a press on "Retry".
+// "sending" is any key that is in flight; "error" is known only for the entry the store works on right
+// now. Every other entry just waits for a press on "Retry".
 export function queueRow(entry: QueueEntry, current: Current): QueueRow {
   const { pending } = entry
   if (entry.status === 'fileMissing') {
     return { pending, status: 'photoLost', actions: ['newPhoto', 'discard'] }
   }
-  const isCurrent = current.pending?.key === pending.key
-  if (isCurrent && current.phase === 'sending') {
+  if (current.sendingKeys.includes(pending.key)) {
     return { pending, status: 'sending', actions: [] }
   }
+  const isCurrent = current.pending?.key === pending.key
   if (isCurrent && current.phase === 'failed' && current.failure) {
     return {
       pending,

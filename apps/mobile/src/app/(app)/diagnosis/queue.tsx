@@ -37,6 +37,7 @@ export default function QueueScreen() {
   const cropName = useCropName()
   const queued = useDiagnosis((s) => s.queued)
   const rejected = useDiagnosis((s) => s.rejected)
+  const sendingKeys = useDiagnosis((s) => s.sendingKeys)
   const phase = useDiagnosis((s) => s.phase)
   const pending = useDiagnosis((s) => s.pending)
   const failure = useDiagnosis((s) => s.failure)
@@ -45,7 +46,7 @@ export default function QueueScreen() {
   const dismissRejected = useDiagnosis((s) => s.dismissRejected)
   const selectCrop = useDiagnosis((s) => s.selectCrop)
 
-  const rows = queueRows(queued, { phase, pending, failure })
+  const rows = queueRows(queued, { sendingKeys, phase, pending, failure })
 
   const newPhoto = (crop: QueueRow['pending']['crop'], leave: () => void) => {
     leave()
