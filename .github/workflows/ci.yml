@@ -65,6 +65,60 @@ jobs:
       - name: Test
         run: pytest -q
 
+  # Builds the production image for linux/amd64 (the runner's own platform, the staging target) and checks
+  # it starts. Real weights are not in git, so the smoke test runs the placeholder model.
+  ai-image:
+    name: ai-image
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: docker build --platform linux/amd64 -t agroadvisor-ai-service:ci services/ai-service
+      - name: Python version
+        run: |
+          docker run --rm --platform linux/amd64 --entrypoint python agroadvisor-ai-service:ci \
+            -c 'import sys; assert sys.version_info[:2] == (3, 12), sys.version'
+      - name: Refuses to start without the model weights
+        run: |
+          # Exit code 3 is uvicorn's "application startup failed"; docker errors (125-127) or an import crash (1) must not pass
+          set +e
+          timeout 120 docker run --rm --platform linux/amd64 agroadvisor-ai-service:ci
+          code=$?
+          set -e
+          [ "$code" -eq 3 ] || { echo "expected exit 3 (startup refused without weights), got $code"; exit 1; }
+      - name: Serves /health with the placeholder model
+        run: |
+          docker run -d --name ai --platform linux/amd64 -p 8000:8000 \
+            -e AI_MODEL_KIND=placeholder -e AI_REQUIRE_MODEL=false agroadvisor-ai-service:ci
+          for i in $(seq 1 30); do
+            curl -fsS --max-time 5 http://127.0.0.1:8000/health | grep -q '"status":"ok"' && exit 0
+            sleep 2
+          done
+          docker logs ai
+          exit 1
+      # The published weights are public; fetch_weights checks their SHA-256 against model_card.json.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Fetch the published weights
+        working-directory: services/ai-service
+        run: |
+          pip install certifi
+          python -m ml.fetch_weights effnet-b0-v1
+      - name: Serves the real model (/health)
+        run: |
+          docker rm -f ai
+          docker run -d --name ai --platform linux/amd64 -p 8000:8000 \
+            -v "$PWD/services/ai-service/ml/weights:/srv/ml/weights:ro" agroadvisor-ai-service:ci
+          for i in $(seq 1 30); do
+            body=$(curl -fsS --max-time 5 http://127.0.0.1:8000/health) && break
+            sleep 2
+          done
+          echo "$body"
+          echo "$body" | grep -q '"model_version":"effnet-b0-v1"'
+          echo "$body" | grep -q '"calibrated":true'
+
   admin-web:
     name: admin-web
     runs-on: ubuntu-latest
