@@ -33,7 +33,9 @@ export default function AnalysisScreen() {
   const slow = useAfter(phase === 'sending', SLOW_AFTER_MS)
   const wait = useCountdown(failure?.retryAfterSeconds, failure)
 
-  if (photo === null) return <Redirect href="/diagnosis" />
+  // no photo and nothing started: the screen was opened by itself. An analysis of an earlier photo under
+  // another crop (reanalyze) has no `photo` but is already past "idle".
+  if (photo === null && phase === 'idle') return <Redirect href="/diagnosis" />
 
   const states = stepStates(phase)
 

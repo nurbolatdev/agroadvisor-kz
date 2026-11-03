@@ -45,6 +45,8 @@ type DiagnosisState = {
   analyze: () => Promise<void>
   // the same request again: same key, same file
   retry: () => Promise<void>
+  // the photo of an earlier answer analyzed again as another crop: a new key, the same (already prepared) file
+  reanalyze: (id: string, crop: Crop) => Promise<void>
   // reads the queue from the disk; called once when the app starts
   restore: () => void
   // sends an entry of the queue again with its own key and file
@@ -175,6 +177,28 @@ export function createDiagnosisStore(deps: Deps) {
         const { pending, phase } = get()
         if (!pending || phase !== 'failed') return
         await send(pending, flow)
+      },
+      reanalyze: async (id, crop) => {
+        const source = get().results[id]?.photoPath
+        if (!source || get().phase === 'preparing' || get().phase === 'sending') return
+        flow += 1
+        const startedIn = flow
+        set({ ...INITIAL, crop, phase: 'preparing' })
+        let stored: PendingDiagnosis
+        try {
+          // the queue copies the file under the new key; the old answer keeps its own photo
+          stored = await queue.add(createPending(crop, source, { now, newKey }))
+        } catch (error) {
+          if (startedIn === flow) set({ phase: 'failed', failure: toDiagnosisFailure(error) })
+          return
+        }
+        if (startedIn !== flow) {
+          queue.remove(stored.key)
+          return
+        }
+        set({ pending: stored, attempts: 0 })
+        refreshQueued()
+        await send(stored, startedIn)
       },
       // Only loads: nothing is sent until the farmer presses "Retry". Safe to call again (fast refresh).
       restore: () => {

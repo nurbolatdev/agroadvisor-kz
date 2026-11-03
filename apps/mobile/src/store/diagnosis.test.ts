@@ -482,6 +482,36 @@ describe('diagnosis flow', () => {
       })
     })
 
+    it('analyzes the photo of an answer again as another crop with a new key', async () => {
+      const { useDiagnosis, sent, files, prepare } = setup([result('crop_mismatch'), result()])
+      await start(useDiagnosis)
+      const firstPhoto = useDiagnosis.getState().results.d1.photoPath
+
+      await useDiagnosis.getState().reanalyze('d1', 'potato')
+
+      expect(sent.map((p) => [p.key, p.crop])).toEqual([
+        ['key-00000001', 'tomato'],
+        ['key-00000002', 'potato'],
+      ])
+      // the first answer keeps its photo, the new one has its own copy; the photo is not prepared again
+      expect(sent[1].fileUri).toBe('file:///documents/key-00000002.jpg')
+      expect(files.has(firstPhoto!)).toBe(true)
+      expect(prepare).toHaveBeenCalledTimes(1)
+      expect(useDiagnosis.getState().phase).toBe('done')
+    })
+
+    it('has nothing to analyze again when the photo of the answer is unknown', async () => {
+      const { useDiagnosis, sent } = setup([result('crop_mismatch')])
+      await start(useDiagnosis)
+      useDiagnosis.setState((s) => ({
+        results: { d1: { ...s.results.d1, photoPath: null } },
+      }))
+
+      await useDiagnosis.getState().reanalyze('d1', 'potato')
+
+      expect(sent).toHaveLength(1)
+    })
+
     it('going through the analysis screen (redirect, then markSeen) leaves nothing unseen', async () => {
       const { useDiagnosis } = setup([result()])
 
