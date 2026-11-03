@@ -239,9 +239,11 @@ The app generates one key per diagnosis attempt (a UUID fits; 8-80 characters of
 
 The key is unique per user (unique index on `(user_id, idempotency_key)`), so two users may use the same value. If a repeat arrives while the first request is still being processed, both run and the unique index lets one diagnosis win; the other request returns it, so there is never a second diagnosis (the model may still be called twice in that overlap). A key is kept as long as its diagnosis.
 
+Limits of this version: the rate limit (5 photos per minute per user) is checked before the key, so a repeat also uses one token and can get `429` instead of the saved diagnosis (the app waits and retries). The key is matched together with the user and the crop only: the same key with a different photo of the same crop returns the first diagnosis, so the app must make a new key for every new photo.
+
 #### Metrics
 
-The model call is timed as `agroadvisor.ai.predict` (Micrometer timer; its count is the number of calls) with the tags `outcome` (`ok` or `error`) and `code` (the answer's `status` for `ok`, the farmer-facing error code for `error`: `low_quality`, `ai_unavailable`, `ai_error`, `internal_error`). `agroadvisor.diagnosis.replays` counts repeated requests answered from a saved diagnosis. The metrics are not exposed over HTTP yet: only `health` and `info` actuator endpoints are enabled.
+The model call is timed as `agroadvisor.ai.predict` (Micrometer timer; its count is the number of calls) with the tags `outcome` (`ok` or `error`) and `code` (the answer's `status` for `ok`, the farmer-facing error code for `error`: `low_quality`, `invalid_image`, `ai_unavailable`, `ai_error`, `internal_error`). `agroadvisor.diagnosis.replays` counts repeated requests answered from a saved diagnosis. The metrics are not exposed over HTTP yet: only `health` and `info` actuator endpoints are enabled.
 
 Other framework responses (`404`, `405`, a malformed multipart body) are outside this contract and use the FastAPI default body.
 
