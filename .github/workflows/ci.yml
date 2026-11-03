@@ -84,3 +84,32 @@ jobs:
         run: npm run lint
       - name: Build
         run: npm run build
+
+  mobile:
+    name: mobile
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Format
+        run: npm run format:check
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+        env:
+          CI: "true"
+      # schema.d.ts must match docs/api/openapi.json (the backend half is checked by OpenApiExportTest)
+      - name: Generated API types are up to date
+        run: npm run gen:api && git diff --exit-code src/api/schema.d.ts
