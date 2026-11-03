@@ -168,9 +168,16 @@ export function createPendingQueue(deps: {
     sweep(keep = []) {
       if (adding > 0) return
       const all = readAll()
-      const expired = all.filter(
-        (record) => !isMine(record) && now() - record.createdAt > FOREIGN_TTL_MS,
-      )
+      // Only while somebody is signed in, and only the records of somebody else. With nobody signed in
+      // (signed out, or the session expired) nothing is "foreign": the entries wait for their owner to
+      // come back, however long that takes.
+      const user = currentUser()
+      const expired =
+        user === null
+          ? []
+          : all.filter(
+              (record) => record.userId !== user && now() - record.createdAt > FOREIGN_TTL_MS,
+            )
       let records = all
       if (expired.length > 0) {
         records = all.filter((record) => !expired.includes(record))

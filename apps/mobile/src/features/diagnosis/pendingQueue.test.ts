@@ -261,6 +261,20 @@ describe('pending queue of several users on one phone', () => {
     expect(queue.list().map((entry) => entry.pending.key)).toEqual(['key-cccccccc'])
   })
 
+  it('sweep with nobody signed in keeps every entry, however old: the owner may be back later', async () => {
+    const { queue, files, signInAs, setNow } = shared()
+    const stored = await queue.add(at('key-12345678', NOW))
+    // the session expired after a week offline, or the farmer signed out
+    signInAs(null)
+    setNow(NOW + 8 * DAY)
+
+    queue.sweep()
+
+    expect(files.files.has(stored.fileUri)).toBe(true)
+    signInAs(A)
+    expect(queue.list().map((entry) => entry.pending.key)).toEqual(['key-12345678'])
+  })
+
   it('sweep never removes the entries of the user who is signed in, however old', async () => {
     const { queue, setNow } = shared()
     await queue.add(at('key-12345678', NOW))
