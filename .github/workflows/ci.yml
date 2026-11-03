@@ -97,6 +97,27 @@ jobs:
           done
           docker logs ai
           exit 1
+      # The published weights are public; fetch_weights checks their SHA-256 against model_card.json.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Fetch the published weights
+        working-directory: services/ai-service
+        run: |
+          pip install certifi
+          python -m ml.fetch_weights effnet-b0-v1
+      - name: Serves the real model (/health)
+        run: |
+          docker rm -f ai
+          docker run -d --name ai --platform linux/amd64 -p 8000:8000 \
+            -v "$PWD/services/ai-service/ml/weights:/srv/ml/weights:ro" agroadvisor-ai-service:ci
+          for i in $(seq 1 30); do
+            body=$(curl -fsS --max-time 5 http://127.0.0.1:8000/health) && break
+            sleep 2
+          done
+          echo "$body"
+          echo "$body" | grep -q '"model_version":"effnet-b0-v1"'
+          echo "$body" | grep -q '"calibrated":true'
 
   admin-web:
     name: admin-web
