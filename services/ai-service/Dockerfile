@@ -1,7 +1,7 @@
 # Build context: services/ai-service
 #   docker build -t agroadvisor-ai-service services/ai-service
 #   docker run --rm -p 8000:8000 agroadvisor-ai-service
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
