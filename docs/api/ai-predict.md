@@ -242,6 +242,19 @@ The key is unique per user (unique index on `(user_id, idempotency_key)`), so tw
 
 Rate limit: a repeat is answered from the saved diagnosis before the limit (5 photos per minute per user) is checked, so it never spends a token and is not refused with `429` even when the limit is used up. Only a request that makes a new diagnosis spends one (it is still counted when its photo or crop is then rejected). A key must be 8-80 characters long; a row with a key always has the photo fingerprint (a database constraint). The photo is compared by the SHA-256 of its bytes (stored in `diagnoses.request_fingerprint`). A retry must therefore send the **same file**: the app compresses the photo once, keeps the key and the compressed file together and resends that file; compressing the original again gives other bytes and a `422`. A new photo always needs a new key.
 
+#### Order of checks and errors
+
+`POST /api/diagnoses` checks a request in this order and answers with the first error it finds:
+
+1. Access token and feature access: `401` / `403`.
+2. `Idempotency-Key` format (only if the header is present): `400 invalid_idempotency_key`.
+3. The key is looked up (only if present). A saved diagnosis for the key and the same crop and photo: `201` replay (`Idempotent-Replayed: true`). The same key with another crop or other photo bytes: `422 idempotency_key_reused` (`reason: crop` | `photo`). This step comes before the crop and photo checks, so an existing key with an unsupported crop or a file that is not an image is a `422`, not a `400`.
+4. Rate limit, 5 new diagnoses per minute per user: `429 rate_limited`. Steps 2 and 3 do not spend a token. From here on every request spends one, even when it is then rejected.
+5. Crop: `400 unknown_crop`. Photo: `400 invalid_image`.
+6. Storage and the model call: `503 storage_unavailable`, `422 low_quality`, `503 ai_unavailable`, `502 ai_error` (see above).
+
+The limit is not a flood protection for uploads: the multipart body is read before the application code runs, and a replay or a `422` costs one SHA-256 of the photo and one indexed read. Floods are cut at the entrance (nginx body-size and request-rate limits, see the staging task).
+
 #### Metrics
 
 The model call is timed as `agroadvisor.ai.predict` (Micrometer timer; its count is the number of calls) with the tags `outcome` (`ok` or `error`) and `code` (the answer's `status` for `ok`, the farmer-facing error code for `error`: `low_quality`, `invalid_image`, `ai_unavailable`, `ai_error`, `internal_error`). `agroadvisor.diagnosis.replays` counts repeated requests answered from a saved diagnosis. The metrics are not exposed over HTTP yet: only `health` and `info` actuator endpoints are enabled.
