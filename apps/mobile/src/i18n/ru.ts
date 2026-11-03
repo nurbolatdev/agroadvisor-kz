@@ -127,9 +127,11 @@ export const ru = {
         sending: 'Отправляется',
         error: 'Не удалось отправить',
         photoLost: 'Фото пропало',
+        rejected: 'Сервер не принял',
       },
       retry: 'Повторить',
       discard: 'Удалить',
+      dismiss: 'Понятно',
       newPhoto: 'Новое фото',
     },
     errors: {

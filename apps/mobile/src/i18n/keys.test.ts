@@ -60,7 +60,9 @@ describe('translation keys', () => {
       ...['ok', 'low_confidence', 'unknown', 'crop_mismatch'].map(
         (s) => `diagnosis.result.status.${s}`,
       ),
-      ...['waiting', 'sending', 'error', 'photoLost'].map((s) => `diagnosis.queue.status.${s}`),
+      ...['waiting', 'sending', 'error', 'photoLost', 'rejected'].map(
+        (s) => `diagnosis.queue.status.${s}`,
+      ),
       ...['chemical', 'biological'].map((s) => `diagnosis.treatment.tabs.${s}`),
       ...['retake', 'chooseCrop', 'useCrop', 'askAgronomist', 'askCommunity', 'offlineHint'].map(
         (s) => `diagnosis.result.actions.${s}`,

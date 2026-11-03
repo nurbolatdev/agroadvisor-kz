@@ -435,6 +435,52 @@ describe('diagnosis flow', () => {
       expect(useDiagnosis.getState().unseenResultIds).toEqual(['d1'])
     })
 
+    describe('a refusal while sending from the queue screen', () => {
+      it('is kept as a note with the reason, so the entry does not vanish without a word', async () => {
+        const { useDiagnosis, queue } = setup([
+          new NetworkError(),
+          new NetworkError(),
+          new ApiError(422, 'low_quality', 'blurry', [], 'blurry'),
+        ])
+        await start(useDiagnosis)
+
+        await useDiagnosis.getState().resend('key-00000001')
+
+        expect(queue.list()).toEqual([])
+        expect(useDiagnosis.getState().rejected).toEqual([
+          {
+            key: 'key-00000001',
+            crop: 'tomato',
+            createdAt: 1_700_000_000_000,
+            failure: { messageKey: 'diagnosis.errors.blurry', action: 'newPhoto' },
+          },
+        ])
+      })
+
+      it('can be dismissed', async () => {
+        const { useDiagnosis } = setup([
+          new NetworkError(),
+          new NetworkError(),
+          new ApiError(422, 'low_quality', 'blurry', [], 'blurry'),
+        ])
+        await start(useDiagnosis)
+        await useDiagnosis.getState().resend('key-00000001')
+
+        useDiagnosis.getState().dismissRejected('key-00000001')
+
+        expect(useDiagnosis.getState().rejected).toEqual([])
+      })
+
+      it('is not added for a fresh analysis: the analysis screen shows that refusal', async () => {
+        const { useDiagnosis } = setup([new ApiError(422, 'low_quality', 'blurry', [], 'blurry')])
+
+        await start(useDiagnosis)
+
+        expect(useDiagnosis.getState().rejected).toEqual([])
+        expect(useDiagnosis.getState().failure?.messageKey).toBe('diagnosis.errors.blurry')
+      })
+    })
+
     describe('the photo of an answer', () => {
       it('stays after the answer and its path goes to the result', async () => {
         const { useDiagnosis, queue, files } = setup([result()])

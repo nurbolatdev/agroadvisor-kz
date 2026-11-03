@@ -129,9 +129,11 @@ export const en: Translation = {
         sending: 'Sending',
         error: 'Could not send',
         photoLost: 'Photo is gone',
+        rejected: 'Not accepted by the server',
       },
       retry: 'Retry',
       discard: 'Delete',
+      dismiss: 'Got it',
       newPhoto: 'New photo',
     },
     errors: {

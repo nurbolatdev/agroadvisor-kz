@@ -129,9 +129,11 @@ export const kk: Translation = {
         sending: 'Жіберілуде',
         error: 'Жіберу мүмкін болмады',
         photoLost: 'Сурет жоғалған',
+        rejected: 'Сервер қабылдамады',
       },
       retry: 'Қайталау',
       discard: 'Жою',
+      dismiss: 'Түсінікті',
       newPhoto: 'Жаңа сурет',
     },
     errors: {

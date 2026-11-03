@@ -14,6 +14,16 @@ import type { PickedPhoto } from '@/features/diagnosis/photo'
 // photos of an earlier run are cleaned up by the queue's sweep on start.
 export type StoredResult = DiagnosisResult & { photoPath: string | null }
 
+// A queued diagnosis that the server refused for good while the farmer sent it from the queue screen. The
+// entry and its photo are gone (sending the same photo again would be refused again), but the farmer must
+// still be told why, and offered a new photo, so the queue screen keeps this note until it is dismissed.
+export type RejectedEntry = {
+  key: string
+  crop: Crop
+  createdAt: number
+  failure: DiagnosisFailure
+}
+
 // idle: choosing the crop and the photo; preparing: compressing the photo; sending: waiting for the
 // answer; done: `result` holds it (any status, they are all answers); failed: `failure` says what to do.
 export type DiagnosisPhase = 'idle' | 'preparing' | 'sending' | 'done' | 'failed'
@@ -31,6 +41,8 @@ type DiagnosisState = {
   attempts: number
   // what the offline queue holds: diagnoses that still wait for an answer
   queued: QueueEntry[]
+  rejected: RejectedEntry[]
+  dismissRejected: (key: string) => void
   // every answer received in this session, by diagnosis id: screens get a diagnosis by its id, never
   // through route params (M6 reads the same place for the history)
   results: Record<string, StoredResult>
@@ -86,7 +98,9 @@ export function createDiagnosisStore(deps: Deps) {
   return create<DiagnosisState>((set, get) => {
     const refreshQueued = () => set({ queued: queue.list() })
 
-    async function send(pending: PendingDiagnosis, startedIn: number) {
+    // `fromQueue`: the farmer pressed "Retry" on the queue screen, which shows the outcome itself; the
+    // analysis screen shows the outcome of a fresh analysis.
+    async function send(pending: PendingDiagnosis, startedIn: number, fromQueue = false) {
       if (inFlight.has(pending.key)) return
       inFlight.add(pending.key)
       try {
@@ -114,6 +128,15 @@ export function createDiagnosisStore(deps: Deps) {
             if (failure.action === 'newPhoto') {
               queue.remove(pending.key)
               refreshQueued()
+              if (fromQueue) {
+                const note: RejectedEntry = {
+                  key: pending.key,
+                  crop: pending.crop,
+                  createdAt: pending.createdAt,
+                  failure,
+                }
+                set((s) => ({ rejected: [...s.rejected.filter((r) => r.key !== note.key), note] }))
+              }
             }
             if (startedIn === flow) {
               set({
@@ -134,6 +157,8 @@ export function createDiagnosisStore(deps: Deps) {
       crop: null,
       ...INITIAL,
       queued: [],
+      rejected: [],
+      dismissRejected: (key) => set((s) => ({ rejected: s.rejected.filter((r) => r.key !== key) })),
       results: {},
       answeredKeys: {},
       unseenResultIds: [],
@@ -222,7 +247,7 @@ export function createDiagnosisStore(deps: Deps) {
           return
         }
         set({ ...INITIAL, crop: entry.pending.crop, pending: entry.pending, queued: queue.list() })
-        await send(entry.pending, flow)
+        await send(entry.pending, flow, true)
       },
       discard: (key) => {
         queue.remove(key)
