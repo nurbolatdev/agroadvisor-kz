@@ -391,7 +391,7 @@ export interface components {
             code: string;
             cropCode?: string | null;
             /** @enum {string} */
-            kind: "fungal" | "bacterial" | "viral" | "pest" | "healthy" | "other";
+            kind: "fungal" | "bacterial" | "viral" | "oomycete" | "pest" | "healthy" | "other";
             latinName?: string | null;
             name: string;
             /** @enum {string|null} */
@@ -420,7 +420,10 @@ export interface components {
             language?: "ru" | "kk" | "en";
             login: string;
             password: string;
-            /** @enum {string} */
+            /**
+             * @description Upper case here; the roles in MeResponse are the lower case codes
+             * @enum {string}
+             */
             role?: "FARMER" | "AGROCHEMIST";
         };
         TokenResponse: {
@@ -940,6 +943,7 @@ export interface operations {
                 crop: string;
             };
             header?: {
+                /** @description One key per diagnosis attempt (a UUID fits); resend it when the answer was lost. Errors: 400 invalid_idempotency_key, 422 idempotency_key_reused. */
                 "Idempotency-Key"?: string;
             };
             path?: never;
@@ -957,6 +961,8 @@ export interface operations {
             /** @description The diagnosis; for a repeated Idempotency-Key the one made the first time, with the header Idempotent-Replayed: true */
             201: {
                 headers: {
+                    /** @description "true" when the diagnosis already existed */
+                    "Idempotent-Replayed"?: "true";
                     [name: string]: unknown;
                 };
                 content: {
