@@ -438,7 +438,7 @@ describe('diagnosis flow', () => {
       expect([...memory.files]).toEqual([useDiagnosis.getState().results.d1.photoPath])
     })
 
-    it('keeps the answer by diagnosis id and links the queue key to it', async () => {
+    it('keeps the answer by diagnosis id', async () => {
       const { useDiagnosis } = setup([
         new NetworkError(),
         new NetworkError(),
@@ -451,7 +451,6 @@ describe('diagnosis flow', () => {
 
       const s = useDiagnosis.getState()
       expect(s.results.d1.status).toBe('low_confidence')
-      expect(s.answeredKeys).toEqual({ 'key-00000001': 'd1' })
     })
 
     it('an answer that arrives after the farmer left is unseen until its result is opened', async () => {

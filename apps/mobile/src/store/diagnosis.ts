@@ -48,8 +48,6 @@ type DiagnosisState = {
   // every answer received in this session, by diagnosis id: screens get a diagnosis by its id, never
   // through route params (M6 reads the same place for the history)
   results: Record<string, StoredResult>
-  // queue key -> diagnosis id, so the queue screen can open the answer of an entry that was just sent
-  answeredKeys: Record<string, string>
   // answers whose result screen was not opened yet; the home screen offers to open the latest one
   unseenResultIds: string[]
   // called by the result screen when it opens
@@ -118,7 +116,6 @@ export function createDiagnosisStore(deps: Deps) {
             refreshQueued()
             set((s) => ({
               results: { ...s.results, [result.id]: { ...result, photoPath } },
-              answeredKeys: { ...s.answeredKeys, [pending.key]: result.id },
               unseenResultIds: [...s.unseenResultIds.filter((id) => id !== result.id), result.id],
             }))
             if (startedIn === flow) set({ phase: 'done', result, failure: null })
@@ -165,7 +162,6 @@ export function createDiagnosisStore(deps: Deps) {
       rejected: [],
       dismissRejected: (key) => set((s) => ({ rejected: s.rejected.filter((r) => r.key !== key) })),
       results: {},
-      answeredKeys: {},
       unseenResultIds: [],
       markSeen: (id) =>
         set((s) => ({ unseenResultIds: s.unseenResultIds.filter((x) => x !== id) })),
