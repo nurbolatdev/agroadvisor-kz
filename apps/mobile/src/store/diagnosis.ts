@@ -30,6 +30,10 @@ type DiagnosisState = {
   results: Record<string, DiagnosisResult>
   // queue key -> diagnosis id, so the queue screen can open the answer of an entry that was just sent
   answeredKeys: Record<string, string>
+  // answers whose result screen was not opened yet; the home screen offers to open the latest one
+  unseenResultIds: string[]
+  // called by the result screen when it opens
+  markSeen: (id: string) => void
   selectCrop: (crop: Crop) => void
   setPhoto: (photo: PickedPhoto) => void
   analyze: () => Promise<void>
@@ -89,6 +93,7 @@ export function createDiagnosisStore(deps: Deps) {
             set((s) => ({
               results: { ...s.results, [result.id]: result },
               answeredKeys: { ...s.answeredKeys, [pending.key]: result.id },
+              unseenResultIds: [...s.unseenResultIds.filter((id) => id !== result.id), result.id],
             }))
             if (startedIn === flow) set({ phase: 'done', result, failure: null })
             return
@@ -122,6 +127,9 @@ export function createDiagnosisStore(deps: Deps) {
       queued: [],
       results: {},
       answeredKeys: {},
+      unseenResultIds: [],
+      markSeen: (id) =>
+        set((s) => ({ unseenResultIds: s.unseenResultIds.filter((x) => x !== id) })),
       selectCrop: (crop) => {
         flow += 1
         set({ crop, ...INITIAL })

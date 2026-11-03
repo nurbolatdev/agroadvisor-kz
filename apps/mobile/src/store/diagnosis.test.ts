@@ -413,6 +413,27 @@ describe('diagnosis flow', () => {
       expect(s.answeredKeys).toEqual({ 'key-00000001': 'd1' })
     })
 
+    it('an answer that arrives after the farmer left is unseen until its result is opened', async () => {
+      const { useDiagnosis } = setup([new NetworkError(), new NetworkError(), result()])
+      await start(useDiagnosis)
+      expect(useDiagnosis.getState().unseenResultIds).toEqual([])
+
+      // the farmer went to the queue screen and sent the entry from there
+      await useDiagnosis.getState().resend('key-00000001')
+      expect(useDiagnosis.getState().unseenResultIds).toEqual(['d1'])
+
+      useDiagnosis.getState().markSeen('d1')
+      expect(useDiagnosis.getState().unseenResultIds).toEqual([])
+    })
+
+    it('lists an answer once even if the same diagnosis is answered again', async () => {
+      const { useDiagnosis } = setup([result(), result()])
+      await start(useDiagnosis)
+      useDiagnosis.getState().setPhoto(PHOTO)
+      await useDiagnosis.getState().analyze()
+      expect(useDiagnosis.getState().unseenResultIds).toEqual(['d1'])
+    })
+
     it('discard removes the entry with its photo', async () => {
       const { useDiagnosis, queue, files } = setup([new NetworkError(), new NetworkError()])
       await start(useDiagnosis)

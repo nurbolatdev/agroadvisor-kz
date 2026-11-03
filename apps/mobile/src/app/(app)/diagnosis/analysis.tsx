@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
 import { AppText, Button, ProgressBar, Screen } from '@/components/ui'
-import { ResultDraft } from '@/features/diagnosis/ResultDraft'
 import { STEPS, progressOf, stepStates } from '@/features/diagnosis/steps'
 import { useAfter, useCountdown } from '@/features/diagnosis/timers'
 import { useDiagnosis } from '@/services'
@@ -25,7 +24,6 @@ export default function AnalysisScreen() {
   const failure = useDiagnosis((s) => s.failure)
   const analyze = useDiagnosis((s) => s.analyze)
   const retry = useDiagnosis((s) => s.retry)
-  const reset = useDiagnosis((s) => s.reset)
 
   useEffect(() => {
     if (phase === 'idle') void analyze()
@@ -97,29 +95,8 @@ export default function AnalysisScreen() {
         </View>
       ) : null}
 
-      {phase === 'done' && result ? (
-        <View style={styles.block}>
-          <ResultDraft result={result} />
-          <View style={styles.actions}>
-            <Button
-              label={t('diagnosis.result.again')}
-              onPress={() => {
-                // leave first: after the reset there is no photo, and this screen would redirect itself
-                router.replace('/diagnosis')
-                reset()
-              }}
-            />
-            <Button
-              label={t('diagnosis.result.home')}
-              variant="secondary"
-              onPress={() => {
-                router.dismissTo('/home')
-                reset()
-              }}
-            />
-          </View>
-        </View>
-      ) : null}
+      {/* the answer, whatever its status, is shown by the result screen; only its id goes in the route */}
+      {phase === 'done' && result ? <Redirect href={`/diagnosis/result/${result.id}`} /> : null}
     </Screen>
   )
 }

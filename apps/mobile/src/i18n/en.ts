@@ -44,6 +44,7 @@ export const en: Translation = {
     scaffoldReady: 'The app scaffold is ready',
     diagnose: 'Diagnose by photo',
     queue: 'Not sent: {{count}}',
+    resultReady: 'Result is ready — open',
   },
   diagnosis: {
     title: 'Diagnosis',
@@ -81,9 +82,9 @@ export const en: Translation = {
     },
     result: {
       title: 'Result',
-      draft: 'A draft view of the result: the full screen comes later',
+      hint: 'The result is approximate. If in doubt, ask an agronomist',
+      notFound: 'The result was not found. Run the diagnosis again',
       crop: 'Crop',
-      class: 'Detected',
       confidence: 'Confidence',
       placeholder: 'Test model: this is not a diagnosis',
       status: {

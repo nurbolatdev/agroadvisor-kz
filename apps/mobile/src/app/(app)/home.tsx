@@ -14,6 +14,8 @@ export default function HomeScreen() {
   const router = useRouter()
   const logout = useSession((s) => s.logout)
   const resetDiagnosis = useDiagnosis((s) => s.reset)
+  // the latest answer whose result screen was not opened yet
+  const unseenResultId = useDiagnosis((s) => s.unseenResultIds.at(-1))
   const queuedCount = useDiagnosis((s) => s.queued.length)
   const language = useSettings((s) => s.language)
   const setLanguage = useSettings((s) => s.setLanguage)
@@ -26,6 +28,15 @@ export default function HomeScreen() {
       <AppText color={colors.textMuted} style={styles.gap}>
         {t('app.tagline')}
       </AppText>
+
+      {unseenResultId ? (
+        <View style={styles.section}>
+          <Button
+            label={t('home.resultReady')}
+            onPress={() => router.push(`/diagnosis/result/${unseenResultId}`)}
+          />
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <Button

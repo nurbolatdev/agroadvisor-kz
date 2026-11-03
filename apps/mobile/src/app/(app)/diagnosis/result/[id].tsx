@@ -1,0 +1,144 @@
+import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+import { StyleSheet, View } from 'react-native'
+
+import type { DiagnosisResult } from '@/api/diagnosis'
+import {
+  AppText,
+  Badge,
+  type BadgeTone,
+  Button,
+  EmptyState,
+  GlassCard,
+  Screen,
+} from '@/components/ui'
+import { isCrop } from '@/features/diagnosis/crops'
+import { resolveResultScreen } from '@/features/diagnosis/resultScreen'
+import { useDiseaseDetail } from '@/features/diseases/useDiseaseDetail'
+import { useDiagnosis } from '@/services'
+import { colors, spacing } from '@/theme/tokens'
+
+const TONE: Record<DiagnosisResult['status'], BadgeTone> = {
+  ok: 'success',
+  low_confidence: 'warning',
+  unknown: 'info',
+  crop_mismatch: 'warning',
+}
+
+// The diagnosis comes from the store by its id: the route carries only the id, never the diagnosis. The
+// photo is not shown: after the answer the app deletes its local copy and the answer has no photo address.
+export default function ResultScreen() {
+  const { t } = useTranslation()
+  const router = useRouter()
+  const { id } = useLocalSearchParams<{ id: string }>()
+  const view = useDiagnosis((s) => s.results[id])
+  const markSeen = useDiagnosis((s) => s.markSeen)
+  const reset = useDiagnosis((s) => s.reset)
+
+  useEffect(() => {
+    if (id) markSeen(id)
+  }, [id, markSeen])
+
+  const home = () => {
+    router.dismissTo('/home')
+    reset()
+  }
+
+  if (!view) {
+    // answers live in memory: after the app was restarted the result is not here any more
+    return (
+      <Screen>
+        <EmptyState
+          title={t('diagnosis.result.notFound')}
+          actionLabel={t('diagnosis.result.home')}
+          onAction={home}
+        />
+      </Screen>
+    )
+  }
+
+  return (
+    <Screen scroll>
+      <AppText variant="h1" color={colors.primaryDark}>
+        {t('diagnosis.result.title')}
+      </AppText>
+      <View style={styles.block}>
+        <GlassCard style={styles.card}>
+          <Badge label={t(`diagnosis.result.status.${view.status}`)} tone={TONE[view.status]} />
+          <ResultBody view={view} />
+          {view.placeholder ? (
+            <AppText variant="small" color={colors.danger}>
+              {t('diagnosis.result.placeholder')}
+            </AppText>
+          ) : null}
+        </GlassCard>
+        <View style={styles.actions}>
+          <Button
+            label={t('diagnosis.result.again')}
+            onPress={() => {
+              // leave first: after the reset there is no photo, and the previous screen would redirect itself
+              router.replace('/diagnosis')
+              reset()
+            }}
+          />
+          <Button label={t('diagnosis.result.home')} variant="secondary" onPress={home} />
+        </View>
+      </View>
+    </Screen>
+  )
+}
+
+function useCropName() {
+  const { t } = useTranslation()
+  return (code: string) => (isCrop(code) ? t(`diagnosis.crops.${code}`) : code)
+}
+
+// `resolveResultScreen` decides which branch this is; the uncertain branches get their own layout next.
+function ResultBody({ view }: { view: DiagnosisResult }) {
+  const { t } = useTranslation()
+  const cropName = useCropName()
+  const screen = resolveResultScreen(view)
+
+  if (screen.kind !== 'ok') {
+    return (
+      <AppText color={colors.textMuted}>
+        {t('diagnosis.result.crop')}: {cropName(view.crop)}
+      </AppText>
+    )
+  }
+  return <OkBody view={view} />
+}
+
+function OkBody({ view }: { view: DiagnosisResult }) {
+  const { t } = useTranslation()
+  const cropName = useCropName()
+  const { state, reload } = useDiseaseDetail(view.top1.code)
+  // while the reference loads or when it fails, the diagnosis is still there: it shows the class code
+  const name = state.status === 'ready' ? state.detail.disease.name : view.top1.code
+
+  return (
+    <View style={styles.rows}>
+      <AppText color={colors.textMuted}>
+        {t('diagnosis.result.crop')}: {cropName(view.crop)}
+      </AppText>
+      <AppText variant="h2">{name}</AppText>
+      <AppText color={colors.textMuted}>
+        {t('diagnosis.result.confidence')}: {Math.round(view.top1.confidence * 100)}%
+      </AppText>
+      <AppText variant="small" color={colors.textMuted}>
+        {t('diagnosis.result.hint')}
+      </AppText>
+      {state.status === 'error' ? (
+        <Button label={t('common.retry')} variant="secondary" compact onPress={reload} />
+      ) : null}
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  block: { marginTop: spacing.xl, gap: spacing.lg },
+  card: { padding: spacing.lg, gap: spacing.md },
+  rows: { gap: spacing.sm },
+  actions: { gap: spacing.sm },
+})

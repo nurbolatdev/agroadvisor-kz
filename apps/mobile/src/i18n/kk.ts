@@ -44,6 +44,7 @@ export const kk: Translation = {
     scaffoldReady: 'Қосымша каркасы дайын',
     diagnose: 'Сурет бойынша диагностика',
     queue: 'Жіберілмеген: {{count}}',
+    resultReady: 'Нәтиже дайын — ашу',
   },
   diagnosis: {
     title: 'Диагностика',
@@ -81,9 +82,9 @@ export const kk: Translation = {
     },
     result: {
       title: 'Нәтиже',
-      draft: 'Нәтиженің алдын ала көрінісі: толық экран кейін қосылады',
+      hint: 'Нәтиже болжамды. Күмәндансаңыз, агрохимиктен сұраңыз',
+      notFound: 'Нәтиже табылмады. Диагностиканы қайта жасаңыз',
       crop: 'Дақыл',
-      class: 'Анықталды',
       confidence: 'Сенімділік',
       placeholder: 'Сынақ моделі: бұл диагноз емес',
       status: {
