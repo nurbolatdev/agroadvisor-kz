@@ -4,7 +4,10 @@ import { API_MODE, API_URL } from '@/api/config'
 import { createDiagnosisApi } from '@/api/diagnosis'
 import { createMockAuthApi } from '@/api/mock/auth'
 import { createMockDiagnosisApi } from '@/api/mock/diagnosis'
+import { preparePhoto } from '@/features/diagnosis/photo'
+import { expoPhotoToolkit } from '@/features/diagnosis/photoToolkit'
 import { tokenStorage } from '@/lib/tokenStorage'
+import { createDiagnosisStore } from '@/store/diagnosis'
 import { createSessionStore } from '@/store/session'
 
 // Wiring of the real objects: API client <-> session. Screens import from here.
@@ -28,3 +31,9 @@ export const apiClient = createApiClient({
 
 export const diagnosisApi =
   API_MODE === 'mock' ? createMockDiagnosisApi() : createDiagnosisApi(apiClient)
+
+// The flow of one diagnosis: crop, photo, compression once, send with a stable Idempotency-Key.
+export const useDiagnosis = createDiagnosisStore({
+  api: diagnosisApi,
+  prepare: (photo) => preparePhoto(photo, expoPhotoToolkit),
+})
