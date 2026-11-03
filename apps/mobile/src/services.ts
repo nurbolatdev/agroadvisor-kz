@@ -1,7 +1,9 @@
 import { createAuthApi } from '@/api/auth'
 import { createApiClient } from '@/api/client'
 import { API_MODE, API_URL } from '@/api/config'
+import { createDiagnosisApi } from '@/api/diagnosis'
 import { createMockAuthApi } from '@/api/mock/auth'
+import { createMockDiagnosisApi } from '@/api/mock/diagnosis'
 import { tokenStorage } from '@/lib/tokenStorage'
 import { createSessionStore } from '@/store/session'
 
@@ -23,3 +25,6 @@ export const apiClient = createApiClient({
   getAccessToken: () => useSession.getState().accessToken,
   refreshAccessToken: () => useSession.getState().refreshAccessToken(),
 })
+
+export const diagnosisApi =
+  API_MODE === 'mock' ? createMockDiagnosisApi() : createDiagnosisApi(apiClient)
