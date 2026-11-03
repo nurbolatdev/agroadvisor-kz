@@ -1,4 +1,4 @@
-import { findJpegMetadata, isJpeg } from './metadata'
+import { findJpegMetadata, isJpeg, stripJpegMetadata } from './metadata'
 
 const text = (value: string) => Array.from(value, (c) => c.charCodeAt(0))
 
@@ -67,6 +67,59 @@ describe('findJpegMetadata', () => {
     const bytes = jpeg(jfif, exifWithGps)
     expect(() => findJpegMetadata(bytes.subarray(0, 12))).not.toThrow()
     expect(findJpegMetadata(Uint8Array.from([0xff, 0xd8]))).toEqual([])
+  })
+})
+
+// from the scan header (FF DA) to the end of the file: what the pixels are made of
+function imageData(bytes: Uint8Array): Uint8Array {
+  for (let i = 2; i + 1 < bytes.length; i += 1) {
+    if (bytes[i] === 0xff && bytes[i + 1] === 0xda) return bytes.subarray(i)
+  }
+  throw new Error('no scan header')
+}
+
+describe('stripJpegMetadata', () => {
+  it('cuts Exif with GPS, XMP and IPTC out and leaves the pixels and the colour profile alone', () => {
+    const dirty = jpeg(jfif, exifWithGps, xmp, iccProfile, iptc)
+
+    const clean = stripJpegMetadata(dirty)
+
+    expect(findJpegMetadata(clean)).toEqual([])
+    expect(Array.from(clean)).toEqual(Array.from(jpeg(jfif, iccProfile)))
+    expect(Array.from(imageData(clean))).toEqual(Array.from(imageData(dirty)))
+  })
+
+  it('cuts each kind on its own', () => {
+    for (const block of [exifWithGps, xmp, iptc]) {
+      const dirty = jpeg(jfif, block)
+      const clean = stripJpegMetadata(dirty)
+      expect(findJpegMetadata(clean)).toEqual([])
+      expect(Array.from(clean)).toEqual(Array.from(jpeg(jfif)))
+    }
+  })
+
+  it('cuts Exif that comes first and several APP1 blocks', () => {
+    const clean = stripJpegMetadata(jpeg(exifWithGps, jfif, xmp, exifWithGps))
+    expect(Array.from(clean)).toEqual(Array.from(jpeg(jfif)))
+  })
+
+  it('returns a file without metadata as it is, byte for byte', () => {
+    const plain = jpeg(jfif, iccProfile)
+    const result = stripJpegMetadata(plain)
+    expect(result).toBe(plain)
+    expect(Array.from(result)).toEqual(Array.from(plain))
+  })
+
+  it('does not touch metadata-like bytes inside the image data', () => {
+    const withTail = Uint8Array.from([...jpeg(jfif), ...exifWithGps])
+    expect(stripJpegMetadata(withTail)).toBe(withTail)
+  })
+
+  it('leaves a truncated file and a non-JPEG as they are', () => {
+    const cut = jpeg(jfif, exifWithGps).subarray(0, 30)
+    expect(stripJpegMetadata(cut)).toBe(cut)
+    const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d])
+    expect(stripJpegMetadata(png)).toBe(png)
   })
 })
 

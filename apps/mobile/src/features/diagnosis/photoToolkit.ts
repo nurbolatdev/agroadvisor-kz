@@ -1,10 +1,11 @@
+import { File, Paths } from 'expo-file-system'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 
 import type { PhotoToolkit } from './photo'
 
 // The real conversion on the phone. The manipulator decodes the image with its Exif orientation,
-// resizes the pixels and writes a fresh JPEG; it does not copy the metadata of the source file.
-// preparePhoto checks the result, so a platform that did copy it is caught before anything is sent.
+// resizes the pixels and writes a fresh JPEG. Whether it also copies metadata is not assumed:
+// preparePhoto looks at the result and cuts any metadata out.
 export const expoPhotoToolkit: PhotoToolkit = {
   toJpeg: async (uri, { width, height, quality }) => {
     const context = ImageManipulator.manipulate(uri)
@@ -13,5 +14,14 @@ export const expoPhotoToolkit: PhotoToolkit = {
     const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: quality })
     return { uri: saved.uri, width: saved.width, height: saved.height }
   },
-  readBytes: async (uri) => new Uint8Array(await (await fetch(uri)).arrayBuffer()),
+  readBytes: async (uri) => new File(uri).bytes(),
+  writeBytes: async (bytes) => {
+    const file = new File(
+      Paths.cache,
+      `diagnosis-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`,
+    )
+    file.create()
+    await file.write(bytes)
+    return file.uri
+  },
 }

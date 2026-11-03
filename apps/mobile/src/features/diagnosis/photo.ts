@@ -1,9 +1,17 @@
-import { findJpegMetadata, isJpeg } from './metadata'
+import { type JpegMetadata, findJpegMetadata, isJpeg, stripJpegMetadata } from './metadata'
 
 // A photo as the camera or the gallery gives it.
 export type PickedPhoto = { uri: string; width: number; height: number }
 
-export type PreparedPhoto = { uri: string; width: number; height: number; bytes: number }
+export type PreparedPhoto = {
+  uri: string
+  width: number
+  height: number
+  bytes: number
+  // metadata blocks that the conversion left in the file and that were cut out afterwards (empty when
+  // the platform wrote none); only for the development log
+  removedMetadata: JpegMetadata[]
+}
 
 // The longer side is shrunk to this many pixels: enough for the model, much less traffic in the field.
 export const MAX_SIDE_PX = 1280
@@ -12,9 +20,8 @@ export const JPEG_QUALITY = 0.8
 export const MAX_FILE_BYTES = 10 * 1024 * 1024
 
 export type PhotoErrorCode =
-  | 'unreadable' // the file cannot be read or is not a JPEG after the conversion
+  | 'unreadable' // the file cannot be read or written, or is not a JPEG after the conversion
   | 'too_large' // above the size the backend accepts
-  | 'metadata' // the converted file still carries Exif, XMP or IPTC (for example the GPS position)
 
 export class PhotoError extends Error {
   readonly code: PhotoErrorCode
@@ -35,6 +42,8 @@ export type PhotoToolkit = {
     options: { width?: number; height?: number; quality: number },
   ) => Promise<{ uri: string; width: number; height: number }>
   readBytes: (uri: string) => Promise<Uint8Array>
+  // Writes the bytes to a new file and returns its uri.
+  writeBytes: (bytes: Uint8Array) => Promise<string>
 }
 
 // The size to resize to, or undefined when the photo is small enough. Only the longer side is given:
@@ -51,6 +60,10 @@ export function resizeTarget(
 // this very file: preparing the original again would give other bytes (and the backend refuses a
 // known Idempotency-Key with other bytes). The quality of the picture (blur, darkness, tiny size) is
 // judged by the server, not here.
+//
+// Privacy: if the converted file still has Exif (the GPS position of the field), XMP or IPTC blocks
+// they are cut out of the bytes, without decoding the image again. This is the first line and saves
+// traffic; the guarantee is given by the backend, which cuts the metadata itself (B9.3).
 export async function preparePhoto(photo: PickedPhoto, kit: PhotoToolkit): Promise<PreparedPhoto> {
   const target = resizeTarget(photo.width, photo.height)
   let converted: { uri: string; width: number; height: number }
@@ -64,15 +77,26 @@ export async function preparePhoto(photo: PickedPhoto, kit: PhotoToolkit): Promi
   if (!isJpeg(bytes) || converted.width <= 0 || converted.height <= 0) {
     throw new PhotoError('unreadable')
   }
-  if (bytes.length > MAX_FILE_BYTES) throw new PhotoError('too_large')
-  // Privacy check: the conversion must have dropped the metadata. A photo from the gallery can carry
-  // the GPS position of the field; it is never sent.
-  const metadata = findJpegMetadata(bytes)
-  if (metadata.length > 0) throw new PhotoError('metadata', metadata.join(','))
+
+  const removedMetadata = findJpegMetadata(bytes)
+  let uri = converted.uri
+  const clean = stripJpegMetadata(bytes)
+  if (clean !== bytes) {
+    // the segments are cut, nothing may be left; a file that still has some is not sent
+    if (findJpegMetadata(clean).length > 0) throw new PhotoError('unreadable', 'metadata remained')
+    try {
+      uri = await kit.writeBytes(clean)
+    } catch (cause) {
+      throw new PhotoError('unreadable', cause instanceof Error ? cause.message : 'unreadable')
+    }
+  }
+
+  if (clean.length > MAX_FILE_BYTES) throw new PhotoError('too_large')
   return {
-    uri: converted.uri,
+    uri,
     width: converted.width,
     height: converted.height,
-    bytes: bytes.length,
+    bytes: clean.length,
+    removedMetadata,
   }
 }

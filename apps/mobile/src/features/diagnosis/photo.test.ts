@@ -30,7 +30,8 @@ function jpeg(...segments: number[][]): Uint8Array {
 }
 
 const jfif = segment(0xe0, [...text('JFIF\0'), 1, 1, 0, 0, 1, 0, 1, 0, 0])
-const exif = segment(0xe1, [...text('Exif\0\0'), 0x49, 0x49, 0x2a, 0, 8, 0, 0, 0])
+const exif = segment(0xe1, [...text('Exif\0\0'), 0x49, 0x49, 0x2a, 0, 8, 0, 0, 0, ...text('GPS')])
+const xmp = segment(0xe1, [...text('http://ns.adobe.com/xap/1.0/\0'), ...text('<x:xmpmeta/>')])
 
 function fakeKit(output: { bytes: Uint8Array; width?: number; height?: number }) {
   const toJpeg = jest.fn(async () => ({
@@ -39,8 +40,9 @@ function fakeKit(output: { bytes: Uint8Array; width?: number; height?: number })
     height: output.height ?? 960,
   }))
   const readBytes = jest.fn(async () => output.bytes)
-  const kit: PhotoToolkit = { toJpeg, readBytes }
-  return { kit, toJpeg, readBytes }
+  const writeBytes = jest.fn(async (_bytes: Uint8Array) => 'file:///cache/clean.jpg')
+  const kit: PhotoToolkit = { toJpeg, readBytes, writeBytes }
+  return { kit, toJpeg, readBytes, writeBytes }
 }
 
 describe('resizeTarget', () => {
@@ -59,7 +61,7 @@ describe('resizeTarget', () => {
 describe('preparePhoto', () => {
   it('converts a large photo to a 1280 px JPEG and returns the file to send', async () => {
     const bytes = jpeg(jfif)
-    const { kit, toJpeg } = fakeKit({ bytes })
+    const { kit, toJpeg, writeBytes } = fakeKit({ bytes })
 
     const prepared = await preparePhoto(
       { uri: 'file:///camera/IMG_1.heic', width: 4032, height: 3024 },
@@ -70,15 +72,17 @@ describe('preparePhoto', () => {
       width: MAX_SIDE_PX,
       quality: JPEG_QUALITY,
     })
+    expect(writeBytes).not.toHaveBeenCalled() // nothing to cut: the converted file is the one to send
     expect(prepared).toEqual({
       uri: 'file:///cache/converted.jpg',
       width: 1280,
       height: 960,
       bytes: bytes.length,
+      removedMetadata: [],
     })
   })
 
-  it('still converts a small photo (drops metadata and applies the orientation) without resizing', async () => {
+  it('still converts a small photo (applies the orientation) without resizing', async () => {
     const { kit, toJpeg } = fakeKit({ bytes: jpeg(jfif), width: 640, height: 480 })
 
     await preparePhoto({ uri: 'file:///small.jpg', width: 640, height: 480 }, kit)
@@ -86,15 +90,17 @@ describe('preparePhoto', () => {
     expect(toJpeg).toHaveBeenCalledWith('file:///small.jpg', { quality: JPEG_QUALITY })
   })
 
-  it('refuses a converted file that still carries Exif (the GPS position must never be sent)', async () => {
-    const { kit } = fakeKit({ bytes: jpeg(jfif, exif) })
+  it('cuts Exif with GPS and XMP out of the converted file and sends the cleaned file', async () => {
+    const { kit, writeBytes } = fakeKit({ bytes: jpeg(jfif, exif, xmp) })
 
-    await expect(
-      preparePhoto({ uri: 'file:///a.jpg', width: 4000, height: 3000 }, kit),
-    ).rejects.toMatchObject({
-      name: 'PhotoError',
-      code: 'metadata',
-    })
+    const prepared = await preparePhoto({ uri: 'file:///a.jpg', width: 4000, height: 3000 }, kit)
+
+    expect(writeBytes).toHaveBeenCalledTimes(1)
+    const written = writeBytes.mock.calls[0][0]
+    expect(Array.from(written)).toEqual(Array.from(jpeg(jfif))) // pixels and JFIF header untouched
+    expect(prepared.uri).toBe('file:///cache/clean.jpg')
+    expect(prepared.bytes).toBe(written.length)
+    expect(prepared.removedMetadata.sort()).toEqual(['exif', 'xmp'])
   })
 
   it('refuses a result that is not a JPEG', async () => {
@@ -102,9 +108,7 @@ describe('preparePhoto', () => {
 
     await expect(
       preparePhoto({ uri: 'file:///a.png', width: 100, height: 100 }, kit),
-    ).rejects.toMatchObject({
-      code: 'unreadable',
-    })
+    ).rejects.toMatchObject({ code: 'unreadable' })
   })
 
   it('refuses a file above the size the backend accepts', async () => {
@@ -114,9 +118,7 @@ describe('preparePhoto', () => {
 
     await expect(
       preparePhoto({ uri: 'file:///huge.jpg', width: 100, height: 100 }, kit),
-    ).rejects.toMatchObject({
-      code: 'too_large',
-    })
+    ).rejects.toMatchObject({ code: 'too_large' })
   })
 
   it('turns a failure of the platform into an unreadable-photo error', async () => {
@@ -125,6 +127,7 @@ describe('preparePhoto', () => {
         throw new Error('decoder failed')
       }),
       readBytes: jest.fn(),
+      writeBytes: jest.fn(),
     }
 
     const error = await preparePhoto(
@@ -136,13 +139,20 @@ describe('preparePhoto', () => {
     expect(error).toMatchObject({ code: 'unreadable', message: 'decoder failed' })
   })
 
+  it('turns a failure to write the cleaned file into an unreadable-photo error', async () => {
+    const { kit, writeBytes } = fakeKit({ bytes: jpeg(jfif, exif) })
+    writeBytes.mockRejectedValueOnce(new Error('disk full'))
+
+    await expect(
+      preparePhoto({ uri: 'file:///a.jpg', width: 10, height: 10 }, kit),
+    ).rejects.toMatchObject({ code: 'unreadable', message: 'disk full' })
+  })
+
   it('refuses an image without a size', async () => {
     const { kit } = fakeKit({ bytes: jpeg(jfif), width: 0, height: 0 })
 
     await expect(
       preparePhoto({ uri: 'file:///a.jpg', width: 10, height: 10 }, kit),
-    ).rejects.toMatchObject({
-      code: 'unreadable',
-    })
+    ).rejects.toMatchObject({ code: 'unreadable' })
   })
 })

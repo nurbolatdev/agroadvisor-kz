@@ -35,5 +35,19 @@ export const diagnosisApi =
 // The flow of one diagnosis: crop, photo, compression once, send with a stable Idempotency-Key.
 export const useDiagnosis = createDiagnosisStore({
   api: diagnosisApi,
-  prepare: (photo) => preparePhoto(photo, expoPhotoToolkit),
+  prepare: async (photo) => {
+    const prepared = await preparePhoto(photo, expoPhotoToolkit)
+    if (__DEV__) {
+      // Whether the platform's manipulator writes metadata is learned from this line on real phones;
+      // it does not block anything, the metadata is cut out either way.
+      console.log(
+        '[diagnosis] photo prepared:',
+        `${prepared.width}x${prepared.height}, ${prepared.bytes} bytes,`,
+        prepared.removedMetadata.length > 0
+          ? `metadata written by the manipulator and cut out: ${prepared.removedMetadata.join(', ')}`
+          : 'the manipulator wrote no metadata',
+      )
+    }
+    return prepared
+  },
 })
