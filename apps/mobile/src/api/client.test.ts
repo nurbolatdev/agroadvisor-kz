@@ -100,6 +100,14 @@ describe('api client', () => {
     ])
   })
 
+  it('keeps the reason that narrows the error code', async () => {
+    const { client } = setup([
+      json(422, { code: 'low_quality', reason: 'blurry', detail: 'Blurry' }),
+    ])
+    const error = await client.request('/api/diagnoses').catch((e: unknown) => e)
+    expect(error).toMatchObject({ status: 422, code: 'low_quality', reason: 'blurry' })
+  })
+
   it('returns undefined for 204', async () => {
     const { client } = setup([json(204)])
     await expect(client.request('/api/auth/logout', { method: 'POST' })).resolves.toBeUndefined()

@@ -24,6 +24,7 @@ export type RequestOptions = {
 
 type ProblemBody = {
   code?: string
+  reason?: string
   detail?: string
   errors?: { field?: string; message?: string }[]
 }
@@ -46,6 +47,7 @@ async function toApiError(response: Response): Promise<ApiError> {
     body.code ?? 'unknown',
     body.detail ?? response.statusText,
     fieldErrors,
+    body.reason,
   )
 }
 
