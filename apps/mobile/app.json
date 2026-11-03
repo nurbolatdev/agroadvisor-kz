@@ -45,7 +45,6 @@
         "expo-image-picker",
         {
           "photosPermission": "AgroAdvisor открывает галерею, чтобы вы выбрали фото листа для диагностики.",
-          "cameraPermission": false,
           "microphonePermission": false
         }
       ]
