@@ -111,6 +111,9 @@ export const en: Translation = {
       title: 'Treatment plan',
       open: 'Treatment plan',
       loadFailed: 'Could not load the treatment from the reference',
+      safety:
+        'Check the dosage against the product label. Wear protective equipment. If in doubt, ask an agronomist.',
+      testModel: 'The result of a test model',
       healthy: 'No treatment needed',
       empty: 'The reference has no treatment of this kind for this disease',
       tabs: { chemical: 'Chemical', biological: 'Biological' },

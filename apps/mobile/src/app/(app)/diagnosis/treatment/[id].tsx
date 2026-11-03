@@ -1,4 +1,5 @@
 import { Redirect, useLocalSearchParams } from 'expo-router'
+import { TriangleAlert } from 'lucide-react-native'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
@@ -14,7 +15,7 @@ import {
 } from '@/features/diseases/treatments'
 import { useDiseaseDetail } from '@/features/diseases/useDiseaseDetail'
 import { useDiagnosis } from '@/services'
-import { colors, spacing } from '@/theme/tokens'
+import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
 // Screen 13: the treatment plan of a confident diagnosis (status ok), chemical and biological in two tabs.
 // For any other status there is no plan: the route sends the farmer back to the result.
@@ -24,10 +25,29 @@ export default function TreatmentScreen() {
 
   if (!view) return <Redirect href={`/diagnosis/result/${id}`} />
   if (!hasTreatment(view)) return <Redirect href={`/diagnosis/result/${id}`} />
-  return <Plan code={view.top1.code} />
+  return <Plan code={view.top1.code} placeholder={view.placeholder} />
 }
 
-function Plan({ code }: { code: string }) {
+// Always shown above the plan: the dosage on the label wins, protective equipment, and the agronomist for
+// doubts. A test model adds one more line, because its result is not a diagnosis.
+function SafetyNotice({ placeholder }: { placeholder: boolean }) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.notice}>
+      <TriangleAlert size={sizes.icon} color={colors.warning} />
+      <View style={styles.noticeText}>
+        <AppText variant="small">{t('diagnosis.treatment.safety')}</AppText>
+        {placeholder ? (
+          <AppText variant="small" color={colors.danger}>
+            {t('diagnosis.treatment.testModel')}
+          </AppText>
+        ) : null}
+      </View>
+    </View>
+  )
+}
+
+function Plan({ code, placeholder }: { code: string; placeholder: boolean }) {
   const { t } = useTranslation()
   const { state, reload } = useDiseaseDetail(code)
   const [chosen, setChosen] = useState<TreatmentType | null>(null)
@@ -37,6 +57,10 @@ function Plan({ code }: { code: string }) {
       <AppText variant="h1" color={colors.primaryDark}>
         {t('diagnosis.treatment.title')}
       </AppText>
+
+      <View style={styles.block}>
+        <SafetyNotice placeholder={placeholder} />
+      </View>
 
       {state.status === 'loading' ? (
         <View style={styles.block}>
@@ -112,6 +136,14 @@ function TreatmentCard({ treatment }: { treatment: Treatment }) {
 }
 
 const styles = StyleSheet.create({
+  notice: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.warningSoft,
+  },
+  noticeText: { flex: 1, gap: spacing.xs },
   block: { marginTop: spacing.xl, gap: spacing.lg },
   tabs: { flexDirection: 'row', gap: spacing.sm },
   card: { padding: spacing.lg, gap: spacing.xs },
