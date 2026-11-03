@@ -17,6 +17,7 @@ export type DiagnosisErrorKey =
   | 'diagnosis.errors.keyReused'
   | 'diagnosis.errors.photoUnreadable'
   | 'diagnosis.errors.photoTooLarge'
+  | 'diagnosis.errors.photoLost'
   | 'diagnosis.errors.generic'
 
 export type DiagnosisFailure = {

@@ -4,8 +4,11 @@ import { API_MODE, API_URL } from '@/api/config'
 import { createDiagnosisApi } from '@/api/diagnosis'
 import { createMockAuthApi } from '@/api/mock/auth'
 import { createMockDiagnosisApi } from '@/api/mock/diagnosis'
+import { createPendingQueue } from '@/features/diagnosis/pendingQueue'
 import { preparePhoto } from '@/features/diagnosis/photo'
 import { expoPhotoToolkit } from '@/features/diagnosis/photoToolkit'
+import { expoQueueFiles } from '@/features/diagnosis/queueFiles'
+import { storage } from '@/lib/storage'
 import { tokenStorage } from '@/lib/tokenStorage'
 import { createDiagnosisStore } from '@/store/diagnosis'
 import { createSessionStore } from '@/store/session'
@@ -32,9 +35,12 @@ export const apiClient = createApiClient({
 export const diagnosisApi =
   API_MODE === 'mock' ? createMockDiagnosisApi() : createDiagnosisApi(apiClient)
 
+const pendingQueue = createPendingQueue({ store: storage, files: expoQueueFiles })
+
 // The flow of one diagnosis: crop, photo, compression once, send with a stable Idempotency-Key.
 export const useDiagnosis = createDiagnosisStore({
   api: diagnosisApi,
+  queue: pendingQueue,
   prepare: async (photo) => {
     const prepared = await preparePhoto(photo, expoPhotoToolkit)
     if (__DEV__) {
@@ -51,3 +57,6 @@ export const useDiagnosis = createDiagnosisStore({
     return prepared
   },
 })
+
+// Diagnoses that were not answered before the app was closed wait in the queue; the store learns of them now.
+useDiagnosis.getState().restore()

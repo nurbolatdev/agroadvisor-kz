@@ -2,6 +2,7 @@ import type { DiagnosisApi, DiagnosisResult } from '@/api/diagnosis'
 import { ApiError, NetworkError } from '@/api/errors'
 import { PhotoError, type PickedPhoto } from '@/features/diagnosis/photo'
 import type { PendingDiagnosis } from '@/features/diagnosis/pending'
+import { createPendingQueue } from '@/features/diagnosis/pendingQueue'
 
 import { createDiagnosisStore } from './diagnosis'
 
@@ -24,8 +25,36 @@ function result(status: DiagnosisResult['status'] = 'ok'): DiagnosisResult {
   }
 }
 
+// The real queue over memory instead of MMKV and the documents folder.
+function memoryQueue() {
+  let raw: string | undefined
+  const files = new Set<string>()
+  const queue = createPendingQueue({
+    store: {
+      getString: () => raw,
+      set: (_key, value) => {
+        raw = value
+      },
+    },
+    files: {
+      copyIn: async (_uri, name) => {
+        const copy = `file:///documents/${name}`
+        files.add(copy)
+        return copy
+      },
+      exists: (uri) => files.has(uri),
+      remove: (uri) => {
+        files.delete(uri)
+      },
+    },
+    warn: () => undefined,
+  })
+  return { queue, files }
+}
+
 function setup(outcomes: (DiagnosisResult | Error)[]) {
   const sent: PendingDiagnosis[] = []
+  const memory = memoryQueue()
   const api: DiagnosisApi = {
     create: jest.fn(async (pending) => {
       sent.push(pending)
@@ -39,10 +68,11 @@ function setup(outcomes: (DiagnosisResult | Error)[]) {
   const useDiagnosis = createDiagnosisStore({
     api,
     prepare,
+    queue: memory.queue,
     newKey: () => `key-0000000${(keys += 1)}`,
     now: () => 1_700_000_000_000,
   })
-  return { useDiagnosis, sent, prepare }
+  return { useDiagnosis, sent, prepare, ...memory }
 }
 
 async function start(useDiagnosis: ReturnType<typeof setup>['useDiagnosis']) {
@@ -65,7 +95,8 @@ describe('diagnosis flow', () => {
     expect(s.pending).toEqual({
       key: 'key-00000001',
       crop: 'tomato',
-      fileUri: 'file:///camera/IMG_1.jpg.prepared.jpg',
+      // the queue keeps its own copy of the prepared file
+      fileUri: 'file:///documents/key-00000001.jpg',
       createdAt: 1_700_000_000_000,
     })
   })
@@ -91,7 +122,7 @@ describe('diagnosis flow', () => {
     expect(sent).toHaveLength(3)
     expect(new Set(sent.map((p) => p.key))).toEqual(new Set(['key-00000001']))
     expect(new Set(sent.map((p) => p.fileUri))).toEqual(
-      new Set(['file:///camera/IMG_1.jpg.prepared.jpg']),
+      new Set(['file:///documents/key-00000001.jpg']),
     )
     expect(prepare).toHaveBeenCalledTimes(1) // the original is not compressed again
   })
@@ -162,7 +193,7 @@ describe('diagnosis flow', () => {
     await useDiagnosis.getState().analyze()
 
     expect(sent.map((p) => p.key)).toEqual(['key-00000001', 'key-00000002'])
-    expect(sent[1].fileUri).toBe('file:///camera/IMG_2.jpg.prepared.jpg')
+    expect(sent[1].fileUri).toBe('file:///documents/key-00000002.jpg')
     expect(prepare).toHaveBeenCalledTimes(2)
   })
 
@@ -186,6 +217,7 @@ describe('diagnosis flow', () => {
     const useDiagnosis = createDiagnosisStore({
       api,
       prepare: async () => ({ uri: 'file:///p.jpg' }),
+      queue: memoryQueue().queue,
     })
     useDiagnosis.getState().selectCrop('tomato')
     useDiagnosis.getState().setPhoto(PHOTO)
@@ -211,6 +243,126 @@ describe('diagnosis flow', () => {
     await useDiagnosis.getState().analyze()
     expect(sent).toHaveLength(0)
     expect(useDiagnosis.getState().phase).toBe('idle')
+  })
+
+  describe('offline queue', () => {
+    it('keeps the entry while the answer is missing and drops it when the answer comes', async () => {
+      const { useDiagnosis, queue } = setup([new ApiError(503, 'ai_unavailable', 'down'), result()])
+
+      await start(useDiagnosis)
+      expect(queue.list().map((e) => e.pending.key)).toEqual(['key-00000001'])
+      expect(useDiagnosis.getState().queued).toHaveLength(1)
+
+      await useDiagnosis.getState().retry()
+
+      expect(queue.list()).toEqual([])
+      expect(useDiagnosis.getState().queued).toEqual([])
+    })
+
+    it('removes the entry and its photo when the server refuses the photo for good', async () => {
+      const { useDiagnosis, queue, files } = setup([
+        new ApiError(422, 'low_quality', 'blurry', [], 'blurry'),
+      ])
+
+      await start(useDiagnosis)
+
+      expect(queue.list()).toEqual([])
+      expect(files.size).toBe(0)
+      expect(useDiagnosis.getState().pending).toBeNull()
+    })
+
+    it('restores the entries after a restart and resends one with its own key and file', async () => {
+      const first = setup([new NetworkError(), new NetworkError()])
+      await start(first.useDiagnosis)
+      expect(first.useDiagnosis.getState().phase).toBe('failed')
+
+      // "restart": a new store over the same queue
+      const sent: PendingDiagnosis[] = []
+      const after = createDiagnosisStore({
+        api: {
+          create: async (pending) => {
+            sent.push(pending)
+            return result()
+          },
+        },
+        prepare: jest.fn(),
+        queue: first.queue,
+      })
+      expect(after.getState().queued).toEqual([])
+      after.getState().restore()
+      expect(after.getState().queued).toHaveLength(1)
+
+      await after.getState().resend('key-00000001')
+
+      expect(sent).toHaveLength(1)
+      expect(sent[0].key).toBe('key-00000001')
+      expect(sent[0].fileUri).toBe('file:///documents/key-00000001.jpg')
+      expect(after.getState().phase).toBe('done')
+      expect(first.queue.list()).toEqual([])
+    })
+
+    it('does not start a second request for the same key on a double tap', async () => {
+      let release: (value: DiagnosisResult) => void = () => undefined
+      const create = jest.fn(() => new Promise<DiagnosisResult>((resolve) => (release = resolve)))
+      const memory = memoryQueue()
+      const useDiagnosis = createDiagnosisStore({
+        api: { create },
+        prepare: async () => ({ uri: 'file:///p.jpg' }),
+        queue: memory.queue,
+        newKey: () => 'key-00000001',
+      })
+      useDiagnosis.getState().selectCrop('tomato')
+      useDiagnosis.getState().setPhoto(PHOTO)
+      const running = useDiagnosis.getState().analyze()
+      await new Promise((resolve) => setImmediate(resolve))
+
+      await useDiagnosis.getState().resend('key-00000001')
+      await useDiagnosis.getState().resend('key-00000001')
+
+      expect(create).toHaveBeenCalledTimes(1)
+      release(result())
+      await running
+      expect(useDiagnosis.getState().phase).toBe('done')
+    })
+
+    it('shows an error instead of crashing when the copy of the photo is gone', async () => {
+      const { useDiagnosis, queue, files } = setup([new NetworkError(), new NetworkError()])
+      await start(useDiagnosis)
+      files.clear()
+
+      await useDiagnosis.getState().resend('key-00000001')
+
+      expect(useDiagnosis.getState().phase).toBe('failed')
+      expect(useDiagnosis.getState().failure).toEqual({
+        messageKey: 'diagnosis.errors.photoLost',
+        action: 'newPhoto',
+      })
+      expect(queue.list()[0].status).toBe('fileMissing')
+    })
+
+    it('discard removes the entry with its photo', async () => {
+      const { useDiagnosis, queue, files } = setup([new NetworkError(), new NetworkError()])
+      await start(useDiagnosis)
+
+      useDiagnosis.getState().discard('key-00000001')
+
+      expect(queue.list()).toEqual([])
+      expect(files.size).toBe(0)
+      expect(useDiagnosis.getState().queued).toEqual([])
+      expect(useDiagnosis.getState().pending).toBeNull()
+    })
+
+    it('drops the entry when the flow was started over while it was being prepared', async () => {
+      const { useDiagnosis, queue } = setup([result()])
+      useDiagnosis.getState().selectCrop('tomato')
+      useDiagnosis.getState().setPhoto(PHOTO)
+
+      const running = useDiagnosis.getState().analyze()
+      useDiagnosis.getState().reset()
+      await running
+
+      expect(queue.list()).toEqual([])
+    })
   })
 
   it('choosing another crop starts over', async () => {

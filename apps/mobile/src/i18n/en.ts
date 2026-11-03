@@ -109,6 +109,7 @@ export const en: Translation = {
       keyReused: 'The sending got out of sync. Choose the photo again',
       photoUnreadable: 'The photo could not be read. Choose another one',
       photoTooLarge: 'The photo is too large. Choose another one',
+      photoLost: 'The photo is no longer on the phone. Take a new one',
       generic: 'It did not work. Try again later',
     },
   },
