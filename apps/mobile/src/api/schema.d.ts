@@ -421,10 +421,10 @@ export interface components {
             login: string;
             password: string;
             /**
-             * @description Upper case here; the roles in MeResponse are the lower case codes
+             * @description Lower case, like the roles in MeResponse; upper case is still accepted
              * @enum {string}
              */
-            role?: "FARMER" | "AGROCHEMIST";
+            role?: "farmer" | "agrochemist";
         };
         TokenResponse: {
             accessToken: string;
@@ -943,7 +943,7 @@ export interface operations {
                 crop: string;
             };
             header?: {
-                /** @description One key per diagnosis attempt (a UUID fits); resend the same request with it when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key. */
+                /** @description One key per diagnosis attempt (a UUID fits); resend the same request with it when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key. A repeat does not spend the diagnosis rate limit. */
                 "Idempotency-Key"?: string;
             };
             path?: never;

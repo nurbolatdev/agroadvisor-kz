@@ -33,7 +33,7 @@ export default function RegisterScreen() {
         login: values.login.trim(),
         password: values.password,
         language,
-        role: 'FARMER',
+        role: 'farmer',
       })
     } catch (error) {
       const failure = toFormFailure(error)

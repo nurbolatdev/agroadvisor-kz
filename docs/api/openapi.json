@@ -397,8 +397,8 @@
             "type" : "string"
           },
           "role" : {
-            "description" : "Upper case here; the roles in MeResponse are the lower case codes",
-            "enum" : [ "FARMER", "AGROCHEMIST" ],
+            "description" : "Lower case, like the roles in MeResponse; upper case is still accepted",
+            "enum" : [ "farmer", "agrochemist" ],
             "maxLength" : 20,
             "minLength" : 0,
             "type" : "string"
@@ -1095,7 +1095,7 @@
             "type" : "string"
           }
         }, {
-          "description" : "One key per diagnosis attempt (a UUID fits); resend the same request with it when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key.",
+          "description" : "One key per diagnosis attempt (a UUID fits); resend the same request with it when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key. A repeat does not spend the diagnosis rate limit.",
           "in" : "header",
           "name" : "Idempotency-Key",
           "required" : false,
