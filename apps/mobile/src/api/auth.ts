@@ -27,9 +27,13 @@ export function createAuthApi(client: ApiClient): AuthApi {
   return {
     register: (body) => client.request('/api/auth/register', { method: 'POST', body, auth: false }),
     login: (body) => client.request('/api/auth/login', { method: 'POST', body, auth: false }),
-    refresh: (refreshToken) =>
-      client.request('/api/auth/refresh', { method: 'POST', body: { refreshToken }, auth: false }),
-    logout: (refreshToken) =>
-      client.request('/api/auth/logout', { method: 'POST', body: { refreshToken }, auth: false }),
+    refresh: (refreshToken) => {
+      const body: Schemas['RefreshRequest'] = { refreshToken }
+      return client.request('/api/auth/refresh', { method: 'POST', body, auth: false })
+    },
+    logout: (refreshToken) => {
+      const body: Schemas['RefreshRequest'] = { refreshToken }
+      return client.request('/api/auth/logout', { method: 'POST', body, auth: false })
+    },
   }
 }
