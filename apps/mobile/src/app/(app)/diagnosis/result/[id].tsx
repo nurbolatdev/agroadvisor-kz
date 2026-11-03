@@ -14,7 +14,7 @@ import {
   Screen,
 } from '@/components/ui'
 import { isCrop } from '@/features/diagnosis/crops'
-import { resolveResultScreen } from '@/features/diagnosis/resultScreen'
+import { canShowTreatment, resolveResultScreen } from '@/features/diagnosis/resultScreen'
 import { UncertainBody } from '@/features/diagnosis/UncertainBody'
 import type { StoredResult } from '@/store/diagnosis'
 import { useDiseaseDetail } from '@/features/diseases/useDiseaseDetail'
@@ -110,6 +110,7 @@ function ResultBody({ view }: { view: StoredResult }) {
 
 function OkBody({ view }: { view: DiagnosisResult }) {
   const { t } = useTranslation()
+  const router = useRouter()
   const cropName = useCropName()
   const { state, reload } = useDiseaseDetail(view.top1.code)
   // while the reference loads or when it fails, the diagnosis is still there: it shows the class code
@@ -129,6 +130,12 @@ function OkBody({ view }: { view: DiagnosisResult }) {
       </AppText>
       {state.status === 'error' ? (
         <Button label={t('common.retry')} variant="secondary" compact onPress={reload} />
+      ) : null}
+      {canShowTreatment(view.status) ? (
+        <Button
+          label={t('diagnosis.treatment.open')}
+          onPress={() => router.push(`/diagnosis/treatment/${view.id}`)}
+        />
       ) : null}
     </View>
   )

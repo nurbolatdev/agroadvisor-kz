@@ -107,6 +107,17 @@ export const en: Translation = {
       again: 'New diagnosis',
       home: 'Home',
     },
+    treatment: {
+      title: 'Treatment plan',
+      open: 'Treatment plan',
+      loadFailed: 'Could not load the treatment from the reference',
+      healthy: 'No treatment needed',
+      empty: 'The reference has no treatment of this kind for this disease',
+      tabs: { chemical: 'Chemical', biological: 'Biological' },
+      activeIngredient: 'Active ingredient',
+      dosage: 'Dosage',
+      method: 'How to apply',
+    },
     queue: {
       title: 'Not sent yet',
       empty: 'No diagnoses in the queue',
