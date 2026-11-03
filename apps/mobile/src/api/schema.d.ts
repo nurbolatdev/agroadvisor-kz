@@ -943,7 +943,7 @@ export interface operations {
                 crop: string;
             };
             header?: {
-                /** @description One key per diagnosis attempt (a UUID fits); resend it when the answer was lost. Errors: 400 invalid_idempotency_key, 422 idempotency_key_reused. */
+                /** @description One key per diagnosis attempt (a UUID fits); resend the same request with it when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key. */
                 "Idempotency-Key"?: string;
             };
             path?: never;
