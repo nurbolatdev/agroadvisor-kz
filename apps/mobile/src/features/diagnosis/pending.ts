@@ -3,7 +3,7 @@ import type { Crop } from './crops'
 // One diagnosis the farmer asked for. The key and the (already compressed) file are created once, when
 // "Analyze" is pressed, and stay together: every resend, automatic or by the "Retry" button, sends this
 // key and these bytes. A resend with other bytes would be refused by the backend (422 idempotency_key_reused).
-// Kept in memory for the session; the persistent offline queue comes with M5.
+// Kept between restarts by the offline queue (pendingQueue.ts).
 export type PendingDiagnosis = {
   key: string
   crop: Crop
