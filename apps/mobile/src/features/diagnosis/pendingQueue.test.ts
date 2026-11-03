@@ -1,4 +1,17 @@
-import { createPendingQueue, type KeyValueStore, type QueueFiles } from './pendingQueue'
+import {
+  createPendingQueue as createQueue,
+  type KeyValueStore,
+  type QueueFiles,
+} from './pendingQueue'
+
+const A = '00000000-0000-4000-8000-00000000000a'
+const B = '00000000-0000-4000-8000-00000000000b'
+
+// by default the queue works for farmer A
+const createPendingQueue = (
+  deps: Omit<Parameters<typeof createQueue>[0], 'currentUser'> &
+    Partial<Pick<Parameters<typeof createQueue>[0], 'currentUser'>>,
+) => createQueue({ currentUser: () => A, ...deps })
 import type { PendingDiagnosis } from './pending'
 
 function fakeStore(initial?: string): KeyValueStore & { raw(): string | undefined } {
@@ -163,6 +176,102 @@ describe('pending queue', () => {
   })
 })
 
+describe('pending queue of several users on one phone', () => {
+  const DAY = 24 * 60 * 60 * 1000
+  const NOW = 1_800_000_000_000
+
+  function shared() {
+    const store = fakeStore()
+    const files = fakeFiles()
+    let user: string | null = A
+    let now = NOW
+    const queue = createQueue({
+      store,
+      files: files.api,
+      currentUser: () => user,
+      now: () => now,
+      warn: () => undefined,
+    })
+    return {
+      queue,
+      files,
+      signInAs: (next: string | null) => void (user = next),
+      setNow: (next: number) => void (now = next),
+    }
+  }
+
+  const at = (key: string, createdAt: number): PendingDiagnosis => ({ ...pending(key), createdAt })
+
+  it('B does not see the entries of A, and A finds them again after signing back in', async () => {
+    const { queue, signInAs } = shared()
+    await queue.add(at('key-12345678', NOW))
+
+    signInAs(B)
+    expect(queue.list()).toEqual([])
+
+    signInAs(A)
+    expect(queue.list().map((entry) => entry.pending.key)).toEqual(['key-12345678'])
+  })
+
+  it('nobody signed in sees nothing and cannot add', async () => {
+    const { queue, signInAs } = shared()
+    await queue.add(at('key-12345678', NOW))
+    signInAs(null)
+
+    expect(queue.list()).toEqual([])
+    await expect(queue.add(at('key-87654321', NOW))).rejects.toThrow()
+  })
+
+  it('B cannot remove or release an entry of A', async () => {
+    const { queue, files, signInAs } = shared()
+    const stored = await queue.add(at('key-12345678', NOW))
+    signInAs(B)
+
+    queue.remove('key-12345678')
+    expect(queue.release('key-12345678')).toBeNull()
+
+    expect(files.files.has(stored.fileUri)).toBe(true)
+    signInAs(A)
+    expect(queue.list()).toHaveLength(1)
+  })
+
+  it('each user has their own entries side by side', async () => {
+    const { queue, signInAs } = shared()
+    await queue.add(at('key-aaaaaaaa', NOW))
+    signInAs(B)
+    await queue.add(at('key-bbbbbbbb', NOW))
+
+    expect(queue.list().map((entry) => entry.pending.key)).toEqual(['key-bbbbbbbb'])
+    signInAs(A)
+    expect(queue.list().map((entry) => entry.pending.key)).toEqual(['key-aaaaaaaa'])
+  })
+
+  it('sweep removes entries of other users older than a week, with their photos', async () => {
+    const { queue, files, signInAs, setNow } = shared()
+    const old = await queue.add(at('key-aaaaaaaa', NOW))
+    const fresh = await queue.add(at('key-cccccccc', NOW + 6 * DAY))
+    signInAs(B)
+    setNow(NOW + 8 * DAY)
+
+    queue.sweep()
+
+    expect(files.files.has(old.fileUri)).toBe(false)
+    expect(files.files.has(fresh.fileUri)).toBe(true)
+    signInAs(A)
+    expect(queue.list().map((entry) => entry.pending.key)).toEqual(['key-cccccccc'])
+  })
+
+  it('sweep never removes the entries of the user who is signed in, however old', async () => {
+    const { queue, setNow } = shared()
+    await queue.add(at('key-12345678', NOW))
+    setNow(NOW + 30 * DAY)
+
+    queue.sweep()
+
+    expect(queue.list()).toHaveLength(1)
+  })
+})
+
 describe('pending queue with broken data', () => {
   const warn = jest.fn()
   beforeEach(() => warn.mockClear())
@@ -189,7 +298,8 @@ describe('pending queue with broken data', () => {
 
   it('drops broken records but keeps the good one', () => {
     const good = {
-      version: 1,
+      version: 2,
+      userId: A,
       key: 'key-12345678',
       crop: 'tomato',
       fileName: 'a.jpg',
@@ -198,7 +308,8 @@ describe('pending queue with broken data', () => {
     const raw = JSON.stringify([
       good,
       { ...good, key: 'key-33333333', fileName: '/etc/passwd' },
-      { ...good, key: 'key-87654321', version: 2 },
+      { ...good, key: 'key-87654321', version: 1 },
+      { ...good, key: 'key-44444444', userId: undefined },
       { ...good, key: 'short' },
       { ...good, key: 'key-11111111', crop: 'banana' },
       { ...good, key: 'key-22222222', createdAt: 'yesterday' },
@@ -213,7 +324,7 @@ describe('pending queue with broken data', () => {
     const entries = queue.list()
 
     expect(entries.map((entry) => entry.pending.key)).toEqual(['key-12345678'])
-    expect(warn).toHaveBeenCalledWith('[diagnosis] dropped 6 broken pending record(s)')
+    expect(warn).toHaveBeenCalledWith('[diagnosis] dropped 7 broken pending record(s)')
   })
 
   it('stores the name of the photo copy, not its address, so a moved documents folder is fine', async () => {

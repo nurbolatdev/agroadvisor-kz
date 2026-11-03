@@ -28,6 +28,7 @@ function result(status: DiagnosisResult['status'] = 'ok'): DiagnosisResult {
 
 // The real queue over memory instead of MMKV and the documents folder.
 function memoryQueue() {
+  let user: string | null = 'user-a'
   let raw: string | undefined
   const files = new Set<string>()
   const queue = createPendingQueue({
@@ -50,9 +51,11 @@ function memoryQueue() {
       },
       list: () => [...files],
     },
+    currentUser: () => user,
+    now: () => 1_700_000_000_000,
     warn: () => undefined,
   })
-  return { queue, files }
+  return { queue, files, setUser: (next: string | null) => void (user = next) }
 }
 
 function setup(outcomes: (DiagnosisResult | Error)[]) {
@@ -416,6 +419,31 @@ describe('diagnosis flow', () => {
       expect(s.phase).toBe('idle')
       expect(queue.list()).toHaveLength(1)
       expect([...files]).toEqual(['file:///documents/key-00000002.jpg'])
+    })
+
+    it('A signs out, B signs in: B sees no entries and a zero counter; A back sees them again', async () => {
+      const { useDiagnosis, setUser, sent } = setup([new NetworkError(), new NetworkError()])
+      await start(useDiagnosis)
+      expect(useDiagnosis.getState().queued).toHaveLength(1)
+
+      // sign-out of A, sign-in of B: what services.ts does when the user changes
+      setUser(null)
+      useDiagnosis.getState().clearAnswers()
+      useDiagnosis.getState().restore()
+      expect(useDiagnosis.getState().queued).toEqual([])
+      setUser('user-b')
+      useDiagnosis.getState().restore()
+      expect(useDiagnosis.getState().queued).toEqual([])
+
+      // B cannot send or throw away A's entry
+      const sentBefore = sent.length
+      await useDiagnosis.getState().resend('key-00000001')
+      useDiagnosis.getState().discard('key-00000001')
+      expect(sent).toHaveLength(sentBefore)
+
+      setUser('user-a')
+      useDiagnosis.getState().restore()
+      expect(useDiagnosis.getState().queued.map((e) => e.pending.key)).toEqual(['key-00000001'])
     })
 
     it('discard works for an entry whose photo is already gone', async () => {

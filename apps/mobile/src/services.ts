@@ -28,7 +28,20 @@ const authClient = createApiClient({
 
 export const authApi = API_MODE === 'mock' ? createMockAuthApi() : createAuthApi(authClient)
 
-export const useSession = createSessionStore({ authApi, tokens: tokenStorage })
+const USER_ID_KEY = 'session.userId'
+
+export const useSession = createSessionStore({
+  authApi,
+  tokens: tokenStorage,
+  // the id of the user is not a secret; it is kept so the app knows whose queue to show while offline
+  userIds: {
+    get: () => storage.getString(USER_ID_KEY) ?? null,
+    set: (userId) => {
+      if (userId === null) storage.remove(USER_ID_KEY)
+      else storage.set(USER_ID_KEY, userId)
+    },
+  },
+})
 
 export const apiClient = createApiClient({
   baseUrl: API_URL,
@@ -47,7 +60,12 @@ export const diseaseCatalog = createDiseaseCatalog(
   () => useSettings.getState().language,
 )
 
-const pendingQueue = createPendingQueue({ store: storage, files: expoQueueFiles })
+// The offline queue belongs to the signed-in user: another farmer on the same phone does not see it.
+const pendingQueue = createPendingQueue({
+  store: storage,
+  files: expoQueueFiles,
+  currentUser: () => useSession.getState().userId,
+})
 
 // The flow of one diagnosis: crop, photo, compression once, send with a stable Idempotency-Key.
 export const useDiagnosis = createDiagnosisStore({
@@ -70,11 +88,13 @@ export const useDiagnosis = createDiagnosisStore({
   },
 })
 
-// Another farmer may sign in on the same phone: after a sign-out nothing of the previous one's answers stays.
+// Another farmer may sign in on the same phone. When the user changes (a sign-out or another sign-in),
+// nothing of the previous one's answers stays, and the queue is read again: it shows the new user's
+// entries, and none after a sign-out.
 useSession.subscribe((state, previous) => {
-  if (previous.status === 'signedIn' && state.status === 'signedOut') {
-    useDiagnosis.getState().clearAnswers()
-  }
+  if (state.userId === previous.userId) return
+  if (previous.userId !== null) useDiagnosis.getState().clearAnswers()
+  useDiagnosis.getState().restore()
 })
 
 // Diagnoses that were not answered before the app was closed wait in the queue; the store learns of them now.
