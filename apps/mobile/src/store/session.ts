@@ -2,6 +2,7 @@ import { create } from 'zustand'
 
 import type { AuthApi, LoginRequest, RegisterRequest, TokenResponse } from '@/api/auth'
 import { ApiError } from '@/api/errors'
+import { userIdOfToken } from '@/lib/jwt'
 
 export type TokenStorage = {
   getRefreshToken: () => Promise<string | null>
@@ -12,9 +13,18 @@ export type TokenStorage = {
 // restoring: reading the saved session on start; the UI shows the splash screen.
 export type SessionStatus = 'restoring' | 'signedOut' | 'signedIn'
 
+// Where the id of the signed-in user is kept between runs. It is not a secret (the tokens are); it is
+// needed at start, before any request, to show the user's own offline queue when there is no network.
+export type UserIdStorage = {
+  get: () => string | null
+  set: (userId: string | null) => void
+}
+
 type SessionState = {
   status: SessionStatus
   accessToken: string | null
+  // whose session this is; null when signed out or when the token carries no readable id
+  userId: string | null
   restore: () => Promise<void>
   register: (body: RegisterRequest) => Promise<void>
   login: (body: LoginRequest) => Promise<void>
@@ -34,8 +44,12 @@ function sessionEnded(error: unknown): boolean {
   )
 }
 
-export function createSessionStore(deps: { authApi: AuthApi; tokens: TokenStorage }) {
-  const { authApi, tokens } = deps
+export function createSessionStore(deps: {
+  authApi: AuthApi
+  tokens: TokenStorage
+  userIds?: UserIdStorage
+}) {
+  const { authApi, tokens, userIds } = deps
   let inflight: Promise<RefreshResult> | null = null
   // Bumped whenever the session is closed. A refresh or login that started earlier must not
   // bring the session back (logout while a refresh is running).
@@ -46,12 +60,15 @@ export function createSessionStore(deps: { authApi: AuthApi; tokens: TokenStorag
       if (startedIn !== generation) return
       await tokens.setRefreshToken(response.refreshToken)
       if (startedIn !== generation) return
-      set({ status: 'signedIn', accessToken: response.accessToken })
+      const userId = userIdOfToken(response.accessToken)
+      userIds?.set(userId)
+      set({ status: 'signedIn', accessToken: response.accessToken, userId })
     }
 
     async function dropSession() {
       generation += 1
-      set({ status: 'signedOut', accessToken: null })
+      userIds?.set(null)
+      set({ status: 'signedOut', accessToken: null, userId: null })
       // A broken keystore must not keep the user signed in; clearing is best effort.
       await tokens.clear().catch(() => undefined)
     }
@@ -96,6 +113,8 @@ export function createSessionStore(deps: { authApi: AuthApi; tokens: TokenStorag
     return {
       status: 'restoring',
       accessToken: null,
+      // the saved id lets the app know the user while it is still offline at start
+      userId: userIds?.get() ?? null,
 
       async restore() {
         let saved: string | null = null

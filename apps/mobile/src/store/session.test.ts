@@ -24,8 +24,91 @@ describe('session store', () => {
     await session.getState().register(credentials)
 
     expect(session.getState().status).toBe('signedIn')
-    expect(session.getState().accessToken).toMatch(/^mock-access/)
+    expect(session.getState().accessToken).toMatch(/^[\w-]+\.[\w-]+\.mock$/)
     expect(tokens.value).toMatch(/^mock-refresh/)
+  })
+
+  describe('whose session it is', () => {
+    function memoryUserIds(initial: string | null = null) {
+      const box = { value: initial }
+      return {
+        box,
+        storage: {
+          get: () => box.value,
+          set: (userId: string | null) => void (box.value = userId),
+        },
+      }
+    }
+
+    it('takes the user id from the access token and keeps it for the next start', async () => {
+      const ids = memoryUserIds()
+      const session = createSessionStore({
+        authApi: createMockAuthApi(),
+        tokens: memoryTokens(),
+        userIds: ids.storage,
+      })
+
+      await session.getState().register(credentials)
+
+      expect(session.getState().userId).toBe('00000000-0000-4000-8000-000000000001')
+      expect(ids.box.value).toBe('00000000-0000-4000-8000-000000000001')
+    })
+
+    it('different users get different ids', async () => {
+      const api = createMockAuthApi()
+      const a = createSessionStore({ authApi: api, tokens: memoryTokens() })
+      const b = createSessionStore({ authApi: api, tokens: memoryTokens() })
+
+      await a.getState().register(credentials)
+      await b.getState().register({ ...credentials, login: 'other@example.com' })
+
+      expect(a.getState().userId).not.toBe(b.getState().userId)
+    })
+
+    it('starts with the saved id, so the user is known before the network answers', () => {
+      const ids = memoryUserIds('00000000-0000-4000-8000-000000000007')
+      const session = createSessionStore({
+        authApi: createMockAuthApi(),
+        tokens: memoryTokens('saved'),
+        userIds: ids.storage,
+      })
+      expect(session.getState().userId).toBe('00000000-0000-4000-8000-000000000007')
+    })
+
+    it('keeps the saved id when the start is offline', async () => {
+      const api: AuthApi = {
+        ...createMockAuthApi(),
+        refresh: async () => {
+          throw new NetworkError()
+        },
+      }
+      const ids = memoryUserIds('00000000-0000-4000-8000-000000000007')
+      const session = createSessionStore({
+        authApi: api,
+        tokens: memoryTokens('saved'),
+        userIds: ids.storage,
+      })
+
+      await session.getState().restore()
+
+      expect(session.getState().status).toBe('signedIn')
+      expect(session.getState().userId).toBe('00000000-0000-4000-8000-000000000007')
+    })
+
+    it('forgets the id on logout', async () => {
+      const ids = memoryUserIds()
+      const session = createSessionStore({
+        authApi: createMockAuthApi(),
+        tokens: memoryTokens(),
+        userIds: ids.storage,
+      })
+      await session.getState().register(credentials)
+
+      await session.getState().logout()
+
+      expect(session.getState().userId).toBeNull()
+      expect(ids.box.value).toBeNull()
+    })
   })
 
   it('rejects a wrong password and stays signed out', async () => {
