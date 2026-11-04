@@ -1,6 +1,6 @@
 # Database ER diagram
 
-PostgreSQL 16 + PostGIS. The schema is owned by Flyway migrations in [`services/backend/src/main/resources/db/migration`](../../services/backend/src/main/resources/db/migration); this page describes migrations `V1`–`V5`.
+PostgreSQL 16 + PostGIS. The schema is owned by Flyway migrations in [`services/backend/src/main/resources/db/migration`](../../services/backend/src/main/resources/db/migration); this page describes migrations `V1`–`V12`.
 
 Conventions:
 
@@ -28,6 +28,7 @@ erDiagram
     diseases ||--o{ treatments : "treated by"
     plan ||--o{ plan_feature : includes
     feature ||--o{ plan_feature : "included in"
+    users ||--o{ refresh_tokens : "signed in with"
     users ||--o{ diagnoses : requests
     crops ||--o{ diagnoses : "chosen crop"
     districts |o--o{ diagnoses : "made in"
@@ -62,6 +63,15 @@ erDiagram
     user_roles {
         uuid user_id PK, FK
         varchar role_code PK, FK
+    }
+    refresh_tokens {
+        uuid id PK
+        uuid user_id FK
+        uuid family_id "one sign-in on one device"
+        char token_hash UK "SHA-256 hex, the token itself is never stored"
+        timestamptz expires_at
+        timestamptz used_at
+        timestamptz revoked_at
     }
     agrochemist_profiles {
         uuid user_id PK, FK
@@ -98,7 +108,7 @@ erDiagram
     diseases {
         varchar code PK "AI class code"
         varchar crop_code FK "null only for unknown"
-        varchar kind "fungal, bacterial, viral, pest, healthy, other"
+        varchar kind "fungal, oomycete, bacterial, viral, pest, healthy, other"
         varchar severity "low, medium, high"
         varchar latin_name
         jsonb names
@@ -142,18 +152,23 @@ erDiagram
         varchar model_version
         int classes_version
         int inference_ms
+        varchar idempotency_key "optional, 8-80 chars"
+        char request_fingerprint "SHA-256 hex of the photo the client sent"
         bigint region_id FK
         bigint district_id FK
         geometry location "Point, nullable"
     }
 ```
 
-Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` with features `diagnosis`, `community`, `consultations`, `disease_map`, `weather`, `calculator`, `shops`, `catalog` — all unlimited. Regions, districts, crops, diseases and treatments are filled by separate data migrations.
+Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` with features `diagnosis`, `community`, `consultations`, `disease_map`, `weather`, `calculator`, `shops`, `catalog` — all unlimited. `V8`–`V10` add the crops (tomato, potato, corn, wheat), the `unknown` class, the diseases of the model's classes and their treatments, with draft texts: the Kazakh texts are not checked by a native speaker and treatments must be confirmed by an agrochemist. Regions and districts are still empty.
 
 ### Notes
 
 - **`diagnoses.top1_code` has no foreign key.** A new model may return a class that is not in the catalog yet; the diagnosis is saved and shown as "description coming soon" (rule 5 in [`docs/ai/classes.md`](../ai/classes.md)).
 - **`agrochemist_profiles.verified`** is computed from `verification_status`, so the two never disagree. Farmers see only verified agrochemists.
+- **Refresh tokens (`V6`).** Only the SHA-256 of the opaque token is stored. Tokens of one sign-in on one device form a family: each refresh marks the old token as used and issues a new one; presenting a used token revokes the family.
+- **Idempotency (`V11`, `V12`).** `POST /api/diagnoses` may carry an `Idempotency-Key`. A partial unique index on `(user_id, idempotency_key)` (rows without a key do not collide) makes a repeat return the first diagnosis. A check constraint requires `request_fingerprint` whenever there is a key, so a repeat can tell the same photo from another one.
+- **`diseases.kind` (`V7`)** has `oomycete` for late blight (*Phytophthora*), which is neither a fungus nor a bacterium: the treatment and the advice differ.
 - **Feature access.** Code checks whether the user's plan includes a feature instead of checking roles, so paid plans can be added later as data. Today everyone is on `FREE` and nothing is limited; the per-minute diagnosis rate limit lives in Redis, not in the database.
 
 ## Planned tables
