@@ -50,6 +50,15 @@ class RequestDeadlineTest {
     }
 
     @Test
+    void aClaimTimeoutAtTheCleanupAgeStopsTheStartUp() {
+        Duration deadline = RequestDeadline.of(ai, photos, POOL);
+
+        assertThatThrownBy(() -> new ClaimTimeoutCheck(DiagnosisProperties.CLEANUP_AGE, deadline))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("cleanup");
+        assertThat(new ClaimTimeoutCheck(Duration.ofMinutes(59), deadline)).isNotNull();
+    }
+
+    @Test
     void raisingATimeoutRaisesTheDeadline() {
         AiProperties slower = new AiProperties("http", "http://ai", Duration.ofSeconds(2), Duration.ofSeconds(30), 1,
                 Duration.ofMillis(400), false);

@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import kz.agroadvisor.diagnosis.config.DiagnosisProperties;
 import kz.agroadvisor.diagnosis.repository.DiagnosisClaims;
 
 /**
@@ -17,7 +18,7 @@ import kz.agroadvisor.diagnosis.repository.DiagnosisClaims;
 @Component
 public class DiagnosisClaimCleanup {
 
-    static final Duration MAX_AGE = Duration.ofHours(1);
+    static final Duration MAX_AGE = DiagnosisProperties.CLEANUP_AGE;
 
     private static final Logger log = LoggerFactory.getLogger(DiagnosisClaimCleanup.class);
 

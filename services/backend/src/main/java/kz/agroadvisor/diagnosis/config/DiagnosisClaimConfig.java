@@ -31,6 +31,11 @@ public class DiagnosisClaimConfig {
                         + "call with retries, finalizing transaction); otherwise a request that is still working "
                         + "could be taken over. Raise the claim timeout or lower the AI/storage timeouts.");
             }
+            if (claimTimeout.compareTo(DiagnosisProperties.CLEANUP_AGE) >= 0) {
+                throw new IllegalStateException("app.diagnosis.claim-timeout (" + claimTimeout + ") must be shorter "
+                        + "than the age at which the cleanup deletes claims (" + DiagnosisProperties.CLEANUP_AGE
+                        + "); otherwise the cleanup would delete the claim of a request that is still working.");
+            }
         }
     }
 }

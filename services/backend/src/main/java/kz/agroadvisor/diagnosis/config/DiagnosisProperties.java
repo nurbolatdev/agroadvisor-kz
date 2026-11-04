@@ -17,4 +17,10 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties("app.diagnosis")
 public record DiagnosisProperties(@NotNull @DefaultValue("PT90S") Duration claimTimeout) {
+
+    /**
+     * Claims older than this are deleted by the scheduled cleanup, whoever holds them. The claim timeout
+     * must stay below it, or the cleanup would delete claims of requests that are still working.
+     */
+    public static final Duration CLEANUP_AGE = Duration.ofHours(1);
 }
