@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 
 import kz.agroadvisor.catalog.model.Disease;
 import kz.agroadvisor.catalog.repository.DiseaseRepository;
+import kz.agroadvisor.common.image.ImageMetadataStripper;
 import kz.agroadvisor.common.ratelimit.RateLimitProperties;
 import kz.agroadvisor.common.ratelimit.RateLimiter;
 import kz.agroadvisor.common.web.ApiException;

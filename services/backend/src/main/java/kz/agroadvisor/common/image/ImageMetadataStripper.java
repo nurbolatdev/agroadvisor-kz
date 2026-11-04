@@ -1,4 +1,4 @@
-package kz.agroadvisor.diagnosis.service;
+package kz.agroadvisor.common.image;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -6,10 +6,7 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.zip.CRC32;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-
-import kz.agroadvisor.common.web.ApiException;
 
 /**
  * Removes personal metadata (GPS, camera, time, author, embedded thumbnails and trailers) from a photo
@@ -29,7 +26,9 @@ import kz.agroadvisor.common.web.ApiException;
  * </ul>
  *
  * A file without such parts comes back byte for byte. A broken container (a segment or chunk running past
- * the end, no EOI / IEND) is {@code invalid_image}, with the same code and status as the AI service's.
+ * the end, no EOI / IEND) is an {@link InvalidImageException}; the caller chooses the error code (a diagnosis
+ * photo is {@code invalid_image}, with the same code and status as the AI service's, a document is
+ * {@code invalid_document}).
  */
 @Component
 public class ImageMetadataStripper {
@@ -350,9 +349,7 @@ public class ImageMetadataStripper {
         put16(b, big ? i + 2 : i, v, big);
     }
 
-    /** Same code, status and no {@code reason} as the AI service's {@code invalid_image} (HttpAiClient). */
-    private static ApiException invalid() {
-        return new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IMAGE,
-                "The photo cannot be read, send another JPEG or PNG");
+    private static InvalidImageException invalid() {
+        return new InvalidImageException("The image cannot be read, send another JPEG or PNG");
     }
 }
