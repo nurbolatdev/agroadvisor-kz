@@ -46,6 +46,9 @@ export const en: Translation = {
     queue: 'Not sent: {{count}}',
     resultReady: 'Result is ready — open',
   },
+  history: {
+    title: 'History',
+  },
   diagnosis: {
     title: 'Diagnosis',
     chooseCrop: 'Choose the crop',

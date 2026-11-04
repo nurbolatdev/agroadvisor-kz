@@ -46,6 +46,9 @@ export const kk: Translation = {
     queue: 'Жіберілмеген: {{count}}',
     resultReady: 'Нәтиже дайын — ашу',
   },
+  history: {
+    title: 'Тарих',
+  },
   diagnosis: {
     title: 'Диагностика',
     chooseCrop: 'Дақылды таңдаңыз',

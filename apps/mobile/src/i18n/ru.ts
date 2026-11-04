@@ -44,6 +44,9 @@ export const ru = {
     queue: 'Не отправлено: {{count}}',
     resultReady: 'Результат готов — открыть',
   },
+  history: {
+    title: 'История',
+  },
   diagnosis: {
     title: 'Диагностика',
     chooseCrop: 'Выберите культуру',
