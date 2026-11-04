@@ -42,8 +42,10 @@ import static org.mockito.Mockito.when;
 class DiagnosisServiceTest {
 
     /** The first bytes of a real JPEG and PNG file; the service trusts these, not the client's header. */
-    private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 1, 2, 3};
-    private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3};
+    private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xDB, 0, 2, (byte) 0xFF,
+        (byte) 0xD9};
+    private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0, 'I', 'E',
+        'N', 'D', (byte) 0xAE, 0x42, 0x60, (byte) 0x82};
 
     private final AiClient ai = mock(AiClient.class);
     private final PhotoStorage photos = mock(PhotoStorage.class);
@@ -52,7 +54,7 @@ class DiagnosisServiceTest {
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
     private final RateLimiter limiter = mock(RateLimiter.class);
     private final DiagnosisService service = new DiagnosisService(ai, photos, diagnoses, diseases, meters, limiter,
-            new RateLimitProperties(5));
+            new RateLimitProperties(5), new ImageMetadataStripper());
     private final UUID userId = UUID.randomUUID();
 
     @BeforeEach
@@ -312,6 +314,57 @@ class DiagnosisServiceTest {
         verify(diagnoses).save(saved.capture());
         assertThat(saved.getValue().getRequestFingerprint()).hasSize(64)
                 .isEqualTo(DiagnosisService.fingerprint(JPEG));
+    }
+
+    /** SOI, an APP1 segment with GPS text, then the scan: what a phone camera sends. */
+    private static final byte[] JPEG_WITH_GPS = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE1, 0, 8, 'E', 'x',
+        'i', 'f', 'G', 'P', (byte) 0xFF, (byte) 0xDA, 0, 2, 7, (byte) 0xFF, (byte) 0xD9};
+    private static final byte[] JPEG_WITHOUT_GPS = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xDA, 0, 2, 7,
+        (byte) 0xFF, (byte) 0xD9};
+
+    @Test
+    void storesAndSendsToTheModelOnlyThePhotoWithoutMetadata() {
+        when(ai.predict("tomato", JPEG_WITHOUT_GPS)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+
+        service.create(userId, "tomato", JPEG_WITH_GPS, null);
+
+        verify(photos).store(userId, JPEG_WITHOUT_GPS, "image/jpeg");
+        verify(ai).predict("tomato", JPEG_WITHOUT_GPS);
+    }
+
+    @Test
+    void theFingerprintIsOfTheBytesTheClientSent() {
+        when(ai.predict("tomato", JPEG_WITHOUT_GPS)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+
+        service.create(userId, "tomato", JPEG_WITH_GPS, "key-12345678");
+
+        ArgumentCaptor<Diagnosis> saved = ArgumentCaptor.forClass(Diagnosis.class);
+        verify(diagnoses).save(saved.capture());
+        assertThat(saved.getValue().getRequestFingerprint()).isEqualTo(DiagnosisService.fingerprint(JPEG_WITH_GPS));
+    }
+
+    @Test
+    void aRepeatWithTheSameOriginalBytesIsAReplayNotAnError() {
+        Diagnosis first = new Diagnosis(userId, "tomato", "diagnoses/key.jpg", "ok", "tomato__healthy",
+                BigDecimal.valueOf(0.8), List.of(), null, "efficientnet-b0-v3", 3, 25, "key-12345678",
+                DiagnosisService.fingerprint(JPEG_WITH_GPS));
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678")).thenReturn(Optional.of(first));
+        when(diseases.findAllById(any())).thenReturn(List.of());
+
+        DiagnosisService.Created created = service.create(userId, "tomato", JPEG_WITH_GPS, "key-12345678");
+
+        assertThat(created.replayed()).isTrue();
+        verify(photos, never()).store(any(), any(), anyString());
+    }
+
+    @Test
+    void aBrokenJpegIsInvalidImageAndNothingIsStored() {
+        byte[] broken = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE1, 0x7F, 0, 1, 2, 3};
+
+        assertThatThrownBy(() -> create("tomato", broken)).isInstanceOfSatisfying(ApiException.class,
+                e -> assertThat(e.getCode()).isEqualTo(DiagnosisErrors.INVALID_IMAGE));
+        verify(photos, never()).store(any(), any(), anyString());
+        verify(ai, never()).predict(anyString(), any());
     }
 
     @Test

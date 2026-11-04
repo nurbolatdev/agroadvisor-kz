@@ -45,7 +45,8 @@ import kz.agroadvisor.users.repository.UserRepository;
 @Import(TestcontainersConfiguration.class)
 class DiagnosisAiPlaceholderGuardTest {
 
-    private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 1, 2, 3};
+    private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xDB, 0, 2, (byte) 0xFF,
+        (byte) 0xD9};
     private static final FakeAiService AI = new FakeAiService();
 
     @AfterAll

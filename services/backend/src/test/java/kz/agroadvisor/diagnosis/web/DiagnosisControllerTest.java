@@ -98,8 +98,10 @@ class DiagnosisControllerTest {
         }
     }
 
-    private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 1, 2, 3};
-    private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3};
+    private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xDB, 0, 2, (byte) 0xFF,
+        (byte) 0xD9};
+    private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0, 'I', 'E',
+        'N', 'D', (byte) 0xAE, 0x42, 0x60, (byte) 0x82};
 
     /** A JPEG or PNG file (by its bytes); the type the client declares may differ. */
     private static MockMultipartFile image(String declaredType) {
