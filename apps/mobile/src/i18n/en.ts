@@ -48,6 +48,12 @@ export const en: Translation = {
   },
   history: {
     title: 'History',
+    status: {
+      ok: 'Identified',
+      low_confidence: 'Not sure',
+      unknown: 'Not identified',
+      crop_mismatch: 'Other crop',
+    },
   },
   diagnosis: {
     title: 'Diagnosis',

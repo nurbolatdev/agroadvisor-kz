@@ -46,6 +46,13 @@ export const ru = {
   },
   history: {
     title: 'История',
+    // short words for the badge of a line; the long explanations are on the result screen
+    status: {
+      ok: 'Определено',
+      low_confidence: 'Не уверена',
+      unknown: 'Не определено',
+      crop_mismatch: 'Другая культура',
+    },
   },
   diagnosis: {
     title: 'Диагностика',

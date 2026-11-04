@@ -48,6 +48,12 @@ export const kk: Translation = {
   },
   history: {
     title: 'Тарих',
+    status: {
+      ok: 'Анықталды',
+      low_confidence: 'Сенімсіз',
+      unknown: 'Анықталмады',
+      crop_mismatch: 'Басқа дақыл',
+    },
   },
   diagnosis: {
     title: 'Диагностика',
