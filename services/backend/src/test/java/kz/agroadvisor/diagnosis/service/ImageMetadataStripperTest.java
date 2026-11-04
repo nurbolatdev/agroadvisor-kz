@@ -89,6 +89,40 @@ class ImageMetadataStripperTest {
         assertInvalid(cat(SOI, seg(0xF3, "x"), SCAN, EOI));
     }
 
+    // ---- never a 500 ----
+
+    /** Fixed so a failure repeats; it is printed in every failure message. */
+    private static final long SEED = 42L;
+
+    @Test
+    void aBrokenFileIsEitherCleanedOrInvalidImageNeverAnotherException() throws IOException {
+        java.util.Random random = new java.util.Random(SEED);
+        for (byte[] real : new byte[][] {encode("jpg"), encode("png")}) {
+            for (int cut = 0; cut < real.length; cut++) { // every truncation
+                survives(java.util.Arrays.copyOf(real, cut), "cut at " + cut + " of " + real.length);
+            }
+            for (int i = 0; i < 3000; i++) { // random byte flips
+                byte[] mutated = real.clone();
+                for (int flips = 1 + random.nextInt(4); flips > 0; flips--) {
+                    mutated[random.nextInt(mutated.length)] = (byte) random.nextInt(256);
+                }
+                survives(mutated, "flips, round " + i);
+            }
+        }
+    }
+
+    private void survives(byte[] photo, String what) {
+        String context = "seed=" + SEED + ", " + what + ", input=" + java.util.HexFormat.of().formatHex(photo);
+        try {
+            byte[] clean = stripper.strip(photo);
+            assertThat(stripper.strip(clean)).as(context).isEqualTo(clean); // cleaning is idempotent
+        } catch (ApiException e) {
+            assertThat(e.getCode()).as(context).isEqualTo(DiagnosisErrors.INVALID_IMAGE);
+        } catch (RuntimeException e) {
+            throw new AssertionError("Not invalid_image, but " + e + ": " + context, e);
+        }
+    }
+
     // ---- JPEG: orientation ----
 
     @Test
