@@ -71,6 +71,18 @@ class S3DocumentStorageTest {
     }
 
     @Test
+    void aMissingObjectIsNotFoundNotAnOutage() {
+        when(s3.getObjectAsBytes(any(GetObjectRequest.class)))
+                .thenThrow(software.amazon.awssdk.services.s3.model.NoSuchKeyException.builder().build());
+
+        assertThatThrownBy(() -> storage.load("agrochemist-documents/u/gone.pdf"))
+                .isInstanceOfSatisfying(ApiException.class, e -> {
+                    assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+                    assertThat(e.getCode()).isEqualTo("document_not_found");
+                });
+    }
+
+    @Test
     void reportsAnUnavailableStorageAsServiceUnavailable() {
         when(s3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenThrow(SdkClientException.create("Connection refused"));

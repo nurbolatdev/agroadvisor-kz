@@ -10,6 +10,7 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import kz.agroadvisor.common.web.ApiException;
@@ -47,6 +48,11 @@ public class S3DocumentStorage implements DocumentStorage {
     public byte[] load(String key) {
         try {
             return s3.getObjectAsBytes(GetObjectRequest.builder().bucket(bucket).key(key).build()).asByteArray();
+        } catch (NoSuchKeyException e) {
+            // A row without an object is a data fault, not a storage outage: "try again" would never help
+            log.error("Document object {} is missing from bucket '{}'", key, bucket);
+            throw new ApiException(HttpStatus.NOT_FOUND, VerificationErrors.DOCUMENT_NOT_FOUND,
+                    "The file of this document is missing");
         } catch (SdkException e) {
             throw unavailable("download", e);
         }

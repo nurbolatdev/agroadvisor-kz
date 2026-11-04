@@ -52,7 +52,7 @@ public class AgrochemistAdminController {
     public List<SummaryView> queue(
             @RequestParam(defaultValue = "pending") @Pattern(regexp = "pending|approved|rejected|documents_requested")
             String status,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "0") @Min(0) @Max(10_000) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return reviews.queue(status, page, size);
     }
@@ -78,10 +78,20 @@ public class AgrochemistAdminController {
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(file.contentType()))
                 // A PDF or an image from a stranger is shown by nobody's browser by itself, and not cached
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition.attachment().filename("document-" + documentId).build().toString())
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename("document-" + documentId + extension(file.contentType())).build().toString())
                 .header("X-Content-Type-Options", "nosniff")
+                // Whatever is in a PDF must not run if someone opens the response itself in a browser
+                .header("Content-Security-Policy", "sandbox")
                 .cacheControl(CacheControl.noStore())
                 .body(file.bytes());
+    }
+
+    private static String extension(String contentType) {
+        return switch (contentType) {
+            case "application/pdf" -> ".pdf";
+            case "image/png" -> ".png";
+            default -> ".jpg";
+        };
     }
 }

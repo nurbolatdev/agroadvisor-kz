@@ -711,6 +711,7 @@
           "schema" : {
             "default" : 0,
             "format" : "int32",
+            "maximum" : 10000,
             "minimum" : 0,
             "type" : "integer"
           }

@@ -67,8 +67,10 @@ class AgrochemistAdminControllerTest {
         adminId = newUser(Role.ADMIN, "+7721");
         admin = token(adminId);
         agrochemistId = newUser(Role.AGROCHEMIST, "+7722");
-        jdbc.update("INSERT INTO agrochemist_profiles (user_id, specialization) VALUES (?, 'agronomist')",
-                agrochemistId);
+        // Far in the past, so this profile is first in the queue however many others other tests left behind
+        jdbc.update("""
+                INSERT INTO agrochemist_profiles (user_id, specialization, submitted_at)
+                VALUES (?, 'agronomist', now() - interval '10 years')""", agrochemistId);
         documentId = jdbc.queryForObject("""
                 INSERT INTO agrochemist_documents (user_id, kind, object_key, title, content_type, size_bytes)
                 VALUES (?, 'diploma', 'agrochemist-documents/x/d.pdf', 'Diploma', 'application/pdf', 5)
@@ -199,6 +201,25 @@ class AgrochemistAdminControllerTest {
     }
 
     @Test
+    void anAdminCannotDecideOnTheirOwnProfile() throws Exception {
+        UUID both = users.saveAndFlush(new User(Login.parse("+77251234567"), "x", "Both", "ru",
+                Set.of(Role.ADMIN, Role.AGROCHEMIST))).getId();
+        created.add(both);
+        jdbc.update("INSERT INTO agrochemist_profiles (user_id) VALUES (?)", both);
+
+        mvc.perform(post("/api/admin/agrochemists/" + both + "/decision").header("Authorization", token(both))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"decision\":\"approve\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("self_review_forbidden"));
+    }
+
+    @Test
+    void aHugePageNumberIsRefusedNotAnOverflow() throws Exception {
+        mvc.perform(get("/api/admin/agrochemists").param("page", "2000000000").header("Authorization", admin))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void anUnknownDecisionIsRefused() throws Exception {
         decide("{\"decision\":\"ban\"}").andExpect(status().isBadRequest());
         decide("{}").andExpect(status().isBadRequest());
@@ -214,7 +235,10 @@ class AgrochemistAdminControllerTest {
                 .andExpect(content().contentType("application/pdf"))
                 .andExpect(content().bytes("%PDF-1.7".getBytes()))
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
-                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.startsWith("attachment")))
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.allOf(org.hamcrest.Matchers.startsWith("attachment"),
+                                org.hamcrest.Matchers.endsWith(".pdf\""))))
+                .andExpect(header().string("Content-Security-Policy", "sandbox"))
                 .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")));
     }
 
