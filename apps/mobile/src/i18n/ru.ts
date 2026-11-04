@@ -54,10 +54,11 @@ export const ru = {
     title: 'История',
     // short words for the badge of a line; the long explanations are on the result screen
     status: {
-      ok: 'Определено',
-      low_confidence: 'Не уверена',
-      unknown: 'Не определено',
-      crop_mismatch: 'Другая культура',
+      disease: 'Болезнь',
+      healthy: 'Здоров',
+      undetermined: 'Не определено',
+      withAgrochemist: 'У агрохимика',
+      cured: 'Вылечено',
     },
     filter: {
       all: 'Все',

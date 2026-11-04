@@ -31,7 +31,7 @@ export function HistoryLine({ diagnosis, names }: Props) {
   const view = describeRow(row, {
     cropName: (code) => (isCrop(code) ? t(`diagnosis.crops.${code}`) : code),
     diseaseName: (code) => names[code],
-    statusLabel: (status) => t(`history.status.${status}`),
+    statusLabel: (variant) => t(`history.status.${variant}`),
     date: formatDiagnosisDate(row.createdAt, language),
   })
 

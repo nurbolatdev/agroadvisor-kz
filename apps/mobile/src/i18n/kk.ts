@@ -55,10 +55,11 @@ export const kk: Translation = {
   history: {
     title: 'Тарих',
     status: {
-      ok: 'Анықталды',
-      low_confidence: 'Сенімсіз',
-      unknown: 'Анықталмады',
-      crop_mismatch: 'Басқа дақыл',
+      disease: 'Ауру',
+      healthy: 'Сау',
+      undetermined: 'Анықталмады',
+      withAgrochemist: 'Агрохимикте',
+      cured: 'Емделді',
     },
     filter: {
       all: 'Барлығы',

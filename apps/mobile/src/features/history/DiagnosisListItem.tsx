@@ -2,7 +2,7 @@ import { ChevronRight, Leaf } from 'lucide-react-native'
 import { useState } from 'react'
 import { Image, Pressable, StyleSheet, View } from 'react-native'
 
-import { AppText, Badge, type BadgeTone } from '@/components/ui'
+import { AppText, StatusBadge, type StatusVariant } from '@/components/ui'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
 import { type PhotoSource, photoAttempt } from './photoSource'
@@ -12,7 +12,7 @@ type Props = {
   title: string
   // crop, confidence and date, already in the language of the app
   subtitle: string
-  badge: { label: string; tone: BadgeTone }
+  badge: { label: string; variant: StatusVariant }
   // null when the photo cannot be asked for (no token, an unexpected address)
   photo: PhotoSource | null
   onPress: () => void
@@ -56,7 +56,7 @@ export function DiagnosisListItem({ title, subtitle, badge, photo, onPress }: Pr
           {subtitle}
         </AppText>
         <View style={styles.badge}>
-          <Badge label={badge.label} tone={badge.tone} />
+          <StatusBadge label={badge.label} variant={badge.variant} />
         </View>
       </View>
       <ChevronRight size={sizes.iconMd} color={colors.textMuted} />

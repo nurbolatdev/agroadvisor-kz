@@ -24,32 +24,35 @@ function diagnosis(over: Partial<DiagnosisResult> = {}): DiagnosisResult {
 }
 
 describe('history row', () => {
-  it('names the disease and the confidence only for a confident answer', () => {
+  it('names the disease and the confidence for a confident answer, and calls it a disease', () => {
     expect(toHistoryRow(diagnosis())).toMatchObject({
       diseaseCode: 'tomato__late_blight',
       confidencePercent: 87,
-      tone: 'warning',
+      variant: 'disease',
     })
   })
 
-  it('a healthy plant is a success', () => {
+  it('a healthy plant is "healthy"', () => {
     const top1 = { code: 'tomato__healthy', confidence: 0.95 }
-    expect(toHistoryRow(diagnosis({ top1 })).tone).toBe('success')
+    expect(toHistoryRow(diagnosis({ top1 }))).toMatchObject({
+      variant: 'healthy',
+      diseaseCode: 'tomato__healthy',
+    })
   })
 
   it.each(['low_confidence', 'unknown', 'crop_mismatch'] as const)(
-    'shows no disease and no confidence for %s',
+    'names no disease for %s and calls it undetermined (never "disease")',
     (status) => {
       const row = toHistoryRow(diagnosis({ status }))
       expect(row.diseaseCode).toBeNull()
-      expect(row.confidencePercent).toBeNull()
+      expect(row.variant).toBe('undetermined')
     },
   )
 
-  it('uses a tone that is not alarming for an unsure answer and a warning for another crop', () => {
-    expect(toHistoryRow(diagnosis({ status: 'low_confidence' })).tone).toBe('info')
-    expect(toHistoryRow(diagnosis({ status: 'unknown' })).tone).toBe('info')
-    expect(toHistoryRow(diagnosis({ status: 'crop_mismatch' })).tone).toBe('warning')
+  it('keeps the confidence of an unsure answer (the design shows 48%) but not of the others', () => {
+    expect(toHistoryRow(diagnosis({ status: 'low_confidence' })).confidencePercent).toBe(87)
+    expect(toHistoryRow(diagnosis({ status: 'unknown' })).confidencePercent).toBeNull()
+    expect(toHistoryRow(diagnosis({ status: 'crop_mismatch' })).confidencePercent).toBeNull()
   })
 
   it('keeps the id, the crop, the photo address and the time', () => {
@@ -118,10 +121,10 @@ describe('photo of a result', () => {
 })
 
 describe('diagnosis date', () => {
-  it('shows the day and the time', () => {
+  it('shows the day and the month, no time (screen 19)', () => {
     const text = formatDiagnosisDate('2026-11-04T10:05:00Z', 'en')
     expect(text).toMatch(/4/)
-    expect(text).toMatch(/\d{2}:\d{2}/)
+    expect(text).not.toMatch(/\d{2}:\d{2}/)
   })
 
   it('is written in the chosen language', () => {

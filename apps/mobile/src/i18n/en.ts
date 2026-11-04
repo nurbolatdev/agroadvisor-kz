@@ -55,10 +55,11 @@ export const en: Translation = {
   history: {
     title: 'History',
     status: {
-      ok: 'Identified',
-      low_confidence: 'Not sure',
-      unknown: 'Not identified',
-      crop_mismatch: 'Other crop',
+      disease: 'Disease',
+      healthy: 'Healthy',
+      undetermined: 'Not identified',
+      withAgrochemist: 'With agrochemist',
+      cured: 'Cured',
     },
     filter: {
       all: 'All',

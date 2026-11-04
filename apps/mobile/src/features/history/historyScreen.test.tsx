@@ -81,9 +81,11 @@ describe('history screen', () => {
     await render(<HistoryScreen />)
 
     expect(await screen.findByText('Late blight')).toBeTruthy()
-    // the unknown one names no disease: the crop is its title and the status is in the badge
-    expect(screen.getByLabelText(/^Corn\. /)).toBeTruthy() // "Corn" is also the name of a filter chip
-    expect(screen.getByText('Not identified')).toBeTruthy()
+    // the unknown one names no disease (screen 19): "Not identified" is its title, and the neutral badge
+    // says the same until a diagnosis can also be "with an agrochemist"
+    expect(screen.getByLabelText(/^Not identified\. Corn · /)).toBeTruthy()
+    expect(screen.getAllByText('Not identified')).toHaveLength(2)
+    expect(screen.getByText('Disease')).toBeTruthy()
 
     await fireEvent.press(screen.getAllByRole('button', { name: /Late blight/ })[0])
 

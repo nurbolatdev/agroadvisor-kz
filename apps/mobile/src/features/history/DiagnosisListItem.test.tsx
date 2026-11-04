@@ -17,8 +17,8 @@ function item(over: Partial<React.ComponentProps<typeof DiagnosisListItem>> = {}
   return (
     <DiagnosisListItem
       title="Late blight"
-      subtitle="Tomato · 87% · 4 Nov, 10:05"
-      badge={{ label: 'Identified', tone: 'warning' }}
+      subtitle="Tomato · 4 Nov · 87%"
+      badge={{ label: 'Disease', variant: 'disease' }}
       photo={photo}
       onPress={jest.fn()}
       {...over}
@@ -31,8 +31,8 @@ describe('DiagnosisListItem', () => {
     await render(item())
 
     expect(screen.getByText('Late blight')).toBeTruthy()
-    expect(screen.getByText('Tomato · 87% · 4 Nov, 10:05')).toBeTruthy()
-    expect(screen.getByText('Identified')).toBeTruthy()
+    expect(screen.getByText('Tomato · 4 Nov · 87%')).toBeTruthy()
+    expect(screen.getByText('Disease')).toBeTruthy()
   })
 
   it('opens the diagnosis on press', async () => {
@@ -91,6 +91,6 @@ describe('DiagnosisListItem', () => {
   it('describes the line for a screen reader', async () => {
     await render(item())
 
-    expect(screen.getByLabelText('Late blight. Tomato · 87% · 4 Nov, 10:05')).toBeTruthy()
+    expect(screen.getByLabelText('Late blight. Tomato · 4 Nov · 87%')).toBeTruthy()
   })
 })
