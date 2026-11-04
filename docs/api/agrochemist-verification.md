@@ -30,7 +30,7 @@ Errors (`code`, `reason`):
 
 | HTTP | `code` | `reason` | When |
 | --- | --- | --- | --- |
-| 400 | `invalid_document` | `empty` \| `unsupported_format` | The file is not usable. |
+| 400 | `invalid_document` | `empty` \| `unsupported_format` \| `corrupted` | The file is not usable; `corrupted` is a JPEG or PNG whose structure is broken (a segment or chunk running past the end, no end marker). |
 | 400 | `bad_request` | - | `file` or `kind` is missing, or `year` is not a number. |
 | 413 | `payload_too_large` | - | The file is over 10 MB: the server's upload limit answers before the service sees it. The app must check the size itself (a PDF cannot be compressed like a photo); above 11 MB the connection may be reset instead. |
 | 400 | `invalid_document_fields` | `kind` \| `year` \| `title` \| `issuer` | A field is wrong. |
@@ -40,7 +40,7 @@ Errors (`code`, `reason`):
 | 409 | `agrochemist_profile_missing` | - | The account has the role but no profile. |
 | 503 | `storage_unavailable` | - | The storage does not answer; try again. |
 
-The document images are stored as they were sent, with their metadata (photos of a diploma may carry GPS); only the admins read them.
+**Metadata.** A JPEG or PNG document is cleaned like a diagnosis photo before it is stored (GPS, camera, time, author, thumbnails and trailers are removed; the orientation is kept; the pixels do not change), see "Photo metadata is removed on the server" in [ai-predict.md](ai-predict.md). `sizeBytes` is the size after the cleaning. **Limitation: a PDF is stored exactly as it was sent**, with its own metadata (author, producer, dates, XMP) and any embedded content; only the admins read it, and the file is private (see `docs/architecture.md`).
 
 ## For the admin
 
