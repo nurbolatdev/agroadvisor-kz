@@ -8,6 +8,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.zip.CRC32;
 import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,7 @@ class ImageMetadataStripperTest {
     /** SOS header, entropy data with a stuffed 0xFF00 and a restart marker, no EOI. */
     private static final byte[] SCAN = {(byte) 0xFF, (byte) 0xDA, 0, 4, 1, 2, 0x11, 0x22, (byte) 0xFF, 0x00, 0x33,
         (byte) 0xFF, (byte) 0xD0, 0x44};
+    private static final byte[] PNG_SIGNATURE = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
     /** JFIF 1.1, 1:1 aspect, no thumbnail. */
     private static final byte[] JFIF = seg(0xE0, new byte[] {'J', 'F', 'I', 'F', 0, 1, 1, 0, 0, 1, 0, 1, 0, 0});
 
@@ -175,6 +177,92 @@ class ImageMetadataStripperTest {
         assertInvalid(cat(SOI, new byte[] {1, 2, 3, 4}, EOI));
     }
 
+    // ---- PNG ----
+
+    @Test
+    void pngKeepsCriticalAndColourChunksOnly() {
+        byte[] ihdr = chunk("IHDR", new byte[] {0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0});
+        byte[] kept = cat(chunk("PLTE", new byte[] {1, 2, 3}), chunk("iCCP", new byte[] {'s', 0, 0, 1}),
+                chunk("sRGB", new byte[] {0}), chunk("gAMA", new byte[4]), chunk("cHRM", new byte[32]),
+                chunk("pHYs", new byte[9]), chunk("tRNS", new byte[] {0}), chunk("bKGD", new byte[] {0}),
+                chunk("sBIT", new byte[] {8}));
+        byte[] dropped = cat(chunk("tEXt", "GPS\0 43.2N".getBytes(StandardCharsets.US_ASCII)),
+                chunk("zTXt", new byte[] {'k', 0, 0, 1}), chunk("iTXt", new byte[] {'k', 0, 0, 0, 0, 0, 'v'}),
+                chunk("eXIf", new byte[] {'M', 'M', 0, 42}), chunk("tIME", new byte[7]),
+                chunk("sPLT", new byte[] {'p', 0, 8}), chunk("hIST", new byte[2]), chunk("prVt", new byte[] {1}));
+        byte[] idat = chunk("IDAT", new byte[] {1, 2, 3, 4});
+        byte[] iend = chunk("IEND", new byte[0]);
+
+        byte[] result = stripper.strip(cat(PNG_SIGNATURE, ihdr, dropped, kept, idat, iend));
+
+        assertThat(result).isEqualTo(cat(PNG_SIGNATURE, ihdr, kept, idat, iend));
+    }
+
+    @Test
+    void pngGpsIsRemovedButOrientationSurvivesInAMinimalExifChunk() {
+        byte[] ihdr = chunk("IHDR", new byte[13]);
+        byte[] exif = chunk("eXIf", tiffOf(exifWithGps(true, 6)));
+        byte[] idat = chunk("IDAT", new byte[] {1});
+        byte[] iend = chunk("IEND", new byte[0]);
+
+        byte[] result = stripper.strip(cat(PNG_SIGNATURE, ihdr, exif, idat, iend));
+
+        byte[] minimal = chunk("eXIf", new byte[] {'M', 'M', 0, 42, 0, 0, 0, 8, 0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1,
+            0, 6, 0, 0, 0, 0, 0, 0});
+        assertThat(result).isEqualTo(cat(PNG_SIGNATURE, ihdr, minimal, idat, iend));
+        assertThat(new String(result, StandardCharsets.ISO_8859_1)).doesNotContain("GPS", "Cam");
+    }
+
+    @Test
+    void pngLittleEndianOrientationKeepsItsByteOrder() {
+        byte[] body = cat(chunk("IHDR", new byte[13]), chunk("IDAT", new byte[] {1}), chunk("IEND", new byte[0]));
+        byte[] exif = chunk("eXIf", tiffOf(exifWithGps(false, 8)));
+
+        byte[] result = stripper.strip(cat(PNG_SIGNATURE, exif, body));
+
+        byte[] minimal = chunk("eXIf", new byte[] {'I', 'I', 42, 0, 8, 0, 0, 0, 1, 0, 0x12, 0x01, 3, 0, 1, 0, 0, 0, 8,
+            0, 0, 0, 0, 0, 0, 0});
+        assertThat(result).isEqualTo(cat(PNG_SIGNATURE, minimal, body));
+    }
+
+    @Test
+    void pngExifWithoutAUsableOrientationIsDroppedCompletely() {
+        byte[] body = cat(chunk("IHDR", new byte[13]), chunk("IDAT", new byte[] {1}), chunk("IEND", new byte[0]));
+        byte[] without = chunk("eXIf", tiffOf(exifWithGps(true, 0)));
+        byte[] invalid = chunk("eXIf", tiffOf(exifWithGps(true, 9)));
+        byte[] junk = chunk("eXIf", new byte[] {1, 2, 3});
+
+        for (byte[] exif : new byte[][] {without, invalid, junk}) {
+            assertThat(stripper.strip(cat(PNG_SIGNATURE, exif, body))).isEqualTo(cat(PNG_SIGNATURE, body));
+        }
+    }
+
+    @Test
+    void pngWithoutMetadataStaysByteForByte() {
+        byte[] original = cat(PNG_SIGNATURE, chunk("IHDR", new byte[13]), chunk("IDAT", new byte[] {9}),
+                chunk("IEND", new byte[0]));
+
+        assertThat(stripper.strip(original)).isEqualTo(original);
+    }
+
+    @Test
+    void pngDataAfterIendIsCutOff() {
+        byte[] body = cat(PNG_SIGNATURE, chunk("IHDR", new byte[13]), chunk("IDAT", new byte[] {9}),
+                chunk("IEND", new byte[0]));
+
+        assertThat(stripper.strip(cat(body, chunk("tEXt", "late".getBytes()), new byte[] {1, 2}))).isEqualTo(body);
+    }
+
+    @Test
+    void aTruncatedPngChunkIsInvalid() {
+        assertInvalid(cat(PNG_SIGNATURE, new byte[] {0, 0, 0x7F, 0, 'I', 'D', 'A', 'T', 1}));
+    }
+
+    @Test
+    void aPngWithoutIendIsInvalid() {
+        assertInvalid(cat(PNG_SIGNATURE, chunk("IHDR", new byte[13]), chunk("IDAT", new byte[] {9})));
+    }
+
     // ---- invalid_image is the same error the AI service gives ----
 
     @Test
@@ -195,6 +283,21 @@ class ImageMetadataStripperTest {
 
         assertThat(clean.length).isLessThan(dirty.length);
         assertThat(new String(clean, StandardCharsets.ISO_8859_1)).doesNotContain("GPS", "TRAILER", "Photoshop");
+        assertSamePixels(real, clean);
+    }
+
+    @Test
+    void aRealPngDecodesToTheSamePixelsAfterStripping() throws IOException {
+        byte[] real = encode("png");
+        int afterIhdr = PNG_SIGNATURE.length + 12 + 13;
+        byte[] dirty = cat(java.util.Arrays.copyOfRange(real, 0, afterIhdr),
+                chunk("tEXt", "GPS\0 43.2N".getBytes(StandardCharsets.US_ASCII)), chunk("tIME", new byte[7]),
+                chunk("eXIf", new byte[] {'M', 'M', 0, 42}),
+                java.util.Arrays.copyOfRange(real, afterIhdr, real.length), "TRAILER".getBytes());
+
+        byte[] clean = stripper.strip(dirty);
+
+        assertThat(new String(clean, StandardCharsets.ISO_8859_1)).doesNotContain("GPS", "TRAILER", "tIME");
         assertSamePixels(real, clean);
     }
 
@@ -284,6 +387,11 @@ class ImageMetadataStripperTest {
         }
     }
 
+    /** The TIFF block of an Exif payload, as a PNG {@code eXIf} chunk holds it (no {@code Exif\0\0}). */
+    private static byte[] tiffOf(byte[] exifPayload) {
+        return java.util.Arrays.copyOfRange(exifPayload, 6, exifPayload.length);
+    }
+
     private static byte[] seg(int marker, String payload) {
         return seg(marker, payload.getBytes(StandardCharsets.ISO_8859_1));
     }
@@ -291,6 +399,19 @@ class ImageMetadataStripperTest {
     private static byte[] seg(int marker, byte[] payload) {
         int length = payload.length + 2;
         return cat(new byte[] {(byte) 0xFF, (byte) marker, (byte) (length >> 8), (byte) length}, payload);
+    }
+
+    private static byte[] chunk(String type, byte[] data) {
+        byte[] typeBytes = type.getBytes(StandardCharsets.US_ASCII);
+        CRC32 crc = new CRC32();
+        crc.update(typeBytes);
+        crc.update(data);
+        long c = crc.getValue();
+        return cat(intBytes(data.length), typeBytes, data, intBytes(c));
+    }
+
+    private static byte[] intBytes(long v) {
+        return new byte[] {(byte) (v >> 24), (byte) (v >> 16), (byte) (v >> 8), (byte) v};
     }
 
     private static byte[] cat(byte[]... parts) {

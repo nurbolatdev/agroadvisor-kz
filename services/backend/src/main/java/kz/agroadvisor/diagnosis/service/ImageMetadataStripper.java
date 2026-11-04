@@ -3,6 +3,8 @@ package kz.agroadvisor.diagnosis.service;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Set;
+import java.util.zip.CRC32;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -21,13 +23,21 @@ import kz.agroadvisor.common.web.ApiException;
  *       an Orientation tag, a minimal Exif with only that tag replaces it, so a rotated phone photo still
  *       shows upright. Everything after the first EOI (Multi-Picture, Samsung SEFT, Motion Photo video) is
  *       cut off.</li>
+ *   <li>PNG: kept are the critical chunks and {@code iCCP, sRGB, gAMA, cHRM, pHYs, tRNS, bKGD, sBIT}; text,
+ *       time and unknown chunks are dropped, as is anything after {@code IEND}. {@code eXIf} is replaced by
+ *       a minimal one with only the Orientation, if it had one.</li>
  * </ul>
  *
- * A file without such parts comes back byte for byte. A broken container (a segment running past the end,
- * no EOI) is {@code invalid_image}, with the same code and status as the AI service's.
+ * A file without such parts comes back byte for byte. A broken container (a segment or chunk running past
+ * the end, no EOI / IEND) is {@code invalid_image}, with the same code and status as the AI service's.
  */
 @Component
 public class ImageMetadataStripper {
+
+    private static final byte[] PNG_SIGNATURE = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
+    private static final Set<String> PNG_KEPT_CHUNKS = Set.of(
+            "IHDR", "PLTE", "IDAT", "IEND", // critical
+            "iCCP", "sRGB", "gAMA", "cHRM", "pHYs", "tRNS", "bKGD", "sBIT");
 
     private static final byte[] ICC_PREFIX = "ICC_PROFILE\0".getBytes(StandardCharsets.US_ASCII);
     private static final byte[] JFIF_PREFIX = "JFIF\0".getBytes(StandardCharsets.US_ASCII);
@@ -51,6 +61,10 @@ public class ImageMetadataStripper {
     private static final int MARKER_COM = 0xFE;
 
     public byte[] strip(byte[] photo) {
+        if (photo.length > PNG_SIGNATURE.length
+                && Arrays.equals(photo, 0, PNG_SIGNATURE.length, PNG_SIGNATURE, 0, PNG_SIGNATURE.length)) {
+            return stripPng(photo);
+        }
         if (photo.length > 3 && u8(photo, 0) == 0xFF && u8(photo, 1) == MARKER_SOI) {
             return stripJpeg(photo);
         }
@@ -261,6 +275,53 @@ public class ImageMetadataStripper {
         out.write(length);
         out.writeBytes(EXIF_PREFIX);
         out.writeBytes(tiff);
+    }
+
+    // ---- PNG ----
+
+    private static byte[] stripPng(byte[] in) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream(in.length);
+        out.write(in, 0, PNG_SIGNATURE.length);
+        int pos = PNG_SIGNATURE.length;
+        boolean orientationKept = false;
+        while (pos + 12 <= in.length) {
+            long length = u32(in, pos, true);
+            long end = pos + 12L + length;
+            if (end > in.length) {
+                throw invalid();
+            }
+            String type = new String(in, pos + 4, 4, StandardCharsets.ISO_8859_1);
+            if (PNG_KEPT_CHUNKS.contains(type)) {
+                out.write(in, pos, (int) (end - pos));
+            } else if (type.equals("eXIf") && !orientationKept) {
+                // The AI service turns a picture upright by this tag, so it is carried over like in a JPEG
+                Orientation orientation = exifOrientation(in, pos + 8, (int) end - 4);
+                if (orientation != null) {
+                    writeChunk(out, "eXIf", minimalTiff(orientation));
+                    orientationKept = true;
+                }
+            }
+            pos = (int) end;
+            if (type.equals("IEND")) {
+                return out.toByteArray(); // trailing bytes after IEND are not part of the picture
+            }
+        }
+        throw invalid(); // no IEND
+    }
+
+    private static void writeChunk(ByteArrayOutputStream out, String type, byte[] data) {
+        byte[] typeBytes = type.getBytes(StandardCharsets.US_ASCII);
+        CRC32 crc = new CRC32();
+        crc.update(typeBytes);
+        crc.update(data);
+        out.writeBytes(intBytes(data.length));
+        out.writeBytes(typeBytes);
+        out.writeBytes(data);
+        out.writeBytes(intBytes(crc.getValue()));
+    }
+
+    private static byte[] intBytes(long v) {
+        return new byte[] {(byte) (v >> 24), (byte) (v >> 16), (byte) (v >> 8), (byte) v};
     }
 
     // ---- helpers ----
