@@ -1351,7 +1351,7 @@ export interface operations {
                 crop: string;
             };
             header?: {
-                /** @description One key per diagnosis attempt (a UUID fits); resend the same request with it when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key. A repeat does not spend the diagnosis rate limit. */
+                /** @description One key per diagnosis attempt (a UUID fits); resend the same request with it when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key. A repeat does not spend the diagnosis rate limit. While the first request with the key is still being processed, another one gets 409 request_in_progress with Retry-After: 2 (seconds); the model is not called again and the limit is not spent. */
                 "Idempotency-Key"?: string;
             };
             path?: never;
@@ -1371,6 +1371,17 @@ export interface operations {
                 headers: {
                     /** @description "true" when the diagnosis already existed */
                     "Idempotent-Replayed"?: "true";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DiagnosisView"];
+                };
+            };
+            /** @description request_in_progress: a request with the same Idempotency-Key is still being processed; repeat after the seconds in Retry-After */
+            409: {
+                headers: {
+                    /** @description Seconds to wait before repeating the request */
+                    "Retry-After"?: string;
                     [name: string]: unknown;
                 };
                 content: {

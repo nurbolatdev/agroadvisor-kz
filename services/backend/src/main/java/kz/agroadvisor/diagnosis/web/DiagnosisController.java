@@ -59,12 +59,18 @@ public class DiagnosisController {
             + "the first time, with the header Idempotent-Replayed: true",
             headers = @Header(name = REPLAYED_HEADER, description = "\"true\" when the diagnosis already existed",
                     schema = @Schema(type = "string", allowableValues = "true")))
+    @ApiResponse(responseCode = "409", description = "request_in_progress: a request with the same Idempotency-Key is "
+            + "still being processed; repeat after the seconds in Retry-After",
+            headers = @Header(name = "Retry-After", description = "Seconds to wait before repeating the request",
+                    schema = @Schema(type = "string", example = "2")))
     public ResponseEntity<DiagnosisView> create(@RequestParam String crop, @RequestParam("image") MultipartFile image,
             @Parameter(description = "One key per diagnosis attempt (a UUID fits); resend the same request with it "
                     + "when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): "
                     + "another crop or another photo under the same key is 422 idempotency_key_reused with reason "
                     + "crop or photo, so a retry must send the same file. A malformed key is 400 "
-                    + "invalid_idempotency_key. A repeat does not spend the diagnosis rate limit.",
+                    + "invalid_idempotency_key. A repeat does not spend the diagnosis rate limit. While the first "
+                    + "request with the key is still being processed, another one gets 409 request_in_progress with "
+                    + "Retry-After: 2 (seconds); the model is not called again and the limit is not spent.",
                     schema = @Schema(pattern = "[A-Za-z0-9_.:-]{8,80}", minLength = 8, maxLength = 80))
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             Authentication authentication) throws IOException {
