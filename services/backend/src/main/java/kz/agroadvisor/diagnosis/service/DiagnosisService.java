@@ -28,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import kz.agroadvisor.catalog.model.Disease;
 import kz.agroadvisor.catalog.repository.DiseaseRepository;
+import kz.agroadvisor.common.image.ImageMetadataStripper;
+import kz.agroadvisor.common.image.InvalidImageException;
 import kz.agroadvisor.common.ratelimit.RateLimitProperties;
 import kz.agroadvisor.common.ratelimit.RateLimiter;
 import kz.agroadvisor.common.web.ApiException;
@@ -129,7 +131,14 @@ public class DiagnosisService {
                     "Send a JPEG or PNG photo of up to 10 MB");
         }
         // The fingerprint above is of the client's bytes; what is kept and sent to the model has no metadata
-        byte[] clean = metadata.strip(photo);
+        byte[] clean;
+        try {
+            clean = metadata.strip(photo);
+        } catch (InvalidImageException e) {
+            // Same code, status and text as the AI service's invalid_image (HttpAiClient)
+            throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IMAGE,
+                    "The photo cannot be read, send another JPEG or PNG");
+        }
         String photoKey = photos.store(userId, clean, contentType);
         Diagnosis saved;
         try {

@@ -1,4 +1,4 @@
-package kz.agroadvisor.diagnosis.service;
+package kz.agroadvisor.common.image;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -12,9 +12,6 @@ import java.util.zip.CRC32;
 import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
-
-import kz.agroadvisor.common.web.ApiException;
 
 class ImageMetadataStripperTest {
 
@@ -116,10 +113,10 @@ class ImageMetadataStripperTest {
         try {
             byte[] clean = stripper.strip(photo);
             assertThat(stripper.strip(clean)).as(context).isEqualTo(clean); // cleaning is idempotent
-        } catch (ApiException e) {
-            assertThat(e.getCode()).as(context).isEqualTo(DiagnosisErrors.INVALID_IMAGE);
+        } catch (InvalidImageException e) {
+            // the expected refusal of a broken file
         } catch (RuntimeException e) {
-            throw new AssertionError("Not invalid_image, but " + e + ": " + context, e);
+            throw new AssertionError("Not InvalidImageException, but " + e + ": " + context, e);
         }
     }
 
@@ -338,11 +335,7 @@ class ImageMetadataStripperTest {
     // ---- helpers ----
 
     private void assertInvalid(byte[] photo) {
-        assertThatThrownBy(() -> stripper.strip(photo)).isInstanceOfSatisfying(ApiException.class, e -> {
-            assertThat(e.getCode()).isEqualTo(DiagnosisErrors.INVALID_IMAGE);
-            assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
-            assertThat(e.getReason()).isNull();
-        });
+        assertThatThrownBy(() -> stripper.strip(photo)).isInstanceOf(InvalidImageException.class);
     }
 
     private static void assertSamePixels(byte[] before, byte[] after) throws IOException {

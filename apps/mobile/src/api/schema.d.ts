@@ -4,6 +4,73 @@
  */
 
 export interface paths {
+    "/api/admin/agrochemists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Agrochemists with the given status (pending by default), the longest waiting first */
+        get: operations["queue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/agrochemists/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["details"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/agrochemists/{userId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** approve (needs a document), reject or request_documents (both need a reason the agrochemist will see). Approving makes the agrochemist visible to farmers. */
+        post: operations["decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/agrochemists/{userId}/documents/{documentId}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The document as it was sent (PDF, JPEG or PNG), as a download */
+        get: operations["file"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/crops": {
         parameters: {
             query?: never;
@@ -95,6 +162,57 @@ export interface paths {
         put: operations["updateTreatment"];
         post?: never;
         delete: operations["deleteTreatment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agrochemist/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put?: never;
+        /** Send a diploma or certificate (PDF, JPEG or PNG, up to 10 MB, at most 5 documents). The profile goes (back) to the admins' queue; an approved profile is locked (409). */
+        post: operations["upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agrochemist/documents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove one's own document; not possible once the profile is approved (409) */
+        delete: operations["delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agrochemist/verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** State of the check: status, the admin's reason and the documents sent */
+        get: operations["verification"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -326,6 +444,30 @@ export interface components {
             code: string;
             name: string;
         };
+        DecisionRequest: {
+            decision: string;
+            reason?: string;
+        };
+        DetailsView: {
+            documents: components["schemas"]["DocumentView"][];
+            email?: string | null;
+            /** Format: int32 */
+            experienceYears?: number | null;
+            fullName: string;
+            phone?: string | null;
+            rejectionReason?: string | null;
+            /** Format: date-time */
+            reviewedAt?: string | null;
+            /** Format: uuid */
+            reviewedBy?: string | null;
+            specialization?: string | null;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected" | "documents_requested";
+            /** Format: date-time */
+            submittedAt: string;
+            /** Format: uuid */
+            userId: string;
+        };
         DiagnosisView: {
             /** Format: int32 */
             classesVersion: number;
@@ -397,6 +539,22 @@ export interface components {
             /** @enum {string|null} */
             severity?: "low" | "medium" | "high" | null;
         };
+        DocumentView: {
+            /** @enum {string} */
+            contentType: "application/pdf" | "image/jpeg" | "image/png";
+            /** Format: uuid */
+            id: string;
+            issuer?: string | null;
+            /** @enum {string} */
+            kind: "diploma" | "certificate";
+            /** Format: int32 */
+            sizeBytes: number;
+            title?: string | null;
+            /** Format: date-time */
+            uploadedAt: string;
+            /** Format: int32 */
+            year?: number | null;
+        };
         LoginRequest: {
             login: string;
             password: string;
@@ -425,6 +583,18 @@ export interface components {
              * @enum {string}
              */
             role?: "farmer" | "agrochemist";
+        };
+        SummaryView: {
+            /** Format: int32 */
+            documentCount: number;
+            fullName: string;
+            specialization?: string | null;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected" | "documents_requested";
+            /** Format: date-time */
+            submittedAt: string;
+            /** Format: uuid */
+            userId: string;
         };
         TokenResponse: {
             accessToken: string;
@@ -471,6 +641,20 @@ export interface components {
             /** @enum {string} */
             type: "chemical" | "biological";
         };
+        VerificationView: {
+            documents: components["schemas"]["DocumentView"][];
+            /** @description Why the admin rejected or asked for more documents */
+            rejectionReason?: string | null;
+            /** Format: date-time */
+            reviewedAt?: string | null;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected" | "documents_requested";
+            /**
+             * Format: date-time
+             * @description When the profile entered the admins' queue: at registration, and again when a document is sent after a rejection or a request for documents
+             */
+            submittedAt: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -480,6 +664,101 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    queue: {
+        parameters: {
+            query?: {
+                status?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SummaryView"][];
+                };
+            };
+        };
+    };
+    details: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DetailsView"];
+                };
+            };
+        };
+    };
+    decide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DetailsView"];
+                };
+            };
+        };
+    };
+    file: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+        };
+    };
     crops: {
         parameters: {
             query?: never;
@@ -775,6 +1054,98 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DocumentView"][];
+                };
+            };
+        };
+    };
+    upload: {
+        parameters: {
+            query: {
+                kind: string;
+                title?: string;
+                issuer?: string;
+                year?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DocumentView"];
+                };
+            };
+        };
+    };
+    delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["VerificationView"];
+                };
             };
         };
     };
