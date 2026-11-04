@@ -252,7 +252,7 @@ class DiagnosisServiceTest {
     }
 
     @Test
-    void whenTwoRequestsRaceTheLoserDropsItsPhotoAndReturnsTheWinnersRow() {
+    void whenTwoRequestsRaceTheLoserReturnsTheWinnersRowAndLeavesThePhotoAlone() {
         when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678"))
                 .thenReturn(Optional.empty(), Optional.of(storedWithKey("key-12345678")));
         when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
@@ -262,6 +262,51 @@ class DiagnosisServiceTest {
         DiagnosisService.Created created = service.create(userId, "tomato", JPEG, "key-12345678");
 
         assertThat(created.replayed()).isTrue();
+        // With a key both requests use one object name: deleting it would delete the winner's photo
+        verify(photos, never()).delete(anyString());
+    }
+
+    @Test
+    void theObjectNameIsTheSameForTheSameKeyAndPhotoAndDiffersWhenEitherChanges() {
+        String fingerprint = DiagnosisService.fingerprint(JPEG);
+        String other = DiagnosisService.fingerprint(PNG);
+
+        String name = DiagnosisService.objectName("key-12345678", fingerprint);
+
+        assertThat(name).matches("[0-9a-f]{64}");
+        assertThat(DiagnosisService.objectName("key-12345678", fingerprint)).isEqualTo(name);
+        assertThat(DiagnosisService.objectName("key-12345678", other)).isNotEqualTo(name);
+        assertThat(DiagnosisService.objectName("key-87654321", fingerprint)).isNotEqualTo(name);
+    }
+
+    @Test
+    void withoutAKeyEveryObjectNameIsNew() {
+        assertThat(DiagnosisService.objectName(null, "x"))
+                .isNotEqualTo(DiagnosisService.objectName(null, "x"));
+    }
+
+    @Test
+    void aRequestWithAKeyStoresUnderTheNameBuiltFromTheKeyAndThePhoto() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678")).thenReturn(Optional.empty());
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+
+        service.create(userId, "tomato", JPEG, "key-12345678");
+
+        verify(photos).store(userId, DiagnosisService.objectName("key-12345678", DiagnosisService.fingerprint(JPEG)),
+                JPEG, "image/jpeg");
+    }
+
+    @Test
+    void aFailedKeyedRequestKeepsTheSharedObjectButAnUnkeyedOneRemovesItsOwn() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678")).thenReturn(Optional.empty());
+        when(ai.predict("tomato", JPEG)).thenThrow(new IllegalStateException("model down"));
+
+        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG, "key-12345678"))
+                .isInstanceOf(IllegalStateException.class);
+        verify(photos, never()).delete(anyString());
+
+        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG, null))
+                .isInstanceOf(IllegalStateException.class);
         verify(photos).delete("diagnoses/key.jpg");
     }
 

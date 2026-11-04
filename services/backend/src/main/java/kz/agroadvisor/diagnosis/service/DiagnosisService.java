@@ -4,6 +4,7 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -172,7 +173,7 @@ public class DiagnosisService {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IMAGE,
                     "The photo cannot be read, send another JPEG or PNG");
         }
-        String photoKey = photos.store(userId, UUID.randomUUID().toString(), clean, contentType);
+        String photoKey = photos.store(userId, objectName(idempotencyKey, fingerprint), clean, contentType);
         Diagnosis saved;
         try {
             Prediction prediction = predict(crop, clean);
@@ -182,7 +183,7 @@ public class DiagnosisService {
                     prediction.top3(), prediction.detectedCrop(), prediction.modelVersion(),
                     prediction.classesVersion(), prediction.inferenceMs(), idempotencyKey, fingerprint));
         } catch (DataIntegrityViolationException e) {
-            discard(photoKey, e);
+            discardUnkeyed(photoKey, idempotencyKey, e);
             // Lost the race on (user_id, idempotency_key): the other request's row is the answer
             Optional<Diagnosis> winner = idempotencyKey == null ? Optional.empty()
                     : diagnoses.findByUserIdAndIdempotencyKey(userId, idempotencyKey);
@@ -191,11 +192,33 @@ public class DiagnosisService {
             }
             return replay(winner.get(), crop, fingerprint);
         } catch (RuntimeException e) {
-            discard(photoKey, e);
+            discardUnkeyed(photoKey, idempotencyKey, e);
             throw e;
         }
         // Outside the try: the row is committed, so a failure here must not delete the photo it points to
         return new Created(views(List.of(saved)).get(0), false);
+    }
+
+    /**
+     * The object name inside the user's folder. With a key it is SHA-256 of {@code key + "\n" + fingerprint}:
+     * the same name always means the same Idempotency-Key <em>and</em> the same photo bytes, by construction.
+     * So no later request can write other bytes under the name of an existing diagnosis' photo, and the
+     * "immutable" cache header of the photo endpoint stays true. Without a key the name is random.
+     */
+    static String objectName(String idempotencyKey, String fingerprint) {
+        return idempotencyKey == null ? UUID.randomUUID().toString()
+                : fingerprint((idempotencyKey + "\n" + fingerprint).getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Without a key the object name is random and the photo is ours alone, so it is removed when the request
+     * fails. With a key the name is the same for every attempt, so another attempt may be using that very
+     * object: it is never removed here (an abandoned one is rare and harmless).
+     */
+    private void discardUnkeyed(String photoKey, String idempotencyKey, RuntimeException cause) {
+        if (idempotencyKey == null) {
+            discard(photoKey, cause);
+        }
     }
 
     private Created replay(Diagnosis existing, String crop, String fingerprint) {

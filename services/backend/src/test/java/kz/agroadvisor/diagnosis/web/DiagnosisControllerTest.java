@@ -191,7 +191,7 @@ class DiagnosisControllerTest {
 
     /**
      * The real race: another request with the same key commits its row while this one is in the model call.
-     * The unique index rejects this request's insert; it must drop its photo and return the winner's row.
+     * The unique index rejects this request's insert; it must return the winner's row and delete nothing.
      */
     @Test
     void aRequestThatLosesTheRaceOnTheKeyReturnsTheWinnersDiagnosis() throws Exception {
@@ -210,7 +210,8 @@ class DiagnosisControllerTest {
 
         assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10)))
                 .singleElement().satisfies(d -> assertThat(d.getPhotoKey()).isEqualTo("diagnoses/test/winner.jpg"));
-        verify(photos).delete("diagnoses/test/photo.jpg"); // the loser's photo is removed, the winner's stays
+        // With a key both requests use one object name, so the loser must not remove anything
+        verify(photos, never()).delete(anyString());
     }
 
     @Test
