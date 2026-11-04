@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MultipartFile;
 
 import kz.agroadvisor.diagnosis.service.DiagnosisService;
@@ -92,19 +93,26 @@ public class DiagnosisController {
 
     /**
      * The photo bytes for the owner only (the bucket is private, there are no public or presigned links).
-     * The photo of a diagnosis never changes, so it is cached for a year; the ETag is the object key.
+     * The photo of a diagnosis never changes, so it is cached for a year; the ETag is a hash of the object key.
      */
     @GetMapping("/{id}/photo")
     @PreAuthorize(FEATURE)
     @ApiResponse(responseCode = "200", description = "A JPEG or PNG photo",
             content = {@Content(mediaType = "image/jpeg", schema = @Schema(type = "string", format = "binary")),
                     @Content(mediaType = "image/png", schema = @Schema(type = "string", format = "binary"))})
-    public ResponseEntity<byte[]> photo(@PathVariable UUID id, Authentication authentication) {
-        PhotoContent photo = diagnoses.photo(UUID.fromString(authentication.getName()), id);
+    public ResponseEntity<byte[]> photo(@PathVariable UUID id, Authentication authentication, WebRequest request) {
+        String key = diagnoses.photoKey(UUID.fromString(authentication.getName()), id);
+        String etag = DiagnosisService.photoEtag(key);
+        CacheControl cache = CacheControl.maxAge(Duration.ofDays(365)).cachePrivate().immutable();
+        // A revalidation (If-None-Match) is answered 304 from the database row alone, without the download
+        if (request.checkNotModified(etag)) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(etag).cacheControl(cache).build();
+        }
+        PhotoContent photo = diagnoses.loadPhoto(id, key);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(photo.contentType()))
-                .cacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePrivate().immutable())
-                .eTag("\"" + photo.key() + "\"")
+                .cacheControl(cache)
+                .eTag(etag)
                 .header("X-Content-Type-Options", "nosniff")
                 .body(photo.bytes());
     }

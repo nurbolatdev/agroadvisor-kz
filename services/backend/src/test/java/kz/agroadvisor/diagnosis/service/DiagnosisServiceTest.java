@@ -177,12 +177,13 @@ class DiagnosisServiceTest {
     }
 
     @Test
-    void removesTheStoredPhotoWhenTheModelFails() {
+    void storesNothingWhenTheModelFails() {
         when(ai.predict("tomato", JPEG)).thenThrow(new IllegalStateException("model down"));
 
         assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(IllegalStateException.class);
 
-        verify(photos).delete("diagnoses/key.jpg");
+        verify(photos, never()).store(any(), anyString(), any(), anyString()); // the model is asked first
+        verify(photos, never()).delete(anyString());
         verify(diagnoses, never()).saveAndFlush(any(Diagnosis.class));
     }
 
@@ -211,13 +212,25 @@ class DiagnosisServiceTest {
     }
 
     @Test
-    void removesThePhotoWhenTheModelFailsAndNothingIsSaved() {
-        when(ai.predict("tomato", JPEG)).thenThrow(new IllegalStateException("model down"));
+    void removesTheUnkeyedPhotoWhenTheDiagnosisCannotBeSaved() {
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "placeholder-v0"));
+        when(diagnoses.saveAndFlush(any(Diagnosis.class))).thenThrow(new IllegalStateException("db down"));
 
         assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(IllegalStateException.class);
 
-        verify(photos).delete("diagnoses/key.jpg");
-        verify(diagnoses, never()).saveAndFlush(any(Diagnosis.class)); // no row without a photo, no photo without a row
+        verify(photos).delete("diagnoses/key.jpg"); // no photo without a row (the name is random: ours alone)
+    }
+
+    @Test
+    void keepsTheKeyedPhotoWhenTheDiagnosisCannotBeSaved() {
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "placeholder-v0"));
+        when(diagnoses.saveAndFlush(any(Diagnosis.class))).thenThrow(new IllegalStateException("db down"));
+
+        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG, "key-12345678"))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(photos, never()).delete(anyString()); // another attempt may use the same object
+        verify(claims).release(userId, "key-12345678", claimId);
     }
 
     private Diagnosis storedWithKey(String key) {
@@ -327,6 +340,21 @@ class DiagnosisServiceTest {
         verify(photos, never()).store(any(), anyString(), any(), anyString());
         verify(ai, never()).predict(anyString(), any());
         verify(claims, never()).tryClaim(any(), anyString(), anyString(), anyString());
+    }
+
+    /** The order that would call the model twice: the first lookup misses, the other request commits, our claim wins. */
+    @Test
+    void aDiagnosisCommittedJustBeforeOurClaimIsReplayedWithoutCallingTheModel() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678"))
+                .thenReturn(Optional.empty(), Optional.of(storedWithKey("key-12345678")));
+        when(diseases.findAllById(any())).thenReturn(List.of());
+
+        DiagnosisService.Created created = service.create(userId, "tomato", JPEG, "key-12345678");
+
+        assertThat(created.replayed()).isTrue();
+        verify(ai, never()).predict(anyString(), any());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
+        verify(claims).release(userId, "key-12345678", claimId);
     }
 
     @Test

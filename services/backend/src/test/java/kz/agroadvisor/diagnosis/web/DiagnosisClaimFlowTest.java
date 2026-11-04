@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.jayway.jsonpath.JsonPath;
@@ -114,6 +115,10 @@ class DiagnosisClaimFlowTest {
 
     private final Map<String, byte[]> objects = new ConcurrentHashMap<>();
     private final ExecutorService pool = Executors.newFixedThreadPool(4);
+    /** When set, the first upload waits on {@code storeRelease} before it writes anything. */
+    private final CountDownLatch storeEntered = new CountDownLatch(1);
+    private final AtomicBoolean storeHeld = new AtomicBoolean();
+    private volatile CountDownLatch storeRelease;
     private User farmer;
     private String token;
     private String key;
@@ -125,6 +130,10 @@ class DiagnosisClaimFlowTest {
         token = "Bearer " + jwt.issueAccessToken(farmer.getId());
         key = UUID.randomUUID().toString();
         when(photos.store(any(UUID.class), anyString(), any(byte[].class), anyString())).thenAnswer(call -> {
+            if (storeRelease != null && storeHeld.compareAndSet(false, true)) {
+                storeEntered.countDown();
+                assertThat(storeRelease.await(WAIT_SECONDS, TimeUnit.SECONDS)).isTrue();
+            }
             String objectKey = "diagnoses/" + call.getArgument(0) + "/" + call.getArgument(1) + ".jpg";
             objects.put(objectKey, call.<byte[]>getArgument(2).clone());
             return objectKey;
@@ -317,16 +326,11 @@ class DiagnosisClaimFlowTest {
         assertThat(count("diagnosis_requests")).isZero();
     }
 
-    /**
-     * The overwrite the object name exists to prevent: a diagnosis exists for (key, photo 1); later the same
-     * key arrives with photo 2. The first photo must stay as it was.
-     */
+    /** The ordinary case: the key of a finished diagnosis with other bytes is refused before anything is written. */
     @Test
-    void theSameKeyWithOtherBytesAfterTheClaimRowsAreSweptLeavesTheFirstPhotoAlone() throws Exception {
+    void theSameKeyWithOtherBytesAfterTheDiagnosisIsRefusedAndNothingIsWritten() throws Exception {
         post(JPEG).andExpect(status().isCreated());
         Map<String, byte[]> before = snapshot();
-
-        claims.deleteOlderThan(Duration.ZERO); // the hourly cleanup of claim rows has run
 
         post(OTHER_JPEG).andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("idempotency_key_reused"))
@@ -338,23 +342,24 @@ class DiagnosisClaimFlowTest {
     }
 
     /**
-     * The same overwrite through a real race: request A with photo 2 is still running when its claim row is
-     * swept; request B with photo 1 gets the key and finishes first. A must not write over B's photo, and its
-     * insert loses to B's diagnosis. (A's own object stays behind as an orphan under another name.)
+     * The overwrite the object name exists to prevent, through a real race: request A with photo 2 is about to
+     * upload when its claim row is swept; request B with photo 1 gets the key and finishes first. Only then does
+     * A write. With a name made from the key alone A would put photo 2 over B's photo; with the fingerprint in
+     * the name it writes another object, and its insert loses to B's diagnosis. (A's object stays behind as an
+     * orphan, see issue #69.)
      */
     @Test
     void aSweptClaimOfOtherBytesCannotWriteOverTheFinishedDiagnosisPhoto() throws Exception {
-        CountDownLatch entered = new CountDownLatch(1);
-        CountDownLatch release = holdFirstModelCall(entered, new CountDownLatch(1));
+        storeRelease = new CountDownLatch(1);
         Future<MvcResult> a = pool.submit(() -> post(OTHER_JPEG).andReturn());
-        assertThat(entered.await(WAIT_SECONDS, TimeUnit.SECONDS)).isTrue();
+        assertThat(storeEntered.await(WAIT_SECONDS, TimeUnit.SECONDS)).isTrue();
         ageClaim(Duration.ofHours(2));
         claims.deleteOlderThan(Duration.ofHours(1)); // the cleanup removes A's claim row while A still works
 
         post(JPEG).andExpect(status().isCreated());
         Diagnosis finished = diagnoses.findByUserIdAndIdempotencyKey(farmer.getId(), key).orElseThrow();
         byte[] firstPhoto = objects.get(finished.getPhotoKey()).clone();
-        release.countDown();
+        storeRelease.countDown(); // A uploads now, after B's diagnosis exists
 
         MvcResult late = a.get(WAIT_SECONDS, TimeUnit.SECONDS);
         assertThat(late.getResponse().getStatus()).isEqualTo(422);

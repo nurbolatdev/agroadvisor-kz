@@ -98,7 +98,8 @@ class DiagnosisAiIntegrationTest {
     }
 
     private void nothingIsKept() {
-        verify(photos).delete("diagnoses/test/photo.jpg");
+        verify(photos, never()).store(any(UUID.class), anyString(), any(byte[].class), anyString());
+        verify(photos, never()).delete(anyString());
         assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10))).isEmpty();
     }
 

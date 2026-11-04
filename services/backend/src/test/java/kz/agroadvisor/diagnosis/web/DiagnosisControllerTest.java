@@ -360,8 +360,36 @@ class DiagnosisControllerTest {
                 .andExpect(content().contentType("image/jpeg"))
                 .andExpect(content().bytes(JPEG))
                 .andExpect(header().string("Cache-Control", "max-age=31536000, private, immutable"))
-                .andExpect(header().string("ETag", "\"diagnoses/test/photo.jpg\""))
+                .andExpect(header().string("ETag", DiagnosisService.photoEtag("diagnoses/test/photo.jpg")))
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"));
+    }
+
+    @Test
+    void aRevalidationIsAnswered304WithoutDownloadingThePhoto() throws Exception {
+        String id = createDiagnosis(token);
+        String etag = DiagnosisService.photoEtag("diagnoses/test/photo.jpg");
+
+        mvc.perform(get("/api/diagnoses/" + id + "/photo").header("Authorization", token)
+                        .header("If-None-Match", etag))
+                .andExpect(status().isNotModified())
+                .andExpect(header().string("ETag", etag));
+        verify(photos, never()).load(anyString());
+    }
+
+    @Test
+    void theEtagDoesNotShowTheObjectKeyOrTheUserId() {
+        assertThat(DiagnosisService.photoEtag("diagnoses/" + farmer.getId() + "/x.jpg"))
+                .matches("\"[0-9a-f]{64}\"");
+    }
+
+    @Test
+    void anotherUsersRevalidationIs404NotA304() throws Exception {
+        String id = createDiagnosis(token);
+        String stranger = "Bearer " + jwt.issueAccessToken(newUser().getId());
+
+        mvc.perform(get("/api/diagnoses/" + id + "/photo").header("Authorization", stranger)
+                        .header("If-None-Match", DiagnosisService.photoEtag("diagnoses/test/photo.jpg")))
+                .andExpect(status().isNotFound());
     }
 
     @Test

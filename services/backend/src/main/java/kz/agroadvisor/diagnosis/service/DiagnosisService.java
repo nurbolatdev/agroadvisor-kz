@@ -122,15 +122,29 @@ public class DiagnosisService {
         return views(List.of(owned(userId, id))).get(0);
     }
 
-    /** The photo of one of the caller's diagnoses. A missing object is a storage fault, logged as ERROR. */
-    @Transactional(readOnly = true)
-    public PhotoContent photo(UUID userId, UUID id) {
-        String key = owned(userId, id).getPhotoKey();
+    /**
+     * The object key of one of the caller's diagnoses (another user's and a missing id are the same 404). A
+     * single repository read; no transaction stays open while the photo is downloaded from the storage.
+     */
+    public String photoKey(UUID userId, UUID id) {
+        return owned(userId, id).getPhotoKey();
+    }
+
+    /** The photo bytes by object key. A missing object is a storage fault, logged as ERROR. */
+    public PhotoContent loadPhoto(UUID diagnosisId, String key) {
         byte[] bytes = photos.load(key).orElseThrow(() -> {
-            log.error("Photo object '{}' of diagnosis {} is missing from the storage", key, id);
+            log.error("Photo object '{}' of diagnosis {} is missing from the storage", key, diagnosisId);
             return new ApiException(HttpStatus.NOT_FOUND, DiagnosisErrors.PHOTO_NOT_FOUND, "The photo is not found");
         });
         return new PhotoContent(bytes, key.endsWith(".png") ? "image/png" : "image/jpeg", key);
+    }
+
+    /**
+     * The ETag of a photo: a hash of its object key. The photo of a diagnosis never changes, so the key is a
+     * stable validator; hashing keeps the user id inside the key off the wire.
+     */
+    public static String photoEtag(String key) {
+        return "\"" + fingerprint(key.getBytes(StandardCharsets.UTF_8)) + "\"";
     }
 
     private Diagnosis owned(UUID userId, UUID id) {
@@ -157,8 +171,10 @@ public class DiagnosisService {
      * finish together, one wins and the other returns its row.
      *
      * <p>Order matters: the key is looked up (and a live claim answered with 409) before the rate limit, so a
-     * replay or a 409 never spends the user's diagnosis limit; the limit is checked before the photo is
-     * validated, stored or sent to the model.
+     * replay or a 409 found there never spends the user's diagnosis limit (a request that loses the claim in a
+     * race at the very start has spent a token by then); the limit is checked before the photo is validated,
+     * sent to the model or stored. The model is asked before the photo is stored, so a model failure writes
+     * nothing.
      */
     public Created create(UUID userId, String crop, byte[] photo, String idempotencyKey) {
         if (idempotencyKey != null && !IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {
@@ -200,8 +216,9 @@ public class DiagnosisService {
         try {
             // The fingerprint above is of the client's bytes; what is kept and sent to the model has no metadata
             byte[] clean = strip(photo);
-            photoKey = photos.store(userId, objectName(idempotencyKey, fingerprint), clean, contentType);
+            // The model first: when it is down nothing is written, and a keyed request leaves no object behind
             Prediction prediction = predict(crop, clean);
+            photoKey = photos.store(userId, objectName(idempotencyKey, fingerprint), clean, contentType);
             saved = finish(userId, crop, photoKey, prediction, idempotencyKey, fingerprint, claimId);
         } catch (DataIntegrityViolationException e) {
             // Lost the race on (user_id, idempotency_key): the other request's row is the answer
@@ -237,7 +254,7 @@ public class DiagnosisService {
             Optional<UUID> claim = claims.tryClaim(userId, key, fingerprint, crop);
             if (claim.isPresent()) {
                 meters.counter("agroadvisor.diagnosis.claims", "outcome", "acquired").increment();
-                return new Acquired(claim.get(), null);
+                return confirmed(userId, key, claim.get());
             }
             Optional<Diagnosis> finished = diagnoses.findByUserIdAndIdempotencyKey(userId, key);
             if (finished.isPresent()) {
@@ -252,10 +269,25 @@ public class DiagnosisService {
             if (taken.isPresent()) {
                 meters.counter("agroadvisor.diagnosis.claims", "outcome", "taken_over").increment();
                 log.warn("Took over an expired claim of key {} of user {}", key, userId);
-                return new Acquired(taken.get(), null);
+                return confirmed(userId, key, taken.get());
             }
         }
         throw inProgress();
+    }
+
+    /**
+     * Looks for a finished diagnosis again once the claim is ours. Without this a request that looked for the
+     * diagnosis just before another request committed it (diagnosis inserted and claim deleted in one
+     * transaction) could win a fresh claim right after and call the model a second time. From here the window
+     * is closed: a claim can only be created after that commit, and then the diagnosis is visible.
+     */
+    private Acquired confirmed(UUID userId, String key, UUID claimId) {
+        Optional<Diagnosis> finished = diagnoses.findByUserIdAndIdempotencyKey(userId, key);
+        if (finished.isEmpty()) {
+            return new Acquired(claimId, null);
+        }
+        claims.release(userId, key, claimId);
+        return new Acquired(null, finished.get());
     }
 
     /** A claim for other bytes or another crop is 422, a live one is 409; an expired one passes. */
