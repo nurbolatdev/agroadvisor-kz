@@ -191,7 +191,7 @@ class DiagnosisControllerTest {
 
     /**
      * The real race: another request with the same key commits its row while this one is in the model call.
-     * The unique index rejects this request's insert; it must return the winner's row and delete nothing.
+     * The unique index rejects this request's insert; it must return the winner's row and free its claim.
      */
     @Test
     void aRequestThatLosesTheRaceOnTheKeyReturnsTheWinnersDiagnosis() throws Exception {
@@ -212,6 +212,14 @@ class DiagnosisControllerTest {
                 .singleElement().satisfies(d -> assertThat(d.getPhotoKey()).isEqualTo("diagnoses/test/winner.jpg"));
         // With a key both requests use one object name, so the loser must not remove anything
         verify(photos, never()).delete(anyString());
+        assertThat(claimRows(farmer.getId())).isZero(); // the loser released its claim
+    }
+
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    private long claimRows(UUID userId) {
+        return jdbc.queryForObject("SELECT count(*) FROM diagnosis_requests WHERE user_id = ?", Long.class, userId);
     }
 
     @Test
