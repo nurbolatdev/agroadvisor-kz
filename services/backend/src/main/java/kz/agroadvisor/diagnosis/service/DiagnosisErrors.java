@@ -20,6 +20,8 @@ public final class DiagnosisErrors {
 
     /** The {@code Idempotency-Key} header is not 8-80 characters of letters, digits, {@code - _ . :} (400). */
     public static final String INVALID_IDEMPOTENCY_KEY = "invalid_idempotency_key";
+    /** Another request with the same key is being processed right now; retry after {@code Retry-After} (409). */
+    public static final String REQUEST_IN_PROGRESS = "request_in_progress";
     /** The key was already used for a diagnosis of another crop (422). */
     public static final String IDEMPOTENCY_KEY_REUSED = "idempotency_key_reused";
 
