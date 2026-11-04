@@ -247,6 +247,11 @@
           "modelVersion" : {
             "type" : "string"
           },
+          "photoUrl" : {
+            "description" : "Relative path of the photo; GET it with the same token",
+            "example" : "/api/diagnoses/0b1f2c3d-0000-4000-8000-000000000000/photo",
+            "type" : "string"
+          },
           "placeholder" : {
             "type" : "boolean"
           },
@@ -264,7 +269,7 @@
             "type" : "array"
           }
         },
-        "required" : [ "classesVersion", "createdAt", "crop", "descriptionReady", "id", "modelVersion", "placeholder", "status", "top1", "top3" ],
+        "required" : [ "classesVersion", "createdAt", "crop", "descriptionReady", "id", "modelVersion", "photoUrl", "placeholder", "status", "top1", "top3" ],
         "type" : "object"
       },
       "DiseaseBody" : {
@@ -1536,7 +1541,7 @@
             "type" : "string"
           }
         }, {
-          "description" : "One key per diagnosis attempt (a UUID fits); resend the same request with it when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key. A repeat does not spend the diagnosis rate limit.",
+          "description" : "One key per diagnosis attempt (a UUID fits); resend the same request with it when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key. A repeat does not spend the diagnosis rate limit. While the first request with the key is still being processed, another one gets 409 request_in_progress with Retry-After: 2 (seconds); the model is not called again and the limit is not spent.",
           "in" : "header",
           "name" : "Idempotency-Key",
           "required" : false,
@@ -1583,6 +1588,87 @@
                 "style" : "simple"
               }
             }
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DiagnosisView"
+                }
+              }
+            },
+            "description" : "request_in_progress: a request with the same Idempotency-Key is still being processed; repeat after the seconds in Retry-After",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds to wait before repeating the request",
+                "schema" : {
+                  "example" : "2",
+                  "type" : "string"
+                },
+                "style" : "simple"
+              }
+            }
+          }
+        },
+        "tags" : [ "diagnosis-controller" ]
+      }
+    },
+    "/api/diagnoses/{id}" : {
+      "get" : {
+        "operationId" : "get",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DiagnosisView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "diagnosis-controller" ]
+      }
+    },
+    "/api/diagnoses/{id}/photo" : {
+      "get" : {
+        "operationId" : "photo",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "image/jpeg" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              },
+              "image/png" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "A JPEG or PNG photo"
           }
         },
         "tags" : [ "diagnosis-controller" ]

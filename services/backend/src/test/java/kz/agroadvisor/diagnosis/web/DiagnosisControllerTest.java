@@ -79,7 +79,7 @@ class DiagnosisControllerTest {
     void signIn() {
         farmer = newUser();
         token = "Bearer " + jwt.issueAccessToken(farmer.getId());
-        when(photos.store(any(UUID.class), any(byte[].class), anyString())).thenReturn("diagnoses/test/photo.jpg");
+        when(photos.store(any(UUID.class), anyString(), any(byte[].class), anyString())).thenReturn("diagnoses/test/photo.jpg");
     }
 
     private User newUser() {
@@ -134,7 +134,7 @@ class DiagnosisControllerTest {
                     assertThat(d.getPhotoKey()).isEqualTo("diagnoses/test/photo.jpg");
                     assertThat(d.getTop1Code()).isEqualTo("tomato__healthy");
                 });
-        verify(photos).store(eq(farmer.getId()), any(byte[].class), eq("image/jpeg"));
+        verify(photos).store(eq(farmer.getId()), anyString(), any(byte[].class), eq("image/jpeg"));
     }
 
     @Test
@@ -143,7 +143,7 @@ class DiagnosisControllerTest {
                         .header("Authorization", token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("unknown_crop"));
-        verify(photos, never()).store(any(UUID.class), any(byte[].class), anyString());
+        verify(photos, never()).store(any(UUID.class), anyString(), any(byte[].class), anyString());
     }
 
     @Test
@@ -153,7 +153,7 @@ class DiagnosisControllerTest {
         mvc.perform(multipart("/api/diagnoses").file(text).param("crop", "tomato").header("Authorization", token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("invalid_image"));
-        verify(photos, never()).store(any(UUID.class), any(byte[].class), anyString());
+        verify(photos, never()).store(any(UUID.class), anyString(), any(byte[].class), anyString());
     }
 
     @Test
@@ -161,7 +161,7 @@ class DiagnosisControllerTest {
         mvc.perform(multipart("/api/diagnoses").file(image("image/jpg")).param("crop", "tomato")
                         .header("Authorization", token))
                 .andExpect(status().isCreated());
-        verify(photos).store(eq(farmer.getId()), any(byte[].class), eq("image/jpeg"));
+        verify(photos).store(eq(farmer.getId()), anyString(), any(byte[].class), eq("image/jpeg"));
     }
 
     @Test
@@ -186,12 +186,12 @@ class DiagnosisControllerTest {
                 .andExpect(content().json(first));
 
         assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10))).hasSize(1);
-        verify(photos, times(1)).store(eq(farmer.getId()), any(byte[].class), anyString());
+        verify(photos, times(1)).store(eq(farmer.getId()), anyString(), any(byte[].class), anyString());
     }
 
     /**
      * The real race: another request with the same key commits its row while this one is in the model call.
-     * The unique index rejects this request's insert; it must drop its photo and return the winner's row.
+     * The unique index rejects this request's insert; it must return the winner's row and free its claim.
      */
     @Test
     void aRequestThatLosesTheRaceOnTheKeyReturnsTheWinnersDiagnosis() throws Exception {
@@ -210,7 +210,16 @@ class DiagnosisControllerTest {
 
         assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10)))
                 .singleElement().satisfies(d -> assertThat(d.getPhotoKey()).isEqualTo("diagnoses/test/winner.jpg"));
-        verify(photos).delete("diagnoses/test/photo.jpg"); // the loser's photo is removed, the winner's stays
+        // With a key both requests use one object name, so the loser must not remove anything
+        verify(photos, never()).delete(anyString());
+        assertThat(claimRows(farmer.getId())).isZero(); // the loser released its claim
+    }
+
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    private long claimRows(UUID userId) {
+        return jdbc.queryForObject("SELECT count(*) FROM diagnosis_requests WHERE user_id = ?", Long.class, userId);
     }
 
     @Test
@@ -264,7 +273,7 @@ class DiagnosisControllerTest {
                 .andExpect(jsonPath("$.code").value("idempotency_key_reused"))
                 .andExpect(jsonPath("$.reason").value("photo"));
         assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10))).hasSize(1);
-        verify(photos, times(1)).store(eq(farmer.getId()), any(byte[].class), anyString());
+        verify(photos, times(1)).store(eq(farmer.getId()), anyString(), any(byte[].class), anyString());
     }
 
     @Test
@@ -273,7 +282,7 @@ class DiagnosisControllerTest {
                         .header("Authorization", token).header("Idempotency-Key", "bad key"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("invalid_idempotency_key"));
-        verify(photos, never()).store(any(UUID.class), any(byte[].class), anyString());
+        verify(photos, never()).store(any(UUID.class), anyString(), any(byte[].class), anyString());
     }
 
     @Test
@@ -291,6 +300,106 @@ class DiagnosisControllerTest {
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].crop").value("potato"))
                 .andExpect(jsonPath("$[1].crop").value("tomato"));
+    }
+
+    /** Creates a diagnosis through the API as the given token and returns its id. */
+    private String createDiagnosis(String bearer) throws Exception {
+        String body = mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                        .header("Authorization", bearer))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.photoUrl").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+        return com.jayway.jsonpath.JsonPath.read(body, "$.id");
+    }
+
+    @Test
+    void theOwnerReadsADiagnosisByIdWithThePhotoUrl() throws Exception {
+        String id = createDiagnosis(token);
+
+        mvc.perform(get("/api/diagnoses/" + id).header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.top1.code").value("tomato__healthy"))
+                .andExpect(jsonPath("$.photoUrl").value("/api/diagnoses/" + id + "/photo"));
+    }
+
+    @Test
+    void anotherUsersAndAMissingDiagnosisGiveTheSame404() throws Exception {
+        String id = createDiagnosis(token);
+        String stranger = "Bearer " + jwt.issueAccessToken(newUser().getId());
+
+        String foreign = mvc.perform(get("/api/diagnoses/" + id).header("Authorization", stranger))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("diagnosis_not_found"))
+                .andReturn().getResponse().getContentAsString();
+        String missing = mvc.perform(get("/api/diagnoses/" + UUID.randomUUID()).header("Authorization", stranger))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("diagnosis_not_found"))
+                .andReturn().getResponse().getContentAsString();
+        // Same body apart from the request-specific fields: nothing tells a foreign id from a missing one
+        assertThat(com.jayway.jsonpath.JsonPath.<String>read(foreign, "$.detail"))
+                .isEqualTo(com.jayway.jsonpath.JsonPath.<String>read(missing, "$.detail"));
+        mvc.perform(get("/api/diagnoses/" + id + "/photo").header("Authorization", stranger))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("diagnosis_not_found"));
+    }
+
+    @Test
+    void readingByIdRequiresSignIn() throws Exception {
+        mvc.perform(get("/api/diagnoses/" + UUID.randomUUID())).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/diagnoses/" + UUID.randomUUID() + "/photo")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void theOwnerGetsThePhotoBytesWithCacheHeaders() throws Exception {
+        String id = createDiagnosis(token);
+        when(photos.load("diagnoses/test/photo.jpg")).thenReturn(java.util.Optional.of(JPEG));
+
+        mvc.perform(get("/api/diagnoses/" + id + "/photo").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("image/jpeg"))
+                .andExpect(content().bytes(JPEG))
+                .andExpect(header().string("Cache-Control", "max-age=31536000, private, immutable"))
+                .andExpect(header().string("ETag", DiagnosisService.photoEtag("diagnoses/test/photo.jpg")))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"));
+    }
+
+    @Test
+    void aRevalidationIsAnswered304WithoutDownloadingThePhoto() throws Exception {
+        String id = createDiagnosis(token);
+        String etag = DiagnosisService.photoEtag("diagnoses/test/photo.jpg");
+
+        mvc.perform(get("/api/diagnoses/" + id + "/photo").header("Authorization", token)
+                        .header("If-None-Match", etag))
+                .andExpect(status().isNotModified())
+                .andExpect(header().string("ETag", etag));
+        verify(photos, never()).load(anyString());
+    }
+
+    @Test
+    void theEtagDoesNotShowTheObjectKeyOrTheUserId() {
+        assertThat(DiagnosisService.photoEtag("diagnoses/" + farmer.getId() + "/x.jpg"))
+                .matches("\"[0-9a-f]{64}\"");
+    }
+
+    @Test
+    void anotherUsersRevalidationIs404NotA304() throws Exception {
+        String id = createDiagnosis(token);
+        String stranger = "Bearer " + jwt.issueAccessToken(newUser().getId());
+
+        mvc.perform(get("/api/diagnoses/" + id + "/photo").header("Authorization", stranger)
+                        .header("If-None-Match", DiagnosisService.photoEtag("diagnoses/test/photo.jpg")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void aPhotoMissingFromTheStorageIs404PhotoNotFound() throws Exception {
+        String id = createDiagnosis(token);
+        when(photos.load(anyString())).thenReturn(java.util.Optional.empty());
+
+        mvc.perform(get("/api/diagnoses/" + id + "/photo").header("Authorization", token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("photo_not_found"));
     }
 
     @Test

@@ -22,6 +22,7 @@ function result(status: DiagnosisResult['status'] = 'ok'): DiagnosisResult {
     classesVersion: 1,
     placeholder: false,
     descriptionReady: true,
+    photoUrl: '/api/diagnoses/d1/photo',
     createdAt: '2026-11-03T10:00:00Z',
   }
 }

@@ -88,7 +88,7 @@ class DiagnosisAiIntegrationTest {
         String phone = "+7706" + (1_000_000 + (int) (Math.random() * 8_999_999));
         farmer = users.saveAndFlush(new User(Login.parse(phone), "x", "Farmer", "ru", Set.of(Role.FARMER)));
         token = "Bearer " + jwt.issueAccessToken(farmer.getId());
-        when(photos.store(any(UUID.class), any(byte[].class), anyString())).thenReturn("diagnoses/test/photo.jpg");
+        when(photos.store(any(UUID.class), anyString(), any(byte[].class), anyString())).thenReturn("diagnoses/test/photo.jpg");
     }
 
     private ResultActions send(String crop) throws Exception {
@@ -98,7 +98,8 @@ class DiagnosisAiIntegrationTest {
     }
 
     private void nothingIsKept() {
-        verify(photos).delete("diagnoses/test/photo.jpg");
+        verify(photos, never()).store(any(UUID.class), anyString(), any(byte[].class), anyString());
+        verify(photos, never()).delete(anyString());
         assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10))).isEmpty();
     }
 
@@ -194,7 +195,7 @@ class DiagnosisAiIntegrationTest {
 
         send("banana").andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("unknown_crop"));
 
-        verify(photos, never()).store(eq(farmer.getId()), any(byte[].class), anyString());
+        verify(photos, never()).store(eq(farmer.getId()), anyString(), any(byte[].class), anyString());
         assertThat(AI.predictCalls()).isZero();
     }
 }

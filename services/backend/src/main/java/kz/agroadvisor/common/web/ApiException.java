@@ -1,5 +1,8 @@
 package kz.agroadvisor.common.web;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 
 /**
@@ -15,6 +18,7 @@ public class ApiException extends RuntimeException {
     private final HttpStatus status;
     private final String code;
     private final String reason;
+    private final Map<String, String> headers = new LinkedHashMap<>();
 
     public ApiException(HttpStatus status, String code, String detail) {
         this(status, code, detail, null);
@@ -25,6 +29,17 @@ public class ApiException extends RuntimeException {
         this.status = status;
         this.code = code;
         this.reason = reason;
+    }
+
+    /** Adds a response header, e.g. {@code Retry-After}; returns this so that it can be chained on a throw. */
+    public ApiException withHeader(String name, String value) {
+        headers.put(name, value);
+        return this;
+    }
+
+    /** Extra response headers of this error, usually none. */
+    public Map<String, String> getHeaders() {
+        return Map.copyOf(headers);
     }
 
     public HttpStatus getStatus() {

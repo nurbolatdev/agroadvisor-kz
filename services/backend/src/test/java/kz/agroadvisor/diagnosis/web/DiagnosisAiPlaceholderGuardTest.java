@@ -4,6 +4,7 @@ import static kz.agroadvisor.diagnosis.web.FakeAiService.TOMATO_SEPTORIA;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -79,7 +80,7 @@ class DiagnosisAiPlaceholderGuardTest {
         String phone = "+7709" + (1_000_000 + (int) (Math.random() * 8_999_999));
         farmer = users.saveAndFlush(new User(Login.parse(phone), "x", "Farmer", "ru", Set.of(Role.FARMER)));
         token = "Bearer " + jwt.issueAccessToken(farmer.getId());
-        when(photos.store(any(UUID.class), any(byte[].class), anyString())).thenReturn("diagnoses/test/photo.jpg");
+        when(photos.store(any(UUID.class), anyString(), any(byte[].class), anyString())).thenReturn("diagnoses/test/photo.jpg");
     }
 
     private org.springframework.test.web.servlet.ResultActions send() throws Exception {
@@ -89,13 +90,14 @@ class DiagnosisAiPlaceholderGuardTest {
     }
 
     @Test
-    void aPlaceholderAnswerIsRefusedThePhotoIsDeletedAndNoDiagnosisIsSaved() throws Exception {
+    void aPlaceholderAnswerIsRefusedNothingIsStoredAndNoDiagnosisIsSaved() throws Exception {
         AI.answers(200, TOMATO_SEPTORIA.replace("effnet-b0-v1", "placeholder-v0"));
 
         send().andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("ai_unavailable"));
 
-        verify(photos).delete("diagnoses/test/photo.jpg");
+        verify(photos, never()).store(any(UUID.class), anyString(), any(byte[].class), anyString());
+        verify(photos, never()).delete(anyString());
         assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10))).isEmpty();
     }
 

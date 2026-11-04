@@ -1,6 +1,8 @@
 package kz.agroadvisor.diagnosis.service;
 
+import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +11,8 @@ import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import kz.agroadvisor.common.web.ApiException;
@@ -17,6 +21,8 @@ import kz.agroadvisor.common.web.ApiException;
 public class S3PhotoStorage implements PhotoStorage {
 
     private static final Logger log = LoggerFactory.getLogger(S3PhotoStorage.class);
+
+    private static final Pattern NAME = Pattern.compile("[A-Za-z0-9-]{1,64}");
 
     private final S3Client s3;
     private final String bucket;
@@ -28,8 +34,11 @@ public class S3PhotoStorage implements PhotoStorage {
 
     /** An unreachable or stuck storage is reported as 503 with a stable code, not as a bare 500. */
     @Override
-    public String store(UUID userId, byte[] photo, String contentType) {
-        String key = "diagnoses/" + userId + "/" + UUID.randomUUID() + extension(contentType);
+    public String store(UUID userId, String name, byte[] photo, String contentType) {
+        if (!NAME.matcher(name).matches()) {
+            throw new IllegalArgumentException("Object name must be 1-64 letters, digits or hyphens");
+        }
+        String key = "diagnoses/" + userId + "/" + name + extension(contentType);
         try {
             s3.putObject(PutObjectRequest.builder()
                     .bucket(bucket)
@@ -43,6 +52,20 @@ public class S3PhotoStorage implements PhotoStorage {
                     "Photo storage is unavailable, try again later");
         }
         return key;
+    }
+
+    @Override
+    public Optional<byte[]> load(String key) {
+        try {
+            return Optional.of(s3.getObjectAsBytes(GetObjectRequest.builder().bucket(bucket).key(key).build())
+                    .asByteArray());
+        } catch (NoSuchKeyException e) {
+            return Optional.empty();
+        } catch (SdkException e) {
+            log.warn("Photo download from bucket '{}' failed: {}", bucket, e.toString());
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, DiagnosisErrors.STORAGE_UNAVAILABLE,
+                    "Photo storage is unavailable, try again later");
+        }
     }
 
     @Override

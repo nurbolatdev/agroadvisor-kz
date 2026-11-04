@@ -38,6 +38,7 @@ export function createMockDiagnosisApi({
         classesVersion: 1,
         placeholder: true,
         descriptionReady: false,
+        photoUrl: `/api/diagnoses/00000000-0000-4000-8000-${String(count).padStart(12, '0')}/photo`,
         createdAt: new Date(now()).toISOString(),
       }
       made.set(pending.key, result)

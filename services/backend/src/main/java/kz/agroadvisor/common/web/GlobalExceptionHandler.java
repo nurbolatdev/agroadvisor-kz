@@ -30,13 +30,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ApiException.class)
-    public ProblemDetail handleApiException(ApiException ex) {
+    public ResponseEntity<ProblemDetail> handleApiException(ApiException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.getStatus(), ex.getMessage());
         problem.setProperty("code", ex.getCode());
         if (ex.getReason() != null) {
             problem.setProperty("reason", ex.getReason());
         }
-        return problem;
+        ResponseEntity.BodyBuilder response = ResponseEntity.status(ex.getStatus());
+        ex.getHeaders().forEach(response::header);
+        return response.body(problem);
     }
 
     // Thrown by @PreAuthorize inside controllers; without these the catch-all below would answer 500

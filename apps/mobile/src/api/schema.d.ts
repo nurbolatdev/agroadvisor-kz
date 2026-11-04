@@ -330,6 +330,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/diagnoses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/diagnoses/{id}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["photo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/diseases": {
         parameters: {
             query?: never;
@@ -480,6 +512,11 @@ export interface components {
             /** Format: uuid */
             id: string;
             modelVersion: string;
+            /**
+             * @description Relative path of the photo; GET it with the same token
+             * @example /api/diagnoses/0b1f2c3d-0000-4000-8000-000000000000/photo
+             */
+            photoUrl: string;
             placeholder: boolean;
             /** @enum {string} */
             status: "ok" | "low_confidence" | "unknown" | "crop_mismatch";
@@ -1314,7 +1351,7 @@ export interface operations {
                 crop: string;
             };
             header?: {
-                /** @description One key per diagnosis attempt (a UUID fits); resend the same request with it when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key. A repeat does not spend the diagnosis rate limit. */
+                /** @description One key per diagnosis attempt (a UUID fits); resend the same request with it when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key. A repeat does not spend the diagnosis rate limit. While the first request with the key is still being processed, another one gets 409 request_in_progress with Retry-After: 2 (seconds); the model is not called again and the limit is not spent. */
                 "Idempotency-Key"?: string;
             };
             path?: never;
@@ -1338,6 +1375,62 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DiagnosisView"];
+                };
+            };
+            /** @description request_in_progress: a request with the same Idempotency-Key is still being processed; repeat after the seconds in Retry-After */
+            409: {
+                headers: {
+                    /** @description Seconds to wait before repeating the request */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DiagnosisView"];
+                };
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DiagnosisView"];
+                };
+            };
+        };
+    };
+    photo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A JPEG or PNG photo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
                 };
             };
         };

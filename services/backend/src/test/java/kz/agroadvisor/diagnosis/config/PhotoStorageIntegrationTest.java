@@ -76,7 +76,7 @@ class PhotoStorageIntegrationTest {
         byte[] photo = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 1, 2, 3, 4, 5};
         UUID userId = UUID.randomUUID();
 
-        String key = storage.store(userId, photo, "image/jpeg");
+        String key = storage.store(userId, "photo-1", photo, "image/jpeg");
 
         assertThat(key).startsWith("diagnoses/" + userId + "/").endsWith(".jpg");
         var stored = s3.getObject(GetObjectRequest.builder().bucket(BUCKET).key(key).build(),

@@ -1,6 +1,6 @@
 # Database ER diagram
 
-PostgreSQL 16 + PostGIS. The schema is owned by Flyway migrations in [`services/backend/src/main/resources/db/migration`](../../services/backend/src/main/resources/db/migration); this page describes migrations `V1`–`V13`.
+PostgreSQL 16 + PostGIS. The schema is owned by Flyway migrations in [`services/backend/src/main/resources/db/migration`](../../services/backend/src/main/resources/db/migration); this page describes migrations `V1`–`V14`.
 
 Conventions:
 
@@ -30,6 +30,8 @@ erDiagram
     feature ||--o{ plan_feature : "included in"
     users ||--o{ refresh_tokens : "signed in with"
     users ||--o{ diagnoses : requests
+    users ||--o{ diagnosis_requests : "claims while processing"
+    crops ||--o{ diagnosis_requests : "chosen crop"
     crops ||--o{ diagnoses : "chosen crop"
     districts |o--o{ diagnoses : "made in"
 
@@ -160,6 +162,15 @@ erDiagram
         bigint district_id FK
         geometry location "Point, nullable"
     }
+
+    diagnosis_requests {
+        uuid user_id PK, FK
+        varchar idempotency_key PK
+        char request_fingerprint "SHA-256 hex of the photo being processed"
+        varchar crop_code FK
+        uuid claim_id "fencing token, changes on takeover"
+        timestamptz started_at "database clock"
+    }
 ```
 
 Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` with features `diagnosis`, `community`, `consultations`, `disease_map`, `weather`, `calculator`, `shops`, `catalog` — all unlimited. `V8`–`V10` add the crops (tomato, potato, corn, wheat), the `unknown` class, the diseases of the model's classes and their treatments, with draft texts: the Kazakh texts are not checked by a native speaker and treatments must be confirmed by an agrochemist. Regions and districts are still empty.
@@ -172,6 +183,7 @@ Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` wit
 - **Documents (`V13`).** `agrochemist_documents` records what the stored object is: `content_type` (recognised from the file's first bytes at upload, never from the client's header) and `size_bytes`, so the admin can be given the file with the right type. The migration refuses to apply if the table already has rows (nothing wrote to it before the verification API).
 - **Refresh tokens (`V6`).** Only the SHA-256 of the opaque token is stored. Tokens of one sign-in on one device form a family: each refresh marks the old token as used and issues a new one; presenting a used token revokes the family.
 - **Idempotency (`V11`, `V12`).** `POST /api/diagnoses` may carry an `Idempotency-Key`. A partial unique index on `(user_id, idempotency_key)` (rows without a key do not collide) makes a repeat return the first diagnosis. A check constraint requires `request_fingerprint` whenever there is a key, so a repeat can tell the same photo from another one.
+- **Claims (`V14`).** `diagnosis_requests` has a row only while a request with an `Idempotency-Key` is being processed, so a second request with the same key does not call the model again. The primary key `(user_id, idempotency_key)` is the claim (`INSERT … ON CONFLICT DO NOTHING`); no lock is held while the model runs. `claim_id` is a fencing token: a claim older than `app.diagnosis.claim-timeout` is taken over by writing a new `claim_id` (only for the same `request_fingerprint` and crop), and a request releases or finishes only the claim whose `claim_id` it holds. `started_at` is the database clock. The row is deleted in the same transaction that inserts the diagnosis; abandoned rows are removed after an hour. The result stays protected by the unique index of `V11`. The photo object of a request with a key is named `SHA-256(key + "\n" + fingerprint)`, so one name always means the same bytes.
 - **`diseases.kind` (`V7`)** has `oomycete` for late blight (*Phytophthora*), which is neither a fungus nor a bacterium: the treatment and the advice differ.
 - **Feature access.** Code checks whether the user's plan includes a feature instead of checking roles, so paid plans can be added later as data. Today everyone is on `FREE` and nothing is limited; the per-minute diagnosis rate limit lives in Redis, not in the database.
 

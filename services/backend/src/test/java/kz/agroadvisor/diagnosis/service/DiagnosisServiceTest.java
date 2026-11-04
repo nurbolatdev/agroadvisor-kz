@@ -15,6 +15,9 @@ import org.mockito.InOrder;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import kz.agroadvisor.catalog.model.Disease;
 import kz.agroadvisor.catalog.repository.DiseaseRepository;
@@ -22,8 +25,10 @@ import kz.agroadvisor.common.image.ImageMetadataStripper;
 import kz.agroadvisor.common.ratelimit.RateLimitProperties;
 import kz.agroadvisor.common.ratelimit.RateLimiter;
 import kz.agroadvisor.common.web.ApiException;
+import kz.agroadvisor.diagnosis.config.DiagnosisProperties;
 import kz.agroadvisor.diagnosis.model.ClassScore;
 import kz.agroadvisor.diagnosis.model.Diagnosis;
+import kz.agroadvisor.diagnosis.repository.DiagnosisClaims;
 import kz.agroadvisor.diagnosis.repository.DiagnosisRepository;
 import kz.agroadvisor.diagnosis.service.DiagnosisService.DiagnosisView;
 
@@ -36,6 +41,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -54,15 +60,22 @@ class DiagnosisServiceTest {
     private final DiseaseRepository diseases = mock(DiseaseRepository.class);
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
     private final RateLimiter limiter = mock(RateLimiter.class);
+    private final DiagnosisClaims claims = mock(DiagnosisClaims.class);
+    private final PlatformTransactionManager txManager = mock(PlatformTransactionManager.class);
     private final DiagnosisService service = new DiagnosisService(ai, photos, diagnoses, diseases, meters, limiter,
-            new RateLimitProperties(5), new ImageMetadataStripper());
+            new RateLimitProperties(5), new ImageMetadataStripper(), claims, new TransactionTemplate(txManager),
+            new DiagnosisProperties(Duration.ofSeconds(90)));
     private final UUID userId = UUID.randomUUID();
+    private final UUID claimId = UUID.randomUUID();
 
     @BeforeEach
     void wire() {
+        when(txManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+        when(claims.tryClaim(any(), anyString(), anyString(), anyString())).thenReturn(Optional.of(claimId));
+        when(claims.find(any(), anyString(), any())).thenReturn(Optional.empty());
         when(ai.crops()).thenReturn(List.of("tomato", "potato"));
-        when(photos.store(any(), any(), anyString())).thenReturn("diagnoses/key.jpg");
-        when(diagnoses.save(any(Diagnosis.class))).thenAnswer(call -> call.getArgument(0));
+        when(photos.store(any(), anyString(), any(), anyString())).thenReturn("diagnoses/key.jpg");
+        when(diagnoses.saveAndFlush(any(Diagnosis.class))).thenAnswer(call -> call.getArgument(0));
     }
 
     /** A request without an Idempotency-Key. */
@@ -83,8 +96,8 @@ class DiagnosisServiceTest {
         DiagnosisView view = create("tomato", JPEG);
 
         ArgumentCaptor<Diagnosis> saved = ArgumentCaptor.forClass(Diagnosis.class);
-        verify(diagnoses).save(saved.capture());
-        verify(photos).store(userId, JPEG, "image/jpeg");
+        verify(diagnoses).saveAndFlush(saved.capture());
+        verify(photos).store(eq(userId), anyString(), eq(JPEG), eq("image/jpeg"));
         assertThat(saved.getValue().getUserId()).isEqualTo(userId);
         assertThat(saved.getValue().getPhotoKey()).isEqualTo("diagnoses/key.jpg");
         assertThat(saved.getValue().getTop1Code()).isEqualTo("tomato__late_blight");
@@ -110,7 +123,7 @@ class DiagnosisServiceTest {
 
         DiagnosisView view = create("tomato", JPEG);
 
-        verify(diagnoses).save(any(Diagnosis.class));
+        verify(diagnoses).saveAndFlush(any(Diagnosis.class));
         assertThat(view.descriptionReady()).isFalse();
     }
 
@@ -130,7 +143,7 @@ class DiagnosisServiceTest {
 
         create("tomato", PNG);
 
-        verify(photos).store(userId, PNG, "image/png");
+        verify(photos).store(eq(userId), anyString(), eq(PNG), eq("image/png"));
     }
 
     @Test
@@ -140,8 +153,8 @@ class DiagnosisServiceTest {
                     assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
                     assertThat(e.getCode()).isEqualTo("unknown_crop");
                 });
-        verify(photos, never()).store(any(), any(), anyString());
-        verify(diagnoses, never()).save(any(Diagnosis.class));
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
+        verify(diagnoses, never()).saveAndFlush(any(Diagnosis.class));
     }
 
     @Test
@@ -151,7 +164,7 @@ class DiagnosisServiceTest {
                     .isInstanceOfSatisfying(ApiException.class,
                             e -> assertThat(e.getCode()).isEqualTo("invalid_image"));
         }
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
     }
 
     @Test
@@ -164,19 +177,20 @@ class DiagnosisServiceTest {
     }
 
     @Test
-    void removesTheStoredPhotoWhenTheModelFails() {
+    void storesNothingWhenTheModelFails() {
         when(ai.predict("tomato", JPEG)).thenThrow(new IllegalStateException("model down"));
 
         assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(IllegalStateException.class);
 
-        verify(photos).delete("diagnoses/key.jpg");
-        verify(diagnoses, never()).save(any(Diagnosis.class));
+        verify(photos, never()).store(any(), anyString(), any(), anyString()); // the model is asked first
+        verify(photos, never()).delete(anyString());
+        verify(diagnoses, never()).saveAndFlush(any(Diagnosis.class));
     }
 
     @Test
     void removesTheStoredPhotoWhenSavingFailsAndKeepsTheOriginalError() {
         when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "placeholder-v0"));
-        when(diagnoses.save(any(Diagnosis.class))).thenThrow(new IllegalStateException("db down"));
+        when(diagnoses.saveAndFlush(any(Diagnosis.class))).thenThrow(new IllegalStateException("db down"));
         doThrow(new IllegalStateException("s3 down")).when(photos).delete(eq("diagnoses/key.jpg"));
 
         assertThatThrownBy(() -> create("tomato", JPEG))
@@ -193,18 +207,30 @@ class DiagnosisServiceTest {
         assertThatThrownBy(() -> create("tomato", JPEG))
                 .isInstanceOf(IllegalStateException.class).hasMessage("reference down");
 
-        verify(diagnoses).save(any(Diagnosis.class)); // the row exists, so its photo must stay
+        verify(diagnoses).saveAndFlush(any(Diagnosis.class)); // the row exists, so its photo must stay
         verify(photos, never()).delete(anyString());
     }
 
     @Test
-    void removesThePhotoWhenTheModelFailsAndNothingIsSaved() {
-        when(ai.predict("tomato", JPEG)).thenThrow(new IllegalStateException("model down"));
+    void removesTheUnkeyedPhotoWhenTheDiagnosisCannotBeSaved() {
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "placeholder-v0"));
+        when(diagnoses.saveAndFlush(any(Diagnosis.class))).thenThrow(new IllegalStateException("db down"));
 
         assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(IllegalStateException.class);
 
-        verify(photos).delete("diagnoses/key.jpg");
-        verify(diagnoses, never()).save(any(Diagnosis.class)); // no row without a photo, no photo without a row
+        verify(photos).delete("diagnoses/key.jpg"); // no photo without a row (the name is random: ours alone)
+    }
+
+    @Test
+    void keepsTheKeyedPhotoWhenTheDiagnosisCannotBeSaved() {
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "placeholder-v0"));
+        when(diagnoses.saveAndFlush(any(Diagnosis.class))).thenThrow(new IllegalStateException("db down"));
+
+        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG, "key-12345678"))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(photos, never()).delete(anyString()); // another attempt may use the same object
+        verify(claims).release(userId, "key-12345678", claimId);
     }
 
     private Diagnosis storedWithKey(String key) {
@@ -223,9 +249,9 @@ class DiagnosisServiceTest {
 
         assertThat(created.replayed()).isTrue();
         assertThat(created.view().top1().code()).isEqualTo("tomato__healthy");
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
         verify(ai, never()).predict(anyString(), any());
-        verify(diagnoses, never()).save(any(Diagnosis.class));
+        verify(diagnoses, never()).saveAndFlush(any(Diagnosis.class));
         assertThat(meters.counter("agroadvisor.diagnosis.replays").count()).isEqualTo(1.0);
     }
 
@@ -237,7 +263,7 @@ class DiagnosisServiceTest {
         DiagnosisService.Created created = service.create(userId, "tomato", JPEG, "key-12345678");
 
         ArgumentCaptor<Diagnosis> saved = ArgumentCaptor.forClass(Diagnosis.class);
-        verify(diagnoses).save(saved.capture());
+        verify(diagnoses).saveAndFlush(saved.capture());
         assertThat(saved.getValue().getIdempotencyKey()).isEqualTo("key-12345678");
         assertThat(created.replayed()).isFalse();
     }
@@ -252,23 +278,130 @@ class DiagnosisServiceTest {
     }
 
     @Test
-    void whenTwoRequestsRaceTheLoserDropsItsPhotoAndReturnsTheWinnersRow() {
+    void whenTwoRequestsRaceTheLoserReturnsTheWinnersRowAndLeavesThePhotoAlone() {
         when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678"))
                 .thenReturn(Optional.empty(), Optional.of(storedWithKey("key-12345678")));
         when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
-        when(diagnoses.save(any(Diagnosis.class))).thenThrow(new DataIntegrityViolationException("unique"));
+        when(diagnoses.saveAndFlush(any(Diagnosis.class))).thenThrow(new DataIntegrityViolationException("unique"));
         when(diseases.findAllById(any())).thenReturn(List.of());
 
         DiagnosisService.Created created = service.create(userId, "tomato", JPEG, "key-12345678");
 
         assertThat(created.replayed()).isTrue();
-        verify(photos).delete("diagnoses/key.jpg");
+        // With a key the object has the winner's name and bytes: deleting it would delete the winner's photo
+        verify(photos, never()).delete(anyString());
+        verify(claims).release(userId, "key-12345678", claimId);
+    }
+
+    @Test
+    void theObjectNameIsTheSameForTheSameKeyAndPhotoAndDiffersWhenEitherChanges() {
+        String fingerprint = DiagnosisService.fingerprint(JPEG);
+        String other = DiagnosisService.fingerprint(PNG);
+
+        String name = DiagnosisService.objectName("key-12345678", fingerprint);
+
+        assertThat(name).matches("[0-9a-f]{64}");
+        assertThat(DiagnosisService.objectName("key-12345678", fingerprint)).isEqualTo(name);
+        assertThat(DiagnosisService.objectName("key-12345678", other)).isNotEqualTo(name);
+        assertThat(DiagnosisService.objectName("key-87654321", fingerprint)).isNotEqualTo(name);
+    }
+
+    @Test
+    void withoutAKeyEveryObjectNameIsNew() {
+        assertThat(DiagnosisService.objectName(null, "x"))
+                .isNotEqualTo(DiagnosisService.objectName(null, "x"));
+    }
+
+    @Test
+    void aRequestWithAKeyStoresUnderTheNameBuiltFromTheKeyAndThePhoto() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678")).thenReturn(Optional.empty());
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+
+        service.create(userId, "tomato", JPEG, "key-12345678");
+
+        verify(photos).store(userId, DiagnosisService.objectName("key-12345678", DiagnosisService.fingerprint(JPEG)),
+                JPEG, "image/jpeg");
+    }
+
+    @Test
+    void aWorkingRequestWithTheSameKeyIs409WithRetryAfterAndSpendsNoLimitAndNoModelCall() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678")).thenReturn(Optional.empty());
+        when(claims.find(any(), anyString(), any())).thenReturn(
+                Optional.of(new DiagnosisClaims.Existing(DiagnosisService.fingerprint(JPEG), "tomato", false)));
+
+        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG, "key-12345678"))
+                .isInstanceOfSatisfying(ApiException.class, e -> {
+                    assertThat(e.getStatus()).isEqualTo(HttpStatus.CONFLICT);
+                    assertThat(e.getCode()).isEqualTo("request_in_progress");
+                    assertThat(e.getHeaders()).containsEntry("Retry-After", "2");
+                });
+
+        verify(limiter, never()).check(anyString(), anyString(), anyInt(), any());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
+        verify(ai, never()).predict(anyString(), any());
+        verify(claims, never()).tryClaim(any(), anyString(), anyString(), anyString());
+    }
+
+    /** The order that would call the model twice: the first lookup misses, the other request commits, our claim wins. */
+    @Test
+    void aDiagnosisCommittedJustBeforeOurClaimIsReplayedWithoutCallingTheModel() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678"))
+                .thenReturn(Optional.empty(), Optional.of(storedWithKey("key-12345678")));
+        when(diseases.findAllById(any())).thenReturn(List.of());
+
+        DiagnosisService.Created created = service.create(userId, "tomato", JPEG, "key-12345678");
+
+        assertThat(created.replayed()).isTrue();
+        verify(ai, never()).predict(anyString(), any());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
+        verify(claims).release(userId, "key-12345678", claimId);
+    }
+
+    @Test
+    void whenTheClaimIsLostAndThenFreedTheRequestTriesAgain() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678")).thenReturn(Optional.empty());
+        when(claims.tryClaim(any(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty(), Optional.of(claimId));
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+
+        assertThat(service.create(userId, "tomato", JPEG, "key-12345678").replayed()).isFalse();
+
+        verify(claims, times(2)).tryClaim(any(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void anExpiredClaimIsTakenOverForTheSamePhoto() {
+        UUID taken = UUID.randomUUID();
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678")).thenReturn(Optional.empty());
+        when(claims.find(any(), anyString(), any())).thenReturn(
+                Optional.of(new DiagnosisClaims.Existing(DiagnosisService.fingerprint(JPEG), "tomato", true)));
+        when(claims.tryClaim(any(), anyString(), anyString(), anyString())).thenReturn(Optional.empty());
+        when(claims.takeOver(eq(userId), eq("key-12345678"), eq(DiagnosisService.fingerprint(JPEG)), eq("tomato"),
+                any())).thenReturn(Optional.of(taken));
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+
+        service.create(userId, "tomato", JPEG, "key-12345678");
+
+        verify(claims).release(userId, "key-12345678", taken);
+        assertThat(meters.counter("agroadvisor.diagnosis.claims", "outcome", "taken_over").count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void aFailureOfTheModelReleasesTheClaimButKeepsTheKeyedPhoto() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678")).thenReturn(Optional.empty());
+        when(ai.predict("tomato", JPEG)).thenThrow(new IllegalStateException("model down"));
+
+        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG, "key-12345678"))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(claims).release(userId, "key-12345678", claimId);
+        verify(photos, never()).delete(anyString()); // a retry writes the same object again
     }
 
     @Test
     void aConstraintViolationWithoutAKeyIsNotHidden() {
         when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
-        when(diagnoses.save(any(Diagnosis.class))).thenThrow(new DataIntegrityViolationException("other"));
+        when(diagnoses.saveAndFlush(any(Diagnosis.class))).thenThrow(new DataIntegrityViolationException("other"));
 
         assertThatThrownBy(() -> service.create(userId, "tomato", JPEG, null))
                 .isInstanceOf(DataIntegrityViolationException.class);
@@ -301,7 +434,7 @@ class DiagnosisServiceTest {
                     assertThat(e.getCode()).isEqualTo("idempotency_key_reused");
                     assertThat(e.getReason()).isEqualTo("photo");
                 });
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
         verify(ai, never()).predict(anyString(), any());
     }
 
@@ -312,7 +445,7 @@ class DiagnosisServiceTest {
         service.create(userId, "tomato", JPEG, "key-12345678");
 
         ArgumentCaptor<Diagnosis> saved = ArgumentCaptor.forClass(Diagnosis.class);
-        verify(diagnoses).save(saved.capture());
+        verify(diagnoses).saveAndFlush(saved.capture());
         assertThat(saved.getValue().getRequestFingerprint()).hasSize(64)
                 .isEqualTo(DiagnosisService.fingerprint(JPEG));
     }
@@ -329,7 +462,7 @@ class DiagnosisServiceTest {
 
         service.create(userId, "tomato", JPEG_WITH_GPS, null);
 
-        verify(photos).store(userId, JPEG_WITHOUT_GPS, "image/jpeg");
+        verify(photos).store(eq(userId), anyString(), eq(JPEG_WITHOUT_GPS), eq("image/jpeg"));
         verify(ai).predict("tomato", JPEG_WITHOUT_GPS);
     }
 
@@ -340,7 +473,7 @@ class DiagnosisServiceTest {
         service.create(userId, "tomato", JPEG_WITH_GPS, "key-12345678");
 
         ArgumentCaptor<Diagnosis> saved = ArgumentCaptor.forClass(Diagnosis.class);
-        verify(diagnoses).save(saved.capture());
+        verify(diagnoses).saveAndFlush(saved.capture());
         assertThat(saved.getValue().getRequestFingerprint()).isEqualTo(DiagnosisService.fingerprint(JPEG_WITH_GPS));
     }
 
@@ -355,7 +488,7 @@ class DiagnosisServiceTest {
         DiagnosisService.Created created = service.create(userId, "tomato", JPEG_WITH_GPS, "key-12345678");
 
         assertThat(created.replayed()).isTrue();
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
     }
 
     @Test
@@ -364,7 +497,7 @@ class DiagnosisServiceTest {
 
         assertThatThrownBy(() -> create("tomato", broken)).isInstanceOfSatisfying(ApiException.class,
                 e -> assertThat(e.getCode()).isEqualTo(DiagnosisErrors.INVALID_IMAGE));
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
         verify(ai, never()).predict(anyString(), any());
     }
 
@@ -400,7 +533,7 @@ class DiagnosisServiceTest {
         InOrder order = inOrder(diagnoses, limiter);
         order.verify(diagnoses).findByUserIdAndIdempotencyKey(userId, "key-12345678");
         order.verify(limiter).check(anyString(), anyString(), anyInt(), any(Duration.class));
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
         verify(ai, never()).predict(anyString(), any());
     }
 
@@ -413,7 +546,7 @@ class DiagnosisServiceTest {
                         assertThat(e.getCode()).isEqualTo("invalid_idempotency_key");
                     });
         }
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
     }
 
     @Test

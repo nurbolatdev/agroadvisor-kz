@@ -4,6 +4,7 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -20,11 +21,14 @@ import java.util.stream.Collectors;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.swagger.v3.oas.annotations.media.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import kz.agroadvisor.catalog.model.Disease;
 import kz.agroadvisor.catalog.repository.DiseaseRepository;
@@ -34,8 +38,10 @@ import kz.agroadvisor.common.ratelimit.RateLimitProperties;
 import kz.agroadvisor.common.ratelimit.RateLimiter;
 import kz.agroadvisor.common.web.ApiException;
 import kz.agroadvisor.common.web.ErrorCodes;
+import kz.agroadvisor.diagnosis.config.DiagnosisProperties;
 import kz.agroadvisor.diagnosis.model.ClassScore;
 import kz.agroadvisor.diagnosis.model.Diagnosis;
+import kz.agroadvisor.diagnosis.repository.DiagnosisClaims;
 import kz.agroadvisor.diagnosis.repository.DiagnosisRepository;
 
 /**
@@ -45,6 +51,8 @@ import kz.agroadvisor.diagnosis.repository.DiagnosisRepository;
  */
 @Service
 public class DiagnosisService {
+
+    private static final Logger log = LoggerFactory.getLogger(DiagnosisService.class);
 
     private static final int MAX_PHOTO_BYTES = 10 * 1024 * 1024;
     private static final byte[] JPEG_SIGNATURE = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF};
@@ -61,11 +69,18 @@ public class DiagnosisService {
     private final RateLimiter rateLimiter;
     private final RateLimitProperties limits;
     private final ImageMetadataStripper metadata;
+    private final DiagnosisClaims claims;
+    private final TransactionTemplate tx;
+    private final DiagnosisProperties props;
 
     public DiagnosisService(AiClient ai, PhotoStorage photos, DiagnosisRepository diagnoses,
             DiseaseRepository diseases, MeterRegistry meters, RateLimiter rateLimiter, RateLimitProperties limits,
-            ImageMetadataStripper metadata) {
+            ImageMetadataStripper metadata, DiagnosisClaims claims, TransactionTemplate tx,
+            DiagnosisProperties props) {
         this.metadata = metadata;
+        this.claims = claims;
+        this.tx = tx;
+        this.props = props;
         this.ai = ai;
         this.photos = photos;
         this.diagnoses = diagnoses;
@@ -92,7 +107,50 @@ public class DiagnosisService {
             @Schema(requiredMode = REQUIRED) int classesVersion,
             @Schema(requiredMode = REQUIRED) boolean placeholder,
             @Schema(requiredMode = REQUIRED) boolean descriptionReady,
+            @Schema(requiredMode = REQUIRED, description = "Relative path of the photo; GET it with the same token",
+                    example = "/api/diagnoses/0b1f2c3d-0000-4000-8000-000000000000/photo") String photoUrl,
             @Schema(requiredMode = REQUIRED) Instant createdAt) {
+    }
+
+    /** The photo bytes with their type (from the key's extension) and the key as a stable ETag source. */
+    public record PhotoContent(byte[] bytes, String contentType, String key) {
+    }
+
+    /** One of the caller's diagnoses; another user's and a missing id give the same 404. */
+    @Transactional(readOnly = true)
+    public DiagnosisView get(UUID userId, UUID id) {
+        return views(List.of(owned(userId, id))).get(0);
+    }
+
+    /**
+     * The object key of one of the caller's diagnoses (another user's and a missing id are the same 404). A
+     * single repository read; no transaction stays open while the photo is downloaded from the storage.
+     */
+    public String photoKey(UUID userId, UUID id) {
+        return owned(userId, id).getPhotoKey();
+    }
+
+    /** The photo bytes by object key. A missing object is a storage fault, logged as ERROR. */
+    public PhotoContent loadPhoto(UUID diagnosisId, String key) {
+        byte[] bytes = photos.load(key).orElseThrow(() -> {
+            log.error("Photo object '{}' of diagnosis {} is missing from the storage", key, diagnosisId);
+            return new ApiException(HttpStatus.NOT_FOUND, DiagnosisErrors.PHOTO_NOT_FOUND, "The photo is not found");
+        });
+        return new PhotoContent(bytes, key.endsWith(".png") ? "image/png" : "image/jpeg", key);
+    }
+
+    /**
+     * The ETag of a photo: a hash of its object key. The photo of a diagnosis never changes, so the key is a
+     * stable validator; hashing keeps the user id inside the key off the wire.
+     */
+    public static String photoEtag(String key) {
+        return "\"" + fingerprint(key.getBytes(StandardCharsets.UTF_8)) + "\"";
+    }
+
+    private Diagnosis owned(UUID userId, UUID id) {
+        return diagnoses.findById(id).filter(d -> d.getUserId().equals(userId))
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, DiagnosisErrors.DIAGNOSIS_NOT_FOUND,
+                        "Diagnosis not found"));
     }
 
     /** {@code replayed} is true when the diagnosis already existed for the request's Idempotency-Key. */
@@ -103,11 +161,20 @@ public class DiagnosisService {
      * With an {@code idempotencyKey} a repeated request returns the diagnosis made the first time: the
      * photo is not stored again and the model is not called. The key is matched with the crop and the
      * SHA-256 of the photo: the same key with another crop or another photo is refused (422
-     * {@code idempotency_key_reused}, reason {@code crop} or {@code photo}). If two requests with the
-     * same key race, the unique index lets one of them win and the other returns its row.
+     * {@code idempotency_key_reused}, reason {@code crop} or {@code photo}).
      *
-     * <p>Order matters: the key is looked up before the rate limit, so a replay never spends the user's
-     * diagnosis limit; the limit is checked before the photo is validated, stored or sent to the model.
+     * <p>One model call per key: after the checks the request claims the key in {@code diagnosis_requests};
+     * a second request with the same key meanwhile gets 409 {@code request_in_progress} with
+     * {@code Retry-After: 2} and does nothing else. A claim older than {@code app.diagnosis.claim-timeout} is
+     * taken over (same photo and crop only) under a new fencing token, so the old owner cannot release or
+     * overwrite the new one's claim. The result is protected by the unique index: if two requests still
+     * finish together, one wins and the other returns its row.
+     *
+     * <p>Order matters: the key is looked up (and a live claim answered with 409) before the rate limit, so a
+     * replay or a 409 found there never spends the user's diagnosis limit (a request that loses the claim in a
+     * race at the very start has spent a token by then); the limit is checked before the photo is validated,
+     * sent to the model or stored. The model is asked before the photo is stored, so a model failure writes
+     * nothing.
      */
     public Created create(UUID userId, String crop, byte[] photo, String idempotencyKey) {
         if (idempotencyKey != null && !IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {
@@ -120,6 +187,9 @@ public class DiagnosisService {
             if (existing.isPresent()) {
                 return replay(existing.get(), crop, fingerprint);
             }
+            // Another request with this key is working: answer before the limit is spent
+            claims.find(userId, idempotencyKey, props.claimTimeout()).ifPresent(c -> refuseUnlessExpired(c, crop,
+                    fingerprint));
         }
         rateLimiter.check("diagnosis", userId.toString(), limits.diagnosisPerMinute(), Duration.ofMinutes(1));
         if (!ai.crops().contains(crop)) {
@@ -130,39 +200,175 @@ public class DiagnosisService {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IMAGE,
                     "Send a JPEG or PNG photo of up to 10 MB");
         }
-        // The fingerprint above is of the client's bytes; what is kept and sent to the model has no metadata
-        byte[] clean;
+        UUID claimId = null;
+        if (idempotencyKey != null) {
+            Acquired acquired = acquire(userId, idempotencyKey, crop, fingerprint);
+            if (acquired.finished() != null) {
+                return replay(acquired.finished(), crop, fingerprint);
+            }
+            claimId = acquired.claimId();
+        }
+        // Without a key the object name is random and the photo is ours alone, so it can be removed on a
+        // failure. With a key the name is the same for every attempt (see objectName), so another attempt may
+        // be using that very object: it is never removed here (an abandoned one is rare and harmless).
+        String photoKey = null;
+        Diagnosis saved;
         try {
-            clean = metadata.strip(photo);
+            // The fingerprint above is of the client's bytes; what is kept and sent to the model has no metadata
+            byte[] clean = strip(photo);
+            // The model first: when it is down nothing is written, and a keyed request leaves no object behind
+            Prediction prediction = predict(crop, clean);
+            photoKey = photos.store(userId, objectName(idempotencyKey, fingerprint), clean, contentType);
+            saved = finish(userId, crop, photoKey, prediction, idempotencyKey, fingerprint, claimId);
+        } catch (DataIntegrityViolationException e) {
+            // Lost the race on (user_id, idempotency_key): the other request's row is the answer
+            Optional<Diagnosis> winner = idempotencyKey == null ? Optional.empty()
+                    : diagnoses.findByUserIdAndIdempotencyKey(userId, idempotencyKey);
+            release(userId, idempotencyKey, claimId, e);
+            if (winner.isEmpty()) {
+                discardUnkeyed(photoKey, idempotencyKey, e);
+                throw e;
+            }
+            return replay(winner.get(), crop, fingerprint);
+        } catch (RuntimeException e) {
+            release(userId, idempotencyKey, claimId, e);
+            discardUnkeyed(photoKey, idempotencyKey, e);
+            throw e;
+        }
+        // Outside the try: the row is committed, so a failure here must not delete the photo it points to
+        return new Created(views(List.of(saved)).get(0), false);
+    }
+
+    /** What {@link #acquire} found: our claim to work under, or the diagnosis that was finished meanwhile. */
+    private record Acquired(UUID claimId, Diagnosis finished) {
+    }
+
+    /**
+     * Gets the right to call the model for this key. The primary key of {@code diagnosis_requests} lets one
+     * request in. A request that loses looks at what stands in its way: a finished diagnosis (replay), a claim
+     * for other bytes or another crop (422), a working request (409 + Retry-After), or a claim older than the
+     * timeout, which it takes over under a new fencing token.
+     */
+    private Acquired acquire(UUID userId, String key, String crop, String fingerprint) {
+        for (int attempt = 0; attempt < 3; attempt++) {
+            Optional<UUID> claim = claims.tryClaim(userId, key, fingerprint, crop);
+            if (claim.isPresent()) {
+                meters.counter("agroadvisor.diagnosis.claims", "outcome", "acquired").increment();
+                return confirmed(userId, key, claim.get());
+            }
+            Optional<Diagnosis> finished = diagnoses.findByUserIdAndIdempotencyKey(userId, key);
+            if (finished.isPresent()) {
+                return new Acquired(null, finished.get());
+            }
+            Optional<DiagnosisClaims.Existing> holder = claims.find(userId, key, props.claimTimeout());
+            if (holder.isEmpty()) {
+                continue; // released between our insert and our look: try again
+            }
+            refuseUnlessExpired(holder.get(), crop, fingerprint);
+            Optional<UUID> taken = claims.takeOver(userId, key, fingerprint, crop, props.claimTimeout());
+            if (taken.isPresent()) {
+                meters.counter("agroadvisor.diagnosis.claims", "outcome", "taken_over").increment();
+                log.warn("Took over an expired claim of key {} of user {}", key, userId);
+                return confirmed(userId, key, taken.get());
+            }
+        }
+        throw inProgress();
+    }
+
+    /**
+     * Looks for a finished diagnosis again once the claim is ours. Without this a request that looked for the
+     * diagnosis just before another request committed it (diagnosis inserted and claim deleted in one
+     * transaction) could win a fresh claim right after and call the model a second time. From here the window
+     * is closed: a claim can only be created after that commit, and then the diagnosis is visible.
+     */
+    private Acquired confirmed(UUID userId, String key, UUID claimId) {
+        Optional<Diagnosis> finished = diagnoses.findByUserIdAndIdempotencyKey(userId, key);
+        if (finished.isEmpty()) {
+            return new Acquired(claimId, null);
+        }
+        claims.release(userId, key, claimId);
+        return new Acquired(null, finished.get());
+    }
+
+    /** A claim for other bytes or another crop is 422, a live one is 409; an expired one passes. */
+    private void refuseUnlessExpired(DiagnosisClaims.Existing claim, String crop, String fingerprint) {
+        if (!claim.cropCode().equals(crop)) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, DiagnosisErrors.IDEMPOTENCY_KEY_REUSED,
+                    "This Idempotency-Key was used for a diagnosis of another crop", "crop");
+        }
+        if (!claim.requestFingerprint().equals(fingerprint)) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, DiagnosisErrors.IDEMPOTENCY_KEY_REUSED,
+                    "This Idempotency-Key was used for another photo; make a new key for a new photo", "photo");
+        }
+        if (!claim.expired()) {
+            throw inProgress();
+        }
+    }
+
+    private ApiException inProgress() {
+        meters.counter("agroadvisor.diagnosis.claims", "outcome", "in_progress").increment();
+        return new ApiException(HttpStatus.CONFLICT, DiagnosisErrors.REQUEST_IN_PROGRESS,
+                "The same request is already being processed, retry in a moment").withHeader("Retry-After", "2");
+    }
+
+    /**
+     * The one transaction that ends a request: the diagnosis is inserted (and flushed, so that a clash with
+     * the unique index of V11 surfaces here) and our claim is deleted. If the claim was taken over, the
+     * delete touches no row, which is not an error: the diagnosis insert still decides who is first.
+     */
+    private Diagnosis finish(UUID userId, String crop, String photoKey, Prediction prediction, String key,
+            String fingerprint, UUID claimId) {
+        return tx.execute(status -> {
+            Diagnosis saved = diagnoses.saveAndFlush(new Diagnosis(userId, crop, photoKey, prediction.status(),
+                    prediction.top1().code(),
+                    BigDecimal.valueOf(prediction.top1().confidence()).setScale(4, RoundingMode.HALF_UP),
+                    prediction.top3(), prediction.detectedCrop(), prediction.modelVersion(),
+                    prediction.classesVersion(), prediction.inferenceMs(), key, fingerprint));
+            if (claimId != null && claims.release(userId, key, claimId) == 0) {
+                log.debug("The claim of key {} was taken over before the diagnosis was saved", key);
+            }
+            return saved;
+        });
+    }
+
+    /** Removes our claim, if we hold one; a failure to do so must not hide the original error. */
+    private void release(UUID userId, String key, UUID claimId, RuntimeException cause) {
+        if (claimId == null) {
+            return;
+        }
+        try {
+            claims.release(userId, key, claimId);
+        } catch (RuntimeException cleanup) {
+            cause.addSuppressed(cleanup);
+        }
+    }
+
+    private void discardUnkeyed(String photoKey, String idempotencyKey, RuntimeException cause) {
+        if (photoKey != null && idempotencyKey == null) {
+            discard(photoKey, cause);
+        }
+    }
+
+    private byte[] strip(byte[] photo) {
+        try {
+            return metadata.strip(photo);
         } catch (InvalidImageException e) {
             // Same code, status and text as the AI service's invalid_image (HttpAiClient)
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IMAGE,
                     "The photo cannot be read, send another JPEG or PNG");
         }
-        String photoKey = photos.store(userId, clean, contentType);
-        Diagnosis saved;
-        try {
-            Prediction prediction = predict(crop, clean);
-            saved = diagnoses.save(new Diagnosis(userId, crop, photoKey, prediction.status(),
-                    prediction.top1().code(),
-                    BigDecimal.valueOf(prediction.top1().confidence()).setScale(4, RoundingMode.HALF_UP),
-                    prediction.top3(), prediction.detectedCrop(), prediction.modelVersion(),
-                    prediction.classesVersion(), prediction.inferenceMs(), idempotencyKey, fingerprint));
-        } catch (DataIntegrityViolationException e) {
-            discard(photoKey, e);
-            // Lost the race on (user_id, idempotency_key): the other request's row is the answer
-            Optional<Diagnosis> winner = idempotencyKey == null ? Optional.empty()
-                    : diagnoses.findByUserIdAndIdempotencyKey(userId, idempotencyKey);
-            if (winner.isEmpty()) {
-                throw e;
-            }
-            return replay(winner.get(), crop, fingerprint);
-        } catch (RuntimeException e) {
-            discard(photoKey, e);
-            throw e;
-        }
-        // Outside the try: the row is committed, so a failure here must not delete the photo it points to
-        return new Created(views(List.of(saved)).get(0), false);
+    }
+
+    /**
+     * The object name inside the user's folder. With a key it is SHA-256 of {@code key + "\n" + fingerprint}:
+     * the same name always means the same Idempotency-Key <em>and</em> the same photo bytes, by construction.
+     * So no later request, however old its claim is gone, can write other bytes under the name of an existing
+     * diagnosis' photo, and the "immutable" cache header of the photo endpoint stays true. Without a key
+     * the name is random.
+     */
+    static String objectName(String idempotencyKey, String fingerprint) {
+        return idempotencyKey == null ? UUID.randomUUID().toString()
+                : fingerprint((idempotencyKey + "\n" + fingerprint).getBytes(StandardCharsets.UTF_8));
     }
 
     private Created replay(Diagnosis existing, String crop, String fingerprint) {
@@ -246,6 +452,6 @@ public class DiagnosisService {
                 new ClassScore(d.getTop1Code(), d.getTop1Confidence().doubleValue()), d.getTop3(),
                 d.getDetectedCrop(), d.getModelVersion(), d.getClassesVersion(),
                 Prediction.isPlaceholderVersion(d.getModelVersion()), described.contains(d.getTop1Code()),
-                d.getCreatedAt())).toList();
+                "/api/diagnoses/" + d.getId() + "/photo", d.getCreatedAt())).toList();
     }
 }
