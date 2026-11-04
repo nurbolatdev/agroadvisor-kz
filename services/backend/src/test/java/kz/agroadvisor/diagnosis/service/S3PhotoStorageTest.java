@@ -31,7 +31,7 @@ class S3PhotoStorageTest {
     private final UUID userId = UUID.randomUUID();
 
     private PutObjectRequest upload(String contentType) {
-        String key = storage.store(userId, new byte[] {1, 2, 3}, contentType);
+        String key = storage.store(userId, "photo-1", new byte[] {1, 2, 3}, contentType);
         ArgumentCaptor<PutObjectRequest> request = ArgumentCaptor.forClass(PutObjectRequest.class);
         verify(s3).putObject(request.capture(), any(RequestBody.class));
         assertThat(request.getValue().key()).isEqualTo(key);
@@ -43,7 +43,7 @@ class S3PhotoStorageTest {
         PutObjectRequest request = upload("image/jpeg");
 
         assertThat(request.bucket()).isEqualTo("diagnosis-photos");
-        assertThat(request.key()).matches("diagnoses/" + userId + "/[0-9a-f-]{36}\\.jpg");
+        assertThat(request.key()).isEqualTo("diagnoses/" + userId + "/photo-1.jpg");
         assertThat(request.contentType()).isEqualTo("image/jpeg");
         assertThat(request.contentLength()).isEqualTo(3L);
     }
@@ -58,7 +58,7 @@ class S3PhotoStorageTest {
         when(s3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenThrow(SdkClientException.create("Connection refused"));
 
-        assertThatThrownBy(() -> storage.store(userId, new byte[] {1}, "image/jpeg"))
+        assertThatThrownBy(() -> storage.store(userId, "photo-1", new byte[] {1}, "image/jpeg"))
                 .isInstanceOfSatisfying(ApiException.class, e -> {
                     assertThat(e.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
                     assertThat(e.getCode()).isEqualTo("storage_unavailable");
@@ -108,10 +108,28 @@ class S3PhotoStorageTest {
     }
 
     @Test
-    void everyUploadGetsItsOwnKey() {
-        String first = storage.store(userId, new byte[] {1}, "image/jpeg");
-        String second = storage.store(userId, new byte[] {1}, "image/jpeg");
+    void theSameNameGivesTheSameKeyAndAnotherNameAnotherKey() {
+        String first = storage.store(userId, "aaa", new byte[] {1}, "image/jpeg");
+        String again = storage.store(userId, "aaa", new byte[] {1}, "image/jpeg");
+        String other = storage.store(userId, "bbb", new byte[] {1}, "image/jpeg");
 
-        assertThat(first).isNotEqualTo(second);
+        assertThat(again).isEqualTo(first);
+        assertThat(other).isNotEqualTo(first);
+    }
+
+    @Test
+    void theSameNameOfAnotherUserIsAnotherKey() {
+        String mine = storage.store(userId, "aaa", new byte[] {1}, "image/jpeg");
+        String theirs = storage.store(UUID.randomUUID(), "aaa", new byte[] {1}, "image/jpeg");
+
+        assertThat(theirs).isNotEqualTo(mine);
+    }
+
+    @Test
+    void refusesANameThatCouldLeaveTheUsersFolder() {
+        for (String bad : new String[] {"", "../x", "a/b", "a.b", "a b", "x".repeat(65)}) {
+            assertThatThrownBy(() -> storage.store(userId, bad, new byte[] {1}, "image/jpeg"))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
     }
 }

@@ -172,7 +172,7 @@ public class DiagnosisService {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IMAGE,
                     "The photo cannot be read, send another JPEG or PNG");
         }
-        String photoKey = photos.store(userId, clean, contentType);
+        String photoKey = photos.store(userId, UUID.randomUUID().toString(), clean, contentType);
         Diagnosis saved;
         try {
             Prediction prediction = predict(crop, clean);

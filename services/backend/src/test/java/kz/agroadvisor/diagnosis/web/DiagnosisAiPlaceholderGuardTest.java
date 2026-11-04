@@ -79,7 +79,7 @@ class DiagnosisAiPlaceholderGuardTest {
         String phone = "+7709" + (1_000_000 + (int) (Math.random() * 8_999_999));
         farmer = users.saveAndFlush(new User(Login.parse(phone), "x", "Farmer", "ru", Set.of(Role.FARMER)));
         token = "Bearer " + jwt.issueAccessToken(farmer.getId());
-        when(photos.store(any(UUID.class), any(byte[].class), anyString())).thenReturn("diagnoses/test/photo.jpg");
+        when(photos.store(any(UUID.class), anyString(), any(byte[].class), anyString())).thenReturn("diagnoses/test/photo.jpg");
     }
 
     private org.springframework.test.web.servlet.ResultActions send() throws Exception {

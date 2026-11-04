@@ -61,7 +61,7 @@ class DiagnosisServiceTest {
     @BeforeEach
     void wire() {
         when(ai.crops()).thenReturn(List.of("tomato", "potato"));
-        when(photos.store(any(), any(), anyString())).thenReturn("diagnoses/key.jpg");
+        when(photos.store(any(), anyString(), any(), anyString())).thenReturn("diagnoses/key.jpg");
         when(diagnoses.save(any(Diagnosis.class))).thenAnswer(call -> call.getArgument(0));
     }
 
@@ -84,7 +84,7 @@ class DiagnosisServiceTest {
 
         ArgumentCaptor<Diagnosis> saved = ArgumentCaptor.forClass(Diagnosis.class);
         verify(diagnoses).save(saved.capture());
-        verify(photos).store(userId, JPEG, "image/jpeg");
+        verify(photos).store(eq(userId), anyString(), eq(JPEG), eq("image/jpeg"));
         assertThat(saved.getValue().getUserId()).isEqualTo(userId);
         assertThat(saved.getValue().getPhotoKey()).isEqualTo("diagnoses/key.jpg");
         assertThat(saved.getValue().getTop1Code()).isEqualTo("tomato__late_blight");
@@ -130,7 +130,7 @@ class DiagnosisServiceTest {
 
         create("tomato", PNG);
 
-        verify(photos).store(userId, PNG, "image/png");
+        verify(photos).store(eq(userId), anyString(), eq(PNG), eq("image/png"));
     }
 
     @Test
@@ -140,7 +140,7 @@ class DiagnosisServiceTest {
                     assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
                     assertThat(e.getCode()).isEqualTo("unknown_crop");
                 });
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
         verify(diagnoses, never()).save(any(Diagnosis.class));
     }
 
@@ -151,7 +151,7 @@ class DiagnosisServiceTest {
                     .isInstanceOfSatisfying(ApiException.class,
                             e -> assertThat(e.getCode()).isEqualTo("invalid_image"));
         }
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
     }
 
     @Test
@@ -223,7 +223,7 @@ class DiagnosisServiceTest {
 
         assertThat(created.replayed()).isTrue();
         assertThat(created.view().top1().code()).isEqualTo("tomato__healthy");
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
         verify(ai, never()).predict(anyString(), any());
         verify(diagnoses, never()).save(any(Diagnosis.class));
         assertThat(meters.counter("agroadvisor.diagnosis.replays").count()).isEqualTo(1.0);
@@ -301,7 +301,7 @@ class DiagnosisServiceTest {
                     assertThat(e.getCode()).isEqualTo("idempotency_key_reused");
                     assertThat(e.getReason()).isEqualTo("photo");
                 });
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
         verify(ai, never()).predict(anyString(), any());
     }
 
@@ -329,7 +329,7 @@ class DiagnosisServiceTest {
 
         service.create(userId, "tomato", JPEG_WITH_GPS, null);
 
-        verify(photos).store(userId, JPEG_WITHOUT_GPS, "image/jpeg");
+        verify(photos).store(eq(userId), anyString(), eq(JPEG_WITHOUT_GPS), eq("image/jpeg"));
         verify(ai).predict("tomato", JPEG_WITHOUT_GPS);
     }
 
@@ -355,7 +355,7 @@ class DiagnosisServiceTest {
         DiagnosisService.Created created = service.create(userId, "tomato", JPEG_WITH_GPS, "key-12345678");
 
         assertThat(created.replayed()).isTrue();
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
     }
 
     @Test
@@ -364,7 +364,7 @@ class DiagnosisServiceTest {
 
         assertThatThrownBy(() -> create("tomato", broken)).isInstanceOfSatisfying(ApiException.class,
                 e -> assertThat(e.getCode()).isEqualTo(DiagnosisErrors.INVALID_IMAGE));
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
         verify(ai, never()).predict(anyString(), any());
     }
 
@@ -400,7 +400,7 @@ class DiagnosisServiceTest {
         InOrder order = inOrder(diagnoses, limiter);
         order.verify(diagnoses).findByUserIdAndIdempotencyKey(userId, "key-12345678");
         order.verify(limiter).check(anyString(), anyString(), anyInt(), any(Duration.class));
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
         verify(ai, never()).predict(anyString(), any());
     }
 
@@ -413,7 +413,7 @@ class DiagnosisServiceTest {
                         assertThat(e.getCode()).isEqualTo("invalid_idempotency_key");
                     });
         }
-        verify(photos, never()).store(any(), any(), anyString());
+        verify(photos, never()).store(any(), anyString(), any(), anyString());
     }
 
     @Test

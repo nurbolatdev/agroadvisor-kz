@@ -2,6 +2,7 @@ package kz.agroadvisor.diagnosis.service;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +22,8 @@ public class S3PhotoStorage implements PhotoStorage {
 
     private static final Logger log = LoggerFactory.getLogger(S3PhotoStorage.class);
 
+    private static final Pattern NAME = Pattern.compile("[A-Za-z0-9-]{1,64}");
+
     private final S3Client s3;
     private final String bucket;
 
@@ -31,8 +34,11 @@ public class S3PhotoStorage implements PhotoStorage {
 
     /** An unreachable or stuck storage is reported as 503 with a stable code, not as a bare 500. */
     @Override
-    public String store(UUID userId, byte[] photo, String contentType) {
-        String key = "diagnoses/" + userId + "/" + UUID.randomUUID() + extension(contentType);
+    public String store(UUID userId, String name, byte[] photo, String contentType) {
+        if (!NAME.matcher(name).matches()) {
+            throw new IllegalArgumentException("Object name must be 1-64 letters, digits or hyphens");
+        }
+        String key = "diagnoses/" + userId + "/" + name + extension(contentType);
         try {
             s3.putObject(PutObjectRequest.builder()
                     .bucket(bucket)

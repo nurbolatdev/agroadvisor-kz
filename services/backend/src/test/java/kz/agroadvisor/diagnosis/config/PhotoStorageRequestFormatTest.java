@@ -40,7 +40,7 @@ class PhotoStorageRequestFormatTest {
             byte[] photo = {1, 2, 3, 4, 5, 6, 7, 8, 9};
             try (var s3 = config.s3Client(props)) {
                 PhotoStorage storage = config.photoStorage(s3, props);
-                storage.store(UUID.randomUUID(), photo, "image/jpeg");
+                storage.store(UUID.randomUUID(), "photo-1", photo, "image/jpeg");
             }
 
             assertThat(trailer.get()).isNull();

@@ -43,7 +43,7 @@ class PhotoStorageTimeoutTest {
             PhotoStorage storage = config.photoStorage(config.s3Client(props), props);
 
             long started = System.nanoTime();
-            assertThatThrownBy(() -> storage.store(UUID.randomUUID(), new byte[] {1, 2, 3}, "image/jpeg"))
+            assertThatThrownBy(() -> storage.store(UUID.randomUUID(), "photo-1", new byte[] {1, 2, 3}, "image/jpeg"))
                     .isInstanceOfSatisfying(ApiException.class, e -> {
                         assertThat(e.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
                         assertThat(e.getCode()).isEqualTo("storage_unavailable");

@@ -79,7 +79,7 @@ class DiagnosisControllerTest {
     void signIn() {
         farmer = newUser();
         token = "Bearer " + jwt.issueAccessToken(farmer.getId());
-        when(photos.store(any(UUID.class), any(byte[].class), anyString())).thenReturn("diagnoses/test/photo.jpg");
+        when(photos.store(any(UUID.class), anyString(), any(byte[].class), anyString())).thenReturn("diagnoses/test/photo.jpg");
     }
 
     private User newUser() {
@@ -134,7 +134,7 @@ class DiagnosisControllerTest {
                     assertThat(d.getPhotoKey()).isEqualTo("diagnoses/test/photo.jpg");
                     assertThat(d.getTop1Code()).isEqualTo("tomato__healthy");
                 });
-        verify(photos).store(eq(farmer.getId()), any(byte[].class), eq("image/jpeg"));
+        verify(photos).store(eq(farmer.getId()), anyString(), any(byte[].class), eq("image/jpeg"));
     }
 
     @Test
@@ -143,7 +143,7 @@ class DiagnosisControllerTest {
                         .header("Authorization", token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("unknown_crop"));
-        verify(photos, never()).store(any(UUID.class), any(byte[].class), anyString());
+        verify(photos, never()).store(any(UUID.class), anyString(), any(byte[].class), anyString());
     }
 
     @Test
@@ -153,7 +153,7 @@ class DiagnosisControllerTest {
         mvc.perform(multipart("/api/diagnoses").file(text).param("crop", "tomato").header("Authorization", token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("invalid_image"));
-        verify(photos, never()).store(any(UUID.class), any(byte[].class), anyString());
+        verify(photos, never()).store(any(UUID.class), anyString(), any(byte[].class), anyString());
     }
 
     @Test
@@ -161,7 +161,7 @@ class DiagnosisControllerTest {
         mvc.perform(multipart("/api/diagnoses").file(image("image/jpg")).param("crop", "tomato")
                         .header("Authorization", token))
                 .andExpect(status().isCreated());
-        verify(photos).store(eq(farmer.getId()), any(byte[].class), eq("image/jpeg"));
+        verify(photos).store(eq(farmer.getId()), anyString(), any(byte[].class), eq("image/jpeg"));
     }
 
     @Test
@@ -186,7 +186,7 @@ class DiagnosisControllerTest {
                 .andExpect(content().json(first));
 
         assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10))).hasSize(1);
-        verify(photos, times(1)).store(eq(farmer.getId()), any(byte[].class), anyString());
+        verify(photos, times(1)).store(eq(farmer.getId()), anyString(), any(byte[].class), anyString());
     }
 
     /**
@@ -264,7 +264,7 @@ class DiagnosisControllerTest {
                 .andExpect(jsonPath("$.code").value("idempotency_key_reused"))
                 .andExpect(jsonPath("$.reason").value("photo"));
         assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10))).hasSize(1);
-        verify(photos, times(1)).store(eq(farmer.getId()), any(byte[].class), anyString());
+        verify(photos, times(1)).store(eq(farmer.getId()), anyString(), any(byte[].class), anyString());
     }
 
     @Test
@@ -273,7 +273,7 @@ class DiagnosisControllerTest {
                         .header("Authorization", token).header("Idempotency-Key", "bad key"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("invalid_idempotency_key"));
-        verify(photos, never()).store(any(UUID.class), any(byte[].class), anyString());
+        verify(photos, never()).store(any(UUID.class), anyString(), any(byte[].class), anyString());
     }
 
     @Test
