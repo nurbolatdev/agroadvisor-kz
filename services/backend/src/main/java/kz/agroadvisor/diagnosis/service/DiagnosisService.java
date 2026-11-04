@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.swagger.v3.oas.annotations.media.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -45,6 +47,8 @@ import kz.agroadvisor.diagnosis.repository.DiagnosisRepository;
  */
 @Service
 public class DiagnosisService {
+
+    private static final Logger log = LoggerFactory.getLogger(DiagnosisService.class);
 
     private static final int MAX_PHOTO_BYTES = 10 * 1024 * 1024;
     private static final byte[] JPEG_SIGNATURE = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF};
@@ -92,7 +96,36 @@ public class DiagnosisService {
             @Schema(requiredMode = REQUIRED) int classesVersion,
             @Schema(requiredMode = REQUIRED) boolean placeholder,
             @Schema(requiredMode = REQUIRED) boolean descriptionReady,
+            @Schema(requiredMode = REQUIRED, description = "Relative path of the photo; GET it with the same token",
+                    example = "/api/diagnoses/0b1f2c3d-0000-4000-8000-000000000000/photo") String photoUrl,
             @Schema(requiredMode = REQUIRED) Instant createdAt) {
+    }
+
+    /** The photo bytes with their type (from the key's extension) and the key as a stable ETag source. */
+    public record PhotoContent(byte[] bytes, String contentType, String key) {
+    }
+
+    /** One of the caller's diagnoses; another user's and a missing id give the same 404. */
+    @Transactional(readOnly = true)
+    public DiagnosisView get(UUID userId, UUID id) {
+        return views(List.of(owned(userId, id))).get(0);
+    }
+
+    /** The photo of one of the caller's diagnoses. A missing object is a storage fault, logged as ERROR. */
+    @Transactional(readOnly = true)
+    public PhotoContent photo(UUID userId, UUID id) {
+        String key = owned(userId, id).getPhotoKey();
+        byte[] bytes = photos.load(key).orElseThrow(() -> {
+            log.error("Photo object '{}' of diagnosis {} is missing from the storage", key, id);
+            return new ApiException(HttpStatus.NOT_FOUND, DiagnosisErrors.PHOTO_NOT_FOUND, "The photo is not found");
+        });
+        return new PhotoContent(bytes, key.endsWith(".png") ? "image/png" : "image/jpeg", key);
+    }
+
+    private Diagnosis owned(UUID userId, UUID id) {
+        return diagnoses.findById(id).filter(d -> d.getUserId().equals(userId))
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, DiagnosisErrors.DIAGNOSIS_NOT_FOUND,
+                        "Diagnosis not found"));
     }
 
     /** {@code replayed} is true when the diagnosis already existed for the request's Idempotency-Key. */
@@ -246,6 +279,6 @@ public class DiagnosisService {
                 new ClassScore(d.getTop1Code(), d.getTop1Confidence().doubleValue()), d.getTop3(),
                 d.getDetectedCrop(), d.getModelVersion(), d.getClassesVersion(),
                 Prediction.isPlaceholderVersion(d.getModelVersion()), described.contains(d.getTop1Code()),
-                d.getCreatedAt())).toList();
+                "/api/diagnoses/" + d.getId() + "/photo", d.getCreatedAt())).toList();
     }
 }

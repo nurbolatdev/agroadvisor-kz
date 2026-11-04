@@ -247,6 +247,11 @@
           "modelVersion" : {
             "type" : "string"
           },
+          "photoUrl" : {
+            "description" : "Relative path of the photo; GET it with the same token",
+            "example" : "/api/diagnoses/0b1f2c3d-0000-4000-8000-000000000000/photo",
+            "type" : "string"
+          },
           "placeholder" : {
             "type" : "boolean"
           },
@@ -264,7 +269,7 @@
             "type" : "array"
           }
         },
-        "required" : [ "classesVersion", "createdAt", "crop", "descriptionReady", "id", "modelVersion", "placeholder", "status", "top1", "top3" ],
+        "required" : [ "classesVersion", "createdAt", "crop", "descriptionReady", "id", "modelVersion", "photoUrl", "placeholder", "status", "top1", "top3" ],
         "type" : "object"
       },
       "DiseaseBody" : {
@@ -1583,6 +1588,67 @@
                 "style" : "simple"
               }
             }
+          }
+        },
+        "tags" : [ "diagnosis-controller" ]
+      }
+    },
+    "/api/diagnoses/{id}" : {
+      "get" : {
+        "operationId" : "get",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DiagnosisView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "diagnosis-controller" ]
+      }
+    },
+    "/api/diagnoses/{id}/photo" : {
+      "get" : {
+        "operationId" : "photo",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "image/jpeg" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              },
+              "image/png" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "A JPEG or PNG photo"
           }
         },
         "tags" : [ "diagnosis-controller" ]

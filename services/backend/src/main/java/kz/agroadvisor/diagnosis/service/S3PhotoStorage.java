@@ -1,5 +1,6 @@
 package kz.agroadvisor.diagnosis.service;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -9,6 +10,8 @@ import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import kz.agroadvisor.common.web.ApiException;
@@ -43,6 +46,20 @@ public class S3PhotoStorage implements PhotoStorage {
                     "Photo storage is unavailable, try again later");
         }
         return key;
+    }
+
+    @Override
+    public Optional<byte[]> load(String key) {
+        try {
+            return Optional.of(s3.getObjectAsBytes(GetObjectRequest.builder().bucket(bucket).key(key).build())
+                    .asByteArray());
+        } catch (NoSuchKeyException e) {
+            return Optional.empty();
+        } catch (SdkException e) {
+            log.warn("Photo download from bucket '{}' failed: {}", bucket, e.toString());
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, DiagnosisErrors.STORAGE_UNAVAILABLE,
+                    "Photo storage is unavailable, try again later");
+        }
     }
 
     @Override

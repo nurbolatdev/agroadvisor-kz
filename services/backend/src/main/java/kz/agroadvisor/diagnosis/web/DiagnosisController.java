@@ -1,21 +1,26 @@
 package kz.agroadvisor.diagnosis.web;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +31,7 @@ import org.springframework.web.multipart.MultipartFile;
 import kz.agroadvisor.diagnosis.service.DiagnosisService;
 import kz.agroadvisor.diagnosis.service.DiagnosisService.Created;
 import kz.agroadvisor.diagnosis.service.DiagnosisService.DiagnosisView;
+import kz.agroadvisor.diagnosis.service.DiagnosisService.PhotoContent;
 
 /** Photo diagnosis and the caller's history. The user is always the one in the token. */
 @RestController
@@ -69,6 +75,32 @@ public class DiagnosisController {
             response.header(REPLAYED_HEADER, "true");
         }
         return response.body(created.view());
+    }
+
+    /** The same body as the 201 of POST. Another user's and a missing id are the same 404 diagnosis_not_found. */
+    @GetMapping("/{id}")
+    @PreAuthorize(FEATURE)
+    public DiagnosisView get(@PathVariable UUID id, Authentication authentication) {
+        return diagnoses.get(UUID.fromString(authentication.getName()), id);
+    }
+
+    /**
+     * The photo bytes for the owner only (the bucket is private, there are no public or presigned links).
+     * The photo of a diagnosis never changes, so it is cached for a year; the ETag is the object key.
+     */
+    @GetMapping("/{id}/photo")
+    @PreAuthorize(FEATURE)
+    @ApiResponse(responseCode = "200", description = "A JPEG or PNG photo",
+            content = {@Content(mediaType = "image/jpeg", schema = @Schema(type = "string", format = "binary")),
+                    @Content(mediaType = "image/png", schema = @Schema(type = "string", format = "binary"))})
+    public ResponseEntity<byte[]> photo(@PathVariable UUID id, Authentication authentication) {
+        PhotoContent photo = diagnoses.photo(UUID.fromString(authentication.getName()), id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(photo.contentType()))
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePrivate().immutable())
+                .eTag("\"" + photo.key() + "\"")
+                .header("X-Content-Type-Options", "nosniff")
+                .body(photo.bytes());
     }
 
     @GetMapping

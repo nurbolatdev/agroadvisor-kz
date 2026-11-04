@@ -6,9 +6,13 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import kz.agroadvisor.common.web.ApiException;
@@ -69,6 +73,38 @@ class S3PhotoStorageTest {
         verify(s3).deleteObject(request.capture());
         assertThat(request.getValue().bucket()).isEqualTo("diagnosis-photos");
         assertThat(request.getValue().key()).isEqualTo("diagnoses/u/photo.jpg");
+    }
+
+    @Test
+    void loadsAnObjectByItsKey() {
+        when(s3.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(
+                ResponseBytes.fromByteArray(GetObjectResponse.builder().build(), new byte[] {7, 8}));
+
+        assertThat(storage.load("diagnoses/u/photo.jpg")).contains(new byte[] {7, 8});
+
+        ArgumentCaptor<GetObjectRequest> request = ArgumentCaptor.forClass(GetObjectRequest.class);
+        verify(s3).getObjectAsBytes(request.capture());
+        assertThat(request.getValue().bucket()).isEqualTo("diagnosis-photos");
+        assertThat(request.getValue().key()).isEqualTo("diagnoses/u/photo.jpg");
+    }
+
+    @Test
+    void aMissingObjectIsEmptyNotAnError() {
+        when(s3.getObjectAsBytes(any(GetObjectRequest.class))).thenThrow(NoSuchKeyException.builder().build());
+
+        assertThat(storage.load("diagnoses/u/gone.jpg")).isEmpty();
+    }
+
+    @Test
+    void reportsAnUnavailableStorageOnLoadAsServiceUnavailable() {
+        when(s3.getObjectAsBytes(any(GetObjectRequest.class)))
+                .thenThrow(SdkClientException.create("Connection refused"));
+
+        assertThatThrownBy(() -> storage.load("diagnoses/u/photo.jpg"))
+                .isInstanceOfSatisfying(ApiException.class, e -> {
+                    assertThat(e.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+                    assertThat(e.getCode()).isEqualTo("storage_unavailable");
+                });
     }
 
     @Test

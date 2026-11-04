@@ -330,6 +330,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/diagnoses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/diagnoses/{id}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["photo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/diseases": {
         parameters: {
             query?: never;
@@ -480,6 +512,11 @@ export interface components {
             /** Format: uuid */
             id: string;
             modelVersion: string;
+            /**
+             * @description Relative path of the photo; GET it with the same token
+             * @example /api/diagnoses/0b1f2c3d-0000-4000-8000-000000000000/photo
+             */
+            photoUrl: string;
             placeholder: boolean;
             /** @enum {string} */
             status: "ok" | "low_confidence" | "unknown" | "crop_mismatch";
@@ -1338,6 +1375,51 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DiagnosisView"];
+                };
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DiagnosisView"];
+                };
+            };
+        };
+    };
+    photo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A JPEG or PNG photo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
                 };
             };
         };

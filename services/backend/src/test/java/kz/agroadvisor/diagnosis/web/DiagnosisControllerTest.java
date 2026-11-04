@@ -293,6 +293,78 @@ class DiagnosisControllerTest {
                 .andExpect(jsonPath("$[1].crop").value("tomato"));
     }
 
+    /** Creates a diagnosis through the API as the given token and returns its id. */
+    private String createDiagnosis(String bearer) throws Exception {
+        String body = mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")
+                        .header("Authorization", bearer))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.photoUrl").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+        return com.jayway.jsonpath.JsonPath.read(body, "$.id");
+    }
+
+    @Test
+    void theOwnerReadsADiagnosisByIdWithThePhotoUrl() throws Exception {
+        String id = createDiagnosis(token);
+
+        mvc.perform(get("/api/diagnoses/" + id).header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.top1.code").value("tomato__healthy"))
+                .andExpect(jsonPath("$.photoUrl").value("/api/diagnoses/" + id + "/photo"));
+    }
+
+    @Test
+    void anotherUsersAndAMissingDiagnosisGiveTheSame404() throws Exception {
+        String id = createDiagnosis(token);
+        String stranger = "Bearer " + jwt.issueAccessToken(newUser().getId());
+
+        String foreign = mvc.perform(get("/api/diagnoses/" + id).header("Authorization", stranger))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("diagnosis_not_found"))
+                .andReturn().getResponse().getContentAsString();
+        String missing = mvc.perform(get("/api/diagnoses/" + UUID.randomUUID()).header("Authorization", stranger))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("diagnosis_not_found"))
+                .andReturn().getResponse().getContentAsString();
+        // Same body apart from the request-specific fields: nothing tells a foreign id from a missing one
+        assertThat(com.jayway.jsonpath.JsonPath.<String>read(foreign, "$.detail"))
+                .isEqualTo(com.jayway.jsonpath.JsonPath.<String>read(missing, "$.detail"));
+        mvc.perform(get("/api/diagnoses/" + id + "/photo").header("Authorization", stranger))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("diagnosis_not_found"));
+    }
+
+    @Test
+    void readingByIdRequiresSignIn() throws Exception {
+        mvc.perform(get("/api/diagnoses/" + UUID.randomUUID())).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/diagnoses/" + UUID.randomUUID() + "/photo")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void theOwnerGetsThePhotoBytesWithCacheHeaders() throws Exception {
+        String id = createDiagnosis(token);
+        when(photos.load("diagnoses/test/photo.jpg")).thenReturn(java.util.Optional.of(JPEG));
+
+        mvc.perform(get("/api/diagnoses/" + id + "/photo").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("image/jpeg"))
+                .andExpect(content().bytes(JPEG))
+                .andExpect(header().string("Cache-Control", "max-age=31536000, private, immutable"))
+                .andExpect(header().string("ETag", "\"diagnoses/test/photo.jpg\""))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"));
+    }
+
+    @Test
+    void aPhotoMissingFromTheStorageIs404PhotoNotFound() throws Exception {
+        String id = createDiagnosis(token);
+        when(photos.load(anyString())).thenReturn(java.util.Optional.empty());
+
+        mvc.perform(get("/api/diagnoses/" + id + "/photo").header("Authorization", token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("photo_not_found"));
+    }
+
     @Test
     void historyIsPaged() throws Exception {
         for (int i = 0; i < 3; i++) {
