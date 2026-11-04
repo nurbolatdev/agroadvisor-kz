@@ -53,6 +53,13 @@ export const kk: Translation = {
       failed: 'Диагноздарды жүктеу мүмкін болмады',
     },
   },
+  tabs: {
+    home: 'Басты бет',
+    community: 'Қауымдастық',
+    camera: 'Сурет бойынша диагностика',
+    chats: 'Чаттар',
+    profile: 'Профиль',
+  },
   history: {
     title: 'Тарих',
     status: {

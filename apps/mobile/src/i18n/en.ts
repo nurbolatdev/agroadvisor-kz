@@ -53,6 +53,13 @@ export const en: Translation = {
       failed: 'Could not load the diagnoses',
     },
   },
+  tabs: {
+    home: 'Home',
+    community: 'Community',
+    camera: 'Diagnose by photo',
+    chats: 'Chats',
+    profile: 'Profile',
+  },
   history: {
     title: 'History',
     status: {

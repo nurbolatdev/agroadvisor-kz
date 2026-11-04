@@ -51,6 +51,14 @@ export const ru = {
       failed: 'Не удалось загрузить диагнозы',
     },
   },
+  // the places of the bottom bar (screens 04 and 19)
+  tabs: {
+    home: 'Главная',
+    community: 'Сообщество',
+    camera: 'Диагностика по фото',
+    chats: 'Чаты',
+    profile: 'Профиль',
+  },
   history: {
     title: 'История',
     // short words for the badge of a line; the long explanations are on the result screen
