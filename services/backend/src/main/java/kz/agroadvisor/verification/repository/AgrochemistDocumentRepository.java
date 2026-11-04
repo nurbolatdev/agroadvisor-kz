@@ -27,6 +27,10 @@ public class AgrochemistDocumentRepository {
     private static final String DOCUMENT_COLUMNS =
             "id, user_id, kind, object_key, title, issuer, year, content_type, size_bytes, uploaded_at";
 
+    private static final String PROFILE_SQL = """
+            SELECT user_id, verification_status, submitted_at, reviewed_at, reviewed_by, rejection_reason
+            FROM agrochemist_profiles WHERE user_id = ?""";
+
     private static final RowMapper<Document> DOCUMENT = (rs, i) -> new Document(
             rs.getObject("id", UUID.class), rs.getObject("user_id", UUID.class), rs.getString("kind"),
             rs.getString("object_key"), rs.getString("title"), rs.getString("issuer"), nullableInt(rs, "year"),
@@ -43,10 +47,17 @@ public class AgrochemistDocumentRepository {
     }
 
     public Optional<Profile> findProfile(UUID userId) {
-        return jdbc.query("""
-                SELECT user_id, verification_status, submitted_at, reviewed_at, reviewed_by, rejection_reason
-                FROM agrochemist_profiles WHERE user_id = ?
-                """, PROFILE, userId).stream().findFirst();
+        return jdbc.query(PROFILE_SQL, PROFILE, userId).stream().findFirst();
+    }
+
+    /**
+     * Reads the profile and locks its row until the end of the transaction. Everything that depends on the
+     * status or on the number of documents (send, remove, approve) takes this lock first, so an approval
+     * cannot be undone by an upload that was checked a moment earlier, and the limit cannot be passed by
+     * two uploads at once.
+     */
+    public Optional<Profile> lockProfile(UUID userId) {
+        return jdbc.query(PROFILE_SQL + " FOR UPDATE", PROFILE, userId).stream().findFirst();
     }
 
     public int countDocuments(UUID userId) {

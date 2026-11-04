@@ -19,6 +19,8 @@ public final class VerificationErrors {
     public static final String NO_DOCUMENTS = "no_documents";
     /** A rejection or a request for documents needs a reason (400). */
     public static final String REASON_REQUIRED = "reason_required";
+    /** An admin who is also an agrochemist cannot decide on their own profile (403). */
+    public static final String SELF_REVIEW = "self_review_forbidden";
     public static final String STORAGE_UNAVAILABLE = "storage_unavailable";
 
     private VerificationErrors() {

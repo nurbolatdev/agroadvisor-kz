@@ -83,16 +83,15 @@ public class AgrochemistDocumentService {
     /** Validates, stores the file, records it and queues the profile. Nothing stays behind if a step fails. */
     public DocumentView upload(UUID userId, String kind, String title, String issuer, Integer year, byte[] file) {
         validateFields(kind, title, issuer, year);
-        Profile profile = profile(userId);
-        requireNotApproved(profile);
-        if (repository.countDocuments(userId) >= MAX_DOCUMENTS) {
-            throw new ApiException(HttpStatus.CONFLICT, VerificationErrors.DOCUMENT_LIMIT,
-                    "At most " + MAX_DOCUMENTS + " documents; remove one first");
-        }
+        // A first look, before the slow upload to the storage; the checks that count are repeated under the lock
+        requireNotApproved(profile(userId));
+        requireRoom(userId);
         String contentType = contentType(file);
         String key = storage.store(userId, file, contentType);
         try {
             Document saved = tx.execute(status -> {
+                requireNotApproved(lockedProfile(userId));
+                requireRoom(userId);
                 Document document = repository.insertDocument(userId, kind, key, blankToNull(title),
                         blankToNull(issuer), year, contentType, file.length);
                 repository.markSubmitted(userId);
@@ -110,11 +109,14 @@ public class AgrochemistDocumentService {
     }
 
     public void delete(UUID userId, UUID documentId) {
-        requireNotApproved(profile(userId));
-        Document document = repository.findDocument(userId, documentId).orElseThrow(
-                () -> new ApiException(HttpStatus.NOT_FOUND, VerificationErrors.DOCUMENT_NOT_FOUND,
-                        "No such document"));
-        repository.deleteDocument(documentId);
+        Document document = tx.execute(status -> {
+            requireNotApproved(lockedProfile(userId));
+            Document found = repository.findDocument(userId, documentId).orElseThrow(
+                    () -> new ApiException(HttpStatus.NOT_FOUND, VerificationErrors.DOCUMENT_NOT_FOUND,
+                            "No such document"));
+            repository.deleteDocument(documentId);
+            return found;
+        });
         try {
             storage.delete(document.objectKey());
         } catch (RuntimeException e) {
@@ -132,6 +134,18 @@ public class AgrochemistDocumentService {
     private Profile profile(UUID userId) {
         return repository.findProfile(userId).orElseThrow(() -> new ApiException(HttpStatus.CONFLICT,
                 VerificationErrors.PROFILE_MISSING, "This account has no agrochemist profile"));
+    }
+
+    private Profile lockedProfile(UUID userId) {
+        return repository.lockProfile(userId).orElseThrow(() -> new ApiException(HttpStatus.CONFLICT,
+                VerificationErrors.PROFILE_MISSING, "This account has no agrochemist profile"));
+    }
+
+    private void requireRoom(UUID userId) {
+        if (repository.countDocuments(userId) >= MAX_DOCUMENTS) {
+            throw new ApiException(HttpStatus.CONFLICT, VerificationErrors.DOCUMENT_LIMIT,
+                    "At most " + MAX_DOCUMENTS + " documents; remove one first");
+        }
     }
 
     private static void requireNotApproved(Profile profile) {

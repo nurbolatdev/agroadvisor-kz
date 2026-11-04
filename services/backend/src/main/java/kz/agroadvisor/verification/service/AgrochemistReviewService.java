@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import kz.agroadvisor.common.web.ApiException;
+import kz.agroadvisor.common.web.ErrorCodes;
 import kz.agroadvisor.verification.repository.AgrochemistDocumentRepository;
 import kz.agroadvisor.verification.repository.AgrochemistDocumentRepository.Document;
 import kz.agroadvisor.verification.repository.AgrochemistReviewRepository;
@@ -95,10 +96,15 @@ public class AgrochemistReviewService {
     public DetailsView decide(UUID adminId, UUID userId, String decision, String reason) {
         String status = STATUS_BY_DECISION.get(decision);
         if (status == null) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_decision",
+            throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,
                     "decision must be approve, reject or request_documents");
         }
-        reviews.find(userId).orElseThrow(AgrochemistReviewService::notFound);
+        if (adminId.equals(userId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, VerificationErrors.SELF_REVIEW,
+                    "An admin cannot decide on their own agrochemist profile");
+        }
+        // The lock keeps an upload or a removal of a document from slipping in between the check and the decision
+        documents.lockProfile(userId).orElseThrow(AgrochemistReviewService::notFound);
         String cleanReason = reason == null || reason.isBlank() ? null : reason.strip();
         if (!status.equals("approved") && cleanReason == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, VerificationErrors.REASON_REQUIRED,

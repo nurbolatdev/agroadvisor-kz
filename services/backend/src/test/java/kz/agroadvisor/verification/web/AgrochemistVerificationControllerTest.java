@@ -286,6 +286,51 @@ class AgrochemistVerificationControllerTest {
     }
 
     @Test
+    void anApprovalDuringTheUploadIsNotUndoneAndTheObjectIsDropped() throws Exception {
+        when(storage.store(any(), any(), anyString())).thenAnswer(call -> {
+            // An admin approves while the file is on its way to the storage
+            jdbc.update("""
+                    INSERT INTO agrochemist_documents (user_id, kind, object_key, content_type, size_bytes)
+                    VALUES (?, 'diploma', 'agrochemist-documents/x/first', 'application/pdf', 1)""", agrochemistId);
+            jdbc.update("UPDATE agrochemist_profiles SET verification_status = 'approved' WHERE user_id = ?",
+                    agrochemistId);
+            return "agrochemist-documents/x/late";
+        });
+
+        send(upload(PDF, "certificate"), agrochemist)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("agrochemist_already_approved"));
+
+        assertThat(profileStatus(agrochemistId)).isEqualTo("approved");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM agrochemist_documents WHERE user_id = ?", Integer.class,
+                agrochemistId)).isEqualTo(1);
+        verify(storage).delete("agrochemist-documents/x/late");
+    }
+
+    @Test
+    void theObjectIsDroppedWhenTheRowCannotBeSaved() throws Exception {
+        when(storage.store(any(), any(), anyString())).thenAnswer(call -> {
+            jdbc.update("DELETE FROM agrochemist_profiles WHERE user_id = ?", agrochemistId);
+            return "agrochemist-documents/x/orphan";
+        });
+
+        send(upload(PDF, "diploma"), agrochemist)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("agrochemist_profile_missing"));
+
+        verify(storage).delete("agrochemist-documents/x/orphan");
+    }
+
+    @Test
+    void anAdminHasNoBusinessWithTheAgrochemistEndpoints() throws Exception {
+        String admin = token(newUser(Role.ADMIN, "+7715"));
+
+        mvc.perform(get("/api/agrochemist/verification").header("Authorization", admin))
+                .andExpect(status().isForbidden());
+        send(upload(PDF, "diploma"), admin).andExpect(status().isForbidden());
+    }
+
+    @Test
     void onlyAnAgrochemistMayUseTheEndpoints() throws Exception {
         String farmer = token(newUser(Role.FARMER, "+7714"));
 
