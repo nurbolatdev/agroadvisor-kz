@@ -49,6 +49,8 @@ export const sizes = {
   iconSm: 16,
   iconMd: 20,
   iconLg: 48,
+  // the photo in a list line (history)
+  thumb: 64,
 } as const
 
 export const fonts = {
