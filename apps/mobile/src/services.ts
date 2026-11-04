@@ -14,6 +14,7 @@ import { expoQueueFiles } from '@/features/diagnosis/queueFiles'
 import { storage } from '@/lib/storage'
 import { tokenStorage } from '@/lib/tokenStorage'
 import { createDiagnosisStore } from '@/store/diagnosis'
+import { createHistoryStore } from '@/store/history'
 import { createSessionStore } from '@/store/session'
 import { useSettings } from '@/store/settings'
 
@@ -88,12 +89,18 @@ export const useDiagnosis = createDiagnosisStore({
   },
 })
 
+// The history of the signed-in farmer: pages of GET /api/diagnoses. Reset together with the answers below.
+export const useHistory = createHistoryStore({ api: diagnosisApi })
+
 // Another farmer may sign in on the same phone. When the user changes (a sign-out or another sign-in),
 // nothing of the previous one's answers stays, and the queue is read again: it shows the new user's
 // entries, and none after a sign-out.
 useSession.subscribe((state, previous) => {
   if (state.userId === previous.userId) return
-  if (previous.userId !== null) useDiagnosis.getState().clearAnswers()
+  if (previous.userId !== null) {
+    useDiagnosis.getState().clearAnswers()
+    useHistory.getState().reset()
+  }
   useDiagnosis.getState().restore()
 })
 
