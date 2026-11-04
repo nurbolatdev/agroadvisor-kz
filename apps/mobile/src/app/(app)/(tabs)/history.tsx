@@ -3,27 +3,18 @@ import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native'
 
-import type { DiagnosisResult } from '@/api/diagnosis'
-import { API_URL } from '@/api/config'
 import { AppText, Button, Chip, EmptyState, ErrorState, Screen } from '@/components/ui'
-import { CROPS, isCrop } from '@/features/diagnosis/crops'
-import { formatDiagnosisDate } from '@/features/history/dates'
-import { describeRow } from '@/features/history/describeRow'
-import { DiagnosisListItem } from '@/features/history/DiagnosisListItem'
-import { toHistoryRow } from '@/features/history/historyRow'
-import { photoSource } from '@/features/history/photoSource'
+import { CROPS } from '@/features/diagnosis/crops'
+import { HistoryLine } from '@/features/history/HistoryLine'
 import { useDiseaseNames } from '@/features/history/useDiseaseNames'
-import { useDiagnosis, useHistory, useSession } from '@/services'
+import { useHistory } from '@/services'
 import { filterByCrop } from '@/store/history'
-import { useSettings } from '@/store/settings'
 import { colors, spacing } from '@/theme/tokens'
 
 // The farmer's earlier diagnoses, newest first, from the server. A tap opens the result screen.
 export default function HistoryScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  const language = useSettings((s) => s.language)
-  const accessToken = useSession((s) => s.accessToken)
   const names = useDiseaseNames()
   const { items, phase, hasMore, error, crop } = useHistory()
   const { setCrop, refresh, load, loadMore } = useHistory.getState()
@@ -36,12 +27,6 @@ export default function HistoryScreen() {
   )
 
   const visible = filterByCrop(items, crop)
-  const cropName = (code: string) => (isCrop(code) ? t(`diagnosis.crops.${code}`) : code)
-
-  const open = (diagnosis: DiagnosisResult) => {
-    useDiagnosis.getState().rememberResult(diagnosis)
-    router.push(`/diagnosis/result/${diagnosis.id}`)
-  }
 
   const errorText = error ? t(`history.errors.${error}`) : null
 
@@ -71,24 +56,7 @@ export default function HistoryScreen() {
         contentContainerStyle={styles.listContent}
         data={visible}
         keyExtractor={(d) => d.id}
-        renderItem={({ item }) => {
-          const row = toHistoryRow(item)
-          const view = describeRow(row, {
-            cropName,
-            diseaseName: (code) => names[code],
-            statusLabel: (status) => t(`history.status.${status}`),
-            date: formatDiagnosisDate(row.createdAt, language),
-          })
-          return (
-            <DiagnosisListItem
-              title={view.title}
-              subtitle={view.subtitle}
-              badge={view.badge}
-              photo={photoSource(row.photoUrl, API_URL, accessToken)}
-              onPress={() => open(item)}
-            />
-          )
-        }}
+        renderItem={({ item }) => <HistoryLine diagnosis={item} names={names} />}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshControl={
           <RefreshControl

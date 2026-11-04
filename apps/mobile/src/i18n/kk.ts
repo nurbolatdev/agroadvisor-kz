@@ -45,6 +45,12 @@ export const kk: Translation = {
     diagnose: 'Сурет бойынша диагностика',
     queue: 'Жіберілмеген: {{count}}',
     resultReady: 'Нәтиже дайын — ашу',
+    recent: {
+      title: 'Соңғы диагноздар',
+      all: 'Бүкіл тарих',
+      empty: 'Диагноздарыңыз осында шығады',
+      failed: 'Диагноздарды жүктеу мүмкін болмады',
+    },
   },
   history: {
     title: 'Тарих',

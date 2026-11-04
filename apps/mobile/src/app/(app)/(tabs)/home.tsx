@@ -1,14 +1,19 @@
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
+import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { StyleSheet, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
 import { AppText, Button, Chip, Screen } from '@/components/ui'
+import { HistoryLine } from '@/features/history/HistoryLine'
+import { useDiseaseNames } from '@/features/history/useDiseaseNames'
 import { LANGUAGES } from '@/i18n'
-import { useDiagnosis, useSession } from '@/services'
+import { useDiagnosis, useHistory, useSession } from '@/services'
 import { useSettings } from '@/store/settings'
 import { colors, spacing } from '@/theme/tokens'
 
-// Placeholder for the home screen of signed-in users; the tabs come with M5-M8.
+// How many of the latest diagnoses the home screen shows; the whole list is on the History tab.
+const RECENT = 3
+
 export default function HomeScreen() {
   const { t } = useTranslation()
   const router = useRouter()
@@ -19,6 +24,18 @@ export default function HomeScreen() {
   const queuedCount = useDiagnosis((s) => s.queued.length)
   const language = useSettings((s) => s.language)
   const setLanguage = useSettings((s) => s.setLanguage)
+  const names = useDiseaseNames()
+  const items = useHistory((s) => s.items)
+  const phase = useHistory((s) => s.phase)
+
+  // the history is the same store as on the History tab: a diagnosis made meanwhile shows here
+  useFocusEffect(
+    useCallback(() => {
+      void useHistory.getState().refresh()
+    }, []),
+  )
+
+  const recent = items.slice(0, RECENT)
 
   return (
     <Screen scroll>
@@ -55,6 +72,39 @@ export default function HomeScreen() {
         ) : null}
       </View>
 
+      <View style={styles.section}>
+        <AppText variant="h2">{t('home.recent.title')}</AppText>
+        <View style={styles.list}>
+          {recent.length > 0 ? (
+            recent.map((diagnosis) => (
+              <HistoryLine key={diagnosis.id} diagnosis={diagnosis} names={names} />
+            ))
+          ) : phase === 'idle' || phase === 'loading' ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : phase === 'failed' ? (
+            <>
+              <AppText color={colors.textMuted}>{t('home.recent.failed')}</AppText>
+              <Button
+                label={t('common.retry')}
+                variant="secondary"
+                compact
+                onPress={() => void useHistory.getState().load()}
+              />
+            </>
+          ) : (
+            <AppText color={colors.textMuted}>{t('home.recent.empty')}</AppText>
+          )}
+        </View>
+        {recent.length > 0 ? (
+          <Button
+            label={t('home.recent.all')}
+            variant="secondary"
+            compact
+            onPress={() => router.navigate('/history')}
+          />
+        ) : null}
+      </View>
+
       <AppText variant="caption" color={colors.textMuted} style={styles.section}>
         {t('language.title')}
       </AppText>
@@ -78,6 +128,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   gap: { marginTop: spacing.sm },
-  section: { marginTop: spacing.xl },
+  section: { marginTop: spacing.xl, gap: spacing.md },
+  list: { gap: spacing.md },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
 })

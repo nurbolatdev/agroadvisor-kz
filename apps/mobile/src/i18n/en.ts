@@ -45,6 +45,12 @@ export const en: Translation = {
     diagnose: 'Diagnose by photo',
     queue: 'Not sent: {{count}}',
     resultReady: 'Result is ready — open',
+    recent: {
+      title: 'Latest diagnoses',
+      all: 'All history',
+      empty: 'Your diagnoses will appear here',
+      failed: 'Could not load the diagnoses',
+    },
   },
   history: {
     title: 'History',
