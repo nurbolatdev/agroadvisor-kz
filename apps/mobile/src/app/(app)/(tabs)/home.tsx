@@ -31,7 +31,7 @@ export default function HomeScreen() {
   // the history is the same store as on the History tab: a diagnosis made meanwhile shows here
   useFocusEffect(
     useCallback(() => {
-      void useHistory.getState().refresh()
+      void useHistory.getState().sync()
     }, []),
   )
 

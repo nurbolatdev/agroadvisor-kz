@@ -73,7 +73,6 @@ export const en: Translation = {
     },
     errors: {
       offline: 'No connection to the server. Check the internet',
-      session: 'The session has ended. Sign in again',
       server: 'The server did not answer. Try again',
     },
   },

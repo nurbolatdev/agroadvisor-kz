@@ -7,7 +7,7 @@ import { AppText, Button, Chip, EmptyState, ErrorState, Screen } from '@/compone
 import { CROPS } from '@/features/diagnosis/crops'
 import { HistoryLine } from '@/features/history/HistoryLine'
 import { useDiseaseNames } from '@/features/history/useDiseaseNames'
-import { useHistory } from '@/services'
+import { useDiagnosis, useHistory } from '@/services'
 import { filterByCrop } from '@/store/history'
 import { colors, spacing } from '@/theme/tokens'
 
@@ -19,10 +19,11 @@ export default function HistoryScreen() {
   const { items, phase, hasMore, error, crop } = useHistory()
   const { setCrop, refresh, load, loadMore } = useHistory.getState()
 
-  // opening the tab loads the first time and refreshes afterwards, so a diagnosis made meanwhile shows
+  // opening the tab loads the first time and catches up quietly afterwards: a diagnosis made meanwhile
+  // shows on top, and the pages already loaded and the place in the list stay
   useFocusEffect(
     useCallback(() => {
-      void useHistory.getState().refresh()
+      void useHistory.getState().sync()
     }, []),
   )
 
@@ -65,7 +66,13 @@ export default function HistoryScreen() {
             tintColor={colors.primary}
           />
         }
-        onEndReached={() => void loadMore()}
+        testID="history-list"
+        // After an error the next page is asked only with the button: the footer changes the height of the
+        // list and would fire this again at once. With a crop filter the list may be empty or short and
+        // "at the end" all the time, so the pages are asked with the "Show more" button there.
+        onEndReached={() => {
+          if (error === null && crop === null) void loadMore()
+        }}
         onEndReachedThreshold={0.5}
         ListEmptyComponent={
           phase === 'idle' || phase === 'loading' ? (
@@ -77,7 +84,11 @@ export default function HistoryScreen() {
               title={t('history.empty.title')}
               message={t('history.empty.message')}
               actionLabel={t('history.empty.action')}
-              onAction={() => router.push('/diagnosis')}
+              onAction={() => {
+                // a flow that was left in the middle must not come back with the old crop and photo
+                useDiagnosis.getState().reset()
+                router.push('/diagnosis')
+              }}
             />
           ) : hasMore ? (
             <EmptyState

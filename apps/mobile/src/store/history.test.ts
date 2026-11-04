@@ -269,11 +269,126 @@ describe('filter by crop', () => {
 })
 
 describe('history errors', () => {
-  it('tells offline, an ended session and a server fault apart', () => {
+  it('tells no connection from every other fault; an ended session is the session store’s business', () => {
     expect(toHistoryError(new NetworkError())).toBe('offline')
-    expect(toHistoryError(new ApiError(401, 'unauthorized', 'x'))).toBe('session')
-    expect(toHistoryError(new ApiError(403, 'forbidden', 'x'))).toBe('session')
+    expect(toHistoryError(new ApiError(401, 'unauthorized', 'x'))).toBe('server')
+    expect(toHistoryError(new ApiError(403, 'forbidden', 'x'))).toBe('server')
     expect(toHistoryError(new ApiError(500, 'internal_error', 'x'))).toBe('server')
     expect(toHistoryError(new Error('?'))).toBe('server')
+  })
+})
+
+describe('history sync (a tab gets the focus)', () => {
+  it('puts new diagnoses on top and keeps the pages already loaded', async () => {
+    const answers: DiagnosisResult[][] = [
+      range(1, 4), // first load: d1 d2 d3
+      range(4, 6), // load more: d4 d5
+      [diagnosis(9), diagnosis(1), diagnosis(2)], // sync: d9 is new
+    ]
+    const api: DiagnosisHistoryApi = { list: async () => answers.shift() ?? [], get: jest.fn() }
+    const store = createHistoryStore({ api, pageSize: 3 })
+    await store.getState().load()
+    await store.getState().loadMore()
+
+    await store.getState().sync()
+
+    expect(store.getState().items.map((d) => d.id)).toEqual(['d9', 'd1', 'd2', 'd3', 'd4', 'd5'])
+    expect(store.getState().phase).toBe('ready') // no spinner
+  })
+
+  it('does not touch the list when there is nothing new', async () => {
+    const { store, list } = setup([range(1, 4), range(1, 4)])
+    await store.getState().load()
+    const before = store.getState().items
+
+    await store.getState().sync()
+
+    expect(list).toHaveBeenCalledTimes(2)
+    expect(store.getState().items).toBe(before)
+  })
+
+  it('stays silent when it fails: the list and the state are as they were', async () => {
+    let fail = false
+    const api: DiagnosisHistoryApi = {
+      list: async () => {
+        if (fail) throw new NetworkError()
+        return range(1, 4)
+      },
+      get: jest.fn(),
+    }
+    const store = createHistoryStore({ api, pageSize: 3 })
+    await store.getState().load()
+
+    fail = true
+    await store.getState().sync()
+
+    expect(store.getState()).toMatchObject({ phase: 'ready', error: null })
+    expect(store.getState().items).toHaveLength(3)
+  })
+
+  it('starts over when the whole first page is new (there may be more new ones in between)', async () => {
+    const answers: DiagnosisResult[][] = [range(1, 4), range(10, 13)]
+    const api: DiagnosisHistoryApi = { list: async () => answers.shift() ?? [], get: jest.fn() }
+    const store = createHistoryStore({ api, pageSize: 3 })
+    await store.getState().load()
+
+    await store.getState().sync()
+
+    expect(store.getState().items.map((d) => d.id)).toEqual(['d10', 'd11', 'd12'])
+    expect(store.getState().hasMore).toBe(true)
+  })
+
+  it('loads the first page when nothing was loaded yet, and retries after a failed first load', async () => {
+    const { store, list } = setup([range(1, 3)])
+
+    await store.getState().sync()
+
+    expect(list).toHaveBeenCalledTimes(1)
+    expect(store.getState().phase).toBe('ready')
+  })
+
+  it('does nothing while a "load more" is under way', async () => {
+    let release: (page: DiagnosisResult[]) => void = () => {}
+    let calls = 0
+    const api: DiagnosisHistoryApi = {
+      list: (page) => {
+        calls += 1
+        return page === 0 ? Promise.resolve(range(1, 4)) : new Promise((r) => (release = r))
+      },
+      get: jest.fn(),
+    }
+    const store = createHistoryStore({ api, pageSize: 3 })
+    await store.getState().load()
+    const more = store.getState().loadMore()
+
+    await store.getState().sync()
+    release(range(4, 6))
+    await more
+
+    expect(calls).toBe(2) // the first load and the "load more"; the sync asked nothing
+  })
+
+  it('drops the answer of a sync that was started before a reset', async () => {
+    let release: (page: DiagnosisResult[]) => void = () => {}
+    let first = true
+    const api: DiagnosisHistoryApi = {
+      list: () => {
+        if (first) {
+          first = false
+          return Promise.resolve(range(1, 4))
+        }
+        return new Promise((r) => (release = r))
+      },
+      get: jest.fn(),
+    }
+    const store = createHistoryStore({ api, pageSize: 3 })
+    await store.getState().load()
+    const syncing = store.getState().sync()
+
+    store.getState().reset() // another farmer signs in
+    release([diagnosis(50), diagnosis(51)])
+    await syncing
+
+    expect(store.getState().items).toEqual([])
   })
 })

@@ -8,6 +8,7 @@ import HistoryScreen from '@/app/(app)/(tabs)/history'
 const mockApi = { list: jest.fn(), get: jest.fn() }
 const mockPush = jest.fn()
 const mockRemember = jest.fn()
+const mockReset = jest.fn()
 
 // The screen's own logic is under test; the store is the real history store over a fake api.
 jest.mock('expo-router', () => {
@@ -35,7 +36,7 @@ jest.mock('@/services', () => {
       },
       pageSize: 2,
     }),
-    useDiagnosis: { getState: () => ({ rememberResult: mockRemember }) },
+    useDiagnosis: { getState: () => ({ rememberResult: mockRemember, reset: mockReset }) },
     useSession: (select: (s: { accessToken: string }) => unknown) => select({ accessToken: 'tok' }),
     diseaseCatalog: {
       list: () => Promise.resolve([{ code: 'tomato__late_blight', name: 'Late blight' }]),
@@ -136,5 +137,56 @@ describe('history screen', () => {
 
     expect(await screen.findByText('No connection to the server. Check the internet')).toBeTruthy()
     expect(screen.getByText('Late blight')).toBeTruthy()
+  })
+
+  it('asks for the next page when the list ends, but not again by itself after an error', async () => {
+    mockApi.list.mockResolvedValueOnce([diagnosis('d1'), diagnosis('d2')]) // a full page
+    await render(<HistoryScreen />)
+    await screen.findAllByText('Late blight')
+    expect(mockApi.list).toHaveBeenCalledTimes(1)
+
+    mockApi.list.mockRejectedValueOnce(new NetworkError())
+    await fireEvent(screen.getByTestId('history-list'), 'endReached')
+    expect(await screen.findByText('No connection to the server. Check the internet')).toBeTruthy()
+    expect(mockApi.list).toHaveBeenCalledTimes(2)
+
+    // the footer changed the height of the list and the list says "end" again: no request
+    await fireEvent(screen.getByTestId('history-list'), 'endReached')
+    await fireEvent(screen.getByTestId('history-list'), 'endReached')
+    expect(mockApi.list).toHaveBeenCalledTimes(2)
+
+    // only the button asks again
+    mockApi.list.mockResolvedValueOnce([diagnosis('d3')])
+    await fireEvent.press(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findAllByText('Late blight')).toHaveLength(3)
+    expect(mockApi.list).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not load pages by itself while a crop filter is chosen', async () => {
+    mockApi.list.mockResolvedValue([diagnosis('d1'), diagnosis('d2')])
+    await render(<HistoryScreen />)
+    await screen.findAllByText('Late blight')
+    await fireEvent.press(screen.getByRole('button', { name: 'Wheat' }))
+    await screen.findByText('None of the loaded diagnoses is of this crop')
+    const calls = mockApi.list.mock.calls.length
+
+    await fireEvent(screen.getByTestId('history-list'), 'endReached')
+
+    expect(mockApi.list).toHaveBeenCalledTimes(calls)
+    // the button does
+    mockApi.list.mockResolvedValueOnce([diagnosis('d3', 'wheat')])
+    await fireEvent.press(screen.getByRole('button', { name: 'Show more' }))
+    expect(mockApi.list).toHaveBeenCalledTimes(calls + 1)
+  })
+
+  it('starts the first diagnosis from a clean flow', async () => {
+    mockApi.list.mockResolvedValue([])
+    await render(<HistoryScreen />)
+    await screen.findByText('No diagnoses yet')
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Diagnose by photo' }))
+
+    expect(mockReset).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith('/diagnosis')
   })
 })
