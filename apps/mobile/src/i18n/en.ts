@@ -54,6 +54,22 @@ export const en: Translation = {
       unknown: 'Not identified',
       crop_mismatch: 'Other crop',
     },
+    filter: {
+      all: 'All',
+      noneLoaded: 'None of the loaded diagnoses is of this crop',
+      loadMore: 'Show more',
+      none: 'No diagnoses of this crop',
+    },
+    empty: {
+      title: 'No diagnoses yet',
+      message: 'Take a photo of a leaf — the result will appear here',
+      action: 'Diagnose by photo',
+    },
+    errors: {
+      offline: 'No connection to the server. Check the internet',
+      session: 'The session has ended. Sign in again',
+      server: 'The server did not answer. Try again',
+    },
   },
   diagnosis: {
     title: 'Diagnosis',
