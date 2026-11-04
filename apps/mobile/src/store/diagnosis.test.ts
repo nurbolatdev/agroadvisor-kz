@@ -811,3 +811,38 @@ describe('diagnosis flow', () => {
     expect(s.phase).toBe('idle')
   })
 })
+
+describe('a diagnosis made earlier', () => {
+  it('is made available to the result screen without being "unseen"', () => {
+    const { useDiagnosis } = setup([])
+
+    useDiagnosis.getState().rememberResult(result())
+
+    const s = useDiagnosis.getState()
+    expect(s.results.d1).toMatchObject({ id: 'd1', status: 'ok', photoPath: null })
+    expect(s.unseenResultIds).toEqual([])
+  })
+
+  it('keeps the local photo of an answer that is already here', async () => {
+    const { useDiagnosis } = setup([result()])
+    await start(useDiagnosis)
+    const photoPath = useDiagnosis.getState().results.d1.photoPath
+    expect(photoPath).not.toBeNull()
+
+    useDiagnosis.getState().rememberResult({ ...result(), status: 'low_confidence' })
+
+    expect(useDiagnosis.getState().results.d1).toMatchObject({
+      status: 'low_confidence',
+      photoPath,
+    })
+  })
+
+  it('goes away with the answers when the farmer signs out', () => {
+    const { useDiagnosis } = setup([])
+    useDiagnosis.getState().rememberResult(result())
+
+    useDiagnosis.getState().clearAnswers()
+
+    expect(useDiagnosis.getState().results).toEqual({})
+  })
+})
