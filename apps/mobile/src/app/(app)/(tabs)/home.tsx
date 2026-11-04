@@ -1,17 +1,18 @@
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 
 import { AppText, Button, Chip, Screen } from '@/components/ui'
+import { HeroCard } from '@/features/home/HeroCard'
 import { HistoryLine } from '@/features/history/HistoryLine'
 import { useDiseaseNames } from '@/features/history/useDiseaseNames'
 import { LANGUAGES } from '@/i18n'
 import { useDiagnosis, useHistory, useSession } from '@/services'
 import { useSettings } from '@/store/settings'
-import { colors, spacing } from '@/theme/tokens'
+import { colors, radii, spacing } from '@/theme/tokens'
 
-// How many of the latest diagnoses the home screen shows; the whole list is on the History tab.
+// How many of the latest diagnoses the home screen shows; the whole list is on the History screen.
 const RECENT = 3
 
 export default function HomeScreen() {
@@ -26,9 +27,8 @@ export default function HomeScreen() {
   const setLanguage = useSettings((s) => s.setLanguage)
   const names = useDiseaseNames()
   const items = useHistory((s) => s.items)
-  const phase = useHistory((s) => s.phase)
 
-  // the history is the same store as on the History tab: a diagnosis made meanwhile shows here
+  // the history is the same store as on the History screen: a diagnosis made meanwhile shows here
   useFocusEffect(
     useCallback(() => {
       void useHistory.getState().sync()
@@ -39,12 +39,15 @@ export default function HomeScreen() {
 
   return (
     <Screen scroll>
-      <AppText variant="display" color={colors.primaryDark}>
-        {t('app.name')}
-      </AppText>
-      <AppText color={colors.textMuted} style={styles.gap}>
-        {t('app.tagline')}
-      </AppText>
+      <HeroCard
+        title={t('home.hero.title')}
+        subtitle={t('home.hero.subtitle')}
+        actionLabel={t('home.hero.action')}
+        onAction={() => {
+          resetDiagnosis()
+          router.push('/diagnosis')
+        }}
+      />
 
       {unseenResultId ? (
         <View style={styles.section}>
@@ -55,56 +58,43 @@ export default function HomeScreen() {
         </View>
       ) : null}
 
-      <View style={styles.section}>
-        <Button
-          label={t('home.diagnose')}
-          onPress={() => {
-            resetDiagnosis()
-            router.push('/diagnosis')
-          }}
-        />
-        {queuedCount > 0 ? (
+      {queuedCount > 0 ? (
+        <View style={styles.section}>
           <Button
             label={t('home.queue', { count: queuedCount })}
             variant="secondary"
             onPress={() => router.push('/diagnosis/queue')}
           />
-        ) : null}
-      </View>
-
-      <View style={styles.section}>
-        <AppText variant="h2">{t('home.recent.title')}</AppText>
-        <View style={styles.list}>
-          {recent.length > 0 ? (
-            recent.map((diagnosis) => (
-              <HistoryLine key={diagnosis.id} diagnosis={diagnosis} names={names} />
-            ))
-          ) : phase === 'idle' || phase === 'loading' ? (
-            <ActivityIndicator color={colors.primary} />
-          ) : phase === 'failed' ? (
-            <>
-              <AppText color={colors.textMuted}>{t('home.recent.failed')}</AppText>
-              <Button
-                label={t('common.retry')}
-                variant="secondary"
-                compact
-                onPress={() => void useHistory.getState().load()}
-              />
-            </>
-          ) : (
-            <AppText color={colors.textMuted}>{t('home.recent.empty')}</AppText>
-          )}
         </View>
-        {recent.length > 0 ? (
-          <Button
-            label={t('home.recent.all')}
-            variant="secondary"
-            compact
-            onPress={() => router.navigate('/history')}
-          />
-        ) : null}
-      </View>
+      ) : null}
 
+      {/* Only when there is something to show: with no diagnoses the home screen is the card alone */}
+      {recent.length > 0 ? (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <AppText variant="h2">{t('home.recent.title')}</AppText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('home.recent.all')}
+              hitSlop={spacing.md}
+              onPress={() => router.push('/history')}
+            >
+              <AppText variant="small" color={colors.primary}>
+                {t('home.recent.all')}
+              </AppText>
+            </Pressable>
+          </View>
+          <View style={styles.card}>
+            {recent.map((diagnosis, index) => (
+              <View key={diagnosis.id} style={index > 0 ? styles.divider : undefined}>
+                <HistoryLine diagnosis={diagnosis} names={names} />
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      {/* Until the profile (M8) has them, the language and the sign-out stay here */}
       <AppText variant="caption" color={colors.textMuted} style={styles.section}>
         {t('language.title')}
       </AppText>
@@ -127,8 +117,15 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  gap: { marginTop: spacing.sm },
   section: { marginTop: spacing.xl, gap: spacing.md },
-  list: { gap: spacing.md },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  card: {
+    overflow: 'hidden',
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  divider: { borderTopWidth: 1, borderTopColor: colors.border },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
 })

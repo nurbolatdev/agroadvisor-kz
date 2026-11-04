@@ -43,14 +43,16 @@ export const en: Translation = {
   home: {
     title: 'Home',
     scaffoldReady: 'The app scaffold is ready',
-    diagnose: 'Diagnose by photo',
+    hero: {
+      title: 'Photograph the plant',
+      subtitle: 'We will find the disease in 10 seconds',
+      action: 'Open camera',
+    },
     queue: 'Not sent: {{count}}',
     resultReady: 'Result is ready — open',
     recent: {
       title: 'Latest diagnoses',
-      all: 'All history',
-      empty: 'Your diagnoses will appear here',
-      failed: 'Could not load the diagnoses',
+      all: 'All',
     },
   },
   tabs: {

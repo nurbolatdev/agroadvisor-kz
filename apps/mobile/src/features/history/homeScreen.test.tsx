@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
 import type { DiagnosisResult } from '@/api/diagnosis'
 import { NetworkError } from '@/api/errors'
@@ -7,7 +7,6 @@ import { initI18n } from '@/i18n'
 
 const mockApi = { list: jest.fn(), get: jest.fn() }
 const mockPush = jest.fn()
-const mockNavigate = jest.fn()
 const mockReset = jest.fn()
 const mockRemember = jest.fn()
 const mockDiagnosis = { unseenResultIds: [] as string[], queued: [] as unknown[] }
@@ -15,7 +14,7 @@ const mockDiagnosis = { unseenResultIds: [] as string[], queued: [] as unknown[]
 jest.mock('expo-router', () => {
   const react = require('react')
   return {
-    useRouter: () => ({ push: mockPush, navigate: mockNavigate }),
+    useRouter: () => ({ push: mockPush }),
     useFocusEffect: (effect: () => void) => react.useEffect(effect, []),
   }
 })
@@ -83,11 +82,13 @@ function diagnosis(n: number): DiagnosisResult {
 }
 
 describe('home screen', () => {
-  it('starts a new diagnosis from a clean flow', async () => {
+  it('has the green card of the design and starts a new diagnosis from a clean flow', async () => {
     mockApi.list.mockResolvedValue([])
     await render(<HomeScreen />)
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Diagnose by photo' }))
+    expect(screen.getByText('Photograph the plant')).toBeTruthy()
+    expect(screen.getByText('We will find the disease in 10 seconds')).toBeTruthy()
+    await fireEvent.press(screen.getByRole('button', { name: 'Open camera' }))
 
     expect(mockReset).toHaveBeenCalledTimes(1)
     expect(mockPush).toHaveBeenCalledWith('/diagnosis')
@@ -98,9 +99,10 @@ describe('home screen', () => {
     await render(<HomeScreen />)
 
     expect(await screen.findAllByText('Late blight')).toHaveLength(3)
-    await fireEvent.press(screen.getByRole('button', { name: 'All history' }))
+    expect(screen.getByText('Latest diagnoses')).toBeTruthy()
+    await fireEvent.press(screen.getByRole('button', { name: 'All' }))
 
-    expect(mockNavigate).toHaveBeenCalledWith('/history')
+    expect(mockPush).toHaveBeenCalledWith('/history')
   })
 
   it('opens the result of a diagnosis from the list', async () => {
@@ -115,25 +117,40 @@ describe('home screen', () => {
     expect(mockPush).toHaveBeenCalledWith('/diagnosis/result/d1')
   })
 
-  it('says that the diagnoses will appear here when there are none, with no link to the history', async () => {
+  it('with no diagnoses the screen is the card alone: no title, no link, no message', async () => {
     mockApi.list.mockResolvedValue([])
     await render(<HomeScreen />)
+    await waitFor(() => expect(mockApi.list).toHaveBeenCalled())
 
-    expect(await screen.findByText('Your diagnoses will appear here')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'All history' })).toBeNull()
+    expect(screen.queryByText('Latest diagnoses')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'All' })).toBeNull()
+    expect(screen.queryByText(/appear here/i)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Open camera' })).toBeTruthy()
   })
 
-  it('does not break the screen when the history cannot be loaded, and tries again on request', async () => {
+  it('shows nothing about the history while it loads or when it cannot be loaded', async () => {
     mockApi.list.mockRejectedValueOnce(new NetworkError())
     await render(<HomeScreen />)
-    expect(await screen.findByText('Could not load the diagnoses')).toBeTruthy()
+    await waitFor(() => expect(mockApi.list).toHaveBeenCalled())
+
+    expect(screen.queryByText('Latest diagnoses')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
     // the main action is still there
-    expect(screen.getByRole('button', { name: 'Diagnose by photo' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Open camera' })).toBeTruthy()
+  })
+
+  it('appears when the first diagnosis does: the history is caught up when the screen is opened', async () => {
+    mockApi.list.mockResolvedValueOnce([])
+    await render(<HomeScreen />)
+    await waitFor(() => expect(mockApi.list).toHaveBeenCalled())
+    expect(screen.queryByText('Latest diagnoses')).toBeNull()
 
     mockApi.list.mockResolvedValueOnce([diagnosis(1)])
-    await fireEvent.press(screen.getByRole('button', { name: 'Try again' }))
+    await act(async () => {
+      await useHistory.getState().sync()
+    })
 
-    expect(await screen.findByText('Late blight')).toBeTruthy()
+    expect(await screen.findByText('Latest diagnoses')).toBeTruthy()
   })
 
   it('offers the unseen result and the queue', async () => {

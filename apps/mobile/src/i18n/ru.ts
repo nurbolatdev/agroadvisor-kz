@@ -41,14 +41,18 @@ export const ru = {
   home: {
     title: 'Главная',
     scaffoldReady: 'Каркас приложения готов',
-    diagnose: 'Диагностика по фото',
+    // the green card (screen 04)
+    hero: {
+      title: 'Сфотографируйте растение',
+      subtitle: 'Определим болезнь за 10 секунд',
+      action: 'Открыть камеру',
+    },
     queue: 'Не отправлено: {{count}}',
     resultReady: 'Результат готов — открыть',
+    // shown only when there are diagnoses
     recent: {
       title: 'Последние диагнозы',
-      all: 'Вся история',
-      empty: 'Здесь появятся ваши диагнозы',
-      failed: 'Не удалось загрузить диагнозы',
+      all: 'Все',
     },
   },
   // the places of the bottom bar (screens 04 and 19)
