@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Image, StyleSheet, View } from 'react-native'
 
+import { API_URL } from '@/api/config'
 import type { DiagnosisResult } from '@/api/diagnosis'
 import {
   AppText,
@@ -16,9 +17,10 @@ import {
 import { isCrop } from '@/features/diagnosis/crops'
 import { hasTreatment, resolveResultScreen } from '@/features/diagnosis/resultScreen'
 import { UncertainBody } from '@/features/diagnosis/UncertainBody'
+import { photoAttempt, resultPhoto } from '@/features/history/photoSource'
 import type { StoredResult } from '@/store/diagnosis'
 import { useDiseaseDetail } from '@/features/diseases/useDiseaseDetail'
-import { useDiagnosis } from '@/services'
+import { useDiagnosis, useSession } from '@/services'
 import { colors, radii, spacing } from '@/theme/tokens'
 
 const TONE: Record<DiagnosisResult['status'], BadgeTone> = {
@@ -29,11 +31,13 @@ const TONE: Record<DiagnosisResult['status'], BadgeTone> = {
 }
 
 // The diagnosis comes from the store by its id: the route carries only the id, never the diagnosis. The
-// photo is the file the app sent: the answer has no photo address, so the store keeps the file with the
-// answer (`photoPath`) and the screen goes without the photo if it is gone.
+// photo is the file the app sent when it is still there (`photoPath`, no request); a diagnosis opened from
+// the history has none, and its photo is fetched from the server with the access token. The screen goes
+// without the photo if neither can be read.
 export default function ResultScreen() {
   const { t } = useTranslation()
   const router = useRouter()
+  const accessToken = useSession((s) => s.accessToken)
   const { id } = useLocalSearchParams<{ id: string }>()
   const view = useDiagnosis((s) => s.results[id])
   const markSeen = useDiagnosis((s) => s.markSeen)
@@ -61,6 +65,8 @@ export default function ResultScreen() {
     )
   }
 
+  const photo = resultPhoto(view, API_URL, accessToken)
+
   return (
     <Screen scroll>
       <AppText variant="h1" color={colors.primaryDark}>
@@ -69,7 +75,7 @@ export default function ResultScreen() {
       <View style={styles.block}>
         <GlassCard style={styles.card}>
           <Badge label={t(`diagnosis.result.status.${view.status}`)} tone={TONE[view.status]} />
-          {view.photoPath ? <ResultPhoto uri={view.photoPath} /> : null}
+          {photo ? <ResultPhoto source={photo} /> : null}
           <ResultBody view={view} />
           {view.placeholder ? (
             <AppText variant="small" color={colors.danger}>
@@ -143,10 +149,16 @@ function OkBody({ view }: { view: DiagnosisResult }) {
 
 // The photo the diagnosis was made from. If the file cannot be read (the system removed it), the screen
 // goes on without the photo and shows no error.
-function ResultPhoto({ uri }: { uri: string }) {
-  const [failed, setFailed] = useState(false)
-  if (failed) return null
-  return <Image source={{ uri }} style={styles.photo} onError={() => setFailed(true)} />
+function ResultPhoto({ source }: { source: { uri: string; headers?: Record<string, string> } }) {
+  const [failedAttempt, setFailedAttempt] = useState<string | null>(null)
+  if (failedAttempt === photoAttempt(source)) return null
+  return (
+    <Image
+      source={source}
+      style={styles.photo}
+      onError={() => setFailedAttempt(photoAttempt(source))}
+    />
+  )
 }
 
 const styles = StyleSheet.create({

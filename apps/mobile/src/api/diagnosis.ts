@@ -17,10 +17,22 @@ export type DiagnosisApi = {
   create: (pending: PendingDiagnosis) => Promise<DiagnosisResult>
 }
 
+// Reading what was made before: the history screen and a result opened from it.
+export type DiagnosisHistoryApi = {
+  // The caller's history, newest first. `page` starts at 0; the answer has no total, so a page shorter
+  // than `size` is the last one.
+  list: (page: number, size: number) => Promise<DiagnosisResult[]>
+  // One diagnosis of the caller (404 diagnosis_not_found for another user's and a missing id).
+  get: (id: string) => Promise<DiagnosisResult>
+}
+
+// The server accepts 1..100 per page (docs/api/ai-predict.md); a page size outside it is a 400.
+export const MAX_PAGE_SIZE = 100
+
 export function createDiagnosisApi(
   client: ApiClient,
   newForm: () => FormData = () => new FormData(),
-): DiagnosisApi {
+): DiagnosisApi & DiagnosisHistoryApi {
   return {
     create: (pending) => {
       const form = newForm()
@@ -38,5 +50,10 @@ export function createDiagnosisApi(
         timeoutMs: DIAGNOSIS_TIMEOUT_MS,
       })
     },
+    list: (page, size) =>
+      client.request<DiagnosisResult[]>(
+        `/api/diagnoses?page=${Math.max(0, Math.trunc(page))}&size=${Math.min(MAX_PAGE_SIZE, Math.max(1, Math.trunc(size)))}`,
+      ),
+    get: (id) => client.request<DiagnosisResult>(`/api/diagnoses/${encodeURIComponent(id)}`),
   }
 }

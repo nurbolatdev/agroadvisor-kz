@@ -50,6 +50,41 @@ describe('diagnosis api', () => {
     ])
   })
 
+  it('asks for a page of the history with page and size', async () => {
+    const { api, calls } = setup()
+
+    await api.list(2, 20)
+
+    expect(calls[0].path).toBe('/api/diagnoses?page=2&size=20')
+    expect(calls[0].opts.method).toBeUndefined() // GET
+  })
+
+  it('keeps the page and the size inside what the server accepts', async () => {
+    const { api, calls } = setup()
+
+    await api.list(-3, 500)
+    await api.list(0, 0)
+    await api.list(1.9, 10.7)
+
+    expect(calls.map((c) => c.path)).toEqual([
+      '/api/diagnoses?page=0&size=100',
+      '/api/diagnoses?page=0&size=1',
+      '/api/diagnoses?page=1&size=10',
+    ])
+  })
+
+  it('reads one diagnosis by its id, escaped', async () => {
+    const { api, calls } = setup()
+
+    await api.get('0b1f2c3d-0000-4000-8000-000000000000')
+    await api.get('a/b?c')
+
+    expect(calls.map((c) => c.path)).toEqual([
+      '/api/diagnoses/0b1f2c3d-0000-4000-8000-000000000000',
+      '/api/diagnoses/a%2Fb%3Fc',
+    ])
+  })
+
   it('sends the same key and the same file on every call with the same pending diagnosis', async () => {
     const { api, calls, forms } = setup()
     const pending = createPending('tomato', 'file:///a.jpg')

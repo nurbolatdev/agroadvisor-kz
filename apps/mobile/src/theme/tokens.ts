@@ -49,6 +49,12 @@ export const sizes = {
   iconSm: 16,
   iconMd: 20,
   iconLg: 48,
+  // the photo in a list line (history)
+  thumb: 56,
+  // the round camera button in the middle of the bottom bar
+  fab: 60,
+  // the leaf drawn on the green card of the home screen
+  hero: 140,
 } as const
 
 export const fonts = {

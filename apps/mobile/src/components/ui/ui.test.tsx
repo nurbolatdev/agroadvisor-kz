@@ -10,6 +10,7 @@ import { Chip } from './Chip'
 import { Input } from './Input'
 import { clampProgress, ProgressBar } from './ProgressBar'
 import { EmptyState, ErrorState } from './StateView'
+import { StatusBadge } from './StatusBadge'
 
 beforeAll(() => {
   initI18n('en')
@@ -96,6 +97,32 @@ describe('Badge', () => {
   it('always shows the status as text', async () => {
     await render(<Badge label="Healthy" tone="success" icon={Leaf} />)
     expect(screen.getByText('Healthy')).toBeTruthy()
+  })
+})
+
+describe('StatusBadge', () => {
+  const variants = ['disease', 'healthy', 'undetermined', 'withAgrochemist', 'cured'] as const
+
+  it.each(variants)('shows %s as a word, not as a color alone', async (variant) => {
+    await render(<StatusBadge variant={variant} label={`word-${variant}`} />)
+    expect(screen.getByText(`word-${variant}`)).toBeTruthy()
+  })
+
+  it('draws a disease in danger colors and a healthy plant in primary colors', async () => {
+    await render(
+      <>
+        <StatusBadge variant="disease" label="D" />
+        <StatusBadge variant="healthy" label="H" />
+      </>,
+    )
+    expect(screen.getByText('D')).toHaveStyle({ color: colors.danger })
+    expect(screen.getByText('H')).toHaveStyle({ color: colors.primary })
+  })
+
+  it('does not paint "not identified" red: it is neutral', async () => {
+    await render(<StatusBadge variant="undetermined" label="U" />)
+    expect(screen.getByText('U')).toHaveStyle({ color: colors.textMuted })
+    expect(screen.getByText('U')).not.toHaveStyle({ color: colors.danger })
   })
 })
 

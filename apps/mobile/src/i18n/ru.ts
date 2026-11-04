@@ -36,13 +36,60 @@ export const ru = {
     empty: 'Здесь пока пусто',
     error: 'Что-то пошло не так',
     retry: 'Повторить',
+    back: 'Назад',
   },
   home: {
     title: 'Главная',
     scaffoldReady: 'Каркас приложения готов',
-    diagnose: 'Диагностика по фото',
+    // the green card (screen 04)
+    hero: {
+      title: 'Сфотографируйте растение',
+      subtitle: 'Определим болезнь за 10 секунд',
+      action: 'Открыть камеру',
+    },
     queue: 'Не отправлено: {{count}}',
     resultReady: 'Результат готов — открыть',
+    // shown only when there are diagnoses
+    recent: {
+      title: 'Последние диагнозы',
+      all: 'Все',
+    },
+  },
+  // the places of the bottom bar (screens 04 and 19)
+  tabs: {
+    home: 'Главная',
+    community: 'Сообщество',
+    camera: 'Диагностика по фото',
+    chats: 'Чаты',
+    profile: 'Профиль',
+  },
+  history: {
+    title: 'История',
+    // short words for the badge of a line; the long explanations are on the result screen
+    status: {
+      disease: 'Болезнь',
+      healthy: 'Здоров',
+      undetermined: 'Не определено',
+      withAgrochemist: 'У агрохимика',
+      cured: 'Вылечено',
+    },
+    filter: {
+      all: 'Все',
+      noneLoaded: 'Среди загруженных диагнозов этой культуры нет',
+      loadMore: 'Показать ещё',
+      none: 'Диагнозов этой культуры нет',
+      // the names on the chips, as the design writes them (screen 19)
+      crop: { potato: 'Картофель', tomato: 'Томаты', corn: 'Кукуруза', wheat: 'Пшеница' },
+    },
+    empty: {
+      title: 'Диагнозов пока нет',
+      message: 'Сфотографируйте лист — результат появится здесь',
+      action: 'Диагностика по фото',
+    },
+    errors: {
+      offline: 'Нет связи с сервером. Проверьте интернет',
+      server: 'Сервер не ответил. Попробуйте ещё раз',
+    },
   },
   diagnosis: {
     title: 'Диагностика',

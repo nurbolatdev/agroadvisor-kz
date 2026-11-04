@@ -52,6 +52,10 @@ type DiagnosisState = {
   unseenResultIds: string[]
   // called by the result screen when it opens
   markSeen: (id: string) => void
+  // A diagnosis made earlier (read from the history) is made available to the result screen, which gets
+  // diagnoses only from `results`. It is not "unseen", and the local photo of an answer that is already
+  // here is kept.
+  rememberResult: (result: DiagnosisResult) => void
   selectCrop: (crop: Crop) => void
   setPhoto: (photo: PickedPhoto) => void
   analyze: () => Promise<void>
@@ -175,6 +179,13 @@ export function createDiagnosisStore(deps: Deps) {
       unseenResultIds: [],
       markSeen: (id) =>
         set((s) => ({ unseenResultIds: s.unseenResultIds.filter((x) => x !== id) })),
+      rememberResult: (result) =>
+        set((s) => ({
+          results: {
+            ...s.results,
+            [result.id]: { ...result, photoPath: s.results[result.id]?.photoPath ?? null },
+          },
+        })),
       selectCrop: (crop) => {
         flow += 1
         set({ crop, ...INITIAL })

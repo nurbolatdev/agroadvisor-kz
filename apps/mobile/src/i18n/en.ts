@@ -38,13 +38,55 @@ export const en: Translation = {
     empty: 'Nothing here yet',
     error: 'Something went wrong',
     retry: 'Try again',
+    back: 'Back',
   },
   home: {
     title: 'Home',
     scaffoldReady: 'The app scaffold is ready',
-    diagnose: 'Diagnose by photo',
+    hero: {
+      title: 'Photograph the plant',
+      subtitle: 'We will find the disease in 10 seconds',
+      action: 'Open camera',
+    },
     queue: 'Not sent: {{count}}',
     resultReady: 'Result is ready — open',
+    recent: {
+      title: 'Latest diagnoses',
+      all: 'All',
+    },
+  },
+  tabs: {
+    home: 'Home',
+    community: 'Community',
+    camera: 'Diagnose by photo',
+    chats: 'Chats',
+    profile: 'Profile',
+  },
+  history: {
+    title: 'History',
+    status: {
+      disease: 'Disease',
+      healthy: 'Healthy',
+      undetermined: 'Not identified',
+      withAgrochemist: 'With agrochemist',
+      cured: 'Cured',
+    },
+    filter: {
+      all: 'All',
+      noneLoaded: 'None of the loaded diagnoses is of this crop',
+      loadMore: 'Show more',
+      none: 'No diagnoses of this crop',
+      crop: { potato: 'Potatoes', tomato: 'Tomatoes', corn: 'Corn', wheat: 'Wheat' },
+    },
+    empty: {
+      title: 'No diagnoses yet',
+      message: 'Take a photo of a leaf — the result will appear here',
+      action: 'Diagnose by photo',
+    },
+    errors: {
+      offline: 'No connection to the server. Check the internet',
+      server: 'The server did not answer. Try again',
+    },
   },
   diagnosis: {
     title: 'Diagnosis',

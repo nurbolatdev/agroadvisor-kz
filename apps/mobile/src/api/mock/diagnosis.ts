@@ -1,23 +1,27 @@
 import type { PendingDiagnosis } from '@/features/diagnosis/pending'
 
-import type { DiagnosisApi, DiagnosisResult } from '../diagnosis'
+import type { DiagnosisApi, DiagnosisHistoryApi, DiagnosisResult } from '../diagnosis'
+import { ApiError } from '../errors'
 
 type Options = {
   delayMs?: number
   now?: () => number
 }
 
-// Works without the backend. Like the real one it answers the same key with the same diagnosis.
+// Works without the backend. Like the real one it answers the same key with the same diagnosis, and it
+// keeps what it made so that the history and a diagnosis by id work in the same session.
 export function createMockDiagnosisApi({
   delayMs = 1200,
   now = Date.now,
-}: Options = {}): DiagnosisApi {
+}: Options = {}): DiagnosisApi & DiagnosisHistoryApi {
   const made = new Map<string, DiagnosisResult>()
+  const history: DiagnosisResult[] = [] // oldest first
   let count = 0
+  const wait = () => new Promise((resolve) => setTimeout(resolve, delayMs))
 
   return {
     create: async (pending: PendingDiagnosis) => {
-      await new Promise((resolve) => setTimeout(resolve, delayMs))
+      await wait()
       const existing = made.get(pending.key)
       if (existing) return existing
 
@@ -42,7 +46,19 @@ export function createMockDiagnosisApi({
         createdAt: new Date(now()).toISOString(),
       }
       made.set(pending.key, result)
+      history.push(result)
       return result
+    },
+    list: async (page, size) => {
+      await wait()
+      const newestFirst = [...history].reverse()
+      return newestFirst.slice(page * size, page * size + size)
+    },
+    get: async (id) => {
+      await wait()
+      const found = history.find((d) => d.id === id)
+      if (!found) throw new ApiError(404, 'diagnosis_not_found', 'Diagnosis not found')
+      return found
     },
   }
 }
