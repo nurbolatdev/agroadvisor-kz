@@ -72,6 +72,22 @@ describe('DiagnosisListItem', () => {
     expect(onPress).toHaveBeenCalledTimes(1)
   })
 
+  it('asks for the photo again when the access token was renewed after a failure', async () => {
+    const { rerender } = await render(item())
+    await fireEvent(screen.getByTestId('photo-image'), 'error')
+    expect(screen.queryByTestId('photo-image')).toBeNull()
+
+    // the same address, the same token: still no second request
+    await rerender(item())
+    expect(screen.queryByTestId('photo-image')).toBeNull()
+
+    await rerender(item({ photo: { ...photo, headers: { Authorization: 'Bearer renewed' } } }))
+
+    expect(screen.getByTestId('photo-image').props.source.headers).toEqual({
+      Authorization: 'Bearer renewed',
+    })
+  })
+
   it('describes the line for a screen reader', async () => {
     await render(item())
 

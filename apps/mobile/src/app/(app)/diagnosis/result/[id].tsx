@@ -17,7 +17,7 @@ import {
 import { isCrop } from '@/features/diagnosis/crops'
 import { hasTreatment, resolveResultScreen } from '@/features/diagnosis/resultScreen'
 import { UncertainBody } from '@/features/diagnosis/UncertainBody'
-import { resultPhoto } from '@/features/history/photoSource'
+import { photoAttempt, resultPhoto } from '@/features/history/photoSource'
 import type { StoredResult } from '@/store/diagnosis'
 import { useDiseaseDetail } from '@/features/diseases/useDiseaseDetail'
 import { useDiagnosis, useSession } from '@/services'
@@ -150,9 +150,15 @@ function OkBody({ view }: { view: DiagnosisResult }) {
 // The photo the diagnosis was made from. If the file cannot be read (the system removed it), the screen
 // goes on without the photo and shows no error.
 function ResultPhoto({ source }: { source: { uri: string; headers?: Record<string, string> } }) {
-  const [failedUri, setFailedUri] = useState<string | null>(null)
-  if (failedUri === source.uri) return null
-  return <Image source={source} style={styles.photo} onError={() => setFailedUri(source.uri)} />
+  const [failedAttempt, setFailedAttempt] = useState<string | null>(null)
+  if (failedAttempt === photoAttempt(source)) return null
+  return (
+    <Image
+      source={source}
+      style={styles.photo}
+      onError={() => setFailedAttempt(photoAttempt(source))}
+    />
+  )
 }
 
 const styles = StyleSheet.create({

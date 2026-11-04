@@ -1,5 +1,11 @@
 export type PhotoSource = { uri: string; headers: Record<string, string> }
 
+// What a failed photo is remembered by. The address alone is not enough: the access token lives 15
+// minutes, a photo that failed with an expired token must be asked for again once the token is renewed.
+export function photoAttempt(source: { uri: string; headers?: Record<string, string> }): string {
+  return `${source.uri}|${source.headers?.Authorization ?? ''}`
+}
+
 // The photo of a diagnosis is behind the access token (the bucket is private, there are no public or
 // presigned links), so it is fetched with an Authorization header. Only the path the backend documents is
 // accepted: the token is never sent to any other address, whatever `photoUrl` says.

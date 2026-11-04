@@ -5,7 +5,7 @@ import { Image, Pressable, StyleSheet, View } from 'react-native'
 import { AppText, Badge, type BadgeTone } from '@/components/ui'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
-import type { PhotoSource } from './photoSource'
+import { type PhotoSource, photoAttempt } from './photoSource'
 
 type Props = {
   // a disease name, or what happened when no disease is named
@@ -18,14 +18,13 @@ type Props = {
   onPress: () => void
 }
 
-const THUMB = 64
-
 // One line of the history. The photo is a bonus: when it cannot be loaded (offline, the token ran out,
 // the object is gone) the line shows a leaf instead and stays usable.
 export function DiagnosisListItem({ title, subtitle, badge, photo, onPress }: Props) {
-  // a photo that failed to load is not asked for again on every render
-  const [failedUri, setFailedUri] = useState<string | null>(null)
-  const showPhoto = photo !== null && failedUri !== photo.uri
+  // a photo that failed to load is not asked for again on every render, but it is asked for again with a
+  // renewed access token
+  const [failedAttempt, setFailedAttempt] = useState<string | null>(null)
+  const showPhoto = photo !== null && failedAttempt !== photoAttempt(photo)
 
   return (
     <Pressable
@@ -40,7 +39,7 @@ export function DiagnosisListItem({ title, subtitle, badge, photo, onPress }: Pr
             source={{ uri: photo.uri, headers: photo.headers }}
             style={styles.image}
             testID="photo-image"
-            onError={() => setFailedUri(photo.uri)}
+            onError={() => setFailedAttempt(photoAttempt(photo))}
             accessibilityIgnoresInvertColors
           />
         ) : (
@@ -79,15 +78,15 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.7 },
   thumb: {
-    width: THUMB,
-    height: THUMB,
+    width: sizes.thumb,
+    height: sizes.thumb,
     borderRadius: radii.md,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primarySoft,
   },
-  image: { width: THUMB, height: THUMB },
+  image: { width: sizes.thumb, height: sizes.thumb },
   texts: { flex: 1, gap: spacing.xs },
   badge: { alignItems: 'flex-start', marginTop: spacing.xs },
 })
