@@ -2,7 +2,7 @@ import type { DiagnosisResult } from '@/api/diagnosis'
 
 import { formatDiagnosisDate } from './dates'
 import { toHistoryRow } from './historyRow'
-import { photoSource } from './photoSource'
+import { photoSource, resultPhoto } from './photoSource'
 
 function diagnosis(over: Partial<DiagnosisResult> = {}): DiagnosisResult {
   const top1 = { code: 'tomato__late_blight', confidence: 0.874 }
@@ -93,6 +93,27 @@ describe('photo source', () => {
     '',
   ])('never sends the token to %p', (bad) => {
     expect(photoSource(bad, 'https://api.example.kz', 'tok')).toBeNull()
+  })
+})
+
+describe('photo of a result', () => {
+  const photoUrl = '/api/diagnoses/d1/photo'
+
+  it('prefers the local file the app sent: no request and it works offline', () => {
+    expect(
+      resultPhoto({ photoPath: 'file:///a.jpg', photoUrl }, 'https://api.example.kz', 'tok'),
+    ).toEqual({ uri: 'file:///a.jpg' })
+  })
+
+  it('asks the server for a diagnosis that has no local file (opened from the history)', () => {
+    expect(resultPhoto({ photoPath: null, photoUrl }, 'https://api.example.kz', 'tok')).toEqual({
+      uri: `https://api.example.kz${photoUrl}`,
+      headers: { Authorization: 'Bearer tok' },
+    })
+  })
+
+  it('has no photo when there is neither a file nor a token', () => {
+    expect(resultPhoto({ photoPath: null, photoUrl }, 'https://api.example.kz', null)).toBeNull()
   })
 })
 

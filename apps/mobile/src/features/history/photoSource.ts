@@ -5,6 +5,17 @@ export type PhotoSource = { uri: string; headers: Record<string, string> }
 // accepted: the token is never sent to any other address, whatever `photoUrl` says.
 const PHOTO_PATH = /^\/api\/diagnoses\/[0-9A-Za-z-]+\/photo$/
 
+// The photo for the result screen: the file the app itself sent when it is still there (no request, works
+// offline), otherwise the one on the server. A diagnosis opened from the history has no local file.
+export function resultPhoto(
+  view: { photoPath: string | null; photoUrl: string },
+  baseUrl: string,
+  accessToken: string | null,
+): { uri: string; headers?: Record<string, string> } | null {
+  if (view.photoPath) return { uri: view.photoPath }
+  return photoSource(view.photoUrl, baseUrl, accessToken)
+}
+
 export function photoSource(
   photoUrl: string,
   baseUrl: string,
