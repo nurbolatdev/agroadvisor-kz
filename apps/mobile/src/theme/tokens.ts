@@ -51,6 +51,8 @@ export const sizes = {
   iconLg: 48,
   // the photo in a list line (history)
   thumb: 56,
+  // the round camera button in the middle of the bottom bar
+  fab: 60,
 } as const
 
 export const fonts = {
