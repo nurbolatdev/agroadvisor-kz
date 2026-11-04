@@ -27,6 +27,10 @@ Admin web ──┘                 │  └───► Redis
 4. The backend enriches the result with treatment data and stores the diagnosis.
 5. Admins moderate community content and verify agrochemists through the admin web.
 
+## File storage
+
+Photos of plants and agrochemist documents (diplomas, certificates) are kept in an S3-compatible storage (SeaweedFS), in one bucket, under separate key prefixes (`diagnoses/` and `agrochemist-documents/`); the database stores only object keys. The bucket is private: it has no public read policy, and nothing hands out public or presigned links to its objects. Only the backend reads and writes it, and every read goes through a backend endpoint that checks who is asking (the owner of a diagnosis, or an admin for a document under review). A file is therefore never reachable by knowing or guessing its URL. If a separate bucket is needed later (for example for documents), it is configured with `app.documents.bucket`.
+
 ## Roles
 
 - **Farmer** — diagnosis, community, map, weather, calculator.
