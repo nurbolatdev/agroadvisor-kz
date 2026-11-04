@@ -30,7 +30,9 @@ Errors (`code`, `reason`):
 
 | HTTP | `code` | `reason` | When |
 | --- | --- | --- | --- |
-| 400 | `invalid_document` | `empty` \| `too_large` \| `unsupported_format` | The file is not usable. |
+| 400 | `invalid_document` | `empty` \| `unsupported_format` | The file is not usable. |
+| 400 | `bad_request` | - | `file` or `kind` is missing, or `year` is not a number. |
+| 413 | `payload_too_large` | - | The file is over 10 MB: the server's upload limit answers before the service sees it. The app must check the size itself (a PDF cannot be compressed like a photo); above 11 MB the connection may be reset instead. |
 | 400 | `invalid_document_fields` | `kind` \| `year` \| `title` \| `issuer` | A field is wrong. |
 | 404 | `document_not_found` | - | No such document of this agrochemist. |
 | 409 | `agrochemist_already_approved` | - | Documents of an approved profile cannot be added or removed. |
@@ -51,6 +53,8 @@ All endpoints need the `admin` role.
 | `GET /api/admin/agrochemists/{userId}/documents/{documentId}/file` | The file as a download (`Content-Disposition: attachment`, `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`) with the type recorded at upload. |
 | `POST /api/admin/agrochemists/{userId}/decision` | Body `{"decision": "approve" \| "reject" \| "request_documents", "reason": "..."}`. Returns the agrochemist as `GET` does. |
 
-A `reject` and a `request_documents` need a non-blank `reason` (up to 1000 characters; `400 reason_required`), which the agrochemist sees in `rejectionReason`. An `approve` needs at least one document (`409 no_documents`) and clears the reason. The decision is recorded with the admin (`reviewedBy`) and the time (`reviewedAt`); an admin may change an earlier decision.
+A `reject` and a `request_documents` need a non-blank `reason` (`400 reason_required`), which the agrochemist sees in `rejectionReason`. An `approve` needs at least one document (`409 no_documents`) and clears the reason. The decision is recorded with the admin (`reviewedBy`) and the time (`reviewedAt`); an admin may change an earlier decision, but not one on their own profile (`403 self_review_forbidden`). An unknown `decision`, a reason over 1000 characters or a bad `status`, `page` or `size` in the queue is `400 validation_failed`; a `page` over 10000 is refused. An unknown agrochemist is `404 agrochemist_not_found`, an unknown document (or one whose file is missing from the storage) `404 document_not_found`.
+
+Sending, removing and deciding take a lock on the profile, so an approval is never undone by an upload that was checked a moment before, the limit of 5 holds for parallel uploads, and an approved profile never ends up without documents. The file is named `document-{id}.pdf|jpg|png` and is sent with `Content-Security-Policy: sandbox`; the admin web must offer it as a download and not render a PDF on its own origin.
 
 Not done here: notifying the agrochemist of the decision (push, task B14) and the first admin account (created outside the API).
