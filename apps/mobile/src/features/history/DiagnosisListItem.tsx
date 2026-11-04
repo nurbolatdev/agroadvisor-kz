@@ -1,4 +1,4 @@
-import { ChevronRight, Leaf } from 'lucide-react-native'
+import { Leaf } from 'lucide-react-native'
 import { useState } from 'react'
 import { Image, Pressable, StyleSheet, View } from 'react-native'
 
@@ -52,18 +52,16 @@ export function DiagnosisListItem({ title, subtitle, badge, photo, onPress }: Pr
         <AppText variant="h2" numberOfLines={1}>
           {title}
         </AppText>
-        <AppText variant="small" color={colors.textMuted} numberOfLines={1}>
+        <AppText variant="small" color={colors.textMuted} numberOfLines={2}>
           {subtitle}
         </AppText>
-        <View style={styles.badge}>
-          <StatusBadge label={badge.label} variant={badge.variant} />
-        </View>
       </View>
-      <ChevronRight size={sizes.iconMd} color={colors.textMuted} />
+      <StatusBadge label={badge.label} variant={badge.variant} />
     </Pressable>
   )
 }
 
+// The line has no frame of its own: the card of the month draws the frame and the lines between rows.
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -71,10 +69,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     minHeight: sizes.touch,
     padding: spacing.md,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
   },
   pressed: { opacity: 0.7 },
   thumb: {
@@ -88,5 +82,4 @@ const styles = StyleSheet.create({
   },
   image: { width: sizes.thumb, height: sizes.thumb },
   texts: { flex: 1, gap: spacing.xs },
-  badge: { alignItems: 'flex-start', marginTop: spacing.xs },
 })

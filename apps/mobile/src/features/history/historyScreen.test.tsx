@@ -3,10 +3,11 @@ import { fireEvent, render, screen } from '@testing-library/react-native'
 import type { DiagnosisResult } from '@/api/diagnosis'
 import { NetworkError } from '@/api/errors'
 import { initI18n } from '@/i18n'
-import HistoryScreen from '@/app/(app)/(tabs)/history'
+import HistoryScreen from '@/app/(app)/history'
 
 const mockApi = { list: jest.fn(), get: jest.fn() }
 const mockPush = jest.fn()
+const mockBack = jest.fn()
 const mockRemember = jest.fn()
 const mockReset = jest.fn()
 
@@ -14,7 +15,7 @@ const mockReset = jest.fn()
 jest.mock('expo-router', () => {
   const react = require('react')
   return {
-    useRouter: () => ({ push: mockPush }),
+    useRouter: () => ({ push: mockPush, back: mockBack }),
     useFocusEffect: (effect: () => void) => react.useEffect(effect, []),
   }
 })
@@ -56,7 +57,12 @@ beforeEach(() => {
   useHistory.getState().reset()
 })
 
-function diagnosis(id: string, crop = 'tomato', status: DiagnosisResult['status'] = 'ok') {
+function diagnosis(
+  id: string,
+  crop = 'tomato',
+  status: DiagnosisResult['status'] = 'ok',
+  createdAt = '2026-11-04T10:05:00',
+) {
   const top1 = { code: `${crop}__late_blight`, confidence: 0.87 }
   return {
     id,
@@ -70,11 +76,42 @@ function diagnosis(id: string, crop = 'tomato', status: DiagnosisResult['status'
     placeholder: false,
     descriptionReady: true,
     photoUrl: `/api/diagnoses/${id}/photo`,
-    createdAt: '2026-11-04T10:05:00Z',
+    createdAt,
   } satisfies DiagnosisResult
 }
 
 describe('history screen', () => {
+  it('has a title and a way back: it is a screen over the home screen, not a tab', async () => {
+    mockApi.list.mockResolvedValue([])
+    await render(<HistoryScreen />)
+
+    expect(screen.getByText('History')).toBeTruthy()
+    await fireEvent.press(screen.getByRole('button', { name: 'Back' }))
+
+    expect(mockBack).toHaveBeenCalledTimes(1)
+  })
+
+  it('names the crop chips as the design does', async () => {
+    mockApi.list.mockResolvedValue([])
+    await render(<HistoryScreen />)
+
+    for (const name of ['All', 'Potatoes', 'Tomatoes', 'Corn', 'Wheat']) {
+      expect(screen.getByRole('button', { name })).toBeTruthy()
+    }
+  })
+
+  it('puts the diagnoses in one card per month with the name of the month above it', async () => {
+    mockApi.list.mockResolvedValue([
+      diagnosis('d1', 'tomato', 'ok', '2026-09-24T12:00:00'),
+      diagnosis('d2', 'tomato', 'ok', '2026-09-12T12:00:00'),
+    ])
+    await render(<HistoryScreen />)
+    await screen.findAllByText('Late blight')
+
+    expect(screen.getAllByText(/^(September|September \d{4})$/)).toHaveLength(1)
+    expect(screen.getAllByText('Late blight')).toHaveLength(2)
+  })
+
   it('lists the diagnoses with the disease name and opens the result on a tap', async () => {
     const first = diagnosis('d1')
     mockApi.list.mockResolvedValue([first, diagnosis('d2', 'corn', 'unknown')])

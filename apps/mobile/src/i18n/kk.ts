@@ -38,6 +38,7 @@ export const kk: Translation = {
     empty: 'Әзірге бос',
     error: 'Бірдеңе дұрыс болмады',
     retry: 'Қайталау',
+    back: 'Артқа',
   },
   home: {
     title: 'Басты бет',
@@ -66,6 +67,7 @@ export const kk: Translation = {
       noneLoaded: 'Жүктелген диагноздар арасында бұл дақыл жоқ',
       loadMore: 'Тағы көрсету',
       none: 'Бұл дақылдың диагнозы жоқ',
+      crop: { potato: 'Картоп', tomato: 'Қызанақ', corn: 'Жүгері', wheat: 'Бидай' },
     },
     empty: {
       title: 'Диагноздар әзірге жоқ',

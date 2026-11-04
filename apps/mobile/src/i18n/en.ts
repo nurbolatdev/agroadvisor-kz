@@ -38,6 +38,7 @@ export const en: Translation = {
     empty: 'Nothing here yet',
     error: 'Something went wrong',
     retry: 'Try again',
+    back: 'Back',
   },
   home: {
     title: 'Home',
@@ -66,6 +67,7 @@ export const en: Translation = {
       noneLoaded: 'None of the loaded diagnoses is of this crop',
       loadMore: 'Show more',
       none: 'No diagnoses of this crop',
+      crop: { potato: 'Potatoes', tomato: 'Tomatoes', corn: 'Corn', wheat: 'Wheat' },
     },
     empty: {
       title: 'No diagnoses yet',

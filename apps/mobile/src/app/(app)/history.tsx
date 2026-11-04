@@ -1,25 +1,38 @@
 import { useFocusEffect, useRouter } from 'expo-router'
+import { ChevronLeft } from 'lucide-react-native'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native'
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native'
 
 import { AppText, Button, Chip, EmptyState, ErrorState, Screen } from '@/components/ui'
 import { CROPS } from '@/features/diagnosis/crops'
+import { groupByMonth, type MonthGroup } from '@/features/history/groups'
 import { HistoryLine } from '@/features/history/HistoryLine'
 import { useDiseaseNames } from '@/features/history/useDiseaseNames'
 import { useDiagnosis, useHistory } from '@/services'
 import { filterByCrop } from '@/store/history'
-import { colors, spacing } from '@/theme/tokens'
+import { useSettings } from '@/store/settings'
+import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
-// The farmer's earlier diagnoses, newest first, from the server. A tap opens the result screen.
+// The farmer's earlier diagnoses (screen 19): newest first, in cards by month, from the server. A tap
+// opens the result screen. It is a screen over the home screen, not a tab: the design has no such tab.
 export default function HistoryScreen() {
   const { t } = useTranslation()
   const router = useRouter()
+  const language = useSettings((s) => s.language)
   const names = useDiseaseNames()
   const { items, phase, hasMore, error, crop } = useHistory()
   const { setCrop, refresh, load, loadMore } = useHistory.getState()
 
-  // opening the tab loads the first time and catches up quietly afterwards: a diagnosis made meanwhile
+  // opening the screen loads the first time and catches up quietly afterwards: a diagnosis made meanwhile
   // shows on top, and the pages already loaded and the place in the list stay
   useFocusEffect(
     useCallback(() => {
@@ -27,38 +40,57 @@ export default function HistoryScreen() {
     }, []),
   )
 
-  const visible = filterByCrop(items, crop)
-
+  const groups = groupByMonth(filterByCrop(items, crop), language)
   const errorText = error ? t(`history.errors.${error}`) : null
 
   return (
     <Screen>
-      <AppText variant="display" color={colors.primaryDark}>
-        {t('history.title')}
-      </AppText>
-      <View style={styles.filters}>
-        <Chip
-          label={t('history.filter.all')}
-          selected={crop === null}
-          onPress={() => setCrop(null)}
-        />
-        {CROPS.map((code) => (
+      <View style={styles.header}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+          hitSlop={spacing.sm}
+          onPress={() => router.back()}
+          style={styles.headerSide}
+        >
+          <ChevronLeft size={sizes.icon} color={colors.text} />
+        </Pressable>
+        <AppText variant="h2" style={styles.title}>
+          {t('history.title')}
+        </AppText>
+        <View style={styles.headerSide} />
+      </View>
+
+      <View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filters}
+        >
           <Chip
-            key={code}
-            label={t(`diagnosis.crops.${code}`)}
-            selected={crop === code}
-            onPress={() => setCrop(code)}
+            label={t('history.filter.all')}
+            selected={crop === null}
+            onPress={() => setCrop(null)}
           />
-        ))}
+          {CROPS.map((code) => (
+            <Chip
+              key={code}
+              label={t(`history.filter.crop.${code}`)}
+              selected={crop === code}
+              onPress={() => setCrop(code)}
+            />
+          ))}
+        </ScrollView>
       </View>
 
       <FlatList
+        testID="history-list"
         style={styles.list}
         contentContainerStyle={styles.listContent}
-        data={visible}
-        keyExtractor={(d) => d.id}
-        renderItem={({ item }) => <HistoryLine diagnosis={item} names={names} />}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        data={groups}
+        keyExtractor={(g) => g.key}
+        renderItem={({ item }) => <MonthCard group={item} names={names} />}
+        ItemSeparatorComponent={() => <View style={styles.groupGap} />}
         refreshControl={
           <RefreshControl
             refreshing={phase === 'refreshing'}
@@ -66,7 +98,6 @@ export default function HistoryScreen() {
             tintColor={colors.primary}
           />
         }
-        testID="history-list"
         // After an error the next page is asked only with the button: the footer changes the height of the
         // list and would fire this again at once. With a crop filter the list may be empty or short and
         // "at the end" all the time, so the pages are asked with the "Show more" button there.
@@ -122,11 +153,43 @@ export default function HistoryScreen() {
   )
 }
 
+// One month: its name and one card with the lines of the month, a thin line between them.
+function MonthCard({ group, names }: { group: MonthGroup; names: Record<string, string> }) {
+  return (
+    <View>
+      {group.label !== '' ? (
+        <AppText variant="small" color={colors.textMuted} style={styles.monthTitle}>
+          {group.label}
+        </AppText>
+      ) : null}
+      <View style={styles.card}>
+        {group.items.map((diagnosis, index) => (
+          <View key={diagnosis.id} style={index > 0 ? styles.divider : undefined}>
+            <HistoryLine diagnosis={diagnosis} names={names} />
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
-  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
-  list: { flex: 1, marginTop: spacing.lg },
+  header: { flexDirection: 'row', alignItems: 'center', minHeight: sizes.touch },
+  headerSide: { width: sizes.touch, height: sizes.touch, justifyContent: 'center' },
+  title: { flex: 1, textAlign: 'center' },
+  filters: { gap: spacing.sm, paddingVertical: spacing.md },
+  list: { flex: 1 },
   listContent: { flexGrow: 1, paddingBottom: spacing.xl },
-  separator: { height: spacing.md },
+  groupGap: { height: spacing.lg },
+  monthTitle: { marginBottom: spacing.sm },
+  card: {
+    overflow: 'hidden',
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  divider: { borderTopWidth: 1, borderTopColor: colors.border },
   loading: { marginTop: spacing.xl },
   footer: { alignItems: 'flex-start', gap: spacing.sm, marginTop: spacing.lg },
 })

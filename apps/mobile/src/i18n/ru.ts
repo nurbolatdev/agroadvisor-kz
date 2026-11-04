@@ -36,6 +36,7 @@ export const ru = {
     empty: 'Здесь пока пусто',
     error: 'Что-то пошло не так',
     retry: 'Повторить',
+    back: 'Назад',
   },
   home: {
     title: 'Главная',
@@ -65,6 +66,8 @@ export const ru = {
       noneLoaded: 'Среди загруженных диагнозов этой культуры нет',
       loadMore: 'Показать ещё',
       none: 'Диагнозов этой культуры нет',
+      // the names on the chips, as the design writes them (screen 19)
+      crop: { potato: 'Картофель', tomato: 'Томаты', corn: 'Кукуруза', wheat: 'Пшеница' },
     },
     empty: {
       title: 'Диагнозов пока нет',
