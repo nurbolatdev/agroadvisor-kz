@@ -250,10 +250,23 @@ Rate limit: a repeat is answered from the saved diagnosis before the limit (5 ph
 2. `Idempotency-Key` format (only if the header is present): `400 invalid_idempotency_key`.
 3. The key is looked up (only if present). A saved diagnosis for the key and the same crop and photo: `201` replay (`Idempotent-Replayed: true`). The same key with another crop or other photo bytes: `422 idempotency_key_reused` (`reason: crop` | `photo`). This step comes before the crop and photo checks, so an existing key with an unsupported crop or a file that is not an image is a `422`, not a `400`.
 4. Rate limit, 5 new diagnoses per minute per user: `429 rate_limited`. Steps 2 and 3 do not spend a token. From here on every request spends one, even when it is then rejected.
-5. Crop: `400 unknown_crop`. Photo: `400 invalid_image`.
+5. Crop: `400 unknown_crop`. Photo: `400 invalid_image` (not a JPEG/PNG, over 10 MB, or a broken container: a segment or chunk that runs past the end of the file).
 6. Storage and the model call: `503 storage_unavailable`, `422 low_quality`, `503 ai_unavailable`, `502 ai_error` (see above).
 
 The limit is not a flood protection for uploads: the multipart body is read before the application code runs, and a replay or a `422` costs one SHA-256 of the photo and one indexed read. Floods are cut at the entrance (nginx body-size and request-rate limits, see the staging task).
+
+#### Photo metadata is removed on the server
+
+The backend, not the app, guarantees that a stored or analysed photo carries no personal metadata (GPS position, camera, time, author). The app also cleans the photo before sending it (first line, saves traffic), but a request from another client or an older app version is cleaned the same way. After the checks above and before `photos.store` and the call to the AI service, `DiagnosisService.create` cuts the metadata out of the file's bytes. The cleaning is an allow-list: only what is needed to show the picture is kept. The colour profile (ICC) is kept because the picture's colours depend on it; it may name the device maker.
+
+| Format | Kept | Removed |
+| --- | --- | --- |
+| JPEG | the coding markers (frames, tables, scans), `APP0` as JFIF **without a thumbnail**, `APP2` only with the `ICC_PROFILE\0` prefix, `APP14` only as Adobe (12 bytes); a minimal Exif with the `Orientation` tag only, if the original had one (values 1-8) | all other `APPn` (Exif, XMP, IPTC, MPF, JFXX and other `APP0`, ...), comments, JFIF thumbnails, and **everything after the first EOI** (Multi-Picture, Samsung SEFT, Motion Photo video) |
+| PNG | critical chunks (`IHDR`, `PLTE`, `IDAT`, `IEND`) and `iCCP`, `sRGB`, `gAMA`, `cHRM`, `pHYs`, `tRNS`, `bKGD`, `sBIT`; a minimal `eXIf` with the `Orientation` tag only, if the original had one (values 1-8) | text chunks (`tEXt`, `zTXt`, `iTXt`), the rest of `eXIf`, `tIME` and every other chunk, and everything after `IEND` |
+
+Orientation is kept (in JPEG and PNG) so that a phone photo taken in portrait still shows upright: the AI service turns the picture upright by this tag (`exif_transpose`) before the model sees it. The replacement Exif has one entry and no GPS, camera or time. The image is not decoded or re-encoded: pixel data stays identical, and a file that has nothing to remove is stored byte for byte. Only JPEG and PNG are accepted (by the file's first bytes, not the `Content-Type`); WebP and HEIC are not, the app converts HEIC to JPEG before sending.
+
+A file whose container is broken (a segment or chunk longer than the file, a JPEG without EOI, a PNG without `IEND`, a reserved or extension JPEG marker) is refused with the same `400 invalid_image` (no `reason`) the AI service's answer is mapped to. The stored photo and the bytes sent to the AI service are the cleaned ones. The `Idempotency-Key` fingerprint (`request_fingerprint`) is still the SHA-256 of the bytes **the client sent**, so a retry with the same file is a replay, not a `422`.
 
 #### Metrics
 

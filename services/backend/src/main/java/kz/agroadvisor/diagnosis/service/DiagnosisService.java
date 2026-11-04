@@ -58,9 +58,12 @@ public class DiagnosisService {
     private final MeterRegistry meters;
     private final RateLimiter rateLimiter;
     private final RateLimitProperties limits;
+    private final ImageMetadataStripper metadata;
 
     public DiagnosisService(AiClient ai, PhotoStorage photos, DiagnosisRepository diagnoses,
-            DiseaseRepository diseases, MeterRegistry meters, RateLimiter rateLimiter, RateLimitProperties limits) {
+            DiseaseRepository diseases, MeterRegistry meters, RateLimiter rateLimiter, RateLimitProperties limits,
+            ImageMetadataStripper metadata) {
+        this.metadata = metadata;
         this.ai = ai;
         this.photos = photos;
         this.diagnoses = diagnoses;
@@ -125,10 +128,12 @@ public class DiagnosisService {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IMAGE,
                     "Send a JPEG or PNG photo of up to 10 MB");
         }
-        String photoKey = photos.store(userId, photo, contentType);
+        // The fingerprint above is of the client's bytes; what is kept and sent to the model has no metadata
+        byte[] clean = metadata.strip(photo);
+        String photoKey = photos.store(userId, clean, contentType);
         Diagnosis saved;
         try {
-            Prediction prediction = predict(crop, photo);
+            Prediction prediction = predict(crop, clean);
             saved = diagnoses.save(new Diagnosis(userId, crop, photoKey, prediction.status(),
                     prediction.top1().code(),
                     BigDecimal.valueOf(prediction.top1().confidence()).setScale(4, RoundingMode.HALF_UP),
