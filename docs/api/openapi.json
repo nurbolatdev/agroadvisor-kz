@@ -153,6 +153,73 @@
         "required" : [ "code", "name" ],
         "type" : "object"
       },
+      "DecisionRequest" : {
+        "properties" : {
+          "decision" : {
+            "minLength" : 1,
+            "pattern" : "approve|reject|request_documents",
+            "type" : "string"
+          },
+          "reason" : {
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "decision" ],
+        "type" : "object"
+      },
+      "DetailsView" : {
+        "properties" : {
+          "documents" : {
+            "items" : {
+              "$ref" : "#/components/schemas/DocumentView"
+            },
+            "type" : "array"
+          },
+          "email" : {
+            "type" : [ "string", "null" ]
+          },
+          "experienceYears" : {
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "phone" : {
+            "type" : [ "string", "null" ]
+          },
+          "rejectionReason" : {
+            "type" : [ "string", "null" ]
+          },
+          "reviewedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "reviewedBy" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "specialization" : {
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "enum" : [ "pending", "approved", "rejected", "documents_requested" ],
+            "type" : "string"
+          },
+          "submittedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "userId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "documents", "fullName", "status", "submittedAt", "userId" ],
+        "type" : "object"
+      },
       "DiagnosisView" : {
         "properties" : {
           "classesVersion" : {
@@ -317,6 +384,42 @@
         "required" : [ "code", "kind", "name" ],
         "type" : "object"
       },
+      "DocumentView" : {
+        "properties" : {
+          "contentType" : {
+            "enum" : [ "application/pdf", "image/jpeg", "image/png" ],
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "issuer" : {
+            "type" : [ "string", "null" ]
+          },
+          "kind" : {
+            "enum" : [ "diploma", "certificate" ],
+            "type" : "string"
+          },
+          "sizeBytes" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "title" : {
+            "type" : [ "string", "null" ]
+          },
+          "uploadedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "year" : {
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "required" : [ "contentType", "id", "kind", "sizeBytes", "uploadedAt" ],
+        "type" : "object"
+      },
       "LoginRequest" : {
         "properties" : {
           "login" : {
@@ -406,6 +509,34 @@
           }
         },
         "required" : [ "fullName", "login", "password" ],
+        "type" : "object"
+      },
+      "SummaryView" : {
+        "properties" : {
+          "documentCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "specialization" : {
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "enum" : [ "pending", "approved", "rejected", "documents_requested" ],
+            "type" : "string"
+          },
+          "submittedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "userId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "documentCount", "fullName", "status", "submittedAt", "userId" ],
         "type" : "object"
       },
       "TokenResponse" : {
@@ -515,6 +646,35 @@
         },
         "required" : [ "product", "type" ],
         "type" : "object"
+      },
+      "VerificationView" : {
+        "properties" : {
+          "documents" : {
+            "items" : {
+              "$ref" : "#/components/schemas/DocumentView"
+            },
+            "type" : "array"
+          },
+          "rejectionReason" : {
+            "description" : "Why the admin rejected or asked for more documents",
+            "type" : [ "string", "null" ]
+          },
+          "reviewedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "enum" : [ "pending", "approved", "rejected", "documents_requested" ],
+            "type" : "string"
+          },
+          "submittedAt" : {
+            "description" : "When the profile entered the admins' queue: at registration, and again when a document is sent after a rejection or a request for documents",
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "documents", "status", "submittedAt" ],
+        "type" : "object"
       }
     },
     "securitySchemes" : {
@@ -532,6 +692,161 @@
   },
   "openapi" : "3.1.0",
   "paths" : {
+    "/api/admin/agrochemists" : {
+      "get" : {
+        "operationId" : "queue",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "default" : "pending",
+            "pattern" : "pending|approved|rejected|documents_requested",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "default" : 0,
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/SummaryView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Agrochemists with the given status (pending by default), the longest waiting first",
+        "tags" : [ "agrochemist-admin-controller" ]
+      }
+    },
+    "/api/admin/agrochemists/{userId}" : {
+      "get" : {
+        "operationId" : "details",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DetailsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "agrochemist-admin-controller" ]
+      }
+    },
+    "/api/admin/agrochemists/{userId}/decision" : {
+      "post" : {
+        "operationId" : "decide",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DecisionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DetailsView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "approve (needs a document), reject or request_documents (both need a reason the agrochemist will see). Approving makes the agrochemist visible to farmers.",
+        "tags" : [ "agrochemist-admin-controller" ]
+      }
+    },
+    "/api/admin/agrochemists/{userId}/documents/{documentId}/file" : {
+      "get" : {
+        "operationId" : "file",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "documentId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "format" : "byte",
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "The document as it was sent (PDF, JPEG or PNG), as a download",
+        "tags" : [ "agrochemist-admin-controller" ]
+      }
+    },
     "/api/admin/crops" : {
       "get" : {
         "operationId" : "crops",
@@ -886,6 +1201,130 @@
           }
         },
         "tags" : [ "catalog-admin-controller" ]
+      }
+    },
+    "/api/agrochemist/documents" : {
+      "get" : {
+        "operationId" : "list",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/DocumentView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "agrochemist-verification-controller" ]
+      },
+      "post" : {
+        "operationId" : "upload",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "kind",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "title",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "issuer",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "year",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "file" : {
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "required" : [ "file" ],
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DocumentView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Send a diploma or certificate (PDF, JPEG or PNG, up to 10 MB, at most 5 documents). The profile goes (back) to the admins' queue; an approved profile is locked (409).",
+        "tags" : [ "agrochemist-verification-controller" ]
+      }
+    },
+    "/api/agrochemist/documents/{id}" : {
+      "delete" : {
+        "operationId" : "delete",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "summary" : "Remove one's own document; not possible once the profile is approved (409)",
+        "tags" : [ "agrochemist-verification-controller" ]
+      }
+    },
+    "/api/agrochemist/verification" : {
+      "get" : {
+        "operationId" : "verification",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VerificationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "State of the check: status, the admin's reason and the documents sent",
+        "tags" : [ "agrochemist-verification-controller" ]
       }
     },
     "/api/auth/login" : {
