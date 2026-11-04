@@ -142,6 +142,46 @@ class AgrochemistVerificationControllerTest {
                 .andExpect(jsonPath("$.contentType").value("image/jpeg"));
     }
 
+    /** SOI, an APP1 segment with GPS text, then an empty DQT and EOI: what a phone camera would add. */
+    private static final byte[] JPEG_WITH_GPS = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE1, 0, 12, 'E', 'x',
+        'i', 'f', 0, 0, 'G', 'P', 'S', '!', (byte) 0xFF, (byte) 0xDB, 0, 2, (byte) 0xFF, (byte) 0xD9};
+
+    @Test
+    void metadataIsCutFromAnImageDocumentBeforeItIsStored() throws Exception {
+        send(upload(JPEG_WITH_GPS, "diploma"), agrochemist)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.contentType").value("image/jpeg"))
+                .andExpect(jsonPath("$.sizeBytes").value(JPEG.length));
+
+        org.mockito.ArgumentCaptor<byte[]> stored = org.mockito.ArgumentCaptor.forClass(byte[].class);
+        verify(storage).store(eq(agrochemistId), stored.capture(), eq("image/jpeg"));
+        assertThat(stored.getValue()).isEqualTo(JPEG);
+        assertThat(new String(stored.getValue(), java.nio.charset.StandardCharsets.ISO_8859_1)).doesNotContain("GPS");
+    }
+
+    @Test
+    void aPdfIsStoredAsItWasSent() throws Exception {
+        byte[] pdf = "%PDF-1.7 /Author (GPS 43.2N)".getBytes();
+
+        send(upload(pdf, "diploma"), agrochemist)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.sizeBytes").value(pdf.length));
+
+        verify(storage).store(eq(agrochemistId), eq(pdf), eq("application/pdf"));
+    }
+
+    @Test
+    void aBrokenImageDocumentIsRefusedAndNothingIsStored() throws Exception {
+        byte[] broken = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE1, 0x7F, 0, 1, 2, 3};
+
+        send(upload(broken, "diploma"), agrochemist)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("invalid_document"))
+                .andExpect(jsonPath("$.reason").value("corrupted"));
+
+        verify(storage, never()).store(any(), any(), anyString());
+    }
+
     @Test
     void aFileThatIsNotAPdfOrAnImageIsRefusedAndNothingIsStored() throws Exception {
         send(upload("<html>".getBytes(), "diploma"), agrochemist)

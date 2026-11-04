@@ -15,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import kz.agroadvisor.common.image.ImageMetadataStripper;
+import kz.agroadvisor.common.image.InvalidImageException;
 import kz.agroadvisor.common.web.ApiException;
 import kz.agroadvisor.verification.repository.AgrochemistDocumentRepository;
 import kz.agroadvisor.verification.repository.AgrochemistDocumentRepository.Document;
@@ -44,12 +46,14 @@ public class AgrochemistDocumentService {
     private final AgrochemistDocumentRepository repository;
     private final DocumentStorage storage;
     private final TransactionTemplate tx;
+    private final ImageMetadataStripper stripper;
 
     public AgrochemistDocumentService(AgrochemistDocumentRepository repository, DocumentStorage storage,
-            TransactionTemplate tx) {
+            TransactionTemplate tx, ImageMetadataStripper stripper) {
         this.repository = repository;
         this.storage = storage;
         this.tx = tx;
+        this.stripper = stripper;
     }
 
     public record DocumentView(
@@ -87,13 +91,14 @@ public class AgrochemistDocumentService {
         requireNotApproved(profile(userId));
         requireRoom(userId);
         String contentType = contentType(file);
-        String key = storage.store(userId, file, contentType);
+        byte[] stored = clean(file, contentType);
+        String key = storage.store(userId, stored, contentType);
         try {
             Document saved = tx.execute(status -> {
                 requireNotApproved(lockedProfile(userId));
                 requireRoom(userId);
                 Document document = repository.insertDocument(userId, kind, key, blankToNull(title),
-                        blankToNull(issuer), year, contentType, file.length);
+                        blankToNull(issuer), year, contentType, stored.length);
                 repository.markSubmitted(userId);
                 return document;
             });
@@ -192,6 +197,22 @@ public class AgrochemistDocumentService {
             return "image/png";
         }
         throw invalid("unsupported_format", "Send a PDF, JPEG or PNG file");
+    }
+
+    /**
+     * A scan or a photo of a diploma can carry GPS and camera data like any photo, so JPEG and PNG get the same
+     * cleaning as a diagnosis photo (the orientation is kept). A PDF is stored as it was sent: its metadata
+     * (author, producer, dates, XMP) and any embedded content stay in it.
+     */
+    private byte[] clean(byte[] file, String contentType) {
+        if (contentType.equals("application/pdf")) {
+            return file;
+        }
+        try {
+            return stripper.strip(file);
+        } catch (InvalidImageException e) {
+            throw invalid("corrupted", "The image cannot be read, send another PDF, JPEG or PNG");
+        }
     }
 
     private static ApiException invalid(String reason, String detail) {
