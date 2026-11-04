@@ -32,7 +32,7 @@ class MigrationsTest {
         List<String> versions = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class);
-        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12");
+        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
     }
 
     @Test
@@ -143,6 +143,30 @@ class MigrationsTest {
 
         assertThatThrownBy(() -> insertRefreshToken(id, "z".repeat(64)))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void agrochemistDocumentNeedsAKnownContentType() {
+        UUID id = insertUser("+77010000011", null);
+        jdbc.update("INSERT INTO agrochemist_profiles (user_id) VALUES (?)", id);
+        insertDocument(id, "application/pdf", 10);
+
+        assertThatThrownBy(() -> insertDocument(id, "text/html", 10)).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void agrochemistDocumentNeedsAPositiveSize() {
+        UUID id = insertUser("+77010000012", null);
+        jdbc.update("INSERT INTO agrochemist_profiles (user_id) VALUES (?)", id);
+
+        assertThatThrownBy(() -> insertDocument(id, "image/png", 0)).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    private void insertDocument(UUID user, String contentType, int size) {
+        jdbc.update("""
+                INSERT INTO agrochemist_documents (user_id, kind, object_key, content_type, size_bytes)
+                VALUES (?, 'diploma', 'agrochemist-documents/x/' || gen_random_uuid(), ?, ?)
+                """, user, contentType, size);
     }
 
     private void insertRefreshToken(UUID user, String hash) {
