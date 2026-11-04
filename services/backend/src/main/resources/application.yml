@@ -44,6 +44,22 @@ app:
     # An answer of the placeholder model (model_version "placeholder...") is refused as 503 ai_unavailable;
     # true only in the local and test profiles
     allow-placeholder: false
+  diagnosis:
+    # How long a request with an Idempotency-Key holds its claim before another request may take it over.
+    # It must exceed the longest time one request can take, counted from the claim to the end of the
+    # finalizing transaction (DiagnosisClaimConfig refuses to start otherwise; the same sum is in RequestDeadline):
+    #   metadata stripping, budget (byte scan of <= 10 MB, no decoding) .................   2 s
+    #   photo upload, app.photos.total-timeout (all tries of one call) ................... 25 s
+    #   model call, (connect 2 s + read 10 s) x (1 retry + 1) + 0.4 s pause ............. 24.4 s
+    #   finalizing transaction, waiting for a pool connection (hikari default 30 s) ...... 30 s
+    #   its two statements, budget .......................................................   1 s
+    #   ------------------------------------------------------------------------------------------
+    #   total ........................................................................... 82.4 s
+    # 90 s leaves 7.6 s for pauses of the JVM and the host. A request that still outlives its claim cannot
+    # do harm: its claim is fenced (claim_id), the unique index of diagnoses keeps one result, and its photo
+    # object has the same name and the same bytes as the new owner's. Not counted: the rate limiter and the
+    # lookups, which run before the claim.
+    claim-timeout: 90s
   rate-limit:
     diagnosis-per-minute: 5 # photos per user per minute; there are no daily limits
   security:
