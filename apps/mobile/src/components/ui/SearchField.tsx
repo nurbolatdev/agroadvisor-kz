@@ -30,8 +30,8 @@ export function SearchField({ value, onChangeText, placeholder, clearLabel }: Pr
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={clearLabel}
-          hitSlop={spacing.sm}
           onPress={() => onChangeText('')}
+          style={styles.clear}
         >
           <X size={sizes.iconMd} color={colors.textMuted} />
         </Pressable>
@@ -53,4 +53,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   input: { ...typography.body, flex: 1, color: colors.text },
+  // a touch area of 48 pt; the negative margin keeps the icon where the field's padding put it
+  clear: {
+    width: sizes.touch,
+    height: sizes.touch,
+    marginRight: -spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 })
