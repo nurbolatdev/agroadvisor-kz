@@ -5,7 +5,7 @@ import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
 import { AppText } from './AppText'
 
-export type BadgeTone = 'success' | 'warning' | 'danger' | 'info'
+export type BadgeTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral'
 
 type Props = {
   label: string
@@ -18,6 +18,8 @@ const palette: Record<BadgeTone, { bg: string; fg: string }> = {
   warning: { bg: colors.warningSoft, fg: colors.text },
   danger: { bg: colors.dangerSoft, fg: colors.danger },
   info: { bg: colors.infoSoft, fg: colors.info },
+  // "low", "not an alarm": grey, as in the frame of the reference
+  neutral: { bg: colors.bg, fg: colors.textMuted },
 }
 
 // A status is always a word plus (optionally) an icon, never a color alone.
