@@ -30,6 +30,7 @@ export default function TabsLayout() {
       )}
     >
       <Tabs.Screen name="home" />
+      <Tabs.Screen name="profile" />
     </Tabs>
   )
 }
