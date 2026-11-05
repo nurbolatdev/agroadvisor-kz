@@ -7,6 +7,8 @@ import { createProfileStore } from '@/store/profile'
 import { createSessionStore, type TokenStorage } from '@/store/session'
 import { useSettings } from '@/store/settings'
 
+import { onSignedIn } from './languageOnSignIn'
+import { routeGuards } from './routeGuards'
 import { onUserChange } from './userChange'
 
 // The settings store reads the storage when it is imported, so the data lives inside the mock itself.
@@ -62,6 +64,8 @@ function setup() {
       profile: profile.getState(),
     }),
   )
+  // the same as the second subscription in services.ts
+  session.subscribe((state, previous) => onSignedIn(state, previous, useSettings.getState()))
 
   return { tokens, authApi, session, history, profile, usersApi, diagnosis }
 }
@@ -102,6 +106,25 @@ describe('signing out', () => {
     // the language belongs to the phone, not to the person
     expect(useSettings.getState()).toMatchObject({ language: 'kk', languageChosen: true })
     expect(storage.getString('settings.language')).toBe('kk')
+  })
+
+  it('sends a person who never picked a language to the sign-in after the sign-out, not to the first launch screen', async () => {
+    // a signed-in person of an earlier version: the language is only what the phone gave
+    useSettings.setState({ languageChosen: false })
+    const { session } = setup()
+    await session.getState().register(farmer)
+
+    // the language that was in use counts as chosen once the session has started
+    expect(useSettings.getState().languageChosen).toBe(true)
+
+    await session.getState().logout()
+
+    expect(useSettings.getState().languageChosen).toBe(true)
+    expect(routeGuards(session.getState().status, useSettings.getState().languageChosen)).toEqual({
+      app: false,
+      onboarding: false,
+      auth: true,
+    })
   })
 
   it('still signs out here when the server cannot be reached', async () => {
