@@ -105,6 +105,13 @@ export const en: Translation = {
     severity: { high: 'Dangerous', medium: 'Moderate', low: 'Low' },
     none: 'Nothing found',
     noneHint: 'Change the search or pick another crop',
+    detail: {
+      symptoms: 'Symptoms',
+      conditions: 'Conditions for growth',
+      prevention: 'Prevention',
+      treatment: 'Treatment',
+      loadFailed: 'Could not load the card from the catalog',
+    },
     errors: {
       offline: 'No connection to the server. Check the internet',
       server: 'The server did not answer. Try again',

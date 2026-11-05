@@ -110,6 +110,14 @@ export const ru = {
     severity: { high: 'Опасно', medium: 'Средне', low: 'Низко' },
     none: 'Ничего не найдено',
     noneHint: 'Измените запрос или выберите другую культуру',
+    // the card of one disease
+    detail: {
+      symptoms: 'Симптомы',
+      conditions: 'Условия развития',
+      prevention: 'Профилактика',
+      treatment: 'Лечение',
+      loadFailed: 'Не удалось загрузить карточку из справочника',
+    },
     errors: {
       offline: 'Нет связи с сервером. Проверьте интернет',
       server: 'Сервер не ответил. Попробуйте ещё раз',
