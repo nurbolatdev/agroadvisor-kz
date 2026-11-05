@@ -88,6 +88,28 @@ export const en: Translation = {
       server: 'The server did not answer. Try again',
     },
   },
+  catalog: {
+    title: 'Reference',
+    search: 'Disease or pest',
+    searchClear: 'Clear search',
+    type: { disease: 'Diseases', pest: 'Pests' },
+    kind: {
+      fungal: 'Fungal',
+      bacterial: 'Bacterial',
+      viral: 'Viral',
+      oomycete: 'Oomycete',
+      pest: 'Pest',
+      healthy: 'Healthy',
+      other: 'Other',
+    },
+    severity: { high: 'Dangerous', medium: 'Moderate', low: 'Low' },
+    none: 'Nothing found',
+    noneHint: 'Change the search or pick another crop',
+    errors: {
+      offline: 'No connection to the server. Check the internet',
+      server: 'The server did not answer. Try again',
+    },
+  },
   diagnosis: {
     title: 'Diagnosis',
     chooseCrop: 'Choose the crop',

@@ -91,6 +91,30 @@ export const ru = {
       server: 'Сервер не ответил. Попробуйте ещё раз',
     },
   },
+  // the reference of diseases and pests (screen 29)
+  catalog: {
+    title: 'Справочник',
+    search: 'Болезнь или вредитель',
+    searchClear: 'Очистить поиск',
+    type: { disease: 'Болезни', pest: 'Вредители' },
+    // the first word of the second line of a card
+    kind: {
+      fungal: 'Грибковое',
+      bacterial: 'Бактериальное',
+      viral: 'Вирусное',
+      oomycete: 'Оомицетное',
+      pest: 'Вредитель',
+      healthy: 'Здоровое',
+      other: 'Другое',
+    },
+    severity: { high: 'Опасно', medium: 'Средне', low: 'Низко' },
+    none: 'Ничего не найдено',
+    noneHint: 'Измените запрос или выберите другую культуру',
+    errors: {
+      offline: 'Нет связи с сервером. Проверьте интернет',
+      server: 'Сервер не ответил. Попробуйте ещё раз',
+    },
+  },
   diagnosis: {
     title: 'Диагностика',
     chooseCrop: 'Выберите культуру',
