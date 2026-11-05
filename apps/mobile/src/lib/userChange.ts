@@ -5,6 +5,8 @@ type Stores = {
   diagnosis: { clearAnswers: () => void; restore: () => void }
   // the history read from the server
   history: { reset: () => void }
+  // the profile read from the server
+  profile: { reset: () => void }
 }
 
 // Another farmer may sign in on the same phone. When the user changes (a sign-out or another sign-in),
@@ -16,6 +18,7 @@ export function onUserChange(state: Session, previous: Session, stores: Stores):
   if (previous.userId !== null) {
     stores.diagnosis.clearAnswers()
     stores.history.reset()
+    stores.profile.reset()
   }
   stores.diagnosis.restore()
 }

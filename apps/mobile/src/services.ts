@@ -6,6 +6,8 @@ import { createDiseaseApi } from '@/api/diseases'
 import { createMockAuthApi } from '@/api/mock/auth'
 import { createMockDiagnosisApi } from '@/api/mock/diagnosis'
 import { createMockDiseaseApi } from '@/api/mock/diseases'
+import { createMockUsersApi } from '@/api/mock/users'
+import { createUsersApi } from '@/api/users'
 import { createDiseaseCatalog } from '@/features/diseases/catalog'
 import { createPendingQueue } from '@/features/diagnosis/pendingQueue'
 import { preparePhoto } from '@/features/diagnosis/photo'
@@ -16,6 +18,7 @@ import { tokenStorage } from '@/lib/tokenStorage'
 import { onUserChange } from '@/lib/userChange'
 import { createDiagnosisStore } from '@/store/diagnosis'
 import { createHistoryStore } from '@/store/history'
+import { createProfileStore } from '@/store/profile'
 import { createSessionStore } from '@/store/session'
 import { useSettings } from '@/store/settings'
 
@@ -95,11 +98,17 @@ export const useDiagnosis = createDiagnosisStore({
 // The history of the signed-in farmer: pages of GET /api/diagnoses. Reset together with the answers below.
 export const useHistory = createHistoryStore({ api: diagnosisApi })
 
+export const usersApi = API_MODE === 'mock' ? createMockUsersApi() : createUsersApi(apiClient)
+
+// The profile of the signed-in user: GET /api/users/me. Reset together with the history.
+export const useProfile = createProfileStore({ api: usersApi })
+
 // Another farmer may sign in on the same phone: see onUserChange for what happens then.
 useSession.subscribe((state, previous) =>
   onUserChange(state, previous, {
     diagnosis: useDiagnosis.getState(),
     history: useHistory.getState(),
+    profile: useProfile.getState(),
   }),
 )
 
