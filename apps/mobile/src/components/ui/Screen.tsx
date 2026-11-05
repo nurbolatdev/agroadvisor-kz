@@ -33,5 +33,7 @@ export function Screen({ children, scroll = false }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: spacing.xl },
+  // flexGrow: the content of a scrolling screen is at least as tall as the screen, so a screen can keep
+  // its button at the bottom (the first launch screen) and still scroll when the content is taller
+  content: { paddingHorizontal: spacing.xl, flexGrow: 1 },
 })

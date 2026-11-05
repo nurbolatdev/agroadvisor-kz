@@ -19,7 +19,8 @@ export default function LanguageScreen() {
   const [selected, setSelected] = useState(language)
 
   return (
-    <Screen>
+    // scrolls: with a big system font or a long text the list must not slide under the button
+    <Screen scroll>
       <View style={styles.top}>
         <View style={styles.logo}>
           <Sprout size={sizes.logoIcon} color={colors.white} />
@@ -62,6 +63,6 @@ const styles = StyleSheet.create({
   },
   name: { marginTop: spacing.sm },
   choose: { marginTop: spacing.lg, gap: spacing.xs },
-  bottom: { gap: spacing.md },
+  bottom: { gap: spacing.md, marginTop: spacing.xl },
   later: { textAlign: 'center' },
 })
