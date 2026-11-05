@@ -59,6 +59,17 @@ describe('filterCatalog', () => {
     expect(filterCatalog(ITEMS, all).some((i) => i.kind === 'healthy')).toBe(false)
   })
 
+  it('never shows the "unknown" class: the only entry without a crop', () => {
+    // as the real reference has it (kind "other", no crop); the backend leaves it out, and so do we
+    const unknown = item({ code: 'unknown', kind: 'other', name: 'Not recognized' })
+    const withUnknown = [...ITEMS, unknown]
+    for (const type of ['disease', 'pest'] as const) {
+      expect(filterCatalog(withUnknown, { crop: null, type, query: '' })).not.toContain(unknown)
+    }
+    // not even when it is searched for by name
+    expect(filterCatalog(withUnknown, { ...all, query: 'recognized' })).toEqual([])
+  })
+
   const search = (query: string) => filterCatalog(ITEMS, { ...all, query }).map((i) => i.code)
 
   describe('search', () => {

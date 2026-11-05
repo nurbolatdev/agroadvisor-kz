@@ -28,6 +28,10 @@ export function filterCatalog(
 ): DiseaseSummary[] {
   const query = normalize(filter.query)
   return items.filter((item) => {
+    // The `unknown` class of the model ("not recognized") is the only entry without a crop. The backend
+    // leaves it out of the list (CatalogService.isDisease); the phone does the same, so a change there
+    // cannot put it among the diseases with its empty card.
+    if (item.cropCode == null) return false
     if (catalogType(item.kind) !== filter.type) return false
     if (filter.crop !== null && item.cropCode !== filter.crop) return false
     if (query === '') return true
