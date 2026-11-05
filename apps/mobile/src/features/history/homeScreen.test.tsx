@@ -94,6 +94,16 @@ describe('home screen', () => {
     expect(mockPush).toHaveBeenCalledWith('/diagnosis')
   })
 
+  it('opens the catalog with its button, with nothing to reset', async () => {
+    mockApi.list.mockResolvedValue([])
+    await render(<HomeScreen />)
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Catalog' }))
+
+    expect(mockPush).toHaveBeenCalledWith('/catalog')
+    expect(mockReset).not.toHaveBeenCalled()
+  })
+
   it('shows only the latest three diagnoses and leads to the whole history', async () => {
     mockApi.list.mockResolvedValue([1, 2, 3, 4, 5].map(diagnosis))
     await render(<HomeScreen />)

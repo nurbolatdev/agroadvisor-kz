@@ -43,6 +43,7 @@ export const en: Translation = {
   home: {
     title: 'Home',
     scaffoldReady: 'The app scaffold is ready',
+    catalog: 'Catalog',
     hero: {
       title: 'Photograph the plant',
       subtitle: 'We will find the disease in 10 seconds',
@@ -82,6 +83,35 @@ export const en: Translation = {
       title: 'No diagnoses yet',
       message: 'Take a photo of a leaf — the result will appear here',
       action: 'Diagnose by photo',
+    },
+    errors: {
+      offline: 'No connection to the server. Check the internet',
+      server: 'The server did not answer. Try again',
+    },
+  },
+  catalog: {
+    title: 'Reference',
+    search: 'Disease or pest',
+    searchClear: 'Clear search',
+    type: { disease: 'Diseases', pest: 'Pests' },
+    kind: {
+      fungal: 'Fungal',
+      bacterial: 'Bacterial',
+      viral: 'Viral',
+      oomycete: 'Oomycete',
+      pest: 'Pest',
+      healthy: 'Healthy',
+      other: 'Other',
+    },
+    severity: { high: 'Dangerous', medium: 'Moderate', low: 'Low' },
+    none: 'Nothing found',
+    noneHint: 'Change the search or pick another crop',
+    detail: {
+      symptoms: 'Symptoms',
+      conditions: 'Conditions for growth',
+      prevention: 'Prevention',
+      treatment: 'Treatment',
+      loadFailed: 'Could not load the card from the catalog',
     },
     errors: {
       offline: 'No connection to the server. Check the internet',

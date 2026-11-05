@@ -41,6 +41,7 @@ export const ru = {
   home: {
     title: 'Главная',
     scaffoldReady: 'Каркас приложения готов',
+    catalog: 'Справочник',
     // the green card (screen 04)
     hero: {
       title: 'Сфотографируйте растение',
@@ -85,6 +86,38 @@ export const ru = {
       title: 'Диагнозов пока нет',
       message: 'Сфотографируйте лист — результат появится здесь',
       action: 'Диагностика по фото',
+    },
+    errors: {
+      offline: 'Нет связи с сервером. Проверьте интернет',
+      server: 'Сервер не ответил. Попробуйте ещё раз',
+    },
+  },
+  // the reference of diseases and pests (screen 29)
+  catalog: {
+    title: 'Справочник',
+    search: 'Болезнь или вредитель',
+    searchClear: 'Очистить поиск',
+    type: { disease: 'Болезни', pest: 'Вредители' },
+    // the first word of the second line of a card
+    kind: {
+      fungal: 'Грибковое',
+      bacterial: 'Бактериальное',
+      viral: 'Вирусное',
+      oomycete: 'Оомицетное',
+      pest: 'Вредитель',
+      healthy: 'Здоровое',
+      other: 'Другое',
+    },
+    severity: { high: 'Опасно', medium: 'Средне', low: 'Низко' },
+    none: 'Ничего не найдено',
+    noneHint: 'Измените запрос или выберите другую культуру',
+    // the card of one disease
+    detail: {
+      symptoms: 'Симптомы',
+      conditions: 'Условия развития',
+      prevention: 'Профилактика',
+      treatment: 'Лечение',
+      loadFailed: 'Не удалось загрузить карточку из справочника',
     },
     errors: {
       offline: 'Нет связи с сервером. Проверьте интернет',
