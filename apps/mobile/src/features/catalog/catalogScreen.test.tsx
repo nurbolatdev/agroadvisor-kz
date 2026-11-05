@@ -74,10 +74,39 @@ describe('catalog screen', () => {
     expect(screen.queryByText('Healthy')).toBeNull()
   })
 
-  it('writes the kind and the Latin name on the second line', async () => {
+  it('writes the crop, the kind and the Latin name on the second line while all crops are listed', async () => {
     await openScreen()
+    expect(screen.getByText('Potato · Oomycete · Phytophthora infestans')).toBeTruthy()
+    expect(screen.getByText('Tomato · Fungal')).toBeTruthy()
+  })
+
+  it('leaves the crop out of the second line once a crop is chosen', async () => {
+    await openScreen()
+    await fireEvent.press(screen.getByText('Potatoes'))
     expect(screen.getByText('Oomycete · Phytophthora infestans')).toBeTruthy()
-    expect(screen.getByText('Fungal')).toBeTruthy()
+    expect(screen.queryByText(/^Potato · /)).toBeNull()
+  })
+
+  it('tells two entries that have one name apart by the crop', async () => {
+    // the real reference names the late blight of potato and of tomato the same
+    const twin = (code: string, cropCode: string): DiseaseSummary => ({
+      code,
+      cropCode,
+      kind: 'oomycete',
+      severity: 'high',
+      name: 'Late blight',
+      latinName: 'Phytophthora infestans',
+    })
+    mockList.mockResolvedValue([
+      twin('potato__late_blight', 'potato'),
+      twin('tomato__late_blight', 'tomato'),
+    ])
+    await render(<CatalogScreen />)
+    expect(await screen.findAllByText('Late blight')).toHaveLength(2)
+    expect(screen.getByText('Potato · Oomycete · Phytophthora infestans')).toBeTruthy()
+    expect(screen.getByText('Tomato · Oomycete · Phytophthora infestans')).toBeTruthy()
+    // a screen reader hears the crop too
+    expect(screen.getByLabelText(/^Late blight\. Potato · /)).toBeTruthy()
   })
 
   it('asks the reference once, for every crop', async () => {

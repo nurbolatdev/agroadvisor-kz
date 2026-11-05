@@ -84,7 +84,11 @@ export default function CatalogScreen() {
         keyboardShouldPersistTaps="handled"
         renderItem={({ item, index }) => (
           <View style={[styles.cell, index > 0 && styles.gap]}>
-            <CatalogLine item={item} onPress={() => router.push(`/catalog/${item.code}`)} />
+            <CatalogLine
+              item={item}
+              showCrop={crop === null}
+              onPress={() => router.push(`/catalog/${item.code}`)}
+            />
           </View>
         )}
         ListEmptyComponent={

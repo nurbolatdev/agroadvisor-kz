@@ -23,7 +23,8 @@ const ENTRIES: Entry[] = [
     kind: 'oomycete',
     severity: 'high',
     latinName: 'Phytophthora infestans',
-    names: { ru: 'Фитофтороз картофеля', kk: 'Картоптың фитофторозы', en: 'Potato late blight' },
+    // the same name as the tomato one, as in the real reference (the crop is not in the name)
+    names: { ru: 'Фитофтороз', kk: 'Фитофтороз', en: 'Late blight' },
   },
   {
     code: 'potato__rhizoctonia',
@@ -58,7 +59,7 @@ const ENTRIES: Entry[] = [
     kind: 'oomycete',
     severity: 'high',
     latinName: 'Phytophthora infestans',
-    names: { ru: 'Фитофтороз томата', kk: 'Қызанақтың фитофторозы', en: 'Tomato late blight' },
+    names: { ru: 'Фитофтороз', kk: 'Фитофтороз', en: 'Late blight' },
   },
   {
     code: 'tomato__leaf_mold',
