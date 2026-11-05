@@ -1,3 +1,5 @@
+import type { SessionStatus } from '@/store/session'
+
 import { onSignedIn } from './languageOnSignIn'
 
 function settings(languageChosen: boolean) {
@@ -37,11 +39,14 @@ describe('the language of a person who signs in', () => {
     expect(s.setLanguage).not.toHaveBeenCalled()
   })
 
-  it.each(['signedOut', 'restoring'])('does nothing when the new status is %s', (status) => {
-    const s = settings(false)
+  it.each<SessionStatus>(['signedOut', 'restoring'])(
+    'does nothing when the new status is %s',
+    (status) => {
+      const s = settings(false)
 
-    onSignedIn({ status }, { status: 'signedIn' }, s)
+      onSignedIn({ status }, { status: 'signedIn' }, s)
 
-    expect(s.setLanguage).not.toHaveBeenCalled()
-  })
+      expect(s.setLanguage).not.toHaveBeenCalled()
+    },
+  )
 })

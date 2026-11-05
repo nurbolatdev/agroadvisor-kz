@@ -8,8 +8,8 @@ const LANGUAGE_KEY = 'settings.language'
 
 type SettingsState = {
   language: Language
-  // True once the person has picked a language (on the first launch screen, in the profile or on the
-  // sign-in screen); until then `language` is only a guess from the language of the phone.
+  // True once the person has picked a language (on the first launch screen or in the profile), or has
+  // signed in with the one that was shown (see lib/languageOnSignIn); until then `language` is only a guess from the language of the phone.
   languageChosen: boolean
   setLanguage: (language: Language) => void
 }

@@ -8,8 +8,8 @@ import { useSettings } from '@/store/settings'
 import { spacing } from '@/theme/tokens'
 
 // The language of the app, opened from the profile. A tap applies it at once (the texts of this screen
-// change under the finger), and the arrow goes back. It is the same setting as on the first launch screen
-// and on the sign-in screen, not a copy.
+// change under the finger), and the arrow goes back. It is the same setting as on the first launch screen,
+// not a copy.
 export default function LanguageSettingsScreen() {
   const { t } = useTranslation()
   const router = useRouter()

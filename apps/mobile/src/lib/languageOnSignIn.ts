@@ -1,6 +1,7 @@
 import type { Language } from '@/i18n'
+import type { SessionStatus } from '@/store/session'
 
-type Session = { status: string }
+type Session = { status: SessionStatus }
 
 type Settings = {
   language: Language

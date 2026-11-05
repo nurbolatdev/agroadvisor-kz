@@ -26,7 +26,7 @@ describe('route guards of the root layout', () => {
   })
 
   it('never lets two groups in at once', () => {
-    for (const status of ['restoring', 'signedIn', 'signedOut']) {
+    for (const status of ['restoring', 'signedIn', 'signedOut'] as const) {
       for (const chosen of [true, false]) {
         const open = Object.values(routeGuards(status, chosen)).filter(Boolean)
         expect(open.length).toBeLessThanOrEqual(1)
