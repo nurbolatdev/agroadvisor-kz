@@ -15,6 +15,7 @@ import { expoPhotoToolkit } from '@/features/diagnosis/photoToolkit'
 import { expoQueueFiles } from '@/features/diagnosis/queueFiles'
 import { storage } from '@/lib/storage'
 import { tokenStorage } from '@/lib/tokenStorage'
+import { onSignedIn } from '@/lib/languageOnSignIn'
 import { onUserChange } from '@/lib/userChange'
 import { createDiagnosisStore } from '@/store/diagnosis'
 import { createHistoryStore } from '@/store/history'
@@ -111,6 +112,9 @@ useSession.subscribe((state, previous) =>
     profile: useProfile.getState(),
   }),
 )
+
+// A signed-in person who never picked a language is not asked for one after signing out: see onSignedIn.
+useSession.subscribe((state, previous) => onSignedIn(state, previous, useSettings.getState()))
 
 // Diagnoses that were not answered before the app was closed wait in the queue; the store learns of them now.
 useDiagnosis.getState().restore()
