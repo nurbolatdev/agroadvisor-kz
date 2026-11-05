@@ -90,8 +90,10 @@ export const en: Translation = {
     },
   },
   profile: {
-    title: 'Profile',
-    loadFailed: 'Could not load the profile',
+    errors: {
+      offline: 'No connection to the server. Check the internet',
+      server: 'The server did not answer. Try again',
+    },
     version: 'Version {{version}}',
     roles: { farmer: 'Farmer', agrochemist: 'Agrochemist', admin: 'Administrator' },
   },

@@ -94,8 +94,10 @@ export const ru = {
   },
   // the profile tab (screen 21)
   profile: {
-    title: 'Профиль',
-    loadFailed: 'Не удалось загрузить профиль',
+    errors: {
+      offline: 'Нет связи с сервером. Проверьте интернет',
+      server: 'Сервер не ответил. Попробуйте ещё раз',
+    },
     version: 'Версия {{version}}',
     roles: { farmer: 'Фермер', agrochemist: 'Агрохимик', admin: 'Администратор' },
   },

@@ -131,7 +131,7 @@ describe('profile screen', () => {
     mockMe.mockRejectedValueOnce(new NetworkError())
     await render(<ProfileScreen />)
 
-    expect(await screen.findByText('Could not load the profile')).toBeTruthy()
+    expect(await screen.findByText('No connection to the server. Check the internet')).toBeTruthy()
     // the language, the history and sign-out do not need the profile
     await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }))
     expect(mockLogout).toHaveBeenCalledTimes(1)
@@ -140,6 +140,14 @@ describe('profile screen', () => {
 
     expect(await screen.findByText('Ерлан Абенов')).toBeTruthy()
     expect(mockMe).toHaveBeenCalledTimes(2)
+  })
+
+  it('tells another text when the server fails, not the network', async () => {
+    mockMe.mockRejectedValueOnce(new Error('boom'))
+    await render(<ProfileScreen />)
+
+    expect(await screen.findByText('The server did not answer. Try again')).toBeTruthy()
+    expect(screen.queryByText(/No connection/)).toBeNull()
   })
 
   it('asks for the profile once when the tab is opened', async () => {

@@ -90,8 +90,10 @@ export const kk: Translation = {
     },
   },
   profile: {
-    title: 'Профиль',
-    loadFailed: 'Профильді жүктеу мүмкін болмады',
+    errors: {
+      offline: 'Сервермен байланыс жоқ. Интернетті тексеріңіз',
+      server: 'Сервер жауап бермеді. Қайталап көріңіз',
+    },
     version: 'Нұсқа {{version}}',
     roles: { farmer: 'Фермер', agrochemist: 'Агрохимик', admin: 'Әкімші' },
   },

@@ -19,7 +19,7 @@ import { colors, radii, sizes, spacing } from '@/theme/tokens'
 export default function ProfileScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  const { me, phase } = useProfile()
+  const { me, phase, error } = useProfile()
   const language = useSettings((s) => s.language)
   const logout = useSession((s) => s.logout)
   const version = appVersion()
@@ -41,7 +41,7 @@ export default function ProfileScreen() {
           <UserCard me={me} />
         ) : phase === 'failed' ? (
           <ErrorState
-            message={t('profile.loadFailed')}
+            message={t(`profile.errors.${error ?? 'server'}`)}
             onRetry={() => void useProfile.getState().load()}
           />
         ) : (
