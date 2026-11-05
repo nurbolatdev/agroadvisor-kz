@@ -23,6 +23,57 @@ function setup(responses: (Response | Error)[], token: string | null = 'old') {
   return { client, calls, refreshAccessToken }
 }
 
+describe('api client language', () => {
+  function languageSetup(getLanguage?: () => string) {
+    const sent: (string | null)[] = []
+    const fetchFn = jest.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      sent.push(new Headers(init?.headers).get('Accept-Language'))
+      return json(200, {})
+    })
+    const client = createApiClient({
+      baseUrl: 'http://api',
+      fetchFn: fetchFn as unknown as typeof fetch,
+      getAccessToken: () => null,
+      refreshAccessToken: async () => null,
+      getLanguage,
+    })
+    return { client, sent }
+  }
+
+  it('sends the language of the app as Accept-Language', async () => {
+    const { client, sent } = languageSetup(() => 'kk')
+    await client.request('/api/x')
+    expect(sent).toEqual(['kk'])
+  })
+
+  it('reads the language on every request, so a change is used at once', async () => {
+    let language = 'ru'
+    const { client, sent } = languageSetup(() => language)
+    await client.request('/api/x')
+    language = 'en'
+    await client.request('/api/x')
+    expect(sent).toEqual(['ru', 'en'])
+  })
+
+  it('sends it with the calls that have no token too (sign-in, sign-up)', async () => {
+    const { client, sent } = languageSetup(() => 'kk')
+    await client.request('/api/auth/login', { method: 'POST', body: {}, auth: false })
+    expect(sent).toEqual(['kk'])
+  })
+
+  it('lets a header given with the request win', async () => {
+    const { client, sent } = languageSetup(() => 'ru')
+    await client.request('/api/x', { headers: { 'Accept-Language': 'en' } })
+    expect(sent).toEqual(['en'])
+  })
+
+  it('sends no Accept-Language when there is no language source', async () => {
+    const { client, sent } = languageSetup()
+    await client.request('/api/x')
+    expect(sent).toEqual([null])
+  })
+})
+
 describe('api client', () => {
   it('sends the access token and parses JSON', async () => {
     const { client, calls } = setup([json(200, { ok: true })])

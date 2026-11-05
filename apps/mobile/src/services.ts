@@ -26,6 +26,7 @@ const authClient = createApiClient({
   baseUrl: API_URL,
   getAccessToken: () => null,
   refreshAccessToken: async () => null,
+  getLanguage: () => useSettings.getState().language,
 })
 
 export const authApi = API_MODE === 'mock' ? createMockAuthApi() : createAuthApi(authClient)
@@ -49,6 +50,7 @@ export const apiClient = createApiClient({
   baseUrl: API_URL,
   getAccessToken: () => useSession.getState().accessToken,
   refreshAccessToken: () => useSession.getState().refreshAccessToken(),
+  getLanguage: () => useSettings.getState().language,
 })
 
 export const diagnosisApi =
