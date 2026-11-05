@@ -42,6 +42,7 @@ export default function CatalogScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.chips}
         style={styles.chipsRow}
       >
@@ -62,6 +63,7 @@ export default function CatalogScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.chips}
         style={styles.chipsRow}
       >
@@ -82,6 +84,7 @@ export default function CatalogScreen() {
         data={items}
         keyExtractor={(item) => item.code}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         renderItem={({ item, index }) => (
           <View style={[styles.cell, index > 0 && styles.gap]}>
             <CatalogLine

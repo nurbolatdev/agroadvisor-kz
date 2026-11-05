@@ -39,8 +39,8 @@ export default function CatalogDetailScreen() {
             return lines.length === 0 ? null : (
               <View key={section} style={styles.section}>
                 <AppText variant="h2">{t(`catalog.detail.${section}`)}</AppText>
-                {lines.map((line) => (
-                  <AppText key={line} variant="body">
+                {lines.map((line, index) => (
+                  <AppText key={`${section}-${index}`} variant="body">
                     {line}
                   </AppText>
                 ))}
