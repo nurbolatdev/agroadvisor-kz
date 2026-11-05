@@ -89,6 +89,13 @@ export const en: Translation = {
       server: 'The server did not answer. Try again',
     },
   },
+  onboarding: {
+    tagline: "A farmer's assistant: plant diseases, watering advice and a link to an agrochemist.",
+    chooseLanguage: 'Choose language',
+    chooseLanguageOthers: 'Тілді таңдаңыз · Выберите язык',
+    continue: 'Continue',
+    changeLater: 'You can change the language in the profile',
+  },
   catalog: {
     title: 'Reference',
     search: 'Disease or pest',

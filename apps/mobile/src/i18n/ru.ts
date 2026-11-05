@@ -92,6 +92,15 @@ export const ru = {
       server: 'Сервер не ответил. Попробуйте ещё раз',
     },
   },
+  // the first launch: the choice of the language (screen 01)
+  onboarding: {
+    tagline: 'Помощник фермера: болезни растений, советы по поливу и связь с агрохимиком.',
+    chooseLanguage: 'Выберите язык',
+    // the same words in the other two languages, so that anyone finds their own
+    chooseLanguageOthers: 'Тілді таңдаңыз · Choose language',
+    continue: 'Продолжить',
+    changeLater: 'Язык можно сменить в профиле',
+  },
   // the reference of diseases and pests (screen 29)
   catalog: {
     title: 'Справочник',

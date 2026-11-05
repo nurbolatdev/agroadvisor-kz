@@ -89,6 +89,13 @@ export const kk: Translation = {
       server: 'Сервер жауап бермеді. Қайталап көріңіз',
     },
   },
+  onboarding: {
+    tagline: 'Фермер көмекшісі: өсімдік аурулары, суару кеңестері және агрохимикпен байланыс.',
+    chooseLanguage: 'Тілді таңдаңыз',
+    chooseLanguageOthers: 'Выберите язык · Choose language',
+    continue: 'Жалғастыру',
+    changeLater: 'Тілді профильде өзгертуге болады',
+  },
   catalog: {
     title: 'Анықтамалық',
     search: 'Ауру немесе зиянкес',
