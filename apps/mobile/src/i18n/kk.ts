@@ -89,6 +89,12 @@ export const kk: Translation = {
       server: 'Сервер жауап бермеді. Қайталап көріңіз',
     },
   },
+  profile: {
+    title: 'Профиль',
+    loadFailed: 'Профильді жүктеу мүмкін болмады',
+    version: 'Нұсқа {{version}}',
+    roles: { farmer: 'Фермер', agrochemist: 'Агрохимик', admin: 'Әкімші' },
+  },
   onboarding: {
     tagline: 'Фермер көмекшісі: өсімдік аурулары, суару кеңестері және агрохимикпен байланыс.',
     chooseLanguage: 'Тілді таңдаңыз',

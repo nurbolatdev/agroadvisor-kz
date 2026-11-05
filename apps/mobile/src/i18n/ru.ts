@@ -92,6 +92,13 @@ export const ru = {
       server: 'Сервер не ответил. Попробуйте ещё раз',
     },
   },
+  // the profile tab (screen 21)
+  profile: {
+    title: 'Профиль',
+    loadFailed: 'Не удалось загрузить профиль',
+    version: 'Версия {{version}}',
+    roles: { farmer: 'Фермер', agrochemist: 'Агрохимик', admin: 'Администратор' },
+  },
   // the first launch: the choice of the language (screen 01)
   onboarding: {
     tagline: 'Помощник фермера: болезни растений, советы по поливу и связь с агрохимиком.',

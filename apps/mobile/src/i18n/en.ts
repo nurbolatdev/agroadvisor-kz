@@ -89,6 +89,12 @@ export const en: Translation = {
       server: 'The server did not answer. Try again',
     },
   },
+  profile: {
+    title: 'Profile',
+    loadFailed: 'Could not load the profile',
+    version: 'Version {{version}}',
+    roles: { farmer: 'Farmer', agrochemist: 'Agrochemist', admin: 'Administrator' },
+  },
   onboarding: {
     tagline: "A farmer's assistant: plant diseases, watering advice and a link to an agrochemist.",
     chooseLanguage: 'Choose language',
