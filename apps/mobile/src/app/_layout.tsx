@@ -10,6 +10,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect } from 'react'
 
+import { routeGuards } from '@/lib/routeGuards'
 import { useSession } from '@/services'
 import { useSettings } from '@/store/settings'
 import { colors } from '@/theme/tokens'
@@ -25,6 +26,7 @@ export default function RootLayout() {
   })
   const status = useSession((s) => s.status)
   const languageChosen = useSettings((s) => s.languageChosen)
+  const guards = routeGuards(status, languageChosen)
   const restore = useSession((s) => s.restore)
   const ready = (fontsLoaded || fontError !== null) && status !== 'restoring'
 
@@ -47,15 +49,15 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.bg },
         }}
       >
-        <Stack.Protected guard={status === 'signedIn'}>
+        <Stack.Protected guard={guards.app}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
         {/* Signed out: a person who has not chosen a language yet sees the language screen first; after
             "Continue" (or any choice of the language) the sign-in takes its place and stays. */}
-        <Stack.Protected guard={status === 'signedOut' && !languageChosen}>
+        <Stack.Protected guard={guards.onboarding}>
           <Stack.Screen name="(onboarding)" />
         </Stack.Protected>
-        <Stack.Protected guard={status === 'signedOut' && languageChosen}>
+        <Stack.Protected guard={guards.auth}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
       </Stack>
