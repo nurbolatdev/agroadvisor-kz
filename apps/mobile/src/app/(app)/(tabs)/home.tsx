@@ -68,6 +68,15 @@ export default function HomeScreen() {
         </View>
       ) : null}
 
+      {/* The frame has a row of tiles here; until the other screens exist the reference is one button */}
+      <View style={styles.section}>
+        <Button
+          label={t('home.catalog')}
+          variant="secondary"
+          onPress={() => router.push('/catalog')}
+        />
+      </View>
+
       {/* Only when there is something to show: with no diagnoses the home screen is the card alone */}
       {recent.length > 0 ? (
         <View style={styles.section}>

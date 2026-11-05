@@ -43,6 +43,7 @@ export const kk: Translation = {
   home: {
     title: 'Басты бет',
     scaffoldReady: 'Қосымша каркасы дайын',
+    catalog: 'Анықтамалық',
     hero: {
       title: 'Өсімдікті суретке түсіріңіз',
       subtitle: 'Ауруды 10 секундта анықтаймыз',

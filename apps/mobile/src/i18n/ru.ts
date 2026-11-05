@@ -41,6 +41,7 @@ export const ru = {
   home: {
     title: 'Главная',
     scaffoldReady: 'Каркас приложения готов',
+    catalog: 'Справочник',
     // the green card (screen 04)
     hero: {
       title: 'Сфотографируйте растение',

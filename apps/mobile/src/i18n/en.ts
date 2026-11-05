@@ -43,6 +43,7 @@ export const en: Translation = {
   home: {
     title: 'Home',
     scaffoldReady: 'The app scaffold is ready',
+    catalog: 'Catalog',
     hero: {
       title: 'Photograph the plant',
       subtitle: 'We will find the disease in 10 seconds',
