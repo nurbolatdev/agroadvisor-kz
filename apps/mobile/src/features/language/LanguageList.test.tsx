@@ -21,6 +21,34 @@ describe('language list', () => {
     ])
   })
 
+  it('is a radio group of radio rows, each with its own checked state, for a screen reader', async () => {
+    await render(<LanguageList value="ru" onSelect={jest.fn()} />)
+
+    const rows = screen.getAllByRole('radio')
+    expect(rows).toHaveLength(3)
+    // the group is not itself an accessible element (it would glue the rows into one for a screen reader),
+    // so its role is read from the parent of the rows
+    let group = rows[0].parent
+    while (group && group.props.accessibilityRole === undefined) group = group.parent
+    expect(group?.props.accessibilityRole).toBe('radiogroup')
+    for (const row of rows) {
+      expect(row.props.accessibilityRole).toBe('radio')
+      expect(row.props.accessibilityState).toEqual({
+        checked: row.props.accessibilityLabel.startsWith('Русский'),
+      })
+    }
+  })
+
+  it('moves the checked state with the value', async () => {
+    const { rerender } = await render(<LanguageList value="ru" onSelect={jest.fn()} />)
+    expect(screen.getByRole('radio', { name: /^Русский/, checked: true })).toBeTruthy()
+
+    await rerender(<LanguageList value="en" onSelect={jest.fn()} />)
+
+    expect(screen.getByRole('radio', { name: /^English/, checked: true })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: /^Русский/, checked: false })).toBeTruthy()
+  })
+
   it('marks the chosen language, and only it', async () => {
     await render(<LanguageList value="ru" onSelect={jest.fn()} />)
 
