@@ -13,6 +13,7 @@ function fakes() {
         restore: () => void calls.push('restore'),
       },
       history: { reset: () => void calls.push('resetHistory') },
+      profile: { reset: () => void calls.push('resetProfile') },
     },
   }
 }
@@ -29,13 +30,16 @@ describe('a change of the user', () => {
   it.each([
     ['signs out', null],
     ['is replaced by another farmer', 'b'],
-  ])('clears the answers and the history and reads the queue again when A %s', (_, next) => {
-    const { calls, stores } = fakes()
+  ])(
+    'clears the answers, the history and the profile and reads the queue again when A %s',
+    (_, next) => {
+      const { calls, stores } = fakes()
 
-    onUserChange({ userId: next }, { userId: 'a' }, stores)
+      onUserChange({ userId: next }, { userId: 'a' }, stores)
 
-    expect(calls).toEqual(['clearAnswers', 'resetHistory', 'restore'])
-  })
+      expect(calls).toEqual(['clearAnswers', 'resetHistory', 'resetProfile', 'restore'])
+    },
+  )
 
   it('only reads the queue on the first sign-in: there is nothing to clear', () => {
     const { calls, stores } = fakes()

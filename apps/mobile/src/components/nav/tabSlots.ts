@@ -46,7 +46,7 @@ export const TAB_SLOTS: readonly TabSlot[] = [
     route: 'profile',
     icon: User,
     label: 'tabs.profile',
-    implemented: false, // M8
+    implemented: true,
   },
 ]
 

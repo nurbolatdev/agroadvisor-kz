@@ -6,16 +6,20 @@ import { createDiseaseApi } from '@/api/diseases'
 import { createMockAuthApi } from '@/api/mock/auth'
 import { createMockDiagnosisApi } from '@/api/mock/diagnosis'
 import { createMockDiseaseApi } from '@/api/mock/diseases'
+import { createMockUsersApi } from '@/api/mock/users'
+import { createUsersApi } from '@/api/users'
 import { createDiseaseCatalog } from '@/features/diseases/catalog'
 import { createPendingQueue } from '@/features/diagnosis/pendingQueue'
 import { preparePhoto } from '@/features/diagnosis/photo'
 import { expoPhotoToolkit } from '@/features/diagnosis/photoToolkit'
 import { expoQueueFiles } from '@/features/diagnosis/queueFiles'
+import { onSignedIn } from '@/lib/languageOnSignIn'
 import { storage } from '@/lib/storage'
 import { tokenStorage } from '@/lib/tokenStorage'
 import { onUserChange } from '@/lib/userChange'
 import { createDiagnosisStore } from '@/store/diagnosis'
 import { createHistoryStore } from '@/store/history'
+import { createProfileStore } from '@/store/profile'
 import { createSessionStore } from '@/store/session'
 import { useSettings } from '@/store/settings'
 
@@ -26,6 +30,7 @@ const authClient = createApiClient({
   baseUrl: API_URL,
   getAccessToken: () => null,
   refreshAccessToken: async () => null,
+  getLanguage: () => useSettings.getState().language,
 })
 
 export const authApi = API_MODE === 'mock' ? createMockAuthApi() : createAuthApi(authClient)
@@ -49,6 +54,7 @@ export const apiClient = createApiClient({
   baseUrl: API_URL,
   getAccessToken: () => useSession.getState().accessToken,
   refreshAccessToken: () => useSession.getState().refreshAccessToken(),
+  getLanguage: () => useSettings.getState().language,
 })
 
 export const diagnosisApi =
@@ -93,13 +99,22 @@ export const useDiagnosis = createDiagnosisStore({
 // The history of the signed-in farmer: pages of GET /api/diagnoses. Reset together with the answers below.
 export const useHistory = createHistoryStore({ api: diagnosisApi })
 
+export const usersApi = API_MODE === 'mock' ? createMockUsersApi() : createUsersApi(apiClient)
+
+// The profile of the signed-in user: GET /api/users/me. Reset together with the history.
+export const useProfile = createProfileStore({ api: usersApi })
+
 // Another farmer may sign in on the same phone: see onUserChange for what happens then.
 useSession.subscribe((state, previous) =>
   onUserChange(state, previous, {
     diagnosis: useDiagnosis.getState(),
     history: useHistory.getState(),
+    profile: useProfile.getState(),
   }),
 )
+
+// A signed-in person who never picked a language is not asked for one after signing out: see onSignedIn.
+useSession.subscribe((state, previous) => onSignedIn(state, previous, useSettings.getState()))
 
 // Diagnoses that were not answered before the app was closed wait in the queue; the store learns of them now.
 useDiagnosis.getState().restore()

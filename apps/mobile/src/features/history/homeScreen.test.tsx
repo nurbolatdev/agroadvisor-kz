@@ -94,6 +94,18 @@ describe('home screen', () => {
     expect(mockPush).toHaveBeenCalledWith('/diagnosis')
   })
 
+  it('has no language choice and no sign-out: they moved to the profile', async () => {
+    mockApi.list.mockResolvedValue([diagnosis(1)])
+    await render(<HomeScreen />)
+    await screen.findByText('Late blight')
+
+    expect(screen.queryByText('Language')).toBeNull()
+    expect(screen.queryByText('Sign out')).toBeNull()
+    for (const name of ['Русский', 'Қазақша', 'English']) {
+      expect(screen.queryByText(name)).toBeNull()
+    }
+  })
+
   it('opens the catalog with its button, with nothing to reset', async () => {
     mockApi.list.mockResolvedValue([])
     await render(<HomeScreen />)

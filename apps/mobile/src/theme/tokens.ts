@@ -55,6 +55,11 @@ export const sizes = {
   fab: 60,
   // the leaf drawn on the green card of the home screen
   hero: 140,
+  // the green tile with the sprout on the first launch screen, and the sprout in it
+  logo: 64,
+  logoIcon: 32,
+  // the round avatar with the initials on the profile card
+  avatar: 56,
 } as const
 
 export const fonts = {

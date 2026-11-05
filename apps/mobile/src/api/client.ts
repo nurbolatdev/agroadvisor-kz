@@ -7,6 +7,9 @@ export type ApiClientOptions = {
   // Returns a fresh access token or null when the session cannot be renewed.
   refreshAccessToken: () => Promise<string | null>
   timeoutMs?: number
+  // The language of the app (ru, kk or en), read on every request and sent as Accept-Language: the backend
+  // answers its own texts (errors, the catalog) in it. A header given with a request wins.
+  getLanguage?: () => string
 }
 
 export type RequestOptions = {
@@ -70,6 +73,7 @@ export function createApiClient(options: ApiClientOptions) {
         method: opts.method ?? 'GET',
         headers: {
           Accept: 'application/json',
+          ...(options.getLanguage ? { 'Accept-Language': options.getLanguage() } : {}),
           ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...opts.headers,

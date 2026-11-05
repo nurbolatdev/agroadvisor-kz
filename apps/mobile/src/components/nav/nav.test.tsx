@@ -19,8 +19,8 @@ describe('the places of the bottom bar', () => {
     expect(TAB_SLOTS.map((s) => s.id)).toEqual(['home', 'community', 'camera', 'chats', 'profile'])
   })
 
-  it('show only what is built: Home and the camera button for now, no stubs', () => {
-    expect(visibleSlots().map((s) => s.id)).toEqual(['home', 'camera'])
+  it('show only what is built: Home, the camera button and Profile for now, no stubs', () => {
+    expect(visibleSlots().map((s) => s.id)).toEqual(['home', 'camera', 'profile'])
   })
 
   it('keep the order of the design when more sections get ready', () => {
@@ -50,9 +50,9 @@ describe('BottomBar', () => {
 
     expect(screen.getByRole('tab', { name: 'Home' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Diagnose by photo' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Profile' })).toBeTruthy()
     expect(screen.queryByText('Community')).toBeNull()
     expect(screen.queryByText('Chats')).toBeNull()
-    expect(screen.queryByText('Profile')).toBeNull()
     expect(screen.queryByText(/soon/i)).toBeNull()
   })
 
@@ -78,10 +78,10 @@ describe('BottomBar', () => {
 
   it('draws a place as soon as its section is switched on', async () => {
     const slots: TabSlot[] = TAB_SLOTS.map((s) =>
-      s.id === 'profile' ? { ...s, implemented: true } : s,
+      s.id === 'chats' ? { ...s, implemented: true } : s,
     )
     await render(<BottomBar activeRoute="home" onNavigate={noop} onCamera={noop} slots={slots} />)
 
-    expect(screen.getByRole('tab', { name: 'Profile' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Chats' })).toBeTruthy()
   })
 })

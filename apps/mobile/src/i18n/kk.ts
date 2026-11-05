@@ -89,6 +89,21 @@ export const kk: Translation = {
       server: 'Сервер жауап бермеді. Қайталап көріңіз',
     },
   },
+  profile: {
+    errors: {
+      offline: 'Сервермен байланыс жоқ. Интернетті тексеріңіз',
+      server: 'Сервер жауап бермеді. Қайталап көріңіз',
+    },
+    version: 'Нұсқа {{version}}',
+    roles: { farmer: 'Фермер', agrochemist: 'Агрохимик', admin: 'Әкімші' },
+  },
+  onboarding: {
+    tagline: 'Фермер көмекшісі: өсімдік аурулары, суару кеңестері және агрохимикпен байланыс.',
+    chooseLanguage: 'Тілді таңдаңыз',
+    chooseLanguageOthers: 'Выберите язык · Choose language',
+    continue: 'Жалғастыру',
+    changeLater: 'Тілді профильде өзгертуге болады',
+  },
   catalog: {
     title: 'Анықтамалық',
     search: 'Ауру немесе зиянкес',
