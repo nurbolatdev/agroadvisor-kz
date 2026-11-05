@@ -67,6 +67,49 @@ describe('catalog card screen', () => {
     expect(screen.getByText('Dangerous')).toBeTruthy()
   })
 
+  it('does not make the line of the disease a button: a tap on it does nothing', async () => {
+    await render(<CatalogDetailScreen />)
+    await screen.findByText(LONG_NAME)
+    // the only button of the screen that carries the name would be a dead one
+    expect(screen.queryByRole('button', { name: new RegExp(LONG_NAME) })).toBeNull()
+    expect(screen.getByLabelText(new RegExp(`^${LONG_NAME}\\.`))).toBeTruthy()
+  })
+
+  it('has no treatment and no dosage notice for a healthy leaf', async () => {
+    mockDetail.mockResolvedValue({
+      disease: {
+        code: 'potato__healthy',
+        cropCode: 'potato',
+        kind: 'healthy',
+        severity: null,
+        name: 'Healthy potato leaf',
+      },
+      treatments: [],
+    } satisfies DiseaseDetail)
+    await render(<CatalogDetailScreen />)
+    await screen.findByText('Healthy potato leaf')
+    expect(screen.queryByText('Treatment')).toBeNull()
+    expect(screen.queryByText(/Check the dosage/)).toBeNull()
+    expect(screen.queryByText('Dangerous')).toBeNull()
+  })
+
+  it('shows a disease of the kind "other" like any other disease', async () => {
+    mockDetail.mockResolvedValue({
+      disease: {
+        code: 'potato__other',
+        cropCode: 'potato',
+        kind: 'other',
+        severity: 'low',
+        name: 'Other trouble',
+      },
+      treatments: [{ product: 'Remedy C', type: 'chemical' }],
+    } satisfies DiseaseDetail)
+    await render(<CatalogDetailScreen />)
+    expect(await screen.findByText('Other trouble')).toBeTruthy()
+    expect(screen.getByText('Other')).toBeTruthy()
+    expect(screen.getByText('Remedy C')).toBeTruthy()
+  })
+
   it('shows the sections that have a text, and skips the ones that have none', async () => {
     await render(<CatalogDetailScreen />)
     await screen.findByText(LONG_NAME)

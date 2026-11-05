@@ -32,7 +32,7 @@ export default function CatalogDetailScreen() {
       {state.status === 'ready' ? (
         <View style={styles.body}>
           {/* the same line as in the list, without the tap */}
-          <CatalogLine item={state.detail.disease} onPress={() => undefined} expanded />
+          <CatalogLine item={state.detail.disease} expanded />
 
           {SECTIONS.map((section) => {
             const lines = shortSymptoms(state.detail[section], 20)
@@ -48,11 +48,14 @@ export default function CatalogDetailScreen() {
             )
           })}
 
-          <View style={styles.section}>
-            <AppText variant="h2">{t('catalog.detail.treatment')}</AppText>
-            <SafetyNotice />
-            <TreatmentList treatments={state.detail.treatments} />
-          </View>
+          {/* a healthy leaf is not a disease: no treatment, no dosage notice (it is reachable by a link) */}
+          {state.detail.disease.kind === 'healthy' ? null : (
+            <View style={styles.section}>
+              <AppText variant="h2">{t('catalog.detail.treatment')}</AppText>
+              <SafetyNotice />
+              <TreatmentList treatments={state.detail.treatments} />
+            </View>
+          )}
         </View>
       ) : null}
     </Screen>

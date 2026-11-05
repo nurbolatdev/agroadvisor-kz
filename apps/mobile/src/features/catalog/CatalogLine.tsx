@@ -1,4 +1,4 @@
-import { CircleAlert, Leaf, TriangleAlert, type LucideIcon } from 'lucide-react-native'
+import { CircleAlert, Info, Leaf, TriangleAlert, type LucideIcon } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { Pressable, StyleSheet, View } from 'react-native'
 
@@ -14,12 +14,14 @@ const SEVERITY_ICON: Record<BadgeTone, LucideIcon | undefined> = {
   warning: TriangleAlert,
   success: undefined,
   info: undefined,
-  neutral: undefined,
+  // a status is a word plus an icon, so "Low" has one too
+  neutral: Info,
 }
 
 type Props = {
   item: DiseaseSummary
-  onPress: () => void
+  // without it the line only shows (the card of a disease): it is not a button for a screen reader
+  onPress?: () => void
   // the card of a disease shows the whole name and the whole second line
   expanded?: boolean
   // with every crop listed the crop opens the second line: the reference names a disease of two crops
@@ -38,13 +40,9 @@ export function CatalogLine({ item, onPress, expanded = false, showCrop = false 
     .join(' · ')
   const severityWord = look ? t(look.key) : null
 
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={[item.name, subtitle, severityWord].filter(Boolean).join('. ')}
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-    >
+  const label = [item.name, subtitle, severityWord].filter(Boolean).join('. ')
+  const body = (
+    <>
       <View style={styles.thumb}>
         <Leaf size={sizes.icon} color={colors.primarySoft} />
       </View>
@@ -67,7 +65,22 @@ export function CatalogLine({ item, onPress, expanded = false, showCrop = false 
           <Badge label={severityWord} tone={look.tone} icon={SEVERITY_ICON[look.tone]} />
         ) : null}
       </View>
+    </>
+  )
+
+  return onPress ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+    >
+      {body}
     </Pressable>
+  ) : (
+    <View accessible accessibilityLabel={label} style={styles.row}>
+      {body}
+    </View>
   )
 }
 
