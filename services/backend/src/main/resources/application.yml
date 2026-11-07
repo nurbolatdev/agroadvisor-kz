@@ -63,7 +63,8 @@ app:
   meta:
     cache-ttl: 60s # how long GET /api/meta keeps the answer of the AI service
   rate-limit:
-    diagnosis-per-minute: 5 # photos per user per minute; there are no daily limits
+    diagnosis-per-minute: 5 # new diagnoses per user per minute, given back when we fail; there are no daily limits
+    diagnosis-attempts-per-minute: 20 # attempts per user per minute, never given back (a retry storm guard for the AI)
   security:
     jwt:
       # Base64, at least 32 random bytes (openssl rand -base64 48). Kept outside git; startup fails without it.

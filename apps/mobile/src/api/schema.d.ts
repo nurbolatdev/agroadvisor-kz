@@ -1388,6 +1388,17 @@ export interface operations {
                     "*/*": components["schemas"]["DiagnosisView"];
                 };
             };
+            /** @description rate_limited: more than 20 attempts or more than 5 new diagnoses in a minute. Attempts are never given back; a diagnosis token is given back when the server failed (see docs/api/ai-predict.md). Repeat after the seconds in Retry-After */
+            429: {
+                headers: {
+                    /** @description Seconds until the window of the limit ends */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DiagnosisView"];
+                };
+            };
         };
     };
     get: {

@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -171,10 +172,16 @@ public class DiagnosisService {
      * finish together, one wins and the other returns its row.
      *
      * <p>Order matters: the key is looked up (and a live claim answered with 409) before the rate limit, so a
-     * replay or a 409 found there never spends the user's diagnosis limit (a request that loses the claim in a
-     * race at the very start has spent a token by then); the limit is checked before the photo is validated,
-     * sent to the model or stored. The model is asked before the photo is stored, so a model failure writes
-     * nothing.
+     * replay or a 409 found there never spends the user's diagnosis limit; the limit is checked before the
+     * photo is validated, sent to the model or stored. The model is asked before the photo is stored, so a
+     * model failure writes nothing.
+     *
+     * <p>Two limits guard the door. The attempts (20 a minute) protect the AI from a retry storm and are never
+     * given back. The diagnosis token (5 a minute) counts diagnoses: it is given back when the request ends in
+     * a replay, in {@code 409 request_in_progress} (also after a lost race at the start), or in a failure on
+     * our side (the model or the storage is down, any 5xx); it is kept when the request is refused for its own
+     * input (unknown crop, not an image, too poor for the model). Principle: refunded when the server did no
+     * work or failed on its side, charged when compute was spent on, or the fault is in, the client's input.
      */
     public Created create(UUID userId, String crop, byte[] photo, String idempotencyKey) {
         if (idempotencyKey != null && !IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {
@@ -191,7 +198,34 @@ public class DiagnosisService {
             claims.find(userId, idempotencyKey, props.claimTimeout()).ifPresent(c -> refuseUnlessExpired(c, crop,
                     fingerprint));
         }
-        rateLimiter.check("diagnosis", userId.toString(), limits.diagnosisPerMinute(), Duration.ofMinutes(1));
+        // Two limits at the door. Attempts (20 a minute) guard the AI from a retry storm and are never given
+        // back, whatever happens; it is checked first, so a refused attempt does not spend a diagnosis token.
+        rateLimiter.check("diagnosis-attempts", userId.toString(), limits.diagnosisAttemptsPerMinute(),
+                Duration.ofMinutes(1));
+        // The diagnosis token is spent here, before any work, so that a burst of parallel requests is cut at the
+        // door and a flood of bad photos still counts. It is given back below when the server did no work or
+        // failed on its side.
+        RateLimiter.Ticket ticket = rateLimiter.check("diagnosis", userId.toString(), limits.diagnosisPerMinute(),
+                Duration.ofMinutes(1));
+        AtomicBoolean made = new AtomicBoolean();
+        try {
+            Created created = createCounted(userId, crop, photo, idempotencyKey, fingerprint, made);
+            if (created.replayed()) {
+                rateLimiter.refund(ticket); // the answer of an earlier request, nothing new was made
+            }
+            return created;
+        } catch (RuntimeException e) {
+            // a diagnosis that is already saved is a diagnosis made: building its answer failing is not a refund
+            if (!made.get() && DiagnosisErrors.givesBackTheToken(e)) {
+                rateLimiter.refund(ticket);
+            }
+            throw e;
+        }
+    }
+
+    /** The work of {@link #create} after the token is spent; {@code made} is set once a new diagnosis is saved. */
+    private Created createCounted(UUID userId, String crop, byte[] photo, String idempotencyKey,
+            String fingerprint, AtomicBoolean made) {
         if (!ai.crops().contains(crop)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.UNKNOWN_CROP, "Unsupported crop: " + crop);
         }
@@ -220,6 +254,7 @@ public class DiagnosisService {
             Prediction prediction = predict(crop, clean);
             photoKey = photos.store(userId, objectName(idempotencyKey, fingerprint), clean, contentType);
             saved = finish(userId, crop, photoKey, prediction, idempotencyKey, fingerprint, claimId);
+            made.set(true);
         } catch (DataIntegrityViolationException e) {
             // Lost the race on (user_id, idempotency_key): the other request's row is the answer
             Optional<Diagnosis> winner = idempotencyKey == null ? Optional.empty()

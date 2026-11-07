@@ -1,5 +1,9 @@
 package kz.agroadvisor.diagnosis.service;
 
+import org.springframework.http.HttpStatus;
+
+import kz.agroadvisor.common.web.ApiException;
+
 /** Error codes of the diagnosis module. */
 public final class DiagnosisErrors {
 
@@ -24,6 +28,20 @@ public final class DiagnosisErrors {
     public static final String REQUEST_IN_PROGRESS = "request_in_progress";
     /** The key was already used for a diagnosis of another crop (422). */
     public static final String IDEMPOTENCY_KEY_REUSED = "idempotency_key_reused";
+
+    /**
+     * Whether a failed request gets its rate-limit token back: yes when the fault is not the caller's (the
+     * model or the storage is down, an unexpected error) and for {@code 409 request_in_progress}, where the
+     * answer is the other request's. A refusal for the caller's own input (400, 404, 422) keeps the token, so
+     * the limit still stops a flood of bad requests.
+     */
+    public static boolean givesBackTheToken(RuntimeException e) {
+        if (!(e instanceof ApiException api)) {
+            return true;
+        }
+        HttpStatus status = api.getStatus();
+        return status.is5xxServerError() || status == HttpStatus.CONFLICT;
+    }
 
     private DiagnosisErrors() {
     }
