@@ -25,6 +25,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -117,9 +119,19 @@ class DiagnosisAttemptLimitTest {
     }
 
     @Test
-    void theDefaultsAreFiveDiagnosesAndTwentyAttemptsAMinute() {
+    void theConfiguredLimitsAreFiveDiagnosesAndTwentyAttemptsAMinute() {
+        // the values of application.yml
         assertThat(limits.diagnosisPerMinute()).isEqualTo(5);
         assertThat(limits.diagnosisAttemptsPerMinute()).isEqualTo(20);
+    }
+
+    @Test
+    void theLimitsFallBackToFiveAndTwentyWhenNothingIsConfigured() {
+        RateLimitProperties defaults = new Binder(new MapConfigurationPropertySource())
+                .bindOrCreate("app.rate-limit", RateLimitProperties.class);
+
+        assertThat(defaults.diagnosisPerMinute()).isEqualTo(5);
+        assertThat(defaults.diagnosisAttemptsPerMinute()).isEqualTo(20);
     }
 
     @Test

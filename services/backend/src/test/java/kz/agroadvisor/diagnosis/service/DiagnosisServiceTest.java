@@ -515,7 +515,10 @@ class DiagnosisServiceTest {
     /** The limiter counts the call and hands back what it counted; the tests watch whether it is given back. */
     private RateLimiter.Ticket spendsATicket() {
         RateLimiter.Ticket ticket = new RateLimiter.Ticket("agroadvisor:ratelimit:diagnosis:" + userId + ":1");
-        when(limiter.check(anyString(), anyString(), anyInt(), any(Duration.class))).thenReturn(ticket);
+        // only the diagnosis bucket hands out this ticket; the attempts bucket (never refunded) has its own
+        when(limiter.check(eq("diagnosis"), anyString(), anyInt(), any(Duration.class))).thenReturn(ticket);
+        when(limiter.check(eq("diagnosis-attempts"), anyString(), anyInt(), any(Duration.class)))
+                .thenReturn(new RateLimiter.Ticket("attempts-key"));
         return ticket;
     }
 
