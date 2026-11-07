@@ -1,4 +1,4 @@
-import { createAgrochemistApi, UPLOAD_TIMEOUT_MS, uploadQuery } from './agrochemist'
+import { createAgrochemistApi, UPLOAD_TIMEOUT_MS, uploadFormData } from './agrochemist'
 import { createApiClient } from './client'
 
 type Sent = { url: string; init: RequestInit | undefined }
@@ -20,15 +20,22 @@ function setup(response: Response = new Response('{}', { status: 201 })) {
 
 const file = { uri: 'file:///cache/diploma.pdf', name: 'diploma.pdf', type: 'application/pdf' }
 
-describe('uploadQuery', () => {
-  it('sends the kind alone when nothing else is given', () => {
-    expect(uploadQuery({ kind: 'diploma' })).toBe('kind=diploma')
+describe('uploadFormData', () => {
+  it('sends the kind and the file when nothing else is given', () => {
+    const form = uploadFormData(file, { kind: 'diploma' })
+    expect(form.get('kind')).toBe('diploma')
+    expect(form.has('file')).toBe(true)
+    expect(form.has('title')).toBe(false)
+    expect(form.has('issuer')).toBe(false)
+    expect(form.has('year')).toBe(false)
   })
 
-  it('encodes the free text and skips empty fields', () => {
-    expect(
-      uploadQuery({ kind: 'certificate', title: 'Агроном & co', issuer: '', year: 2019 }),
-    ).toBe(`kind=certificate&title=${encodeURIComponent('Агроном & co')}&year=2019`)
+  it('passes the free text as it is, with no encoding, and skips empty fields', () => {
+    const title = 'Агроном & магистр #1 / "КазНАУ" 100%'
+    const form = uploadFormData(file, { kind: 'certificate', title, issuer: '', year: 2019 })
+    expect(form.get('title')).toBe(title)
+    expect(form.get('year')).toBe('2019')
+    expect(form.has('issuer')).toBe(false)
   })
 })
 
@@ -43,15 +50,17 @@ describe('agrochemist upload', () => {
     expect(sent[0].init?.body).toBeInstanceOf(FormData)
   })
 
-  it('posts the file part to the documents path with the fields in the query', async () => {
+  it('posts to the documents path with the fields in the body and nothing in the URL', async () => {
     const { api, sent } = setup()
-    await api.upload(file, { kind: 'diploma', title: 'Diploma', year: 2020 })
+    await api.upload(file, { kind: 'diploma', title: 'Диплом', issuer: 'КазНАУ', year: 2020 })
 
-    expect(sent[0].url).toBe(
-      'http://api/api/agrochemist/documents?kind=diploma&title=Diploma&year=2020',
-    )
+    expect(sent[0].url).toBe('http://api/api/agrochemist/documents')
     expect(sent[0].init?.method).toBe('POST')
     const body = sent[0].init?.body as FormData
+    expect(body.get('kind')).toBe('diploma')
+    expect(body.get('title')).toBe('Диплом')
+    expect(body.get('issuer')).toBe('КазНАУ')
+    expect(body.get('year')).toBe('2020')
     expect(body.has('file')).toBe(true)
   })
 

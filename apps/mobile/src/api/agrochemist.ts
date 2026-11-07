@@ -31,30 +31,30 @@ export type AgrochemistApi = {
 // Up to 10 MB over a slow mobile network in the field; the default 15 s of the client is too short.
 export const UPLOAD_TIMEOUT_MS = 120_000
 
-// The backend reads kind, title, issuer and year from the query (see the upload operation in the
-// OpenAPI file); only the file travels in the multipart body. Built by hand: React Native's
-// URLSearchParams cannot be turned into a string everywhere.
-export function uploadQuery(meta: UploadMeta): string {
-  const pairs: [string, string][] = [['kind', meta.kind]]
-  if (meta.title) pairs.push(['title', meta.title])
-  if (meta.issuer) pairs.push(['issuer', meta.issuer])
-  if (meta.year !== undefined) pairs.push(['year', String(meta.year)])
-  return pairs.map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&')
+// The title of a diploma and the university are personal data and a URL ends up in logs, so the fields
+// travel as parts of the multipart body, next to the file. The backend declares them with @RequestParam,
+// which Spring also fills from the text parts of a multipart request. (The OpenAPI file lists them as
+// query parameters only because that is how the generator describes @RequestParam.)
+export function uploadFormData(file: UploadFile, meta: UploadMeta): FormData {
+  const formData = new FormData()
+  formData.append('kind', meta.kind)
+  if (meta.title) formData.append('title', meta.title)
+  if (meta.issuer) formData.append('issuer', meta.issuer)
+  if (meta.year !== undefined) formData.append('year', String(meta.year))
+  // React Native accepts { uri, name, type } as a file part; the DOM typing wants a Blob.
+  formData.append('file', file as unknown as Blob)
+  return formData
 }
 
 export function createAgrochemistApi(client: ApiClient): AgrochemistApi {
   return {
     verification: () => client.request('/api/agrochemist/verification'),
-    upload: (file, meta) => {
-      const formData = new FormData()
-      // React Native accepts { uri, name, type } as a file part; the DOM typing wants a Blob.
-      formData.append('file', file as unknown as Blob)
-      return client.request(`/api/agrochemist/documents?${uploadQuery(meta)}`, {
+    upload: (file, meta) =>
+      client.request('/api/agrochemist/documents', {
         method: 'POST',
-        formData,
+        formData: uploadFormData(file, meta),
         timeoutMs: UPLOAD_TIMEOUT_MS,
-      })
-    },
+      }),
     remove: (id) =>
       client.request(`/api/agrochemist/documents/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   }
