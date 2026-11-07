@@ -6,6 +6,7 @@ import AppLayout from '@/app/(app)/_layout'
 import { initI18n } from '@/i18n'
 
 const mockMe = jest.fn()
+const mockLogout = jest.fn()
 
 jest.mock('expo-router', () => {
   const { Text } = require('react-native')
@@ -20,6 +21,7 @@ jest.mock('@/services', () => {
   return {
     // looked up at call time: this factory runs when the layout is imported, before `mockMe` exists
     useProfile: createProfileStore({ api: { me: (...args: unknown[]) => mockMe(...args) } }),
+    useSession: (select: (s: object) => unknown) => select({ logout: () => mockLogout() }),
   }
 })
 
@@ -67,6 +69,14 @@ describe('signed-in layout and the profile', () => {
 
     await fireEvent.press(screen.getByText('Try again'))
     expect(screen.getByText('SIGNED-IN SCREENS')).toBeTruthy()
+  })
+
+  it('lets the person sign out when the profile cannot be loaded', async () => {
+    mockMe.mockRejectedValue(new NetworkError())
+
+    await render(<AppLayout />)
+    await fireEvent.press(screen.getByText('Sign out'))
+    expect(mockLogout).toHaveBeenCalledTimes(1)
   })
 
   it('goes straight through when the profile is already there', async () => {
