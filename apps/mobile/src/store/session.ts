@@ -135,7 +135,8 @@ export function createSessionStore(deps: {
 
       async register(body) {
         const startedIn = generation
-        await accept(await authApi.register(body), startedIn)
+        // The role is always sent; a screen that does not choose one registers a farmer.
+        await accept(await authApi.register({ ...body, role: body.role ?? 'farmer' }), startedIn)
       },
 
       async login(body) {

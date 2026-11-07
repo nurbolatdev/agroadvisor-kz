@@ -27,13 +27,13 @@ export default function RegisterScreen() {
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null)
     try {
-      // Farmers register here; agrochemists get their own flow with documents (M9).
+      // No role is chosen on this screen yet, so the store registers a farmer; the agrochemist flow with
+      // documents (M9) passes its own role once the frames 03 and 03a are built.
       await register({
         fullName: values.fullName.trim(),
         login: values.login.trim(),
         password: values.password,
         language,
-        role: 'farmer',
       })
     } catch (error) {
       const failure = toFormFailure(error)

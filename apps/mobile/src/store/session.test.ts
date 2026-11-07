@@ -28,6 +28,35 @@ describe('session store', () => {
     expect(tokens.value).toMatch(/^mock-refresh/)
   })
 
+  describe('role at sign-up', () => {
+    function recordingApi() {
+      const roles: (string | undefined)[] = []
+      const mock = createMockAuthApi()
+      const authApi: AuthApi = {
+        ...mock,
+        register: (body) => {
+          roles.push(body.role)
+          return mock.register(body)
+        },
+      }
+      return { authApi, roles }
+    }
+
+    it('registers a farmer when no role is given', async () => {
+      const { authApi, roles } = recordingApi()
+      const session = createSessionStore({ authApi, tokens: memoryTokens() })
+      await session.getState().register(credentials)
+      expect(roles).toEqual(['farmer'])
+    })
+
+    it('passes the role the screen chose', async () => {
+      const { authApi, roles } = recordingApi()
+      const session = createSessionStore({ authApi, tokens: memoryTokens() })
+      await session.getState().register({ ...credentials, role: 'agrochemist' })
+      expect(roles).toEqual(['agrochemist'])
+    })
+  })
+
   describe('whose session it is', () => {
     function memoryUserIds(initial: string | null = null) {
       const box = { value: initial }
