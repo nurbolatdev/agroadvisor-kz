@@ -23,8 +23,9 @@ export type PreparedDocumentPhoto = { uri: string; name: string; type: 'image/jp
 
 // Every photo of a document, from the camera or the gallery, is rewritten as a JPEG on the phone. That
 // settles two things at once: an iPhone gives HEIC, which the backend refuses (unsupported_format), and a
-// camera photo of several megapixels can be near the 10 MB limit. The picker's own option for iOS
-// ("compatible" representation) is set as well, but this step does not depend on it.
+// camera photo of several megapixels can be near the 10 MB limit. The screen that opens the picker should
+// also ask iOS for the "compatible" representation (preferredAssetRepresentationMode), but this step does
+// not depend on it.
 // The backend cuts the metadata of a document itself; no file name or content is logged here.
 export async function prepareDocumentPhoto(
   photo: { uri: string; width: number; height: number },
