@@ -176,11 +176,12 @@ public class DiagnosisService {
      * photo is validated, sent to the model or stored. The model is asked before the photo is stored, so a
      * model failure writes nothing.
      *
-     * <p>The limit counts diagnoses, not attempts: the token spent at the door is given back when the request
-     * ends in a replay, in {@code 409 request_in_progress} (also after a lost race at the start), or in a
-     * failure that is not the caller's (the model or the storage is down, any 5xx). A photo refused for its own
-     * sake (unknown crop, not an image, too poor for the model) keeps the token, so the limit still stops a
-     * flood of bad photos.
+     * <p>Two limits guard the door. The attempts (20 a minute) protect the AI from a retry storm and are never
+     * given back. The diagnosis token (5 a minute) counts diagnoses: it is given back when the request ends in
+     * a replay, in {@code 409 request_in_progress} (also after a lost race at the start), or in a failure on
+     * our side (the model or the storage is down, any 5xx); it is kept when the request is refused for its own
+     * input (unknown crop, not an image, too poor for the model). Principle: refunded when the server did no
+     * work or failed on its side, charged when compute was spent on, or the fault is in, the client's input.
      */
     public Created create(UUID userId, String crop, byte[] photo, String idempotencyKey) {
         if (idempotencyKey != null && !IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {

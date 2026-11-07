@@ -58,7 +58,9 @@ public class RateLimiter {
 
     /**
      * What one {@link #check} counted: the counter of its window. {@link #refund} gives exactly that call back,
-     * in the window it was counted in, not in the one that is current when the refund is made.
+     * in the window it was counted in, not in the one that is current when the refund is made. A ticket is
+     * identity-bound on purpose (no equals by key): it gives back one call once, and a second ticket with the
+     * same key is another call.
      */
     public static final class Ticket {
 
