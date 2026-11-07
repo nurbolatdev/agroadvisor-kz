@@ -197,9 +197,13 @@ public class DiagnosisService {
             claims.find(userId, idempotencyKey, props.claimTimeout()).ifPresent(c -> refuseUnlessExpired(c, crop,
                     fingerprint));
         }
-        // The token is spent here, before any work, so that a burst of parallel requests is cut at the door
-        // and a flood of bad photos still counts. It is given back below when no diagnosis came out for a
-        // reason that is not the caller's.
+        // Two limits at the door. Attempts (20 a minute) guard the AI from a retry storm and are never given
+        // back, whatever happens; it is checked first, so a refused attempt does not spend a diagnosis token.
+        rateLimiter.check("diagnosis-attempts", userId.toString(), limits.diagnosisAttemptsPerMinute(),
+                Duration.ofMinutes(1));
+        // The diagnosis token is spent here, before any work, so that a burst of parallel requests is cut at the
+        // door and a flood of bad photos still counts. It is given back below when the server did no work or
+        // failed on its side.
         RateLimiter.Ticket ticket = rateLimiter.check("diagnosis", userId.toString(), limits.diagnosisPerMinute(),
                 Duration.ofMinutes(1));
         AtomicBoolean made = new AtomicBoolean();

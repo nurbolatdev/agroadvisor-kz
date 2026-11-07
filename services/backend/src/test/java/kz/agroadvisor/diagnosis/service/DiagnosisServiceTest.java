@@ -63,7 +63,7 @@ class DiagnosisServiceTest {
     private final DiagnosisClaims claims = mock(DiagnosisClaims.class);
     private final PlatformTransactionManager txManager = mock(PlatformTransactionManager.class);
     private final DiagnosisService service = new DiagnosisService(ai, photos, diagnoses, diseases, meters, limiter,
-            new RateLimitProperties(5), new ImageMetadataStripper(), claims, new TransactionTemplate(txManager),
+            new RateLimitProperties(5, 20), new ImageMetadataStripper(), claims, new TransactionTemplate(txManager),
             new DiagnosisProperties(Duration.ofSeconds(90)));
     private final UUID userId = UUID.randomUUID();
     private final UUID claimId = UUID.randomUUID();
@@ -517,6 +517,46 @@ class DiagnosisServiceTest {
         RateLimiter.Ticket ticket = new RateLimiter.Ticket("agroadvisor:ratelimit:diagnosis:" + userId + ":1");
         when(limiter.check(anyString(), anyString(), anyInt(), any(Duration.class))).thenReturn(ticket);
         return ticket;
+    }
+
+    @Test
+    void theAttemptsAreCheckedBeforeTheDiagnosisTokenIsSpentAndARefusedAttemptSpendsNone() {
+        doThrow(new ApiException(HttpStatus.TOO_MANY_REQUESTS, "rate_limited", "Too many requests")).when(limiter)
+                .check(eq("diagnosis-attempts"), anyString(), eq(20), any(Duration.class));
+
+        assertThatThrownBy(() -> create("tomato", JPEG))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.getCode()).isEqualTo("rate_limited"));
+
+        verify(limiter).check("diagnosis-attempts", userId.toString(), 20, Duration.ofMinutes(1));
+        verify(limiter, never()).check(eq("diagnosis"), anyString(), anyInt(), any(Duration.class));
+        verify(limiter, never()).refund(any());
+        verify(ai, never()).predict(anyString(), any());
+    }
+
+    @Test
+    void theAttemptIsNeverRefundedOnlyTheDiagnosisToken() {
+        RateLimiter.Ticket attempt = new RateLimiter.Ticket("attempts-key");
+        RateLimiter.Ticket token = new RateLimiter.Ticket("diagnosis-key");
+        when(limiter.check(eq("diagnosis-attempts"), anyString(), anyInt(), any(Duration.class))).thenReturn(attempt);
+        when(limiter.check(eq("diagnosis"), anyString(), anyInt(), any(Duration.class))).thenReturn(token);
+        when(ai.predict("tomato", JPEG)).thenThrow(new ApiException(HttpStatus.BAD_GATEWAY, "ai_error", "Bad"));
+
+        assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(ApiException.class);
+
+        verify(limiter).refund(token);
+        verify(limiter, never()).refund(attempt);
+    }
+
+    @Test
+    void aReplayAsksForTheRefundExactlyOnce() {
+        RateLimiter.Ticket ticket = spendsATicket();
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678"))
+                .thenReturn(Optional.empty(), Optional.of(storedWithKey("key-12345678")));
+        when(diseases.findAllById(any())).thenReturn(List.of());
+
+        service.create(userId, "tomato", JPEG, "key-12345678");
+
+        verify(limiter, times(1)).refund(ticket);
     }
 
     @Test
