@@ -14,9 +14,20 @@ export type VerificationState =
 // while that lasts; this is the second line, for a double tap that comes before the screen redraws).
 export type ActionResult = { ok: true } | { ok: false; problem: UploadProblem | 'busy' }
 
-// After these the state on the phone is out of date (the profile was approved meanwhile, the document is
-// already gone), so it is read again.
-const STALE_AFTER: UploadProblem[] = ['already_approved', 'not_found']
+// After these the state on the phone may be out of date, so it is read again: the profile was approved
+// meanwhile, the document is already gone, or the list is full. A send that ended with no answer
+// (offline, a timeout of 120 s) or with a server error may have reached the server all the same; reading
+// the list shows it, so the person does not send the same document twice and fill the limit of five.
+// Only the refusals decided on the phone or by the check of the file itself leave the list as it is.
+const STALE_AFTER: UploadProblem[] = [
+  'already_approved',
+  'not_found',
+  'limit',
+  'profile_missing',
+  'offline',
+  'generic',
+  'storage_unavailable',
+]
 
 // The state of the check of the signed-in agrochemist: server data, kept in this hook (the app has no
 // shared layer for server data). The screen reads it again when it gets the focus (reload, from

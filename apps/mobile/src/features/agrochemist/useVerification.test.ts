@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 
 import type { AgrochemistApi, VerificationView } from '@/api/agrochemist'
-import { NetworkError } from '@/api/errors'
+import { ApiError, NetworkError } from '@/api/errors'
 import { createMockAgrochemistApi } from '@/api/mock/agrochemist'
 
 import { useVerification } from './useVerification'
@@ -221,7 +221,9 @@ describe('useVerification: concurrent calls', () => {
     expect(result.current.state).toMatchObject({ view: { status: 'approved' } })
   })
 
-  it('sets nothing after the screen is gone', async () => {
+  // A protective test only: React 18 does not warn about a state set after unmount, so this shows that
+  // late answers do not throw or break the hook, not that the guard on `mounted` is what holds.
+  it('does not throw when the answers come after the screen is gone', async () => {
     const errors = jest.spyOn(console, 'error').mockImplementation(() => undefined)
     const read = deferred<VerificationView>()
     const sent = deferred<typeof document>()
@@ -247,6 +249,41 @@ describe('useVerification: concurrent calls', () => {
     expect(result.current).toBe(before)
     expect(errors).not.toHaveBeenCalled()
     errors.mockRestore()
+  })
+
+  it('reads the list again after a send that got no answer, which may have arrived', async () => {
+    const verification = jest.fn(async () => viewOf('pending'))
+    const api: AgrochemistApi = {
+      verification,
+      upload: jest.fn().mockRejectedValue(new NetworkError()),
+      remove: async () => undefined,
+    }
+    const { result } = await renderHook(() => useVerification(api))
+    await waitFor(() => expect(result.current.state.status).toBe('ready'))
+    expect(verification).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      await result.current.upload(file, { kind: 'diploma' })
+    })
+    expect(verification).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not read the list again after a refusal of the file itself', async () => {
+    const verification = jest.fn(async () => viewOf('pending'))
+    const api: AgrochemistApi = {
+      verification,
+      upload: jest
+        .fn()
+        .mockRejectedValue(new ApiError(400, 'invalid_document', 'bad', [], 'too_large')),
+      remove: async () => undefined,
+    }
+    const { result } = await renderHook(() => useVerification(api))
+    await waitFor(() => expect(result.current.state.status).toBe('ready'))
+
+    await act(async () => {
+      await result.current.upload(file, { kind: 'diploma' })
+    })
+    expect(verification).toHaveBeenCalledTimes(1)
   })
 
   it('never repeats a send by itself, whatever the failure', async () => {
