@@ -471,6 +471,21 @@
         "required" : [ "fullName", "id", "language", "roles" ],
         "type" : "object"
       },
+      "MetaView" : {
+        "properties" : {
+          "classesVersion" : {
+            "example" : 1,
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "modelVersion" : {
+            "example" : "effnet-b0-v1",
+            "type" : "string"
+          }
+        },
+        "required" : [ "classesVersion", "modelVersion" ],
+        "type" : "object"
+      },
       "RefreshRequest" : {
         "properties" : {
           "refreshToken" : {
@@ -1775,6 +1790,25 @@
           }
         },
         "tags" : [ "catalog-controller" ]
+      }
+    },
+    "/api/meta" : {
+      "get" : {
+        "operationId" : "meta",
+        "responses" : {
+          "503" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MetaView"
+                }
+              }
+            },
+            "description" : "ai_unavailable: the AI service cannot be reached, is not ready, or runs a placeholder model; the app shows no model line then"
+          }
+        },
+        "summary" : "The version of the recognition model, as the AI service reports it (kept for about a minute)",
+        "tags" : [ "meta-controller" ]
       }
     },
     "/api/users/me" : {

@@ -394,6 +394,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The version of the recognition model, as the AI service reports it (kept for about a minute) */
+        get: operations["meta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/me": {
         parameters: {
             query?: never;
@@ -605,6 +622,15 @@ export interface components {
             language: "ru" | "kk" | "en";
             phone?: string | null;
             roles: ("farmer" | "agrochemist" | "admin")[];
+        };
+        MetaView: {
+            /**
+             * Format: int32
+             * @example 1
+             */
+            classesVersion: number;
+            /** @example effnet-b0-v1 */
+            modelVersion: string;
         };
         RefreshRequest: {
             refreshToken: string;
@@ -1493,6 +1519,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DiseaseDetail"];
+                };
+            };
+        };
+    };
+    meta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ai_unavailable: the AI service cannot be reached, is not ready, or runs a placeholder model; the app shows no model line then */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MetaView"];
                 };
             };
         };
