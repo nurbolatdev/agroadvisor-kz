@@ -4,6 +4,8 @@ import {
   documentMimeType,
   MAX_DOCUMENT_BYTES,
   MAX_DOCUMENTS,
+  withKnownSize,
+  type PickedDocument,
 } from './documentRules'
 
 describe('documentMimeType', () => {
@@ -38,6 +40,40 @@ describe('canAddDocument', () => {
   it('is off at the limit of documents', () => {
     expect(canAddDocument(MAX_DOCUMENTS - 1)).toBe(true)
     expect(canAddDocument(MAX_DOCUMENTS)).toBe(false)
+  })
+})
+
+describe('withKnownSize', () => {
+  const picked: PickedDocument & { uri: string } = {
+    uri: 'file:///cache/d.pdf',
+    name: 'd.pdf',
+    mimeType: 'application/pdf',
+  }
+
+  it('keeps a size the picker gave and does not read the file', async () => {
+    const read = jest.fn(() => 99)
+    await expect(withKnownSize({ ...picked, size: 5 }, read)).resolves.toMatchObject({ size: 5 })
+    expect(read).not.toHaveBeenCalled()
+  })
+
+  it.each([undefined, null])(
+    'reads the size from the file when the picker gave %p',
+    async (size) => {
+      const result = await withKnownSize({ ...picked, size }, async () => MAX_DOCUMENT_BYTES + 1)
+      expect(result.size).toBe(MAX_DOCUMENT_BYTES + 1)
+      // so a file over 10 MB is refused on the phone, not after a slow upload
+      expect(checkDocument(result, 0)).toEqual({ ok: false, problem: 'too_large' })
+    },
+  )
+
+  it('leaves the check to the server when the size cannot be read', async () => {
+    const failing = await withKnownSize(picked, () => {
+      throw new Error('no such file')
+    })
+    const unknown = await withKnownSize(picked, () => null)
+    expect(failing.size).toBeUndefined()
+    expect(unknown.size).toBeUndefined()
+    expect(checkDocument(unknown, 0).ok).toBe(true)
   })
 })
 

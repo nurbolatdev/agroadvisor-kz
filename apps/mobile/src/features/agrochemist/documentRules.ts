@@ -59,6 +59,23 @@ export type DocumentCheck =
       problem: Extract<UploadProblem, 'limit' | 'empty' | 'too_large' | 'unsupported_format'>
     }
 
+// The pickers do not always know the size of a file (the document picker on Android sometimes gives none).
+// A file of unknown size must not go on unchecked, so the size is read from the file on the phone; only
+// when that fails too the check is left to the server, which refuses a file over 10 MB with the same
+// texts (invalid_document / too_large, or 413).
+export async function withKnownSize<T extends PickedDocument & { uri: string }>(
+  file: T,
+  readSize: (uri: string) => number | null | Promise<number | null>,
+): Promise<T> {
+  if (file.size != null) return file
+  try {
+    const size = await readSize(file.uri)
+    return size == null ? file : { ...file, size }
+  } catch {
+    return file
+  }
+}
+
 export function checkDocument(file: PickedDocument, existingCount: number): DocumentCheck {
   if (!canAddDocument(existingCount)) return { ok: false, problem: 'limit' }
   const type = documentMimeType(file.name, file.mimeType)
