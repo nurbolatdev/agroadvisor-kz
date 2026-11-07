@@ -1,8 +1,10 @@
+import { createAgrochemistApi } from '@/api/agrochemist'
 import { createAuthApi } from '@/api/auth'
 import { createApiClient } from '@/api/client'
 import { API_MODE, API_URL } from '@/api/config'
 import { createDiagnosisApi } from '@/api/diagnosis'
 import { createDiseaseApi } from '@/api/diseases'
+import { createMockAgrochemistApi } from '@/api/mock/agrochemist'
 import { createMockAuthApi } from '@/api/mock/auth'
 import { createMockDiagnosisApi } from '@/api/mock/diagnosis'
 import { createMockDiseaseApi } from '@/api/mock/diseases'
@@ -14,6 +16,7 @@ import { preparePhoto } from '@/features/diagnosis/photo'
 import { expoPhotoToolkit } from '@/features/diagnosis/photoToolkit'
 import { expoQueueFiles } from '@/features/diagnosis/queueFiles'
 import { onSignedIn } from '@/lib/languageOnSignIn'
+import { createRolesCache } from '@/lib/rolesCache'
 import { storage } from '@/lib/storage'
 import { tokenStorage } from '@/lib/tokenStorage'
 import { onUserChange } from '@/lib/userChange'
@@ -60,6 +63,12 @@ export const apiClient = createApiClient({
 export const diagnosisApi =
   API_MODE === 'mock' ? createMockDiagnosisApi() : createDiagnosisApi(apiClient)
 
+// The check of an agrochemist and the documents sent for it. In the mock mode the controls put the check
+// in any of the four states and make the next upload fail, to try the screens without the backend.
+const mockAgrochemist = API_MODE === 'mock' ? createMockAgrochemistApi() : null
+export const agrochemistApi = mockAgrochemist?.api ?? createAgrochemistApi(apiClient)
+export const agrochemistMockControls = mockAgrochemist?.controls ?? null
+
 export const diseaseApi = API_MODE === 'mock' ? createMockDiseaseApi() : createDiseaseApi(apiClient)
 
 // The reference of diseases in the language the farmer chose; the cache follows a change of language.
@@ -102,7 +111,12 @@ export const useHistory = createHistoryStore({ api: diagnosisApi })
 export const usersApi = API_MODE === 'mock' ? createMockUsersApi() : createUsersApi(apiClient)
 
 // The profile of the signed-in user: GET /api/users/me. Reset together with the history.
-export const useProfile = createProfileStore({ api: usersApi })
+// The last roles are kept on the phone (stale while revalidate), so the app knows them before the answer.
+export const useProfile = createProfileStore({
+  api: usersApi,
+  rolesCache: createRolesCache(storage),
+  currentUser: () => useSession.getState().userId,
+})
 
 // Another farmer may sign in on the same phone: see onUserChange for what happens then.
 useSession.subscribe((state, previous) =>

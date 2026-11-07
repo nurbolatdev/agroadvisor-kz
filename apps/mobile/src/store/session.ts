@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import type { AuthApi, LoginRequest, RegisterRequest, TokenResponse } from '@/api/auth'
+import type { AuthApi, LoginRequest, RegisterBody, TokenResponse } from '@/api/auth'
 import { ApiError } from '@/api/errors'
 import { userIdOfToken } from '@/lib/jwt'
 
@@ -26,7 +26,7 @@ type SessionState = {
   // whose session this is; null when signed out or when the token carries no readable id
   userId: string | null
   restore: () => Promise<void>
-  register: (body: RegisterRequest) => Promise<void>
+  register: (body: RegisterBody) => Promise<void>
   login: (body: LoginRequest) => Promise<void>
   logout: () => Promise<void>
   // For the API client. Returns a fresh access token or null; concurrent calls share one request,

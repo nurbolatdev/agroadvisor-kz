@@ -27,7 +27,8 @@ export default function RegisterScreen() {
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null)
     try {
-      // Farmers register here; agrochemists get their own flow with documents (M9).
+      // This screen has no choice of the role yet: it registers a farmer. The agrochemist flow with
+      // documents (M9) passes 'agrochemist' once the frames 03 and 03a are built.
       await register({
         fullName: values.fullName.trim(),
         login: values.login.trim(),

@@ -1,5 +1,6 @@
 import { NetworkError } from '@/api/errors'
 import type { Me, UsersApi } from '@/api/users'
+import { createRolesCache } from '@/lib/rolesCache'
 
 import { createProfileStore } from './profile'
 
@@ -110,5 +111,80 @@ describe('profile store', () => {
     await loading
 
     expect(store.getState()).toMatchObject({ phase: 'idle', error: null })
+  })
+})
+
+describe('profile store: the roles saved on the phone', () => {
+  function withCache(me: UsersApi['me'], saved?: { userId: string; roles: Me['roles'] }) {
+    const data = new Map<string, string>()
+    const cache = createRolesCache({
+      getString: (key) => data.get(key),
+      set: (key, value) => void data.set(key, value),
+      remove: (key) => data.delete(key),
+    })
+    if (saved) cache.write(saved.userId, saved.roles)
+    const api: UsersApi = { me: jest.fn(me) }
+    const store = createProfileStore({ api, rolesCache: cache, currentUser: () => 'u1' })
+    return { store, cache, data }
+  }
+
+  it('starts with the roles saved for this user, before any answer', () => {
+    const { store } = withCache(async () => ME, { userId: 'u1', roles: ['agrochemist'] })
+    expect(store.getState()).toMatchObject({ me: null, phase: 'idle', roles: ['agrochemist'] })
+  })
+
+  it('does not start with the roles saved for another user', () => {
+    const { store } = withCache(async () => ME, { userId: 'someone-else', roles: ['agrochemist'] })
+    expect(store.getState().roles).toBeNull()
+  })
+
+  it('keeps the saved roles when the server cannot be reached (offline start with the cache)', async () => {
+    const { store } = withCache(
+      async () => {
+        throw new NetworkError()
+      },
+      { userId: 'u1', roles: ['agrochemist'] },
+    )
+
+    await store.getState().load()
+
+    expect(store.getState()).toMatchObject({
+      phase: 'failed',
+      error: 'offline',
+      roles: ['agrochemist'],
+    })
+  })
+
+  it('knows no roles when the server cannot be reached and nothing is saved', async () => {
+    const { store } = withCache(async () => {
+      throw new NetworkError()
+    })
+    await store.getState().load()
+    expect(store.getState()).toMatchObject({ phase: 'failed', roles: null })
+  })
+
+  it('replaces the saved roles with the answer of the server and saves them', async () => {
+    const changed: Me = { ...ME, id: 'u1', roles: ['agrochemist'] }
+    const { store, cache } = withCache(async () => changed, { userId: 'u1', roles: ['farmer'] })
+    expect(store.getState().roles).toEqual(['farmer'])
+
+    await store.getState().load()
+
+    expect(store.getState().roles).toEqual(['agrochemist'])
+    expect(cache.read('u1')).toEqual(['agrochemist'])
+  })
+
+  it('forgets the roles on reset, in the store and on the phone', async () => {
+    const { store, cache, data } = withCache(async () => ({ ...ME, id: 'u1' }), {
+      userId: 'u1',
+      roles: ['farmer'],
+    })
+    await store.getState().load()
+
+    store.getState().reset()
+
+    expect(store.getState().roles).toBeNull()
+    expect(cache.read('u1')).toBeNull()
+    expect(data.size).toBe(0)
   })
 })

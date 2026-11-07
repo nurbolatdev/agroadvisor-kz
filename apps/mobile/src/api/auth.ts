@@ -6,12 +6,18 @@ type Schemas = components['schemas']
 // Generated from docs/api/openapi.json (npm run gen:api)
 export type RegisterRequest = Schemas['RegisterRequest']
 
+// The generated type has the role optional (the backend treats a missing one as a farmer). In the app the
+// role is always chosen by the caller: a forgotten role must stop the build, not register a farmer.
+export type RegisterBody = Omit<RegisterRequest, 'role'> & {
+  role: NonNullable<RegisterRequest['role']>
+}
+
 export type LoginRequest = Schemas['LoginRequest']
 
 export type TokenResponse = Schemas['TokenResponse']
 
 export type AuthApi = {
-  register: (body: RegisterRequest) => Promise<TokenResponse>
+  register: (body: RegisterBody) => Promise<TokenResponse>
   login: (body: LoginRequest) => Promise<TokenResponse>
   refresh: (refreshToken: string) => Promise<TokenResponse>
   logout: (refreshToken: string) => Promise<void>
