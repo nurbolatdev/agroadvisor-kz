@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -27,8 +28,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.mock.web.MockPart;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -99,6 +102,13 @@ class AgrochemistVerificationControllerTest {
                 .param("kind", kind);
     }
 
+    /** A text field as a part of the multipart body, the way the mobile app sends it (not as a query parameter). */
+    private static MockPart textPart(String name, String value) {
+        MockPart part = new MockPart(name, value.getBytes(StandardCharsets.UTF_8));
+        part.getHeaders().setContentType(new MediaType("text", "plain", StandardCharsets.UTF_8));
+        return part;
+    }
+
     private ResultActions send(MockMultipartHttpServletRequestBuilder request, String token) throws Exception {
         return mvc.perform(request.header("Authorization", token));
     }
@@ -115,6 +125,28 @@ class AgrochemistVerificationControllerTest {
                 .andExpect(jsonPath("$.status").value("pending"))
                 .andExpect(jsonPath("$.submittedAt").exists())
                 .andExpect(jsonPath("$.documents").isEmpty());
+    }
+
+    @Test
+    void uploadReadsTheFieldsFromTextPartsOfTheMultipartBodyInUtf8() throws Exception {
+        String title = "Диплом № 1 & тест";
+        String issuer = "КазНАУ имени С. Сейфуллина";
+        MockMultipartHttpServletRequestBuilder request = multipart("/api/agrochemist/documents")
+                .file(new MockMultipartFile("file", "scan.pdf", "application/octet-stream", PDF))
+                .part(textPart("kind", "diploma"), textPart("title", title), textPart("issuer", issuer),
+                        textPart("year", "2015"));
+
+        send(request, agrochemist)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.kind").value("diploma"))
+                .andExpect(jsonPath("$.title").value(title))
+                .andExpect(jsonPath("$.issuer").value(issuer))
+                .andExpect(jsonPath("$.year").value(2015));
+
+        // and the record kept in the database has the same text
+        mvc.perform(get("/api/agrochemist/verification").header("Authorization", agrochemist))
+                .andExpect(jsonPath("$.documents[0].title").value(title))
+                .andExpect(jsonPath("$.documents[0].issuer").value(issuer));
     }
 
     @Test
