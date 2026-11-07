@@ -89,6 +89,33 @@ class RateLimiterTest {
     }
 
     @Test
+    void aTicketGivesBackOneCallHoweverManyTimesItIsRefunded() {
+        RateLimiter limiter = limiterAt(START);
+        String user = UUID.randomUUID().toString();
+        RateLimiter.Ticket first = limiter.check("diagnosis", user, 5, MINUTE);
+        limiter.check("diagnosis", user, 5, MINUTE);
+        limiter.check("diagnosis", user, 5, MINUTE);
+
+        // a replay path and a failure path both ask: only one call is given back
+        limiter.refund(first);
+        limiter.refund(first);
+        limiter.refund(first);
+
+        assertThat(redis.opsForValue().get(first.key())).isEqualTo("2");
+    }
+
+    @Test
+    void aRefusedCallTellsWhenToRetryInTheRetryAfterHeader() {
+        RateLimiter limiter = limiterAt(START.plusSeconds(15));
+        String user = UUID.randomUUID().toString();
+        limiter.check("diagnosis", user, 1, MINUTE);
+
+        assertThatThrownBy(() -> limiter.check("diagnosis", user, 1, MINUTE))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getHeaders()).containsEntry("Retry-After", "45"));
+    }
+
+    @Test
     void aRefundNeverGoesBelowZero() {
         RateLimiter limiter = limiterAt(START);
         String user = UUID.randomUUID().toString();

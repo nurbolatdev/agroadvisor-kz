@@ -3,6 +3,7 @@ package kz.agroadvisor.common.ratelimit;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +60,23 @@ public class RateLimiter {
      * What one {@link #check} counted: the counter of its window. {@link #refund} gives exactly that call back,
      * in the window it was counted in, not in the one that is current when the refund is made.
      */
-    public record Ticket(String key) {
+    public static final class Ticket {
+
+        private final String key;
+        private final AtomicBoolean refunded = new AtomicBoolean();
+
+        public Ticket(String key) {
+            this.key = key;
+        }
+
+        public String key() {
+            return key;
+        }
+
+        /** True for the first caller only: a ticket gives back one call, however many paths ask for it. */
+        boolean claimRefund() {
+            return refunded.compareAndSet(false, true);
+        }
     }
 
     private final StringRedisTemplate redis;
@@ -96,7 +113,8 @@ public class RateLimiter {
         if (count != null && count > limit) {
             long retryAfter = (windowIndex + 1) * windowSeconds - now;
             throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, RATE_LIMITED,
-                    "Too many requests, retry in " + retryAfter + " s");
+                    "Too many requests, retry in " + retryAfter + " s")
+                    .withHeader("Retry-After", String.valueOf(retryAfter));
         }
         return new Ticket(key);
     }
@@ -108,7 +126,7 @@ public class RateLimiter {
      * there is nothing to refund for it; its count stays in the window, as before.
      */
     public void refund(Ticket ticket) {
-        if (ticket == null) {
+        if (ticket == null || !ticket.claimRefund()) {
             return;
         }
         try {
