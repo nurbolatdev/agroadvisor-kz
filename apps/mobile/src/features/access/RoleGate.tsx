@@ -2,25 +2,34 @@ import { useEffect, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
+import type { Me } from '@/api/users'
 import { Button, ErrorState, Screen } from '@/components/ui'
 import { useProfile, useSession } from '@/services'
 import { colors, spacing } from '@/theme/tokens'
 
-// Lets the signed-in screens through only when the profile (GET /api/users/me) is there. The roles come
-// from the profile alone, so until it is loaded nothing can say whether the person is a farmer or an
-// agrochemist: a screen shown earlier would show the farmer's screens to an agrochemist for a moment.
-// The cost: with no connection to the server the app does not open past this screen; the person can retry
-// or sign out. (Whether the offline queue of diagnoses must stay reachable is a decision of the lead.)
-export function ProfileGate({ children }: { children: ReactNode }) {
+type Role = Me['roles'][number]
+
+// Wrap the screens whose content depends on the role (the tabs of a farmer or of an agrochemist, the
+// screens of an agrochemist). The rest of the app (the offline queue of diagnoses, the history, the
+// language, sign-out) does not use this gate and opens without the profile.
+//
+//  - The roles are known (the answer of the server, or the ones saved on the phone): the children are shown
+//    at once; the answer of the server, when it comes, replaces the roles and the children are drawn again.
+//  - Neither is known: a wait screen with "Try again" and "Sign out".
+//
+// A role on the phone only decides what is shown. What a person may do is decided by the backend (403).
+export function RoleGate({ children }: { children: (roles: Role[]) => ReactNode }) {
   const { t } = useTranslation()
-  const { phase, error } = useProfile()
+  const roles = useProfile((s) => s.roles)
+  const phase = useProfile((s) => s.phase)
+  const error = useProfile((s) => s.error)
   const logout = useSession((s) => s.logout)
 
   useEffect(() => {
     void useProfile.getState().load()
   }, [])
 
-  if (phase === 'ready') return <>{children}</>
+  if (roles) return <>{children(roles)}</>
 
   return (
     <Screen>
@@ -30,7 +39,6 @@ export function ProfileGate({ children }: { children: ReactNode }) {
             message={t(`profile.errors.${error ?? 'server'}`)}
             onRetry={() => void useProfile.getState().load()}
           />
-          {/* Without the profile nothing else opens, so the way out of the account must stay. */}
           <Button label={t('auth.signOut')} variant="secondary" onPress={() => void logout()} />
         </View>
       ) : (
