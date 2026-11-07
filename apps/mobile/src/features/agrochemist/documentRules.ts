@@ -6,6 +6,12 @@ export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
 export const MAX_DOCUMENTS = 5
 export const ALLOWED_DOCUMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png'] as const
 
+// The numbers the texts of the problems write out ({{mb}}, {{max}}); pass them to every t() of a problem.
+export const PROBLEM_PARAMS = {
+  mb: MAX_DOCUMENT_BYTES / (1024 * 1024),
+  max: MAX_DOCUMENTS,
+} as const
+
 export type DocumentMime = (typeof ALLOWED_DOCUMENT_TYPES)[number]
 
 const BY_EXTENSION: Record<string, DocumentMime> = {

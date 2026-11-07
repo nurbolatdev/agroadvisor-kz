@@ -17,6 +17,25 @@ export type UploadProblem =
   | 'offline'
   | 'generic'
 
+// Every problem, once: a Record keyed by the type fails the build when a problem is added and not listed.
+const PROBLEMS: Record<UploadProblem, true> = {
+  empty: true,
+  too_large: true,
+  unsupported_format: true,
+  corrupted: true,
+  invalid_document: true,
+  invalid_fields: true,
+  limit: true,
+  already_approved: true,
+  not_found: true,
+  profile_missing: true,
+  storage_unavailable: true,
+  offline: true,
+  generic: true,
+}
+
+export const allUploadProblems = Object.keys(PROBLEMS) as UploadProblem[]
+
 export type UploadProblemKey = `agrochemist.errors.${UploadProblem}`
 
 export function problemKey(problem: UploadProblem): UploadProblemKey {

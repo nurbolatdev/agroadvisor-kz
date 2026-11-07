@@ -97,6 +97,52 @@ export const en: Translation = {
     version: 'Version {{version}}',
     roles: { farmer: 'Farmer', agrochemist: 'Agrochemist', admin: 'Administrator' },
   },
+  agrochemist: {
+    status: {
+      pending: {
+        title: 'Under review',
+        hint: 'An administrator is checking your documents. Farmers cannot see you until the check is done',
+      },
+      approved: {
+        title: 'Approved',
+        hint: 'Your documents are verified. Farmers can see your profile',
+      },
+      rejected: {
+        title: 'Document not accepted',
+        hint: 'Upload the document again',
+      },
+      documentsRequested: {
+        title: 'Documents needed',
+        hint: 'An administrator asks you to send more documents',
+      },
+    },
+    reasonLabel: 'Reason',
+    documents: {
+      title: 'Documents',
+      kinds: { diploma: 'Diploma', certificate: 'Certificate' },
+      add: 'Add a document',
+      addPdf: 'Choose a PDF',
+      takePhoto: 'Take a photo',
+      fromGallery: 'From the gallery',
+      remove: 'Remove',
+      uploading: 'Uploading…',
+    },
+    errors: {
+      empty: 'The file is empty. Choose another one',
+      too_large: 'The file is larger than {{mb}} MB. Choose a smaller one',
+      unsupported_format: 'Use a PDF, JPEG or PNG file',
+      corrupted: 'The file is damaged. Choose another one',
+      invalid_document: 'The file was not accepted. Choose another one',
+      invalid_fields: 'Check the title, the issuer and the year',
+      limit: 'You can upload at most {{max}} documents. Remove one and try again',
+      already_approved: 'The documents are already approved and cannot be changed',
+      not_found: 'The document was not found. Refresh the list',
+      profile_missing: 'This account has no agrochemist profile',
+      storage_unavailable: 'The storage is unavailable. Try again later',
+      offline: 'No connection to the server. Check your internet',
+      generic: 'Something went wrong. Try again',
+    },
+  },
   onboarding: {
     tagline: "A farmer's assistant: plant diseases, watering advice and a link to an agrochemist.",
     chooseLanguage: 'Choose language',

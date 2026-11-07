@@ -1,6 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { allUploadProblems, problemKey } from '@/features/agrochemist/errors'
+
 import { en } from './en'
 import { kk } from './kk'
 import { ru } from './ru'
@@ -68,6 +70,11 @@ describe('translation keys', () => {
         (s) => `diagnosis.result.actions.${s}`,
       ),
       ...['potato', 'tomato', 'corn', 'wheat'].map((s) => `diagnosis.crops.${s}`),
+      ...['pending', 'approved', 'rejected', 'documentsRequested'].flatMap((s) => [
+        `agrochemist.status.${s}.title`,
+        `agrochemist.status.${s}.hint`,
+      ]),
+      ...allUploadProblems.map(problemKey),
     ]
     for (const lang of ['ru', 'kk', 'en'] as const) {
       expect(families.filter((key) => !(key in flat[lang]))).toEqual([])

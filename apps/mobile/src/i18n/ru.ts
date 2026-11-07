@@ -101,6 +101,54 @@ export const ru = {
     version: 'Версия {{version}}',
     roles: { farmer: 'Фермер', agrochemist: 'Агрохимик', admin: 'Администратор' },
   },
+  // the check of an agrochemist and the documents sent for it (screens 03a, 03b, 21a, 22a-22c)
+  agrochemist: {
+    // the state of the check; a state is always told in words, not by colour alone
+    status: {
+      pending: {
+        title: 'На проверке',
+        hint: 'Администратор проверяет ваши документы. Пока проверка не закончена, фермеры вас не видят',
+      },
+      approved: {
+        title: 'Подтверждён',
+        hint: 'Документы проверены. Фермеры видят ваш профиль',
+      },
+      rejected: {
+        title: 'Документ не принят',
+        hint: 'Загрузите документ ещё раз',
+      },
+      documentsRequested: {
+        title: 'Нужны документы',
+        hint: 'Администратор просит прислать дополнительные документы',
+      },
+    },
+    reasonLabel: 'Причина',
+    documents: {
+      title: 'Документы',
+      kinds: { diploma: 'Диплом', certificate: 'Сертификат' },
+      add: 'Добавить документ',
+      addPdf: 'Выбрать PDF',
+      takePhoto: 'Сфотографировать',
+      fromGallery: 'Из галереи',
+      remove: 'Удалить',
+      uploading: 'Загрузка…',
+    },
+    errors: {
+      empty: 'Файл пустой. Выберите другой',
+      too_large: 'Файл больше {{mb}} МБ. Выберите файл поменьше',
+      unsupported_format: 'Подойдёт PDF, JPEG или PNG',
+      corrupted: 'Файл повреждён. Выберите другой',
+      invalid_document: 'Файл не принят. Выберите другой',
+      invalid_fields: 'Проверьте название, организацию и год',
+      limit: 'Можно загрузить не больше {{max}} документов. Удалите один и повторите',
+      already_approved: 'Документы уже подтверждены, изменить их нельзя',
+      not_found: 'Документ не найден. Обновите список',
+      profile_missing: 'У этого аккаунта нет профиля агрохимика',
+      storage_unavailable: 'Хранилище недоступно. Попробуйте позже',
+      offline: 'Нет связи с сервером. Проверьте интернет',
+      generic: 'Не получилось. Попробуйте ещё раз',
+    },
+  },
   // the first launch: the choice of the language (screen 01)
   onboarding: {
     tagline: 'Помощник фермера: болезни растений, советы по поливу и связь с агрохимиком.',
