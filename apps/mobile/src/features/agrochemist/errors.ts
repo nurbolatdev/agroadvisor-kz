@@ -15,6 +15,9 @@ export type UploadProblem =
   | 'profile_missing'
   | 'storage_unavailable'
   | 'offline'
+  // a send that got no answer (no network, a timeout): the file may have reached the server, so the
+  // person is told to look at the list of documents once the connection is back
+  | 'unconfirmed'
   | 'generic'
 
 // Every problem, once: a Record keyed by the type fails the build when a problem is added and not listed.
@@ -31,6 +34,7 @@ const PROBLEMS: Record<UploadProblem, true> = {
   profile_missing: true,
   storage_unavailable: true,
   offline: true,
+  unconfirmed: true,
   generic: true,
 }
 

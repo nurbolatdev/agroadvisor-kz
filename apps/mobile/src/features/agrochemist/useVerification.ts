@@ -82,6 +82,8 @@ export function useVerification(api: AgrochemistApi) {
     async (
       action: () => Promise<unknown>,
       setFlag: (on: boolean) => void,
+      // what the person is told for a problem; the list is read again by the problem as the call met it
+      tell: (problem: UploadProblem) => UploadProblem = (problem) => problem,
     ): Promise<ActionResult> => {
       if (working.current) return { ok: false, problem: 'busy' }
       working.current = true
@@ -92,8 +94,10 @@ export function useVerification(api: AgrochemistApi) {
         return { ok: true }
       } catch (error) {
         const problem = toUploadProblem(error)
+        // One failure, one message: this read is silent when it fails too (the list on the screen stays),
+        // so a send without a connection is not followed by a second error from the read.
         if (STALE_AFTER.includes(problem)) await read()
-        return { ok: false, problem }
+        return { ok: false, problem: tell(problem) }
       } finally {
         working.current = false
         if (mounted.current) setFlag(false)
@@ -103,7 +107,13 @@ export function useVerification(api: AgrochemistApi) {
   )
 
   const upload = useCallback(
-    (file: UploadFile, meta: UploadMeta) => run(() => api.upload(file, meta), setUploading),
+    (file: UploadFile, meta: UploadMeta) =>
+      run(
+        () => api.upload(file, meta),
+        setUploading,
+        // no answer to a send does not mean it did not arrive: tell the person to check the list
+        (problem) => (problem === 'offline' ? 'unconfirmed' : problem),
+      ),
     [api, run],
   )
   const remove = useCallback((id: string) => run(() => api.remove(id), setRemoving), [api, run])

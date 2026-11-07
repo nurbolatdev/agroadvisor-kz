@@ -268,6 +268,47 @@ describe('useVerification: concurrent calls', () => {
     expect(verification).toHaveBeenCalledTimes(2)
   })
 
+  it('gives one message, not two, when the send and the read after it both get no answer', async () => {
+    let reads = 0
+    const api: AgrochemistApi = {
+      verification: async () => {
+        reads += 1
+        if (reads > 1) throw new NetworkError()
+        return viewOf('pending')
+      },
+      upload: jest.fn().mockRejectedValue(new NetworkError()),
+      remove: async () => undefined,
+    }
+    const { result } = await renderHook(() => useVerification(api))
+    await waitFor(() => expect(result.current.state.status).toBe('ready'))
+
+    let outcome: unknown
+    await act(async () => {
+      outcome = await result.current.upload(file, { kind: 'diploma' })
+    })
+
+    // the person is told to check the list when the connection is back; the screen keeps the list it had
+    expect(outcome).toEqual({ ok: false, problem: 'unconfirmed' })
+    expect(reads).toBe(2)
+    expect(result.current.state).toMatchObject({ status: 'ready' })
+  })
+
+  it('tells a removal without a connection as plain offline', async () => {
+    const api: AgrochemistApi = {
+      verification: async () => viewOf('pending'),
+      upload: async () => document,
+      remove: jest.fn().mockRejectedValue(new NetworkError()),
+    }
+    const { result } = await renderHook(() => useVerification(api))
+    await waitFor(() => expect(result.current.state.status).toBe('ready'))
+
+    let outcome: unknown
+    await act(async () => {
+      outcome = await result.current.remove('id')
+    })
+    expect(outcome).toEqual({ ok: false, problem: 'offline' })
+  })
+
   it('does not read the list again after a refusal of the file itself', async () => {
     const verification = jest.fn(async () => viewOf('pending'))
     const api: AgrochemistApi = {
@@ -300,7 +341,7 @@ describe('useVerification: concurrent calls', () => {
     await act(async () => {
       outcome = await result.current.upload(file, { kind: 'diploma' })
     })
-    expect(outcome).toEqual({ ok: false, problem: 'offline' })
+    expect(outcome).toEqual({ ok: false, problem: 'unconfirmed' })
     expect(upload).toHaveBeenCalledTimes(1)
     // and a retry is the person's own action
     await act(async () => {

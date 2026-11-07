@@ -140,6 +140,8 @@ export const en: Translation = {
       profile_missing: 'This account has no agrochemist profile',
       storage_unavailable: 'The storage is unavailable. Try again later',
       offline: 'No connection to the server. Check your internet',
+      unconfirmed:
+        'No connection to the server. The file may not have been sent: when you are back online, check the list of documents',
       generic: 'Something went wrong. Try again',
     },
   },
