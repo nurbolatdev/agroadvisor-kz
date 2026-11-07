@@ -44,6 +44,24 @@ public class RateLimiter {
             end
             return count""", Long.class);
 
+    /**
+     * Takes one back from the counter, never below zero and never recreating a key that has expired (a
+     * refund that comes after the window is over has nothing to give back).
+     */
+    private static final DefaultRedisScript<Long> GIVE_BACK = new DefaultRedisScript<>("""
+            local count = tonumber(redis.call('GET', KEYS[1]))
+            if count and count > 0 then
+              return redis.call('DECR', KEYS[1])
+            end
+            return -1""", Long.class);
+
+    /**
+     * What one {@link #check} counted: the counter of its window. {@link #refund} gives exactly that call back,
+     * in the window it was counted in, not in the one that is current when the refund is made.
+     */
+    public record Ticket(String key) {
+    }
+
     private final StringRedisTemplate redis;
     private final Clock clock;
 
@@ -52,8 +70,12 @@ public class RateLimiter {
         this.clock = clock;
     }
 
-    /** Counts one call; throws 429 {@code rate_limited} when the limit of the current window is exceeded. */
-    public void check(String bucket, String subject, int limit, Duration window) {
+    /**
+     * Counts one call; throws 429 {@code rate_limited} when the limit of the current window is exceeded.
+     * Returns what was counted, to give it back with {@link #refund}; null when Redis is unavailable (there is
+     * nothing counted to give back).
+     */
+    public Ticket check(String bucket, String subject, int limit, Duration window) {
         long windowSeconds = window.toSeconds();
         if (windowSeconds < 1) {
             throw new IllegalArgumentException("The window must be at least one second: " + window);
@@ -68,13 +90,31 @@ public class RateLimiter {
             count = redis.execute(COUNT, List.of(key), String.valueOf(windowSeconds + 1));
         } catch (RuntimeException e) {
             log.warn("Rate limiter '{}' skipped, Redis is unavailable: {}", bucket, e.toString());
-            return;
+            return null;
         }
 
         if (count != null && count > limit) {
             long retryAfter = (windowIndex + 1) * windowSeconds - now;
             throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, RATE_LIMITED,
                     "Too many requests, retry in " + retryAfter + " s");
+        }
+        return new Ticket(key);
+    }
+
+    /**
+     * Gives back a call counted by {@link #check}, for a request that ended without doing what the limit
+     * protects (see DiagnosisService). A null ticket, a window that is over, and an unavailable Redis are all
+     * no-ops: a refund is a courtesy and must never fail a request. A refused call (429) has no ticket, so
+     * there is nothing to refund for it; its count stays in the window, as before.
+     */
+    public void refund(Ticket ticket) {
+        if (ticket == null) {
+            return;
+        }
+        try {
+            redis.execute(GIVE_BACK, List.of(ticket.key()));
+        } catch (RuntimeException e) {
+            log.warn("Rate limiter refund skipped, Redis is unavailable: {}", e.toString());
         }
     }
 }

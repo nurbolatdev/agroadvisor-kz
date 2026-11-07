@@ -69,6 +69,91 @@ class RateLimiterTest {
     }
 
     @Test
+    void aRefundMakesRoomForAnotherCallInTheSameWindow() {
+        RateLimiter limiter = limiterAt(START);
+        String user = UUID.randomUUID().toString();
+        RateLimiter.Ticket first = limiter.check("diagnosis", user, 5, MINUTE);
+        RateLimiter.Ticket second = limiter.check("diagnosis", user, 5, MINUTE);
+        RateLimiter.Ticket third = limiter.check("diagnosis", user, 5, MINUTE);
+
+        // two of the three calls came to nothing (a failure that was not the caller's): the room comes back
+        limiter.refund(first);
+        limiter.refund(second);
+
+        // the counter is 1 now, so four more calls fit in the window and the next one does not
+        for (int i = 0; i < 4; i++) {
+            limiter.check("diagnosis", user, 5, MINUTE);
+        }
+        assertThatThrownBy(() -> limiter.check("diagnosis", user, 5, MINUTE)).isInstanceOf(ApiException.class);
+        assertThat(third.key()).isEqualTo(first.key());
+    }
+
+    @Test
+    void aRefundNeverGoesBelowZero() {
+        RateLimiter limiter = limiterAt(START);
+        String user = UUID.randomUUID().toString();
+        RateLimiter.Ticket ticket = limiter.check("diagnosis", user, 5, MINUTE);
+
+        limiter.refund(ticket);
+        limiter.refund(ticket);
+        limiter.refund(ticket);
+
+        assertThat(redis.opsForValue().get(ticket.key())).isEqualTo("0");
+    }
+
+    @Test
+    void aRefundAfterTheWindowIsOverTouchesNeitherTheOldKeyNorTheNewWindow() {
+        String user = UUID.randomUUID().toString();
+        RateLimiter before = limiterAt(START);
+        RateLimiter.Ticket old = before.check("diagnosis", user, 5, MINUTE);
+
+        RateLimiter after = limiterAt(START.plusSeconds(61));
+        after.check("diagnosis", user, 5, MINUTE);
+        RateLimiter.Ticket current = after.check("diagnosis", user, 5, MINUTE);
+
+        // the old window's counter is given back, the current one keeps both of its calls
+        after.refund(old);
+        assertThat(redis.opsForValue().get(old.key())).isEqualTo("0");
+        assertThat(redis.opsForValue().get(current.key())).isEqualTo("2");
+
+        // a key that has expired is not brought back by a refund
+        redis.delete(old.key());
+        after.refund(old);
+        assertThat(redis.hasKey(old.key())).isFalse();
+    }
+
+    @Test
+    void aNullTicketIsNothingToGiveBack() {
+        assertThatCode(() -> limiterAt(START).refund(null)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void aRefundWithRedisDownDoesNotFail() {
+        StringRedisTemplate broken = new StringRedisTemplate() {
+            @Override
+            public <T> T execute(RedisScript<T> script, List<String> keys, Object... args) {
+                throw new IllegalStateException("redis down");
+            }
+        };
+        RateLimiter limiter = new RateLimiter(broken, Clock.fixed(START, ZoneOffset.UTC));
+
+        assertThatCode(() -> limiter.refund(new RateLimiter.Ticket("some-key"))).doesNotThrowAnyException();
+    }
+
+    @Test
+    void whenRedisIsDownThereIsNothingCountedSoTheTicketIsNull() {
+        StringRedisTemplate broken = new StringRedisTemplate() {
+            @Override
+            public <T> T execute(RedisScript<T> script, List<String> keys, Object... args) {
+                throw new IllegalStateException("redis down");
+            }
+        };
+        RateLimiter limiter = new RateLimiter(broken, Clock.fixed(START, ZoneOffset.UTC));
+
+        assertThat(limiter.check("diagnosis", "anyone", 1, MINUTE)).isNull();
+    }
+
+    @Test
     void usersAndBucketsAreCountedSeparately() {
         RateLimiter limiter = limiterAt(START);
         String first = UUID.randomUUID().toString();
