@@ -39,6 +39,44 @@ describe('uploadFormData', () => {
   })
 })
 
+describe('the file part', () => {
+  it('goes out under a neutral name, not the name of the picked file', () => {
+    const append = jest.spyOn(FormData.prototype, 'append')
+    try {
+      uploadFormData(
+        {
+          uri: 'file:///cache/Diploma_Ivanov.pdf',
+          name: 'Diploma_Ivanov.pdf',
+          type: 'application/pdf',
+        },
+        { kind: 'diploma' },
+      )
+      const filePart = append.mock.calls.find(([name]) => name === 'file')?.[1]
+      expect(filePart).toEqual({
+        uri: 'file:///cache/Diploma_Ivanov.pdf',
+        type: 'application/pdf',
+        name: 'document.pdf',
+      })
+    } finally {
+      append.mockRestore()
+    }
+  })
+
+  it.each([
+    ['image/jpeg', 'document.jpg'],
+    ['image/png', 'document.png'],
+  ])('names a %s file %s', (type, name) => {
+    const append = jest.spyOn(FormData.prototype, 'append')
+    try {
+      uploadFormData({ uri: 'file:///x', name: 'Иванов.jpeg', type }, { kind: 'certificate' })
+      const filePart = append.mock.calls.find(([key]) => key === 'file')?.[1]
+      expect(filePart).toMatchObject({ name })
+    } finally {
+      append.mockRestore()
+    }
+  })
+})
+
 describe('agrochemist upload', () => {
   it('does not set Content-Type itself, so fetch adds the multipart boundary', async () => {
     const { api, sent } = setup()

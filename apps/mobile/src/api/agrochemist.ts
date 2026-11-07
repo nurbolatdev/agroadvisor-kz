@@ -31,6 +31,12 @@ export type AgrochemistApi = {
 // Up to 10 MB over a slow mobile network in the field; the default 15 s of the client is too short.
 export const UPLOAD_TIMEOUT_MS = 120_000
 
+const EXTENSIONS: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+}
+
 // The title of a diploma and the university are personal data and a URL ends up in logs, so the fields
 // travel as parts of the multipart body, next to the file. The backend declares them with @RequestParam,
 // which Spring also fills from the text parts of a multipart request. (The OpenAPI file lists them as
@@ -41,8 +47,15 @@ export function uploadFormData(file: UploadFile, meta: UploadMeta): FormData {
   if (meta.title) formData.append('title', meta.title)
   if (meta.issuer) formData.append('issuer', meta.issuer)
   if (meta.year !== undefined) formData.append('year', String(meta.year))
-  // React Native accepts { uri, name, type } as a file part; the DOM typing wants a Blob.
-  formData.append('file', file as unknown as Blob)
+  // React Native accepts { uri, name, type } as a file part; the DOM typing wants a Blob. The name the
+  // picker gives often holds the person's name ("Diploma_Ivanov.pdf") and the backend does not use it, so
+  // a neutral one goes out: only the type counts.
+  const part = {
+    uri: file.uri,
+    type: file.type,
+    name: `document.${EXTENSIONS[file.type] ?? 'bin'}`,
+  }
+  formData.append('file', part as unknown as Blob)
   return formData
 }
 
