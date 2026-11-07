@@ -64,6 +64,11 @@ public class DiagnosisController {
             + "still being processed; repeat after the seconds in Retry-After",
             headers = @Header(name = "Retry-After", description = "Seconds to wait before repeating the request",
                     schema = @Schema(type = "string", example = "2")))
+    @ApiResponse(responseCode = "429", description = "rate_limited: more than 20 attempts or more than 5 new "
+            + "diagnoses in a minute. Attempts are never given back; a diagnosis token is given back when the "
+            + "server failed (see docs/api/ai-predict.md). Repeat after the seconds in Retry-After",
+            headers = @Header(name = "Retry-After", description = "Seconds until the window of the limit ends",
+                    schema = @Schema(type = "string", example = "42")))
     public ResponseEntity<DiagnosisView> create(@RequestParam String crop, @RequestParam("image") MultipartFile image,
             @Parameter(description = "One key per diagnosis attempt (a UUID fits); resend the same request with it "
                     + "when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): "
