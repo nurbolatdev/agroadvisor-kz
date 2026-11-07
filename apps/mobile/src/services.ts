@@ -16,6 +16,7 @@ import { preparePhoto } from '@/features/diagnosis/photo'
 import { expoPhotoToolkit } from '@/features/diagnosis/photoToolkit'
 import { expoQueueFiles } from '@/features/diagnosis/queueFiles'
 import { onSignedIn } from '@/lib/languageOnSignIn'
+import { createRolesCache } from '@/lib/rolesCache'
 import { storage } from '@/lib/storage'
 import { tokenStorage } from '@/lib/tokenStorage'
 import { onUserChange } from '@/lib/userChange'
@@ -110,7 +111,12 @@ export const useHistory = createHistoryStore({ api: diagnosisApi })
 export const usersApi = API_MODE === 'mock' ? createMockUsersApi() : createUsersApi(apiClient)
 
 // The profile of the signed-in user: GET /api/users/me. Reset together with the history.
-export const useProfile = createProfileStore({ api: usersApi })
+// The last roles are kept on the phone (stale while revalidate), so the app knows them before the answer.
+export const useProfile = createProfileStore({
+  api: usersApi,
+  rolesCache: createRolesCache(storage),
+  currentUser: () => useSession.getState().userId,
+})
 
 // Another farmer may sign in on the same phone: see onUserChange for what happens then.
 useSession.subscribe((state, previous) =>

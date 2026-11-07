@@ -8,6 +8,7 @@ import { createSessionStore, type TokenStorage } from '@/store/session'
 import { useSettings } from '@/store/settings'
 
 import { onSignedIn } from './languageOnSignIn'
+import { createRolesCache } from './rolesCache'
 import { routeGuards } from './routeGuards'
 import { onUserChange } from './userChange'
 
@@ -53,7 +54,17 @@ function setup() {
 
   const me = (id: string): Me => ({ id, fullName: 'Farmer', language: 'ru', roles: ['farmer'] })
   const usersApi: UsersApi = { me: jest.fn(async () => me('u')) }
-  const profile = createProfileStore({ api: usersApi })
+  const rolesData = new Map<string, string>()
+  const rolesCache = createRolesCache({
+    getString: (key) => rolesData.get(key),
+    set: (key, value) => void rolesData.set(key, value),
+    remove: (key) => rolesData.delete(key),
+  })
+  const profile = createProfileStore({
+    api: usersApi,
+    rolesCache,
+    currentUser: () => session.getState().userId,
+  })
 
   const diagnosis = { clearAnswers: jest.fn(), restore: jest.fn() }
 
@@ -67,7 +78,7 @@ function setup() {
   // the same as the second subscription in services.ts
   session.subscribe((state, previous) => onSignedIn(state, previous, useSettings.getState()))
 
-  return { tokens, authApi, session, history, profile, usersApi, diagnosis }
+  return { tokens, authApi, session, history, profile, usersApi, diagnosis, rolesData }
 }
 
 const farmer = {
@@ -87,6 +98,21 @@ beforeEach(() => {
   storage.clearAll()
   jest.clearAllMocks()
   useSettings.getState().setLanguage('kk')
+})
+
+describe('signing out and the roles saved on the phone', () => {
+  it('clears the saved roles, so the next person on the phone does not start with them', async () => {
+    const { session, profile, rolesData } = setup()
+    await session.getState().register(farmer)
+    await profile.getState().load()
+    expect(rolesData.size).toBe(1)
+    expect(profile.getState().roles).toEqual(['farmer'])
+
+    await session.getState().logout()
+
+    expect(rolesData.size).toBe(0)
+    expect(profile.getState().roles).toBeNull()
+  })
 })
 
 describe('signing out', () => {
