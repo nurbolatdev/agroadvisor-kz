@@ -102,7 +102,7 @@ class RateLimiterTest {
     }
 
     @Test
-    void aRefundAfterTheWindowIsOverTouchesNeitherTheOldKeyNorTheNewWindow() {
+    void aRefundGoesToTheWindowItWasSpentInAndNeverRevivesAnExpiredKey() {
         String user = UUID.randomUUID().toString();
         RateLimiter before = limiterAt(START);
         RateLimiter.Ticket old = before.check("diagnosis", user, 5, MINUTE);

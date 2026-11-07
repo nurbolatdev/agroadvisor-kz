@@ -579,8 +579,70 @@ class DiagnosisServiceTest {
         assertThatThrownBy(() -> create("banana", JPEG)).isInstanceOf(ApiException.class);
         assertThatThrownBy(() -> create("tomato", new byte[] {1, 2, 3})).isInstanceOf(ApiException.class);
 
-        verify(limiter, never()).refund(any());
-        assertThat(ticket).isNotNull();
+        verify(limiter, never()).refund(ticket);
+    }
+
+    @Test
+    void aBadGatewayFromTheModelGivesTheTokenBack() {
+        RateLimiter.Ticket ticket = spendsATicket();
+        when(ai.predict("tomato", JPEG)).thenThrow(new ApiException(HttpStatus.BAD_GATEWAY, "ai_error", "Bad answer"));
+
+        assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(ApiException.class);
+
+        verify(limiter).refund(ticket);
+    }
+
+    @Test
+    void aStorageThatIsUnavailableGivesTheTokenBack() {
+        RateLimiter.Ticket ticket = spendsATicket();
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+        when(photos.store(any(), anyString(), any(), anyString()))
+                .thenThrow(new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "storage_unavailable", "Storage is down"));
+
+        assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(ApiException.class);
+
+        verify(limiter).refund(ticket);
+    }
+
+    @Test
+    void aKeyUsedForAnotherCropFoundOnlyWhenTheClaimIsTakenKeepsTheToken() {
+        RateLimiter.Ticket ticket = spendsATicket();
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678")).thenReturn(Optional.empty());
+        // nothing at the first look (before the limit); a claim for another crop when ours is refused
+        when(claims.find(any(), anyString(), any())).thenReturn(Optional.empty(),
+                Optional.of(new DiagnosisClaims.Existing(DiagnosisService.fingerprint(JPEG), "potato", false)));
+        when(claims.tryClaim(any(), anyString(), anyString(), anyString())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG, "key-12345678"))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.getCode()).isEqualTo("idempotency_key_reused"));
+
+        verify(limiter, never()).refund(ticket);
+    }
+
+    @Test
+    void aRequestThatLosesTheInsertToTheOtherRequestAndReturnsItsRowGivesTheTokenBack() {
+        RateLimiter.Ticket ticket = spendsATicket();
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678"))
+                .thenReturn(Optional.empty(), Optional.empty(), Optional.of(storedWithKey("key-12345678")));
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+        when(diagnoses.saveAndFlush(any(Diagnosis.class))).thenThrow(new DataIntegrityViolationException("unique"));
+        when(diseases.findAllById(any())).thenReturn(List.of());
+
+        assertThat(service.create(userId, "tomato", JPEG, "key-12345678").replayed()).isTrue();
+
+        verify(limiter).refund(ticket);
+    }
+
+    @Test
+    void aDiagnosisThatIsSavedKeepsTheTokenEvenIfBuildingTheAnswerFails() {
+        RateLimiter.Ticket ticket = spendsATicket();
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+        when(diseases.findAllById(any())).thenThrow(new IllegalStateException("reference down"));
+
+        assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(IllegalStateException.class);
+
+        verify(diagnoses).saveAndFlush(any(Diagnosis.class));
+        verify(limiter, never()).refund(ticket);
     }
 
     @Test

@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -201,37 +202,25 @@ public class DiagnosisService {
         // reason that is not the caller's.
         RateLimiter.Ticket ticket = rateLimiter.check("diagnosis", userId.toString(), limits.diagnosisPerMinute(),
                 Duration.ofMinutes(1));
+        AtomicBoolean made = new AtomicBoolean();
         try {
-            Created created = createCounted(userId, crop, photo, idempotencyKey, fingerprint);
+            Created created = createCounted(userId, crop, photo, idempotencyKey, fingerprint, made);
             if (created.replayed()) {
                 rateLimiter.refund(ticket); // the answer of an earlier request, nothing new was made
             }
             return created;
         } catch (RuntimeException e) {
-            if (givesBackTheToken(e)) {
+            // a diagnosis that is already saved is a diagnosis made: building its answer failing is not a refund
+            if (!made.get() && DiagnosisErrors.givesBackTheToken(e)) {
                 rateLimiter.refund(ticket);
             }
             throw e;
         }
     }
 
-    /**
-     * Whether a failed request gets its token back: yes when the fault is not the caller's (the model or the
-     * storage is down, an unexpected error) and for {@code 409 request_in_progress}, where the answer is the
-     * other request's. A refusal for the caller's own input (400, 404, 422) keeps the token: it protects the
-     * service against floods of bad photos, which cost an inference.
-     */
-    private static boolean givesBackTheToken(RuntimeException e) {
-        if (!(e instanceof ApiException api)) {
-            return true;
-        }
-        HttpStatus status = api.getStatus();
-        return status.is5xxServerError() || status == HttpStatus.CONFLICT;
-    }
-
-    /** The work of {@link #create} after the token is spent. */
+    /** The work of {@link #create} after the token is spent; {@code made} is set once a new diagnosis is saved. */
     private Created createCounted(UUID userId, String crop, byte[] photo, String idempotencyKey,
-            String fingerprint) {
+            String fingerprint, AtomicBoolean made) {
         if (!ai.crops().contains(crop)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.UNKNOWN_CROP, "Unsupported crop: " + crop);
         }
@@ -260,6 +249,7 @@ public class DiagnosisService {
             Prediction prediction = predict(crop, clean);
             photoKey = photos.store(userId, objectName(idempotencyKey, fingerprint), clean, contentType);
             saved = finish(userId, crop, photoKey, prediction, idempotencyKey, fingerprint, claimId);
+            made.set(true);
         } catch (DataIntegrityViolationException e) {
             // Lost the race on (user_id, idempotency_key): the other request's row is the answer
             Optional<Diagnosis> winner = idempotencyKey == null ? Optional.empty()
