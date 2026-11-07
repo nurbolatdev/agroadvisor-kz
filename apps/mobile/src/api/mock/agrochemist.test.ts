@@ -58,6 +58,16 @@ describe('mock agrochemist: documents', () => {
     })
   })
 
+  it('keeps the time of the last review when a document is sent after a rejection', async () => {
+    const { api, controls } = setup()
+    controls.setStatus('rejected', 'Not readable')
+    const reviewed = (await api.verification()).reviewedAt
+    expect(reviewed).not.toBeNull()
+
+    await api.upload(file, { kind: 'diploma' })
+    await expect(api.verification()).resolves.toMatchObject({ reviewedAt: reviewed })
+  })
+
   it('refuses the sixth document with document_limit_reached', async () => {
     const { api } = setup(2)
     await api.upload(file, { kind: 'diploma' })

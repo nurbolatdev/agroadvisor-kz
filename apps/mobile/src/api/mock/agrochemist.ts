@@ -112,8 +112,8 @@ export function createMockAgrochemistApi({
       // Like the backend: a profile already waiting keeps its place in the queue.
       if (status !== 'pending') submittedAt = now().toISOString()
       status = 'pending'
+      // Like the backend (markSubmitted): the reason is cleared, the time of the last review stays.
       rejectionReason = null
-      reviewedAt = null
       return document
     },
 
