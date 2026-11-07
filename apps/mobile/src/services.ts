@@ -1,8 +1,10 @@
+import { createAgrochemistApi } from '@/api/agrochemist'
 import { createAuthApi } from '@/api/auth'
 import { createApiClient } from '@/api/client'
 import { API_MODE, API_URL } from '@/api/config'
 import { createDiagnosisApi } from '@/api/diagnosis'
 import { createDiseaseApi } from '@/api/diseases'
+import { createMockAgrochemistApi } from '@/api/mock/agrochemist'
 import { createMockAuthApi } from '@/api/mock/auth'
 import { createMockDiagnosisApi } from '@/api/mock/diagnosis'
 import { createMockDiseaseApi } from '@/api/mock/diseases'
@@ -59,6 +61,12 @@ export const apiClient = createApiClient({
 
 export const diagnosisApi =
   API_MODE === 'mock' ? createMockDiagnosisApi() : createDiagnosisApi(apiClient)
+
+// The check of an agrochemist and the documents sent for it. In the mock mode the controls put the check
+// in any of the four states and make the next upload fail, to try the screens without the backend.
+const mockAgrochemist = API_MODE === 'mock' ? createMockAgrochemistApi() : null
+export const agrochemistApi = mockAgrochemist?.api ?? createAgrochemistApi(apiClient)
+export const agrochemistMockControls = mockAgrochemist?.controls ?? null
 
 export const diseaseApi = API_MODE === 'mock' ? createMockDiseaseApi() : createDiseaseApi(apiClient)
 
