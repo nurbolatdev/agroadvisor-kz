@@ -512,6 +512,105 @@ class DiagnosisServiceTest {
         verify(limiter, never()).check(anyString(), anyString(), anyInt(), any(Duration.class));
     }
 
+    /** The limiter counts the call and hands back what it counted; the tests watch whether it is given back. */
+    private RateLimiter.Ticket spendsATicket() {
+        RateLimiter.Ticket ticket = new RateLimiter.Ticket("agroadvisor:ratelimit:diagnosis:" + userId + ":1");
+        when(limiter.check(anyString(), anyString(), anyInt(), any(Duration.class))).thenReturn(ticket);
+        return ticket;
+    }
+
+    @Test
+    void aFinishedDiagnosisKeepsTheToken() {
+        RateLimiter.Ticket ticket = spendsATicket();
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+
+        create("tomato", JPEG);
+
+        verify(limiter, never()).refund(ticket);
+    }
+
+    @Test
+    void aModelThatIsDownGivesTheTokenBack() {
+        RateLimiter.Ticket ticket = spendsATicket();
+        when(ai.predict("tomato", JPEG))
+                .thenThrow(new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "ai_unavailable", "AI is down"));
+
+        assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(ApiException.class);
+
+        verify(limiter).refund(ticket);
+    }
+
+    @Test
+    void anUnexpectedModelFailureGivesTheTokenBack() {
+        RateLimiter.Ticket ticket = spendsATicket();
+        when(ai.predict("tomato", JPEG)).thenThrow(new IllegalStateException("boom"));
+
+        assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(IllegalStateException.class);
+
+        verify(limiter).refund(ticket);
+    }
+
+    @Test
+    void aStorageFailureGivesTheTokenBack() {
+        RateLimiter.Ticket ticket = spendsATicket();
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+        when(photos.store(any(), anyString(), any(), anyString())).thenThrow(new IllegalStateException("s3 down"));
+
+        assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(IllegalStateException.class);
+
+        verify(limiter).refund(ticket);
+    }
+
+    @Test
+    void aPhotoTheModelFindsTooPoorKeepsTheTokenSoAFloodOfThemIsStillLimited() {
+        RateLimiter.Ticket ticket = spendsATicket();
+        when(ai.predict("tomato", JPEG))
+                .thenThrow(new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "low_quality", "Too blurry"));
+
+        assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(ApiException.class);
+
+        verify(limiter, never()).refund(ticket);
+    }
+
+    @Test
+    void anUnknownCropAndANonImageKeepTheToken() {
+        RateLimiter.Ticket ticket = spendsATicket();
+
+        assertThatThrownBy(() -> create("banana", JPEG)).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> create("tomato", new byte[] {1, 2, 3})).isInstanceOf(ApiException.class);
+
+        verify(limiter, never()).refund(any());
+        assertThat(ticket).isNotNull();
+    }
+
+    @Test
+    void aRequestThatLosesTheClaimInTheRaceAt409GivesTheTokenBack() {
+        RateLimiter.Ticket ticket = spendsATicket();
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678")).thenReturn(Optional.empty());
+        // no live claim at the first look (before the limit), a live one when ours is refused
+        when(claims.find(any(), anyString(), any())).thenReturn(Optional.empty(),
+                Optional.of(new DiagnosisClaims.Existing(DiagnosisService.fingerprint(JPEG), "tomato", false)));
+        when(claims.tryClaim(any(), anyString(), anyString(), anyString())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.create(userId, "tomato", JPEG, "key-12345678"))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.getCode()).isEqualTo("request_in_progress"));
+
+        verify(limiter).refund(ticket);
+        verify(ai, never()).predict(anyString(), any());
+    }
+
+    @Test
+    void aReplayFoundAfterTheTokenWasSpentGivesTheTokenBack() {
+        RateLimiter.Ticket ticket = spendsATicket();
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678"))
+                .thenReturn(Optional.empty(), Optional.of(storedWithKey("key-12345678")));
+        when(diseases.findAllById(any())).thenReturn(List.of());
+
+        assertThat(service.create(userId, "tomato", JPEG, "key-12345678").replayed()).isTrue();
+
+        verify(limiter).refund(ticket);
+    }
+
     @Test
     void aNewDiagnosisSpendsOneTokenOfTheCallersLimit() {
         when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));

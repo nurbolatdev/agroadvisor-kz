@@ -171,10 +171,15 @@ public class DiagnosisService {
      * finish together, one wins and the other returns its row.
      *
      * <p>Order matters: the key is looked up (and a live claim answered with 409) before the rate limit, so a
-     * replay or a 409 found there never spends the user's diagnosis limit (a request that loses the claim in a
-     * race at the very start has spent a token by then); the limit is checked before the photo is validated,
-     * sent to the model or stored. The model is asked before the photo is stored, so a model failure writes
-     * nothing.
+     * replay or a 409 found there never spends the user's diagnosis limit; the limit is checked before the
+     * photo is validated, sent to the model or stored. The model is asked before the photo is stored, so a
+     * model failure writes nothing.
+     *
+     * <p>The limit counts diagnoses, not attempts: the token spent at the door is given back when the request
+     * ends in a replay, in {@code 409 request_in_progress} (also after a lost race at the start), or in a
+     * failure that is not the caller's (the model or the storage is down, any 5xx). A photo refused for its own
+     * sake (unknown crop, not an image, too poor for the model) keeps the token, so the limit still stops a
+     * flood of bad photos.
      */
     public Created create(UUID userId, String crop, byte[] photo, String idempotencyKey) {
         if (idempotencyKey != null && !IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {
@@ -191,7 +196,42 @@ public class DiagnosisService {
             claims.find(userId, idempotencyKey, props.claimTimeout()).ifPresent(c -> refuseUnlessExpired(c, crop,
                     fingerprint));
         }
-        rateLimiter.check("diagnosis", userId.toString(), limits.diagnosisPerMinute(), Duration.ofMinutes(1));
+        // The token is spent here, before any work, so that a burst of parallel requests is cut at the door
+        // and a flood of bad photos still counts. It is given back below when no diagnosis came out for a
+        // reason that is not the caller's.
+        RateLimiter.Ticket ticket = rateLimiter.check("diagnosis", userId.toString(), limits.diagnosisPerMinute(),
+                Duration.ofMinutes(1));
+        try {
+            Created created = createCounted(userId, crop, photo, idempotencyKey, fingerprint);
+            if (created.replayed()) {
+                rateLimiter.refund(ticket); // the answer of an earlier request, nothing new was made
+            }
+            return created;
+        } catch (RuntimeException e) {
+            if (givesBackTheToken(e)) {
+                rateLimiter.refund(ticket);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Whether a failed request gets its token back: yes when the fault is not the caller's (the model or the
+     * storage is down, an unexpected error) and for {@code 409 request_in_progress}, where the answer is the
+     * other request's. A refusal for the caller's own input (400, 404, 422) keeps the token: it protects the
+     * service against floods of bad photos, which cost an inference.
+     */
+    private static boolean givesBackTheToken(RuntimeException e) {
+        if (!(e instanceof ApiException api)) {
+            return true;
+        }
+        HttpStatus status = api.getStatus();
+        return status.is5xxServerError() || status == HttpStatus.CONFLICT;
+    }
+
+    /** The work of {@link #create} after the token is spent. */
+    private Created createCounted(UUID userId, String crop, byte[] photo, String idempotencyKey,
+            String fingerprint) {
         if (!ai.crops().contains(crop)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.UNKNOWN_CROP, "Unsupported crop: " + crop);
         }
