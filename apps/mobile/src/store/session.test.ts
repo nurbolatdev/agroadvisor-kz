@@ -14,7 +14,12 @@ function memoryTokens(initial: string | null = null): TokenStorage & { value: st
   return tokens
 }
 
-const credentials = { login: 'farmer@example.com', password: 'secret-pass-1', fullName: 'Farmer' }
+const credentials = {
+  login: 'farmer@example.com',
+  password: 'secret-pass-1',
+  fullName: 'Farmer',
+  role: 'farmer' as const,
+}
 
 describe('session store', () => {
   it('signs up, stores the refresh token and keeps the access token in memory', async () => {
@@ -42,11 +47,20 @@ describe('session store', () => {
       return { authApi, roles }
     }
 
-    it('registers a farmer when no role is given', async () => {
+    it('passes the farmer role the screen chose', async () => {
       const { authApi, roles } = recordingApi()
       const session = createSessionStore({ authApi, tokens: memoryTokens() })
       await session.getState().register(credentials)
       expect(roles).toEqual(['farmer'])
+    })
+
+    it('does not compile without a role', () => {
+      const session = createSessionStore({ authApi: createMockAuthApi(), tokens: memoryTokens() })
+      // Checked by the type checker only; the function is never called.
+      const forgotten = () =>
+        // @ts-expect-error a forgotten role must stop the build, not register a farmer
+        session.getState().register({ login: 'x@example.com', password: 'p', fullName: 'X' })
+      expect(typeof forgotten).toBe('function')
     })
 
     it('passes the role the screen chose', async () => {

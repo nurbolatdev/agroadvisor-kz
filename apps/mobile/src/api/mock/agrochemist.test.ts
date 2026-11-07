@@ -132,10 +132,15 @@ describe('mock sign-up with a role', () => {
     await expect(users.me()).resolves.toMatchObject({ roles: ['agrochemist'] })
   })
 
-  it('answers with a farmer when no role was chosen', async () => {
+  it('answers with a farmer when a farmer signed up', async () => {
     const auth = createMockAuthApi()
     const users = createMockUsersApi({ delayMs: 0 })
-    await auth.register({ fullName: 'F', login: 'f@example.com', password: 'secret-pass-1' })
+    await auth.register({
+      fullName: 'F',
+      login: 'f@example.com',
+      password: 'secret-pass-1',
+      role: 'farmer',
+    })
     await expect(users.me()).resolves.toMatchObject({ roles: ['farmer'] })
   })
 })

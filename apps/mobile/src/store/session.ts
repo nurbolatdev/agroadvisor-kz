@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import type { AuthApi, LoginRequest, RegisterRequest, TokenResponse } from '@/api/auth'
+import type { AuthApi, LoginRequest, RegisterBody, TokenResponse } from '@/api/auth'
 import { ApiError } from '@/api/errors'
 import { userIdOfToken } from '@/lib/jwt'
 
@@ -26,7 +26,7 @@ type SessionState = {
   // whose session this is; null when signed out or when the token carries no readable id
   userId: string | null
   restore: () => Promise<void>
-  register: (body: RegisterRequest) => Promise<void>
+  register: (body: RegisterBody) => Promise<void>
   login: (body: LoginRequest) => Promise<void>
   logout: () => Promise<void>
   // For the API client. Returns a fresh access token or null; concurrent calls share one request,
@@ -135,8 +135,7 @@ export function createSessionStore(deps: {
 
       async register(body) {
         const startedIn = generation
-        // The role is always sent; a screen that does not choose one registers a farmer.
-        await accept(await authApi.register({ ...body, role: body.role ?? 'farmer' }), startedIn)
+        await accept(await authApi.register(body), startedIn)
       },
 
       async login(body) {

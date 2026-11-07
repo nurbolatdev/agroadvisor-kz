@@ -70,8 +70,18 @@ function setup() {
   return { tokens, authApi, session, history, profile, usersApi, diagnosis }
 }
 
-const farmer = { login: 'a@example.com', password: 'secret-pass-1', fullName: 'A' }
-const other = { login: 'b@example.com', password: 'secret-pass-2', fullName: 'B' }
+const farmer = {
+  login: 'a@example.com',
+  password: 'secret-pass-1',
+  fullName: 'A',
+  role: 'farmer' as const,
+}
+const other = {
+  login: 'b@example.com',
+  password: 'secret-pass-2',
+  fullName: 'B',
+  role: 'farmer' as const,
+}
 
 beforeEach(() => {
   storage.clearAll()

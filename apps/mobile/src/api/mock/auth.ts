@@ -39,7 +39,7 @@ export function createMockAuthApi(): AuthApi {
       if (users.has(login)) throw new ApiError(409, 'login_taken', 'Login is already taken')
       const id = `00000000-0000-4000-8000-${String(users.size + 1).padStart(12, '0')}`
       users.set(login, { password, id })
-      rolesById.set(id, [role ?? 'farmer'])
+      rolesById.set(id, [role])
       return issue(id)
     },
     async login({ login, password }) {
