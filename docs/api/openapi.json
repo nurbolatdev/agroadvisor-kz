@@ -652,6 +652,18 @@
         "required" : [ "product", "type" ],
         "type" : "object"
       },
+      "UpdateMeRequest" : {
+        "properties" : {
+          "language" : {
+            "enum" : [ "ru", "kk", "en" ],
+            "minLength" : 1,
+            "pattern" : "ru|kk|en",
+            "type" : "string"
+          }
+        },
+        "required" : [ "language" ],
+        "type" : "object"
+      },
       "VerificationView" : {
         "properties" : {
           "documents" : {
@@ -1792,6 +1804,33 @@
             "description" : "OK"
           }
         },
+        "tags" : [ "user-controller" ]
+      },
+      "patch" : {
+        "operationId" : "updateMe",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateMeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Save the language of the interface and of the server's texts for this user; the last explicit choice wins, on the phone or here. Answers with the whole profile",
         "tags" : [ "user-controller" ]
       }
     }
