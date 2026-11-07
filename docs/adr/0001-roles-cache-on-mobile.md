@@ -30,11 +30,12 @@ with no network in a field is the normal case for our users). With the global ga
 ## Why a cached role is safe
 
 - A role on the phone is a hint for the interface, not an authorisation. Every call is authorised by the
-  backend (roles in the token, `@PreAuthorize`, the check of the profile of an agrochemist). A stale or
-  edited cache can at most show a screen whose calls then answer `403`, which the screens handle as any
-  other error.
-- The cache holds a list of role names and a user id, which is not secret: it is a subset of what the
-  profile returns and of what the access token already carries.
+  backend: the access token carries only the user id, the roles are read from the database on every
+  request (`UserJwtAuthenticationConverter`), and `@PreAuthorize` and the check of the profile of an
+  agrochemist decide. A stale or edited cache can at most show a screen whose calls then answer `403`,
+  which the screens handle as any other error.
+- The cache holds a list of role names and a user id, which is not secret: it is a subset of what
+  `GET /api/users/me` returns to that same user.
 - It is read only for the signed-in user (`userId` must match), unknown role names are dropped, damaged
   data is treated as no cache, and an unreadable storage means no cache, not a crash.
 - Stale roles live until the next successful `/api/users/me` (every start of the signed-in app asks for it)
@@ -52,5 +53,5 @@ with no network in a field is the normal case for our users). With the global ga
 
 - Gate the whole signed-in group until the profile loads: rejected, it breaks the offline use of M8.
 - Put the roles into the session store: rejected, two sources of truth; the profile store stays the one.
-- Decode the roles from the access token: rejected, the token is renewed only online and the app does not
-  parse it for anything else besides the user id.
+- Decode the roles from the access token: not possible, the token carries only the user id (the backend
+  reads the roles fresh so that a role change or a block takes effect at once).
