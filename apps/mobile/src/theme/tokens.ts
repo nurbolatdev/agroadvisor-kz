@@ -18,6 +18,8 @@ export const colors = {
   white: '#FFFFFF',
   glassFill: 'rgba(255, 255, 255, 0.45)',
   glassBorder: 'rgba(255, 255, 255, 0.6)',
+  // the dimming behind a sheet that slides over a screen
+  glassScrim: 'rgba(0, 0, 0, 0.4)',
 } as const
 
 export const spacing = {
@@ -38,6 +40,8 @@ export const radii = {
 
 // Touch targets: at least 48 px, main controls 52 px.
 export const sizes = {
+  // the height kept for a list that is still loading in a sheet, so the sheet does not jump
+  listPlaceholder: 120,
   touch: 48,
   control: 52,
   controlCompact: 40,

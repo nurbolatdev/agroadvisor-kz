@@ -8,6 +8,8 @@ import { createMockAgrochemistApi } from '@/api/mock/agrochemist'
 import { createMockAuthApi } from '@/api/mock/auth'
 import { createMockDiagnosisApi } from '@/api/mock/diagnosis'
 import { createMockDiseaseApi } from '@/api/mock/diseases'
+import { createMockRegionsApi } from '@/api/mock/regions'
+import { createRegionsApi } from '@/api/regions'
 import { createMockUsersApi } from '@/api/mock/users'
 import { createUsersApi } from '@/api/users'
 import { createApplicationStore } from '@/features/agrochemist/application'
@@ -94,6 +96,9 @@ useSession.subscribe((state, previous) => {
 })
 
 export const diseaseApi = API_MODE === 'mock' ? createMockDiseaseApi() : createDiseaseApi(apiClient)
+
+// The regions of the registration form (public, asked for before there is an account)
+export const regionsApi = API_MODE === 'mock' ? createMockRegionsApi() : createRegionsApi(apiClient)
 
 // The reference of diseases in the language the farmer chose; the cache follows a change of language.
 export const diseaseCatalog = createDiseaseCatalog(

@@ -44,6 +44,18 @@ export const kk: Translation = {
       agrochemist: { title: 'Агрохимик', hint: 'Фермерлерге кеңес беремін' },
     },
     next: 'Әрі қарай',
+    // the "Region" row of step 1 (frame 03); the field is optional
+    region: {
+      label: 'Облыс',
+      placeholder: 'Облысты таңдаңыз',
+      title: 'Облыс',
+      none: 'Көрсетпеу',
+      close: 'Облыстар тізімін жабу',
+      errors: {
+        offline: 'Серверге байланыс жоқ. Облыстар тізімі жүктелмеді',
+        server: 'Сервер жауап бермеді. Облыстар тізімі жүктелмеді',
+      },
+    },
     qualification: {
       title: 'Біліктілікті растаңыз',
       hint: 'Құжаттарды тек платформа әкімшісі көреді',

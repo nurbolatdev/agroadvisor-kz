@@ -51,7 +51,9 @@ jest.mock('@/services', () => {
     language: () => 'en',
   }
   const farmerRegister = jest.fn(async () => undefined)
+  const { createMockRegionsApi } = require('@/api/mock/regions')
   return {
+    regionsApi: createMockRegionsApi({ delayMs: 0 }),
     __deps: deps,
     __farmerRegister: farmerRegister,
     useApplication: createApplicationStore(deps),
@@ -114,6 +116,66 @@ describe('registration, step 1 (frame 03)', () => {
       login: '+77001112233',
     })
     expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('a farmer with no region registers without regionId: the field is optional', async () => {
+    await render(<RegisterScreen />)
+    await fillAccount()
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Create account' }))
+
+    await waitFor(() => expect(services.__farmerRegister).toHaveBeenCalledTimes(1))
+    expect(services.__farmerRegister.mock.calls[0][0]).not.toHaveProperty('regionId')
+  })
+
+  it('a farmer registers with the region picked in the form', async () => {
+    await render(<RegisterScreen />)
+    await fillAccount()
+    await fireEvent.press(screen.getByRole('button', { name: /Region/ }))
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Kostanay Region' }))
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Create account' }))
+
+    await waitFor(() => expect(services.__farmerRegister).toHaveBeenCalledTimes(1))
+    expect(services.__farmerRegister.mock.calls[0][0]).toMatchObject({
+      role: 'farmer',
+      regionId: 7,
+    })
+  })
+
+  it('an agrochemist keeps the region to step 2, shows it again on coming back, and sends it', async () => {
+    await render(<RegisterScreen />)
+    await fireEvent.press(screen.getByRole('radio', { name: /Agrochemist/ }))
+    await fillAccount()
+    await fireEvent.press(screen.getByRole('button', { name: /Region/ }))
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Almaty Region' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Next' }))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/register-qualification'))
+
+    expect(services.useApplication.getState().account?.region).toEqual({
+      id: 3,
+      name: 'Almaty Region',
+    })
+
+    // back on step 1 the row shows the choice
+    await render(<RegisterScreen />)
+    expect(screen.getAllByRole('button', { name: 'Region. Almaty Region' }).length).toBeGreaterThan(
+      0,
+    )
+
+    // and the registration at the end of step 2 carries the id
+    services.useApplication.getState().setQualification({
+      specializations: ['plant_protection'],
+      experienceYears: 5,
+    })
+    services.useApplication
+      .getState()
+      .setDocument({ file: diploma.file, meta: { kind: 'diploma' } })
+    await services.useApplication.getState().submit()
+    expect(services.__deps.register.mock.calls[0][0]).toMatchObject({
+      role: 'agrochemist',
+      regionId: 3,
+    })
   })
 
   it('an agrochemist sees two steps and goes on to step 2 without registering', async () => {

@@ -43,6 +43,18 @@ export const en: Translation = {
       agrochemist: { title: 'Agrochemist', hint: 'I advise farmers' },
     },
     next: 'Next',
+    // the "Region" row of step 1 (frame 03); the field is optional
+    region: {
+      label: 'Region',
+      placeholder: 'Choose a region',
+      title: 'Region',
+      none: 'Prefer not to say',
+      close: 'Close the list of regions',
+      errors: {
+        offline: 'No connection to the server. The list of regions did not load',
+        server: 'The server did not answer. The list of regions did not load',
+      },
+    },
     qualification: {
       title: 'Confirm your qualification',
       hint: 'Only the platform administrator will see the documents',
