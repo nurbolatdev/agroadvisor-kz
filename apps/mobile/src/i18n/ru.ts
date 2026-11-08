@@ -172,6 +172,13 @@ export const ru = {
         hint: 'Администратор просит прислать дополнительные документы',
       },
     },
+    // an application that was started and not finished: the account exists, the document was never sent
+    missing: {
+      title: 'Заявка не завершена',
+      hint: 'Документ не отправился. Пока его нет, администратор не может проверить ваш профиль, а фермеры вас не видят.',
+      action: 'Загрузите диплом или сертификат',
+      submit: 'Отправить документ',
+    },
     reasonLabel: 'Причина',
     documents: {
       title: 'Документы',

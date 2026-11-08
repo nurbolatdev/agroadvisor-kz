@@ -167,6 +167,13 @@ export const kk: Translation = {
         hint: 'Әкімші қосымша құжаттар жіберуді сұрайды',
       },
     },
+    // an application that was started and not finished: the account exists, the document was never sent
+    missing: {
+      title: 'Өтінім аяқталмаған',
+      hint: 'Құжат жіберілмеді. Ол болмаса, әкімші профильді тексере алмайды, фермерлер сізді көрмейді.',
+      action: 'Диплом немесе сертификатты жүктеңіз',
+      submit: 'Құжатты жіберу',
+    },
     reasonLabel: 'Себебі',
     documents: {
       title: 'Құжаттар',

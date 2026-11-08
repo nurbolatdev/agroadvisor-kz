@@ -166,6 +166,13 @@ export const en: Translation = {
         hint: 'An administrator asks you to send more documents',
       },
     },
+    // an application that was started and not finished: the account exists, the document was never sent
+    missing: {
+      title: 'Application not finished',
+      hint: 'The document was not sent. Until it is, an administrator cannot check your profile and farmers cannot see you.',
+      action: 'Upload a diploma or certificate',
+      submit: 'Send the document',
+    },
     reasonLabel: 'Reason',
     documents: {
       title: 'Documents',
