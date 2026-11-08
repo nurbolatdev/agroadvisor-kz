@@ -73,6 +73,7 @@ function setup() {
       diagnosis,
       history: history.getState(),
       profile: profile.getState(),
+      verification: { reset: jest.fn() },
     }),
   )
   // the same as the second subscription in services.ts

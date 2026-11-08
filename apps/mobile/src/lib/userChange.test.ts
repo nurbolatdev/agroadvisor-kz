@@ -21,6 +21,7 @@ function fakes() {
         reset: () => void calls.push('resetProfile'),
         load: async () => void calls.push('loadProfile'),
       },
+      verification: { reset: () => void calls.push('resetVerification') },
     },
   }
 }
@@ -39,7 +40,13 @@ describe('a change of the user', () => {
 
     onUserChange({ userId: null }, { userId: 'a' }, stores)
 
-    expect(calls).toEqual(['clearAnswers', 'resetHistory', 'resetProfile', 'restore'])
+    expect(calls).toEqual([
+      'clearAnswers',
+      'resetHistory',
+      'resetProfile',
+      'resetVerification',
+      'restore',
+    ])
   })
 
   it('does the same and asks for the profile of B when A is replaced by B', () => {
@@ -51,6 +58,7 @@ describe('a change of the user', () => {
       'clearAnswers',
       'resetHistory',
       'resetProfile',
+      'resetVerification',
       'restore',
       'loadProfile',
     ])

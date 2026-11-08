@@ -27,6 +27,7 @@ import { createHistoryStore } from '@/store/history'
 import { createProfileStore } from '@/store/profile'
 import { createSessionStore } from '@/store/session'
 import { useSettings } from '@/store/settings'
+import { createVerificationStore } from '@/store/verification'
 
 // Wiring of the real objects: API client <-> session. Screens import from here.
 // The client needs the session (token, refresh) and the session needs the auth API, which uses
@@ -70,6 +71,10 @@ export const diagnosisApi =
 const mockAgrochemist = API_MODE === 'mock' ? createMockAgrochemistApi() : null
 export const agrochemistApi = mockAgrochemist?.api ?? createAgrochemistApi(apiClient)
 export const agrochemistMockControls = mockAgrochemist?.controls ?? null
+
+// The state of that check, one for the whole app: the entry gate and the screens of an agrochemist read it
+// from here, so the server is asked once. Reset together with the profile (see onUserChange).
+export const useVerificationStore = createVerificationStore({ api: agrochemistApi })
 
 // The application of an agrochemist (registration at the end of step 2, then the document). In memory only.
 // The session is opened with "hold": the router keeps the registration screens until the person leaves
@@ -143,6 +148,7 @@ useSession.subscribe((state, previous) =>
     diagnosis: useDiagnosis.getState(),
     history: useHistory.getState(),
     profile: useProfile.getState(),
+    verification: useVerificationStore.getState(),
   }),
 )
 
