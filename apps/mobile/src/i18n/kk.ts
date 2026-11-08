@@ -34,6 +34,55 @@ export const kk: Translation = {
       generic: 'Болмады. Кейінірек қайталаңыз',
     },
   },
+  // the registration in two steps (screens 03, 03a, 03b); the farmer has one step, the agrochemist two.
+  // Kazakh texts are a draft until a native speaker reads them (issue #88)
+  register: {
+    stepOf: '{{total}} қадамның {{current}}-і',
+    whoAreYou: 'Сіз кімсіз?',
+    roles: {
+      farmer: { title: 'Фермер', hint: 'Өсімдіктерімді тексеремін, кеңес аламын' },
+      agrochemist: { title: 'Агрохимик', hint: 'Фермерлерге кеңес беремін' },
+    },
+    next: 'Әрі қарай',
+    qualification: {
+      title: 'Біліктілікті растаңыз',
+      hint: 'Құжаттарды тек платформа әкімшісі көреді',
+      specialization: 'Мамандану',
+      specializations: {
+        plant_protection: 'Өсімдік қорғау',
+        agrochemistry: 'Агрохимия',
+        phytopathology: 'Фитопатология',
+        soil_science: 'Топырақтану',
+      },
+      experience: 'Жұмыс тәжірибесі, жыл',
+      document: 'Диплом немесе сертификат',
+      upload: 'Құжатты жүктеу',
+      uploadHint: 'Камера, галерея немесе файл · PDF, JPG 10 МБ дейін',
+      uploaded: '{{size}} · жүктелді',
+      removeDocument: 'Құжатты алып тастау',
+      consent: 'Құжаттарды тексеруге келісемін',
+      submit: 'Тексеруге жіберу',
+      sending: 'Өтінім жіберілуде…',
+      sendingHint: 'Бұл бір минутқа дейін созылуы мүмкін, қолданбаны жаппаңыз',
+      accountCreatedRetry:
+        'Аккаунт жасалды, бірақ құжат жіберілмеді. Байланысты тексеріп, қайта жіберіңіз',
+      errors: {
+        specializationRequired: 'Кемінде бір мамандануды таңдаңыз',
+        experienceInvalid: 'Тәжірибені 0-ден 80 жылға дейін көрсетіңіз',
+        documentRequired: 'Диплом немесе сертификатты жүктеңіз',
+        consentRequired: 'Келісімді растаңыз',
+      },
+    },
+    sent: {
+      title: 'Өтінім жіберілді',
+      hint: 'Әкімші құжаттарды 1–2 жұмыс күнінде тексереді. Шешім туралы хабарлаймыз.',
+      whileChecking: 'Тексеру жүріп жатқанда',
+      canFillProfile: 'Профильді толтыруға болады',
+      canReadCommunity: 'Қауымдастықты оқуға болады',
+      hiddenFromFarmers: 'Фермерлер профиліңізді әзірге көрмейді',
+      openApp: 'Қолданбаға өту',
+    },
+  },
   common: {
     empty: 'Әзірге бос',
     error: 'Бірдеңе дұрыс болмады',
