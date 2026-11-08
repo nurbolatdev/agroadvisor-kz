@@ -37,6 +37,8 @@ class SecurityConfig {
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login",
                             "/api/auth/refresh", "/api/auth/logout").permitAll();
+                    // the registration form lists the regions before there is an account
+                    auth.requestMatchers(HttpMethod.GET, "/api/regions").permitAll();
                     auth.requestMatchers("/actuator/health/**", "/actuator/info").permitAll();
                     if (docsEnabled) {
                         // Development only: springdoc.api-docs.enabled is off unless a profile turns it on

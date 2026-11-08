@@ -41,7 +41,17 @@ class CacheResetTest {
 
     @Test
     void everyConfiguredCacheIsKnownAtStartUp() {
-        assertThat(caches.getCacheNames()).contains(CACHE);
+        // "regions" is not used before the first request, yet a restart after a new region must clear it
+        assertThat(caches.getCacheNames()).contains(CACHE, "regions");
+    }
+
+    @Test
+    void onReadyEmptiesTheRegionsCacheToo() {
+        caches.getCache("regions").put("ru", "stale");
+
+        reset.onReady();
+
+        assertThat(caches.getCache("regions").get("ru")).isNull();
     }
 
     @Test

@@ -13,6 +13,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import kz.agroadvisor.auth.service.AuthService;
@@ -58,7 +59,10 @@ public class AuthController {
             List<String> specializations,
             @Min(0) @Max(80) @Schema(nullable = true, description = "Required for an agrochemist, not allowed for a farmer: years of "
                     + "experience, 0-80 (missing is 400 invalid_profile_fields)")
-            Integer experienceYears) {
+            Integer experienceYears,
+            @Positive @Schema(nullable = true, description = "The region picked in the form: an id of "
+                    + "GET /api/regions, for both roles. Optional; an unknown id is 400 invalid_region")
+            Long regionId) {
     }
 
     public record LoginRequest(@NotBlank @Size(max = 120) String login, @NotBlank @Size(max = 72) String password) {
@@ -84,7 +88,8 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     public TokenResponse register(@Valid @RequestBody RegisterRequest request) {
         return TokenResponse.of(auth.register(request.login(), request.password(), request.fullName(),
-                request.language(), request.role(), request.specializations(), request.experienceYears()));
+                request.language(), request.role(), request.specializations(), request.experienceYears(),
+                request.regionId()));
     }
 
     @SecurityRequirements
