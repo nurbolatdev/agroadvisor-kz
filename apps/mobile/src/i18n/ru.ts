@@ -56,6 +56,8 @@ export const ru = {
       upload: 'Загрузить документ',
       uploadHint: 'Камера, галерея или файл · PDF, JPG до 10 МБ',
       uploaded: '{{size}} · загружено',
+      sizeMb: '{{value}} МБ',
+      sizeKb: '{{value}} КБ',
       removeDocument: 'Убрать документ',
       consent: 'Согласен на проверку документов',
       submit: 'Отправить на проверку',

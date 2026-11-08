@@ -10,6 +10,7 @@ import { createMockDiagnosisApi } from '@/api/mock/diagnosis'
 import { createMockDiseaseApi } from '@/api/mock/diseases'
 import { createMockUsersApi } from '@/api/mock/users'
 import { createUsersApi } from '@/api/users'
+import { createApplicationStore } from '@/features/agrochemist/application'
 import { createDiseaseCatalog } from '@/features/diseases/catalog'
 import { createPendingQueue } from '@/features/diagnosis/pendingQueue'
 import { preparePhoto } from '@/features/diagnosis/photo'
@@ -68,6 +69,17 @@ export const diagnosisApi =
 const mockAgrochemist = API_MODE === 'mock' ? createMockAgrochemistApi() : null
 export const agrochemistApi = mockAgrochemist?.api ?? createAgrochemistApi(apiClient)
 export const agrochemistMockControls = mockAgrochemist?.controls ?? null
+
+// The application of an agrochemist (registration at the end of step 2, then the document). In memory only.
+// The session is opened with "hold": the router keeps the registration screens until the person leaves
+// the "application sent" screen.
+export const useApplication = createApplicationStore({
+  register: (body) => useSession.getState().register(body, { hold: true }),
+  upload: (file, meta) => agrochemistApi.upload(file, meta),
+  documentCount: async () => (await agrochemistApi.verification()).documents.length,
+  releaseEntry: () => useSession.getState().releaseEntry(),
+  language: () => useSettings.getState().language,
+})
 
 export const diseaseApi = API_MODE === 'mock' ? createMockDiseaseApi() : createDiseaseApi(apiClient)
 

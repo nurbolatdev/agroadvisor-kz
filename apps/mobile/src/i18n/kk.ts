@@ -59,6 +59,8 @@ export const kk: Translation = {
       upload: 'Құжатты жүктеу',
       uploadHint: 'Камера, галерея немесе файл · PDF, JPG 10 МБ дейін',
       uploaded: '{{size}} · жүктелді',
+      sizeMb: '{{value}} МБ',
+      sizeKb: '{{value}} КБ',
       removeDocument: 'Құжатты алып тастау',
       consent: 'Құжаттарды тексеруге келісемін',
       submit: 'Тексеруге жіберу',

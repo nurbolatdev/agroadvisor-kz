@@ -58,6 +58,8 @@ export const en: Translation = {
       upload: 'Upload a document',
       uploadHint: 'Camera, gallery or file · PDF, JPG up to 10 MB',
       uploaded: '{{size}} · uploaded',
+      sizeMb: '{{value}} MB',
+      sizeKb: '{{value}} KB',
       removeDocument: 'Remove the document',
       consent: 'I agree to the check of my documents',
       submit: 'Send for review',
