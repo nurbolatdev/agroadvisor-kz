@@ -411,6 +411,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/regions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The regions a person can pick at registration, sorted by name in the requested language */
+        get: operations["regions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/me": {
         parameters: {
             query?: never;
@@ -622,6 +639,11 @@ export interface components {
             /** @enum {string} */
             language: "ru" | "kk" | "en";
             phone?: string | null;
+            /**
+             * Format: int64
+             * @description The id of the region picked at registration (see GET /api/regions); null when none was picked
+             */
+            regionId?: number | null;
             roles: ("farmer" | "agrochemist" | "admin")[];
         };
         MetaView: {
@@ -636,6 +658,12 @@ export interface components {
         RefreshRequest: {
             refreshToken: string;
         };
+        RegionView: {
+            code: string;
+            /** Format: int64 */
+            id: number;
+            name: string;
+        };
         RegisterRequest: {
             /**
              * Format: int32
@@ -647,6 +675,11 @@ export interface components {
             language?: "ru" | "kk" | "en";
             login: string;
             password: string;
+            /**
+             * Format: int64
+             * @description The region picked in the form: an id of GET /api/regions, for both roles. Optional; an unknown id is 400 invalid_region
+             */
+            regionId?: number | null;
             /**
              * @description Lower case, like the roles in MeResponse; another case is 400 validation_failed
              * @enum {string}
@@ -1558,6 +1591,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MetaView"];
+                };
+            };
+        };
+    };
+    regions: {
+        parameters: {
+            query?: {
+                lang?: string;
+            };
+            header?: {
+                "Accept-Language"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RegionView"][];
                 };
             };
         };
