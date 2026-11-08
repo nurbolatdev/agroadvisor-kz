@@ -41,6 +41,8 @@ jest.mock('@/services', () => {
       pageSize: 10,
     }),
     useDiagnosis,
+    // a farmer: the home screen shows his home, not the redirect of an agrochemist
+    useProfile: (select: (s: object) => unknown) => select({ roles: ['farmer'] }),
     useSession: (select: (s: object) => unknown) =>
       select({ accessToken: 'tok', logout: jest.fn() }),
     diseaseCatalog: {

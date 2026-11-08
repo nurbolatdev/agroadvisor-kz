@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native'
 import { initI18n } from '@/i18n'
 
 import { BottomBar } from './BottomBar'
-import { TAB_SLOTS, type TabSlot, visibleSlots } from './tabSlots'
+import { AGROCHEMIST_SLOTS, TAB_SLOTS, type TabSlot, visibleSlots } from './tabSlots'
 
 jest.mock(
   'react-native-safe-area-context',
@@ -12,6 +12,37 @@ jest.mock(
 
 beforeAll(() => {
   initI18n('en')
+})
+
+describe('the places of an agrochemist', () => {
+  it('are Requests, Community, Chats and Profile: no camera, no Home', () => {
+    expect(AGROCHEMIST_SLOTS.map((s) => s.id)).toEqual([
+      'requests',
+      'community',
+      'chats',
+      'profile',
+    ])
+  })
+
+  it('show only what is built: Requests and Profile for now', () => {
+    expect(visibleSlots(AGROCHEMIST_SLOTS).map((s) => s.id)).toEqual(['requests', 'profile'])
+  })
+
+  it('are drawn by the same bar, without the camera button', async () => {
+    await render(
+      <BottomBar
+        slots={AGROCHEMIST_SLOTS}
+        activeRoute="requests"
+        onNavigate={jest.fn()}
+        onCamera={jest.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('tab', { name: 'Requests' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Profile' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Diagnose by photo' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'Home' })).toBeNull()
+  })
 })
 
 describe('the places of the bottom bar', () => {

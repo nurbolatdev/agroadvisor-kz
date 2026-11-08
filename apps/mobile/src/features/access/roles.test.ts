@@ -1,4 +1,4 @@
-import { isAgrochemist, isFarmer } from './roles'
+import { hasAgrochemistRole, isAgrochemist, isFarmer } from './roles'
 
 describe('roles', () => {
   it('knows an agrochemist', () => {
@@ -12,6 +12,13 @@ describe('roles', () => {
   it('knows a farmer', () => {
     expect(isFarmer({ roles: ['farmer'] })).toBe(true)
     expect(isFarmer({ roles: ['agrochemist'] })).toBe(false)
+  })
+
+  it('knows an agrochemist in the bare list of roles, and nobody in no list', () => {
+    expect(hasAgrochemistRole(['agrochemist'])).toBe(true)
+    expect(hasAgrochemistRole(['farmer'])).toBe(false)
+    expect(hasAgrochemistRole(null)).toBe(false)
+    expect(hasAgrochemistRole(undefined)).toBe(false)
   })
 
   it('is nobody while the profile is not loaded', () => {

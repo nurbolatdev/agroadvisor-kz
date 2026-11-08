@@ -54,7 +54,8 @@ describe('translation keys', () => {
         used.add(match[1])
     }
     expect(used.size).toBeGreaterThan(20)
-    expect([...used].filter((key) => !(key in flat.ru))).toEqual([])
+    // a key with a count is written out in the plural forms (key_one, key_few, ...)
+    expect([...used].filter((key) => !(key in flat.ru) && !(`${key}_other` in flat.ru))).toEqual([])
   })
 
   it('exist for every status, queue state, treatment tab and result action built from a variable', () => {

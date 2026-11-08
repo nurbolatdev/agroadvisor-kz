@@ -112,6 +112,7 @@ export const kk: Translation = {
     home: 'Басты бет',
     community: 'Қауымдастық',
     camera: 'Сурет бойынша диагностика',
+    requests: 'Өтінімдер',
     chats: 'Чаттар',
     profile: 'Профиль',
   },
@@ -171,9 +172,67 @@ export const kk: Translation = {
     // an application that was started and not finished: the account exists, the document was never sent
     missing: {
       title: 'Өтінім аяқталмаған',
-      hint: 'Құжат жіберілмеді. Ол болмаса, әкімші профильді тексере алмайды, фермерлер сізді көрмейді.',
+      hint: 'Өтінімде құжат жоқ. Ол болмаса, әкімші профильді тексере алмайды, фермерлер сізді көрмейді.',
       action: 'Диплом немесе сертификатты жүктеңіз',
       submit: 'Құжатты жіберу',
+    },
+    // the requests tab (frames 22a-22c); the counters, the rating and the switch of the frames come with the
+    // requests (M14), they are not drawn before. Kazakh texts are a draft (issue #88)
+    cabinet: {
+      greeting: 'Сәлеметсіз бе, {{name}}',
+      subtitle: 'Агрохимик профилі',
+      qualified: 'Біліктілік расталды',
+      // the notice of frame 22a (its own words, not the short status of the profile)
+      pending: {
+        title: 'Профиль тексерілуде',
+        hint: 'Құжаттар расталғаннан кейін фермерлер сізді көреді — әдетте 1–2 жұмыс күні.',
+      },
+      checkStatus: 'Күйін тексеру',
+      checkStatusLink: 'Күйін тексеру →',
+      timeline: {
+        title: 'Өтінім күйі',
+        sent: 'Өтінім жіберілді · {{date}}',
+        review: 'Құжаттарды тексеру',
+        published: 'Профиль жарияланды',
+        // told to a screen reader: a step is a mark on the screen, so its state is also said in words
+        done: 'орындалды',
+        current: 'қазір',
+        todo: 'кейін',
+      },
+      requestsTitle: 'Фермерлердің өтінімдері',
+      locked: {
+        title: 'Тексеруден кейін қолжетімді',
+        hint: 'Фермерлердің өтінімдері осында шығады',
+      },
+      newRequests: 'Жаңа өтінімдер',
+      noRequests: { title: 'Әзірге өтінім жоқ', hint: 'Фермерлердің өтінімдері осында шығады' },
+      reason: 'Себебі: {{reason}}',
+      reuploadAction: 'Құжатты қайта жүктеу',
+      notAvailable: 'Фермерлердің өтінімдері құжаттар расталғаннан кейін қолжетімді болады',
+      add: {
+        title: 'Құжат қосу',
+        hint: 'Өтінім тексеруді күтіп тұр. Қосылған құжат онымен бірге тексеріледі.',
+      },
+      requested: {
+        title: 'Құжат қосу',
+        hint: 'Әкімші қосымша құжаттар сұрады. Оларды қосыңыз, өтінім қайта тексеріледі.',
+      },
+      reupload: {
+        title: 'Құжатты қайта жүктеу',
+        hint: 'Әкімші құжатты қайта тексереді, әдетте 1–2 жұмыс күнінде.',
+      },
+    },
+    // the profile of an agrochemist (frame 21a)
+    profile: {
+      experience: 'тәжірибе',
+      // the noun does not change after a number in Kazakh; the four keys keep the key sets equal
+      years_one: '{{count}} жыл',
+      years_few: '{{count}} жыл',
+      years_many: '{{count}} жыл',
+      years_other: '{{count}} жыл',
+      documents: 'Құжаттар',
+      documentsChecked: 'Тексерілді',
+      specialization: 'Мамандану',
     },
     reasonLabel: 'Себебі',
     documents: {
@@ -184,6 +243,14 @@ export const kk: Translation = {
       takePhoto: 'Суретке түсіру',
       fromGallery: 'Галереядан',
       remove: 'Жою',
+      listTitle: 'Өтінім құжаттары',
+      locked: 'Расталған профильдің құжаттарын өзгертуге болмайды',
+      confirmRemove: {
+        title: 'Құжатты жою керек пе?',
+        message: 'Құжат өтінімнен жойылады.',
+        messageLast: 'Бұл жалғыз құжат. Онсыз өтінім аяқталмаған болады, жаңасын жүктеу керек.',
+        cancel: 'Бас тарту',
+      },
       uploading: 'Жүктелуде…',
     },
     errors: {

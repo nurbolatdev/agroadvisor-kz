@@ -112,6 +112,7 @@ export const ru = {
     home: 'Главная',
     community: 'Сообщество',
     camera: 'Диагностика по фото',
+    requests: 'Заявки',
     chats: 'Чаты',
     profile: 'Профиль',
   },
@@ -176,9 +177,65 @@ export const ru = {
     // an application that was started and not finished: the account exists, the document was never sent
     missing: {
       title: 'Заявка не завершена',
-      hint: 'Документ не отправился. Пока его нет, администратор не может проверить ваш профиль, а фермеры вас не видят.',
+      hint: 'В заявке нет документа. Пока его нет, администратор не может проверить ваш профиль, а фермеры вас не видят.',
       action: 'Загрузите диплом или сертификат',
       submit: 'Отправить документ',
+    },
+    // the requests tab (frames 22a-22c); the counters, the rating and the switch of the frames come with the
+    // requests (M14), they are not drawn before
+    cabinet: {
+      greeting: 'Здравствуйте, {{name}}',
+      subtitle: 'Профиль агрохимика',
+      qualified: 'Квалификация подтверждена',
+      // the notice of frame 22a (its own words, not the short status of the profile)
+      pending: {
+        title: 'Профиль на проверке',
+        hint: 'Фермеры увидят вас после подтверждения документов — обычно 1–2 рабочих дня.',
+      },
+      checkStatus: 'Проверить статус',
+      checkStatusLink: 'Проверить статус →',
+      timeline: {
+        title: 'Статус заявки',
+        sent: 'Заявка отправлена · {{date}}',
+        review: 'Проверка документов',
+        published: 'Профиль опубликован',
+        // told to a screen reader: a step is a mark on the screen, so its state is also said in words
+        done: 'выполнено',
+        current: 'сейчас',
+        todo: 'дальше',
+      },
+      requestsTitle: 'Заявки фермеров',
+      locked: { title: 'Доступно после проверки', hint: 'Здесь появятся заявки фермеров' },
+      newRequests: 'Новые заявки',
+      noRequests: { title: 'Заявок пока нет', hint: 'Заявки фермеров появятся здесь' },
+      reason: 'Причина: {{reason}}',
+      reuploadAction: 'Загрузить документ заново',
+      notAvailable: 'Заявки фермеров станут доступны после подтверждения документов',
+      add: {
+        title: 'Добавить документ',
+        hint: 'Заявка ждёт проверки. Добавленный документ проверят вместе с ней.',
+      },
+      // more documents were asked for: a new document is added, none is sent again
+      requested: {
+        title: 'Добавить документ',
+        hint: 'Администратор запросил дополнительные документы. Добавьте их, и заявку проверят снова.',
+      },
+      reupload: {
+        title: 'Загрузить документ заново',
+        hint: 'Администратор проверит документ снова, обычно за 1–2 рабочих дня.',
+      },
+    },
+    // the profile of an agrochemist (frame 21a)
+    profile: {
+      experience: 'опыт',
+      // plural forms of ru: 1, 21 — год; 2–4 — года; 5–20 — лет
+      years_one: '{{count}} год',
+      years_few: '{{count}} года',
+      years_many: '{{count}} лет',
+      years_other: '{{count}} года',
+      documents: 'Документы',
+      documentsChecked: 'Проверены',
+      specialization: 'Специализация',
     },
     reasonLabel: 'Причина',
     documents: {
@@ -189,6 +246,15 @@ export const ru = {
       takePhoto: 'Сфотографировать',
       fromGallery: 'Из галереи',
       remove: 'Удалить',
+      listTitle: 'Документы заявки',
+      locked: 'Документы подтверждённого профиля изменить нельзя',
+      confirmRemove: {
+        title: 'Удалить документ?',
+        message: 'Документ будет удалён из заявки.',
+        messageLast:
+          'Это единственный документ. Без него заявка станет незавершённой, и нужно будет загрузить новый.',
+        cancel: 'Отмена',
+      },
       uploading: 'Загрузка…',
     },
     errors: {

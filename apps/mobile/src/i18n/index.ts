@@ -1,3 +1,5 @@
+import './polyfills' // before i18next is initialised: it asks Intl.PluralRules for the plural forms
+
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
