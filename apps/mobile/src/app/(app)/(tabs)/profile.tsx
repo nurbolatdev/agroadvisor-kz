@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 
 import { AppText, ErrorState, Screen } from '@/components/ui'
+import { hasAgrochemistRole } from '@/features/access/roles'
+import { AgrochemistProfile } from '@/features/agrochemist/cabinet/AgrochemistProfile'
 import { appVersion } from '@/features/profile/appVersion'
 import { MenuRow } from '@/features/profile/MenuRow'
 import { UserCard } from '@/features/profile/UserCard'
@@ -17,6 +19,13 @@ import { colors, radii, sizes, spacing } from '@/theme/tokens'
 // with their sections. The profile is asked for when the tab opens; when it cannot be loaded, the rest of
 // the screen still works, so a person can still change the language or sign out.
 export default function ProfileScreen() {
+  const roles = useProfile((s) => s.roles)
+  // An agrochemist has his own profile (frame 21a); the tabs wait for the roles, so they are known here
+  if (hasAgrochemistRole(roles)) return <AgrochemistProfile />
+  return <FarmerProfile />
+}
+
+function FarmerProfile() {
   const { t } = useTranslation()
   const router = useRouter()
   const { me, phase, error } = useProfile()

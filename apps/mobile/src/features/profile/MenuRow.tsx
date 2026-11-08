@@ -9,19 +9,15 @@ type Props = {
   label: string
   // what is set now, on the right ("Русский"), when the row is a setting
   value?: string
-  onPress: () => void
+  // without it the row only shows the value: no arrow, nothing to press
+  onPress?: () => void
 }
 
 // A row of the menu card of the profile (screen 21): an icon, the name, the value, an arrow. The card draws
 // the frame and the lines between rows.
 export function MenuRow({ icon: Icon, label, value, onPress }: Props) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={value ? `${label}. ${value}` : label}
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-    >
+  const content = (
+    <>
       <Icon size={sizes.icon} color={colors.textMuted} />
       <AppText variant="h2" style={styles.label}>
         {label}
@@ -31,9 +27,28 @@ export function MenuRow({ icon: Icon, label, value, onPress }: Props) {
           {value}
         </AppText>
       ) : null}
-      <View>
-        <ChevronRight size={sizes.iconMd} color={colors.textMuted} />
+      {onPress ? (
+        <View>
+          <ChevronRight size={sizes.iconMd} color={colors.textMuted} />
+        </View>
+      ) : null}
+    </>
+  )
+  if (!onPress) {
+    return (
+      <View accessible accessibilityLabel={value ? `${label}. ${value}` : label} style={styles.row}>
+        {content}
       </View>
+    )
+  }
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={value ? `${label}. ${value}` : label}
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+    >
+      {content}
     </Pressable>
   )
 }
