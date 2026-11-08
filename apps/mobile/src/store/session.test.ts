@@ -33,6 +33,53 @@ describe('session store', () => {
     expect(tokens.value).toMatch(/^mock-refresh/)
   })
 
+  describe('holding the entry while an agrochemist finishes the registration', () => {
+    const agrochemist = { ...credentials, role: 'agrochemist' as const }
+
+    it('has the session but holds the router until the entry is released', async () => {
+      const tokens = memoryTokens()
+      const session = createSessionStore({ authApi: createMockAuthApi(), tokens })
+
+      await session.getState().register(agrochemist, { hold: true })
+
+      expect(session.getState().status).toBe('signedIn')
+      expect(session.getState().accessToken).not.toBeNull() // the API client can already work
+      expect(session.getState().entryHeld).toBe(true)
+      session.getState().releaseEntry()
+      expect(session.getState().entryHeld).toBe(false)
+      expect(session.getState().status).toBe('signedIn')
+    })
+
+    it('does not hold a plain registration', async () => {
+      const session = createSessionStore({ authApi: createMockAuthApi(), tokens: memoryTokens() })
+
+      await session.getState().register(credentials)
+
+      expect(session.getState().entryHeld).toBe(false)
+    })
+
+    it('does not carry the hold over a restart: the saved session opens the app', async () => {
+      const tokens = memoryTokens()
+      const first = createSessionStore({ authApi: createMockAuthApi(), tokens })
+      await first.getState().register(agrochemist, { hold: true })
+
+      const afterRestart = createSessionStore({ authApi: createMockAuthApi(), tokens })
+      await afterRestart.getState().restore()
+
+      expect(afterRestart.getState().entryHeld).toBe(false)
+    })
+
+    it('drops the hold when the session ends', async () => {
+      const session = createSessionStore({ authApi: createMockAuthApi(), tokens: memoryTokens() })
+      await session.getState().register(agrochemist, { hold: true })
+
+      await session.getState().logout()
+
+      expect(session.getState().entryHeld).toBe(false)
+      expect(session.getState().status).toBe('signedOut')
+    })
+  })
+
   describe('role at sign-up', () => {
     function recordingApi() {
       const roles: (string | undefined)[] = []

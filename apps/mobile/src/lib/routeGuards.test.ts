@@ -15,6 +15,40 @@ describe('route guards of the root layout', () => {
     expect(routeGuards('signedOut', true)).toEqual({ app: false, onboarding: false, auth: true })
   })
 
+  it('keeps a signed-in person on the registration screens while the entry is held', () => {
+    expect(routeGuards('signedIn', true, true)).toEqual({
+      app: false,
+      onboarding: false,
+      auth: true,
+    })
+    expect(routeGuards('signedIn', false, true)).toEqual({
+      app: false,
+      onboarding: false,
+      auth: true,
+    })
+  })
+
+  it('lets the person into the app as soon as the entry is released', () => {
+    expect(routeGuards('signedIn', true, false)).toEqual({
+      app: true,
+      onboarding: false,
+      auth: false,
+    })
+  })
+
+  it('ignores the hold when nobody is signed in', () => {
+    expect(routeGuards('signedOut', true, true)).toEqual({
+      app: false,
+      onboarding: false,
+      auth: true,
+    })
+    expect(routeGuards('restoring', true, true)).toEqual({
+      app: false,
+      onboarding: false,
+      auth: false,
+    })
+  })
+
   it('shows nothing while the session is restored', () => {
     for (const chosen of [true, false]) {
       expect(routeGuards('restoring', chosen)).toEqual({

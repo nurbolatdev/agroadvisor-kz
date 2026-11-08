@@ -32,6 +32,57 @@ export const ru = {
       generic: 'Не получилось. Повторите позже',
     },
   },
+  // the registration in two steps (screens 03, 03a, 03b); the farmer has one step, the agrochemist two
+  register: {
+    stepOf: 'Шаг {{current}} из {{total}}',
+    whoAreYou: 'Кто вы?',
+    roles: {
+      farmer: { title: 'Фермер', hint: 'Проверяю растения, получаю советы' },
+      agrochemist: { title: 'Агрохимик', hint: 'Консультирую фермеров' },
+    },
+    next: 'Далее',
+    qualification: {
+      title: 'Подтвердите квалификацию',
+      hint: 'Документы увидит только администратор платформы',
+      specialization: 'Специализация',
+      specializations: {
+        plant_protection: 'Защита растений',
+        agrochemistry: 'Агрохимия',
+        phytopathology: 'Фитопатология',
+        soil_science: 'Почвоведение',
+      },
+      experience: 'Опыт работы, лет',
+      document: 'Диплом или сертификат',
+      upload: 'Загрузить документ',
+      uploadHint: 'Камера, галерея или файл · PDF, JPG до 10 МБ',
+      openSettings: 'Открыть настройки',
+      uploaded: '{{size}} · загружено',
+      sizeMb: '{{value}} МБ',
+      sizeKb: '{{value}} КБ',
+      removeDocument: 'Убрать документ',
+      consent: 'Согласен на проверку документов',
+      submit: 'Отправить на проверку',
+      sending: 'Отправляем заявку…',
+      sendingHint: 'Это может занять до минуты, не закрывайте приложение',
+      accountCreatedRetry:
+        'Аккаунт создан, но документ не отправился. Проверьте связь и отправьте ещё раз',
+      errors: {
+        specializationRequired: 'Выберите хотя бы одну специализацию',
+        experienceInvalid: 'Укажите опыт от 0 до 80 лет',
+        documentRequired: 'Загрузите диплом или сертификат',
+        consentRequired: 'Подтвердите согласие',
+      },
+    },
+    sent: {
+      title: 'Заявка отправлена',
+      hint: 'Администратор проверит документы за 1–2 рабочих дня. Мы пришлём уведомление о решении.',
+      whileChecking: 'Пока идёт проверка',
+      canFillProfile: 'Можно заполнить профиль',
+      canReadCommunity: 'Можно читать сообщество',
+      hiddenFromFarmers: 'Фермеры пока не видят ваш профиль',
+      openApp: 'Перейти в приложение',
+    },
+  },
   common: {
     empty: 'Здесь пока пусто',
     error: 'Что-то пошло не так',
@@ -122,6 +173,13 @@ export const ru = {
         hint: 'Администратор просит прислать дополнительные документы',
       },
     },
+    // an application that was started and not finished: the account exists, the document was never sent
+    missing: {
+      title: 'Заявка не завершена',
+      hint: 'Документ не отправился. Пока его нет, администратор не может проверить ваш профиль, а фермеры вас не видят.',
+      action: 'Загрузите диплом или сертификат',
+      submit: 'Отправить документ',
+    },
     reasonLabel: 'Причина',
     documents: {
       title: 'Документы',
@@ -137,6 +195,8 @@ export const ru = {
       empty: 'Файл пустой. Выберите другой',
       too_large: 'Файл больше {{mb}} МБ. Выберите файл поменьше',
       unsupported_format: 'Подойдёт PDF, JPEG или PNG',
+      camera_denied:
+        'Нет доступа к камере. Разрешите камеру в настройках телефона или выберите фото из галереи',
       corrupted: 'Файл повреждён. Выберите другой',
       invalid_document: 'Файл не принят. Выберите другой',
       invalid_fields: 'Проверьте название, организацию и год',

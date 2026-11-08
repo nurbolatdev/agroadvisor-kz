@@ -25,9 +25,16 @@ type SessionState = {
   accessToken: string | null
   // whose session this is; null when signed out or when the token carries no readable id
   userId: string | null
+  // true while an agrochemist finishes the registration (the document is still being sent): the session
+  // exists and the API client works, but the router keeps the registration screens. Never saved: after a
+  // restart the person is simply signed in, and the profile status leads on from there.
+  entryHeld: boolean
   restore: () => Promise<void>
-  register: (body: RegisterBody) => Promise<void>
-  login: (body: LoginRequest) => Promise<void>
+  // hold: stay on the registration screens until releaseEntry() (see entryHeld)
+  register: (body: RegisterBody, options?: { hold?: boolean }) => Promise<void>
+  releaseEntry: () => void
+  // hold: as for register (an application whose account was made but whose answer was lost)
+  login: (body: LoginRequest, options?: { hold?: boolean }) => Promise<void>
   logout: () => Promise<void>
   // For the API client. Returns a fresh access token or null; concurrent calls share one request,
   // because the backend rotates refresh tokens and a second use of the old one would sign us out.
@@ -56,19 +63,19 @@ export function createSessionStore(deps: {
   let generation = 0
 
   return create<SessionState>((set, get) => {
-    async function accept(response: TokenResponse, startedIn: number) {
+    async function accept(response: TokenResponse, startedIn: number, hold = false) {
       if (startedIn !== generation) return
       await tokens.setRefreshToken(response.refreshToken)
       if (startedIn !== generation) return
       const userId = userIdOfToken(response.accessToken)
       userIds?.set(userId)
-      set({ status: 'signedIn', accessToken: response.accessToken, userId })
+      set({ status: 'signedIn', accessToken: response.accessToken, userId, entryHeld: hold })
     }
 
     async function dropSession() {
       generation += 1
       userIds?.set(null)
-      set({ status: 'signedOut', accessToken: null, userId: null })
+      set({ status: 'signedOut', accessToken: null, userId: null, entryHeld: false })
       // A broken keystore must not keep the user signed in; clearing is best effort.
       await tokens.clear().catch(() => undefined)
     }
@@ -115,6 +122,7 @@ export function createSessionStore(deps: {
       accessToken: null,
       // the saved id lets the app know the user while it is still offline at start
       userId: userIds?.get() ?? null,
+      entryHeld: false,
 
       async restore() {
         let saved: string | null = null
@@ -133,14 +141,18 @@ export function createSessionStore(deps: {
         if (result.kind === 'failed') set({ status: 'signedIn' })
       },
 
-      async register(body) {
+      async register(body, options) {
         const startedIn = generation
-        await accept(await authApi.register(body), startedIn)
+        await accept(await authApi.register(body), startedIn, options?.hold ?? false)
       },
 
-      async login(body) {
+      releaseEntry() {
+        set({ entryHeld: false })
+      },
+
+      async login(body, options) {
         const startedIn = generation
-        await accept(await authApi.login(body), startedIn)
+        await accept(await authApi.login(body), startedIn, options?.hold ?? false)
       },
 
       async logout() {

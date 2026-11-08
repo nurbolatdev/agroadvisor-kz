@@ -26,7 +26,8 @@ export default function RootLayout() {
   })
   const status = useSession((s) => s.status)
   const languageChosen = useSettings((s) => s.languageChosen)
-  const guards = routeGuards(status, languageChosen)
+  const entryHeld = useSession((s) => s.entryHeld)
+  const guards = routeGuards(status, languageChosen, entryHeld)
   const restore = useSession((s) => s.restore)
   const ready = (fontsLoaded || fontError !== null) && status !== 'restoring'
 

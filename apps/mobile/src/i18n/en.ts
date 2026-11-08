@@ -34,6 +34,57 @@ export const en: Translation = {
       generic: 'Something went wrong. Try again later',
     },
   },
+  // the registration in two steps (screens 03, 03a, 03b); the farmer has one step, the agrochemist two
+  register: {
+    stepOf: 'Step {{current}} of {{total}}',
+    whoAreYou: 'Who are you?',
+    roles: {
+      farmer: { title: 'Farmer', hint: 'I check my plants and get advice' },
+      agrochemist: { title: 'Agrochemist', hint: 'I advise farmers' },
+    },
+    next: 'Next',
+    qualification: {
+      title: 'Confirm your qualification',
+      hint: 'Only the platform administrator will see the documents',
+      specialization: 'Specialization',
+      specializations: {
+        plant_protection: 'Plant protection',
+        agrochemistry: 'Agrochemistry',
+        phytopathology: 'Phytopathology',
+        soil_science: 'Soil science',
+      },
+      experience: 'Years of experience',
+      document: 'Diploma or certificate',
+      upload: 'Upload a document',
+      uploadHint: 'Camera, gallery or file · PDF, JPG up to 10 MB',
+      openSettings: 'Open settings',
+      uploaded: '{{size}} · uploaded',
+      sizeMb: '{{value}} MB',
+      sizeKb: '{{value}} KB',
+      removeDocument: 'Remove the document',
+      consent: 'I agree to the check of my documents',
+      submit: 'Send for review',
+      sending: 'Sending your application…',
+      sendingHint: 'This can take up to a minute, keep the app open',
+      accountCreatedRetry:
+        'Your account is created, but the document was not sent. Check the connection and send it again',
+      errors: {
+        specializationRequired: 'Choose at least one specialization',
+        experienceInvalid: 'Enter experience from 0 to 80 years',
+        documentRequired: 'Upload a diploma or certificate',
+        consentRequired: 'Confirm your agreement',
+      },
+    },
+    sent: {
+      title: 'Application sent',
+      hint: 'An administrator will check the documents within 1–2 working days. We will notify you of the decision.',
+      whileChecking: 'While the check is going on',
+      canFillProfile: 'You can fill in your profile',
+      canReadCommunity: 'You can read the community',
+      hiddenFromFarmers: 'Farmers cannot see your profile yet',
+      openApp: 'Open the app',
+    },
+  },
   common: {
     empty: 'Nothing here yet',
     error: 'Something went wrong',
@@ -116,6 +167,13 @@ export const en: Translation = {
         hint: 'An administrator asks you to send more documents',
       },
     },
+    // an application that was started and not finished: the account exists, the document was never sent
+    missing: {
+      title: 'Application not finished',
+      hint: 'The document was not sent. Until it is, an administrator cannot check your profile and farmers cannot see you.',
+      action: 'Upload a diploma or certificate',
+      submit: 'Send the document',
+    },
     reasonLabel: 'Reason',
     documents: {
       title: 'Documents',
@@ -131,6 +189,8 @@ export const en: Translation = {
       empty: 'The file is empty. Choose another one',
       too_large: 'The file is larger than {{mb}} MB. Choose a smaller one',
       unsupported_format: 'Use a PDF, JPEG or PNG file',
+      camera_denied:
+        'No access to the camera. Allow the camera in the phone settings or choose a photo from the gallery',
       corrupted: 'The file is damaged. Choose another one',
       invalid_document: 'The file was not accepted. Choose another one',
       invalid_fields: 'Check the title, the issuer and the year',
