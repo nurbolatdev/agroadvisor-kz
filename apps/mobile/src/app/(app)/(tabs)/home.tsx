@@ -1,19 +1,28 @@
-import { useFocusEffect, useRouter } from 'expo-router'
+import { Redirect, useFocusEffect, useRouter } from 'expo-router'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, StyleSheet, View } from 'react-native'
 
 import { AppText, Button, Screen } from '@/components/ui'
+import { hasAgrochemistRole } from '@/features/access/roles'
 import { HeroCard } from '@/features/home/HeroCard'
 import { HistoryLine } from '@/features/history/HistoryLine'
 import { useDiseaseNames } from '@/features/history/useDiseaseNames'
-import { useDiagnosis, useHistory } from '@/services'
+import { useDiagnosis, useHistory, useProfile } from '@/services'
 import { colors, radii, spacing } from '@/theme/tokens'
 
 // How many of the latest diagnoses the home screen shows; the whole list is on the History screen.
 const RECENT = 3
 
+// The home of a farmer. An agrochemist has no diagnoses: the path /home (the start of the app) leads him to
+// the requests tab.
 export default function HomeScreen() {
+  const roles = useProfile((s) => s.roles)
+  if (hasAgrochemistRole(roles)) return <Redirect href="/requests" />
+  return <FarmerHome />
+}
+
+function FarmerHome() {
   const { t } = useTranslation()
   const router = useRouter()
   const resetDiagnosis = useDiagnosis((s) => s.reset)

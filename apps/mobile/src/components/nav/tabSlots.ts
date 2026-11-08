@@ -1,10 +1,18 @@
-import { Camera, House, MessageCircle, User, Users, type LucideIcon } from 'lucide-react-native'
+import {
+  Camera,
+  House,
+  Inbox,
+  MessageCircle,
+  User,
+  Users,
+  type LucideIcon,
+} from 'lucide-react-native'
 
-export type SlotId = 'home' | 'community' | 'camera' | 'chats' | 'profile'
+export type SlotId = 'home' | 'requests' | 'community' | 'camera' | 'chats' | 'profile'
 
 // The text of a slot: a key of the i18n files (src/i18n)
 export type SlotLabel =
-  'tabs.home' | 'tabs.community' | 'tabs.camera' | 'tabs.chats' | 'tabs.profile'
+  'tabs.home' | 'tabs.requests' | 'tabs.community' | 'tabs.camera' | 'tabs.chats' | 'tabs.profile'
 
 export type TabSlot = {
   id: SlotId
@@ -32,6 +40,43 @@ export const TAB_SLOTS: readonly TabSlot[] = [
     implemented: false, // M16
   },
   { id: 'camera', kind: 'action', icon: Camera, label: 'tabs.camera', implemented: true },
+  {
+    id: 'chats',
+    kind: 'route',
+    route: 'chats',
+    icon: MessageCircle,
+    label: 'tabs.chats',
+    implemented: false, // M14
+  },
+  {
+    id: 'profile',
+    kind: 'route',
+    route: 'profile',
+    icon: User,
+    label: 'tabs.profile',
+    implemented: true,
+  },
+]
+
+// The places of an agrochemist (frames 21a, 22a-22c): Requests, Community, Chats, Profile; no camera, an
+// agrochemist does not diagnose. Community and Chats are drawn when their sections exist (M16, M14).
+export const AGROCHEMIST_SLOTS: readonly TabSlot[] = [
+  {
+    id: 'requests',
+    kind: 'route',
+    route: 'requests',
+    icon: Inbox,
+    label: 'tabs.requests',
+    implemented: true,
+  },
+  {
+    id: 'community',
+    kind: 'route',
+    route: 'community',
+    icon: Users,
+    label: 'tabs.community',
+    implemented: false, // M16
+  },
   {
     id: 'chats',
     kind: 'route',

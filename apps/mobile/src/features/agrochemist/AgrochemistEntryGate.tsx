@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native'
 
 import { Screen } from '@/components/ui'
+import { hasAgrochemistRole } from '@/features/access/roles'
 import { agrochemistApi, useProfile, useSession } from '@/services'
 import { colors } from '@/theme/tokens'
 
@@ -22,7 +23,7 @@ export const ENTRY_COVER_MS = 1500
 // the cover or the document screen comes and goes: the screens, and the place the person had reached, stay.
 export function AgrochemistEntryGate({ children }: { children: ReactNode }) {
   const roles = useProfile((s) => s.roles)
-  const agrochemist = roles?.includes('agrochemist') ?? false
+  const agrochemist = hasAgrochemistRole(roles)
   const [covered, setCovered] = useState(false)
 
   return (
