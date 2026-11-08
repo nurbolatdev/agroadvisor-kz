@@ -48,6 +48,26 @@ with no network in a field is the normal case for our users). With the global ga
 - A person whose role was just changed by an admin sees the old interface until the next answer of the
   server; their calls are already authorised by the new role.
 - A first start with no network and no cache shows the wait screen for role-dependent screens only.
+- **`farmer` and `agrochemist` are mutually exclusive.** An agrochemist sees only the consultant's cabinet;
+  holding both roles is not supported by the product (an administrator may hold another role next to either).
+  The server gives one role at registration and has no way to add another, but the database does not forbid
+  a second row (issue #99). Should an account hold both all the same, the app shows the agrochemist's tabs and
+  no camera: the screens ask `isAgrochemist` (`hasAgrochemistRole` for a bare list) first.
+- **The tabs are role-dependent** (M9 part 2b): a farmer has Home, the camera and Profile, an agrochemist has
+  Requests and Profile. They are wrapped in `RoleGate`, so the wait screen of the case above also stands
+  where the farmer's home would be: a first start with no network and no cache (a new install, or the cache
+  cleared) shows "Try again" and "Sign out" instead of the home. The offline queue of diagnoses, the history
+  and the language are screens above the tabs: they do not wait for the roles themselves, but on that wait
+  screen the app has no button that leads to them (it offers only "Try again" and "Sign out"), so they cannot
+  be reached from there until the roles are known. There is no third source of the role to fall back on:
+  the access token has no roles (the backend reads them from the database on every request, `JwtService`),
+  and the app does not guess a role. The wait screen is therefore reached only when the phone holds no
+  roles for this user: after an update from a version that did not save them, with a damaged or cleared
+  cache, or when the answer of `/api/users/me` right after the sign-in did not come (the connection was lost
+  or the server failed) and the next start is offline. It is not a state of a normal start, because **the roles are saved right after a sign-in and after a
+  registration**: both end in a new user id in the session, which asks for `/api/users/me` at once
+  (`onUserChange`), and the answer is written to the cache. The product owner accepted this cost for the
+  offline start of a farmer (8 Nov 2026).
 
 ## Alternatives considered
 
