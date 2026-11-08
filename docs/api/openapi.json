@@ -499,6 +499,13 @@
       },
       "RegisterRequest" : {
         "properties" : {
+          "experienceYears" : {
+            "description" : "Required for an agrochemist, not allowed for a farmer: years of experience, 0-80 (missing is 400 invalid_profile_fields)",
+            "format" : "int32",
+            "maximum" : 80,
+            "minimum" : 0,
+            "type" : [ "integer", "null" ]
+          },
           "fullName" : {
             "maxLength" : 120,
             "minLength" : 0,
@@ -526,6 +533,16 @@
             "minLength" : 0,
             "pattern" : "[a-z]+",
             "type" : "string"
+          },
+          "specializations" : {
+            "description" : "Required for an agrochemist (at least one), not allowed for a farmer: fields of work, up to four different values. A missing or unknown value, a duplicate, or any value for a farmer is 400 invalid_profile_fields",
+            "items" : {
+              "enum" : [ "plant_protection", "agrochemistry", "phytopathology", "soil_science" ],
+              "type" : "string"
+            },
+            "maxItems" : 4,
+            "minItems" : 0,
+            "type" : "array"
           }
         },
         "required" : [ "fullName", "login", "password" ],
@@ -687,6 +704,11 @@
             },
             "type" : "array"
           },
+          "experienceYears" : {
+            "description" : "Years of experience given at registration",
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
           "rejectionReason" : {
             "description" : "Why the admin rejected or asked for more documents",
             "type" : [ "string", "null" ]
@@ -694,6 +716,14 @@
           "reviewedAt" : {
             "format" : "date-time",
             "type" : [ "string", "null" ]
+          },
+          "specializations" : {
+            "description" : "Fields of work given at registration; may be empty",
+            "items" : {
+              "enum" : [ "plant_protection", "agrochemistry", "phytopathology", "soil_science" ],
+              "type" : "string"
+            },
+            "type" : "array"
           },
           "status" : {
             "enum" : [ "pending", "approved", "rejected", "documents_requested" ],
@@ -705,7 +735,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "documents", "status", "submittedAt" ],
+        "required" : [ "documents", "specializations", "status", "submittedAt" ],
         "type" : "object"
       }
     },

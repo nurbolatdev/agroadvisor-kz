@@ -20,6 +20,8 @@ describe('mock agrochemist: the state of the check', () => {
       reviewedAt: null,
       rejectionReason: null,
       documents: [],
+      specializations: ['plant_protection', 'agrochemistry'],
+      experienceYears: 12,
     })
   })
 

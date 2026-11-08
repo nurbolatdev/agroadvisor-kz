@@ -637,6 +637,11 @@ export interface components {
             refreshToken: string;
         };
         RegisterRequest: {
+            /**
+             * Format: int32
+             * @description Required for an agrochemist, not allowed for a farmer: years of experience, 0-80 (missing is 400 invalid_profile_fields)
+             */
+            experienceYears?: number | null;
             fullName: string;
             /** @enum {string} */
             language?: "ru" | "kk" | "en";
@@ -647,6 +652,8 @@ export interface components {
              * @enum {string}
              */
             role?: "farmer" | "agrochemist";
+            /** @description Required for an agrochemist (at least one), not allowed for a farmer: fields of work, up to four different values. A missing or unknown value, a duplicate, or any value for a farmer is 400 invalid_profile_fields */
+            specializations?: ("plant_protection" | "agrochemistry" | "phytopathology" | "soil_science")[];
         };
         SummaryView: {
             /** Format: int32 */
@@ -711,10 +718,17 @@ export interface components {
         };
         VerificationView: {
             documents: components["schemas"]["DocumentView"][];
+            /**
+             * Format: int32
+             * @description Years of experience given at registration
+             */
+            experienceYears?: number | null;
             /** @description Why the admin rejected or asked for more documents */
             rejectionReason?: string | null;
             /** Format: date-time */
             reviewedAt?: string | null;
+            /** @description Fields of work given at registration; may be empty */
+            specializations: ("plant_protection" | "agrochemistry" | "phytopathology" | "soil_science")[];
             /** @enum {string} */
             status: "pending" | "approved" | "rejected" | "documents_requested";
             /**

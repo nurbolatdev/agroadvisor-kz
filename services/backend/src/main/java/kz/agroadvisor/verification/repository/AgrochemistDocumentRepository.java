@@ -8,6 +8,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import kz.agroadvisor.verification.model.Specialization;
+import kz.agroadvisor.verification.model.SpecializationsConverter;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -21,14 +24,15 @@ public class AgrochemistDocumentRepository {
     }
 
     public record Profile(UUID userId, String status, Instant submittedAt, Instant reviewedAt, UUID reviewedBy,
-            String rejectionReason) {
+            String rejectionReason, List<String> specializations, Integer experienceYears) {
     }
 
     private static final String DOCUMENT_COLUMNS =
             "id, user_id, kind, object_key, title, issuer, year, content_type, size_bytes, uploaded_at";
 
     private static final String PROFILE_SQL = """
-            SELECT user_id, verification_status, submitted_at, reviewed_at, reviewed_by, rejection_reason
+            SELECT user_id, verification_status, submitted_at, reviewed_at, reviewed_by, rejection_reason,
+                   specialization, experience_years
             FROM agrochemist_profiles WHERE user_id = ?""";
 
     private static final RowMapper<Document> DOCUMENT = (rs, i) -> new Document(
@@ -38,7 +42,15 @@ public class AgrochemistDocumentRepository {
 
     private static final RowMapper<Profile> PROFILE = (rs, i) -> new Profile(
             rs.getObject("user_id", UUID.class), rs.getString("verification_status"), instant(rs, "submitted_at"),
-            instant(rs, "reviewed_at"), rs.getObject("reviewed_by", UUID.class), rs.getString("rejection_reason"));
+            instant(rs, "reviewed_at"), rs.getObject("reviewed_by", UUID.class), rs.getString("rejection_reason"),
+            codes(rs.getString("specialization")), nullableInt(rs, "experience_years"));
+
+    private static final SpecializationsConverter SPECIALIZATIONS = new SpecializationsConverter();
+
+    /** The codes in the order of the enum; the column's own format stays inside the converter. */
+    private static List<String> codes(String stored) {
+        return SPECIALIZATIONS.convertToEntityAttribute(stored).stream().map(Specialization::code).toList();
+    }
 
     private final JdbcTemplate jdbc;
 
