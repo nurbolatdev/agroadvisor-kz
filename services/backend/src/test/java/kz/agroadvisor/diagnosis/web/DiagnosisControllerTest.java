@@ -210,8 +210,9 @@ class DiagnosisControllerTest {
 
         assertThat(diagnoses.findByUserIdOrderByCreatedAtDesc(farmer.getId(), PageRequest.of(0, 10)))
                 .singleElement().satisfies(d -> assertThat(d.getPhotoKey()).isEqualTo("diagnoses/test/winner.jpg"));
-        // With a key both requests use one object name, so the loser must not remove anything
-        verify(photos, never()).delete(anyString());
+        // The loser removes the object of its own attempt and never the winner's
+        verify(photos).delete("diagnoses/test/photo.jpg");
+        verify(photos, never()).delete("diagnoses/test/winner.jpg");
         assertThat(claimRows(farmer.getId())).isZero(); // the loser released its claim
     }
 

@@ -11,6 +11,9 @@ app:
     # Test-only keys: the client connects lazily and tests replace the storage with a fake
     access-key: test-access-key
     secret-key: test-secret-key
+    # The job is built by hand in the tests that exercise it; a running one would only scan a fake storage
+    orphan-cleanup:
+      enabled: false
   security:
     jwt:
       # Test-only secret (32+ bytes, Base64). Never used outside the test profile.

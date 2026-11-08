@@ -1,6 +1,9 @@
 package kz.agroadvisor.diagnosis.service;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -11,9 +14,16 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Error;
+import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
 
 import kz.agroadvisor.common.web.ApiException;
 
@@ -21,6 +31,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -131,5 +143,92 @@ class S3PhotoStorageTest {
             assertThatThrownBy(() -> storage.store(userId, bad, new byte[] {1}, "image/jpeg"))
                     .isInstanceOf(IllegalArgumentException.class);
         }
+    }
+
+    // --- list, deleteAll (orphan cleanup) ---
+
+    private static S3Object object(String key, Instant modified) {
+        return S3Object.builder().key(key).lastModified(modified).build();
+    }
+
+    @Test
+    void listsAllPagesOfAPrefixWithoutLoadingThemUpFront() {
+        Instant t = Instant.parse("2026-11-01T00:00:00Z");
+        when(s3.listObjectsV2Paginator(any(ListObjectsV2Request.class)))
+                .thenAnswer(inv -> new ListObjectsV2Iterable(s3, inv.getArgument(0, ListObjectsV2Request.class)));
+        // 1500 objects over two pages of 1000 and 500
+        List<S3Object> first = IntStream.range(0, 1000).mapToObj(i -> object("diagnoses/u/" + i, t)).toList();
+        List<S3Object> second = IntStream.range(1000, 1500).mapToObj(i -> object("diagnoses/u/" + i, t)).toList();
+        when(s3.listObjectsV2(any(ListObjectsV2Request.class))).thenAnswer(inv -> {
+            ListObjectsV2Request request = inv.getArgument(0);
+            return request.continuationToken() == null
+                    ? ListObjectsV2Response.builder().contents(first).isTruncated(true).nextContinuationToken("t1").build()
+                    : ListObjectsV2Response.builder().contents(second).isTruncated(false).build();
+        });
+
+        List<StoredObject> listed = storage.list("diagnoses/").toList();
+
+        assertThat(listed).hasSize(1500);
+        assertThat(listed.get(0)).isEqualTo(new StoredObject("diagnoses/u/0", t));
+        assertThat(listed.get(1499).key()).isEqualTo("diagnoses/u/1499");
+        ArgumentCaptor<ListObjectsV2Request> requests = ArgumentCaptor.forClass(ListObjectsV2Request.class);
+        verify(s3, times(2)).listObjectsV2(requests.capture());
+        assertThat(requests.getAllValues()).allSatisfy(r -> {
+            assertThat(r.bucket()).isEqualTo("diagnosis-photos");
+            assertThat(r.prefix()).isEqualTo("diagnoses/");
+        });
+        assertThat(requests.getAllValues().get(1).continuationToken()).isEqualTo("t1");
+    }
+
+    @Test
+    void listingAnEmptyPrefixGivesAnEmptyStream() {
+        when(s3.listObjectsV2Paginator(any(ListObjectsV2Request.class)))
+                .thenAnswer(inv -> new ListObjectsV2Iterable(s3, inv.getArgument(0, ListObjectsV2Request.class)));
+        when(s3.listObjectsV2(any(ListObjectsV2Request.class)))
+                .thenReturn(ListObjectsV2Response.builder().isTruncated(false).build());
+
+        assertThat(storage.list("diagnoses/")).isEmpty();
+    }
+
+    @Test
+    void deletesInBatchesOfAThousandAndReportsNothingWhenAllWent() {
+        when(s3.deleteObjects(any(DeleteObjectsRequest.class))).thenReturn(DeleteObjectsResponse.builder().build());
+        List<String> keys = IntStream.range(0, 2500).mapToObj(i -> "diagnoses/u/" + i).toList();
+
+        assertThat(storage.deleteAll(keys)).isEmpty();
+
+        ArgumentCaptor<DeleteObjectsRequest> requests = ArgumentCaptor.forClass(DeleteObjectsRequest.class);
+        verify(s3, times(3)).deleteObjects(requests.capture());
+        assertThat(requests.getAllValues()).extracting(r -> r.delete().objects().size())
+                .containsExactly(1000, 1000, 500);
+        assertThat(requests.getAllValues()).allSatisfy(r -> assertThat(r.bucket()).isEqualTo("diagnosis-photos"));
+    }
+
+    @Test
+    void deleteAllReturnsTheKeysTheStorageRefused() {
+        when(s3.deleteObjects(any(DeleteObjectsRequest.class))).thenReturn(DeleteObjectsResponse.builder()
+                .errors(S3Error.builder().key("diagnoses/u/b").code("AccessDenied").build()).build());
+
+        assertThat(storage.deleteAll(List.of("diagnoses/u/a", "diagnoses/u/b", "diagnoses/u/c")))
+                .containsExactly("diagnoses/u/b");
+    }
+
+    @Test
+    void aFailedBatchCountsAllItsKeysAsFailedAndTheNextBatchStillRuns() {
+        when(s3.deleteObjects(any(DeleteObjectsRequest.class)))
+                .thenThrow(SdkClientException.create("down"))
+                .thenReturn(DeleteObjectsResponse.builder().build());
+        List<String> keys = IntStream.range(0, 1200).mapToObj(i -> "diagnoses/u/" + i).toList();
+
+        List<String> failed = storage.deleteAll(keys);
+
+        assertThat(failed).hasSize(1000).first().isEqualTo("diagnoses/u/0");
+        verify(s3, times(2)).deleteObjects(any(DeleteObjectsRequest.class));
+    }
+
+    @Test
+    void deleteAllOfNothingCallsNothing() {
+        assertThat(storage.deleteAll(List.of())).isEmpty();
+        verify(s3, never()).deleteObjects(any(DeleteObjectsRequest.class));
     }
 }

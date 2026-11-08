@@ -77,6 +77,61 @@ class DiagnosisRepositoryTest {
                 "0".repeat(64));
     }
 
+    private Diagnosis withPhotoKey(String photoKey) {
+        return new Diagnosis(userId, "tomato", photoKey, "ok", "tomato__healthy", new BigDecimal("0.9100"),
+                List.of(new ClassScore("tomato__healthy", 0.91)), null, "placeholder-v0", 1, 12);
+    }
+
+    @Test
+    void findsOnlyThePhotoKeysSomeDiagnosisPointsTo() {
+        String live = "diagnoses/" + userId + "/0b9c4f2e-1111-4222-8333-444455556666.jpg";
+        String otherLive = "diagnoses/" + userId + "/aaaa4f2e-1111-4222-8333-444455556666.png";
+        diagnoses.saveAndFlush(withPhotoKey(live));
+        diagnoses.saveAndFlush(withPhotoKey(otherLive));
+        String orphan = "diagnoses/" + userId + "/ffff4f2e-1111-4222-8333-444455556666.jpg";
+
+        assertThat(diagnoses.findExistingPhotoKeys(List.of(live, orphan, otherLive)))
+                .containsExactlyInAnyOrder(live, otherLive);
+    }
+
+    @Test
+    void comparesPhotoKeysExactlyWithoutAnyNormalisation() {
+        String live = "diagnoses/" + userId + "/abc.jpg";
+        diagnoses.saveAndFlush(withPhotoKey(live));
+
+        assertThat(diagnoses.findExistingPhotoKeys(List.of(
+                live.toUpperCase(),                    // another case is another key
+                live.replace(".jpg", ".png"),          // another extension
+                live.substring(0, live.length() - 1),  // a prefix of a live key
+                " " + live,                            // a stray space
+                "/" + live))).isEmpty();               // a leading slash
+    }
+
+    @Test
+    void anEmptyBatchFindsNothingAndDoesNotAskTheDatabase() {
+        assertThat(diagnoses.findExistingPhotoKeys(List.of())).isEmpty();
+    }
+
+    @Test
+    void aBatchOfFiveHundredKeysIsAnswered() {
+        String live = "diagnoses/" + userId + "/live.jpg";
+        diagnoses.saveAndFlush(withPhotoKey(live));
+        List<String> batch = new java.util.ArrayList<>(
+                java.util.stream.IntStream.range(0, 499).mapToObj(i -> "diagnoses/" + userId + "/n" + i + ".jpg").toList());
+        batch.add(live);
+
+        assertThat(diagnoses.findExistingPhotoKeys(batch)).containsExactly(live);
+    }
+
+    @Test
+    void thePhotoKeyColumnHasAnIndexForTheCleanupLookup() {
+        Object count = em.createNativeQuery(
+                "select count(*) from pg_indexes where tablename = 'diagnoses' and indexname = 'diagnoses_photo_key_idx'")
+                .getSingleResult();
+
+        assertThat(((Number) count).intValue()).isEqualTo(1);
+    }
+
     @Test
     void findsTheDiagnosisByItsOwnersKey() {
         Diagnosis saved = diagnoses.saveAndFlush(withKey(userId, "tomato__healthy", "key-12345678"));
