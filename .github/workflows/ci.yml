@@ -65,12 +65,40 @@ jobs:
       - name: Test
         run: pytest -q
 
+  # Tells which parts of the repository a change touches. The workflow itself always runs, so every required
+  # check reports a status; a job that an `if:` skips counts as passed. (`paths:` on the whole workflow would
+  # leave the required checks pending forever.)
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      ai: ${{ steps.filter.outputs.ai }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4.0.3
+        id: filter
+        with:
+          filters: |
+            ai:
+              - 'services/ai-service/**'
+              - 'infra/**'
+              - '.github/workflows/ci.yml'
+
   # Builds the production image for linux/amd64 (the runner's own platform, the staging target) and checks
   # it starts. Real weights are not in git, so the smoke test runs the placeholder model.
+  # Runs only when ai-service, infra or this workflow changed (see `changes`).
   ai-image:
     name: ai-image
+    needs: changes
+    if: needs.changes.outputs.ai == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      MODEL_VERSION: effnet-b0-v1
     steps:
       - uses: actions/checkout@v7
       - name: Build
@@ -101,11 +129,20 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      # A release is immutable, so the version is the whole key; a new model version means a new key.
+      # The cache is saved only after a successful, checksum-verified fetch.
+      - name: Restore the cached weights
+        id: weights
+        uses: actions/cache@v6.1.0
+        with:
+          path: services/ai-service/ml/weights/${{ env.MODEL_VERSION }}
+          key: model-weights-${{ env.MODEL_VERSION }}
       - name: Fetch the published weights
+        if: steps.weights.outputs.cache-hit != 'true'
         working-directory: services/ai-service
         run: |
           pip install certifi
-          python -m ml.fetch_weights effnet-b0-v1
+          python -m ml.fetch_weights "$MODEL_VERSION"
       - name: Serves the real model (/health)
         run: |
           docker rm -f ai
