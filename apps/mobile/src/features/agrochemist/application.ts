@@ -17,7 +17,14 @@ export const SPECIALIZATIONS: readonly Specialization[] = [
 ]
 
 // Step 1 of the registration. The password lives here only: this store is never saved to the phone.
-export type Account = { fullName: string; login: string; password: string }
+// region: the region picked in the form (optional): its id is sent, its name only lets step 1 show it again
+// when the person comes back from step 2
+export type Account = {
+  fullName: string
+  login: string
+  password: string
+  region?: { id: number; name: string }
+}
 // Step 2.
 export type Qualification = { specializations: Specialization[]; experienceYears: number }
 export type ApplicationDocument = { file: UploadFile; meta: UploadMeta }
@@ -139,6 +146,7 @@ export function createApplicationStore(deps: ApplicationDeps) {
                 role: 'agrochemist',
                 specializations: qualification.specializations,
                 experienceYears: qualification.experienceYears,
+                ...(account!.region && { regionId: account!.region.id }),
               })
             }
           } catch (error) {

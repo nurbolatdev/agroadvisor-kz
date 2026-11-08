@@ -9,9 +9,11 @@ import { StyleSheet, View } from 'react-native'
 import { AppText, Button, Screen, StepHeader } from '@/components/ui'
 import { toFormFailure } from '@/features/auth/errors'
 import { FormField } from '@/features/auth/FormField'
+import { RegionField } from '@/features/auth/RegionField'
 import { RoleCard } from '@/features/auth/RoleCard'
 import { registerSchema, type RegisterForm } from '@/features/auth/schemas'
-import { useApplication, useSession } from '@/services'
+import type { Account } from '@/features/agrochemist/application'
+import { regionsApi, useApplication, useSession } from '@/services'
 import { useSettings } from '@/store/settings'
 import { colors, spacing } from '@/theme/tokens'
 
@@ -20,8 +22,9 @@ type ChosenRole = 'farmer' | 'agrochemist'
 // Screen 03, step 1: who the person is and the account. A farmer registers here. An agrochemist goes on to
 // step 2 (the qualification and the diploma) and registers at the end of it, so that nothing is created
 // before the document is ready to be sent.
-// Differences from the frame: the login (phone or e-mail) stays, the backend needs it; there is no "region"
-// field until the regions exist on the backend (issue #97); a farmer has one step, so no "Step 1 of 2" for them.
+// Differences from the frame: the login (phone or e-mail) stays, the backend needs it; the region is optional
+// (the row opens a sheet with the regions of the backend, and "Do not say" is there too); a farmer has one
+// step, so no "Step 1 of 2" for them.
 export default function RegisterScreen() {
   const { t } = useTranslation()
   const router = useRouter()
@@ -35,6 +38,8 @@ export default function RegisterScreen() {
   // Coming back from step 2 means the person is an agrochemist
   const [role, setRole] = useState<ChosenRole>(saved ? 'agrochemist' : 'farmer')
   const [formError, setFormError] = useState<string | null>(null)
+  // The region is not a text field of the form: it is picked from a list (RegionField)
+  const [region, setRegion] = useState<NonNullable<Account['region']> | null>(saved?.region ?? null)
 
   const { control, handleSubmit, setError, formState } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
@@ -74,6 +79,7 @@ export default function RegisterScreen() {
         fullName: values.fullName.trim(),
         login: values.login.trim(),
         password: values.password,
+        ...(region && { region }),
       })
       router.push('/register-qualification')
       return
@@ -85,6 +91,7 @@ export default function RegisterScreen() {
         password: values.password,
         language,
         role: 'farmer',
+        ...(region && { regionId: region.id }),
       })
     } catch (error) {
       const failure = toFormFailure(error)
@@ -137,6 +144,7 @@ export default function RegisterScreen() {
           textContentType="name"
           autoComplete="name"
         />
+        <RegionField api={regionsApi} language={language} value={region} onChange={setRegion} />
         <FormField
           control={control}
           name="login"
