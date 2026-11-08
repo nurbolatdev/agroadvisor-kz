@@ -1,6 +1,7 @@
 export { AppText } from './AppText'
 export { Badge, type BadgeTone } from './Badge'
 export { Button } from './Button'
+export { Checkbox } from './Checkbox'
 export { Chip } from './Chip'
 export { GlassCard } from './GlassCard'
 export { Input } from './Input'

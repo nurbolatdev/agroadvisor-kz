@@ -60,6 +60,9 @@ export const sizes = {
   logoIcon: 32,
   // the round avatar with the initials on the profile card
   avatar: 56,
+  // the big round mark on the "application sent" screen (frame 03b), and the check in it
+  successMark: 96,
+  successIcon: 40,
 } as const
 
 export const fonts = {
