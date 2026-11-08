@@ -1,8 +1,15 @@
 # ADR 0002: Cleanup of orphaned diagnosis photos (storage compared with the database)
 
-- Status: proposed (to be accepted by the team lead with the pull request)
+- Status: accepted (decision of the team lead; migration V15 and the change of object names approved)
 - Scope: `services/backend`
 - Issue: #69
+
+## Assumptions (there is no production yet)
+
+- One backend instance runs. The advisory lock already covers several.
+- Versioning of the bucket is off, so a deletion is irreversible.
+
+Both are to be checked again at the first deploy to staging or production.
 
 ## Context
 
