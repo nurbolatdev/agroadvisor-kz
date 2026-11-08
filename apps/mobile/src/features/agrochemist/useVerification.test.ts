@@ -1,10 +1,18 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native'
+import { useState } from 'react'
 
 import type { AgrochemistApi, VerificationView } from '@/api/agrochemist'
 import { ApiError, NetworkError } from '@/api/errors'
 import { createMockAgrochemistApi } from '@/api/mock/agrochemist'
+import { createVerificationStore } from '@/store/verification'
 
-import { useVerification } from './useVerification'
+import { useVerificationOf } from './useVerificationOf'
+
+// the hook of the app reads the store of services; here each test makes its own store for its own api
+function useVerification(api: AgrochemistApi) {
+  const [store] = useState(() => createVerificationStore({ api }))
+  return useVerificationOf(store)
+}
 
 const file = { uri: 'file:///cache/d.pdf', name: 'd.pdf', type: 'application/pdf' }
 
@@ -223,9 +231,9 @@ describe('useVerification: concurrent calls', () => {
     expect(result.current.state).toMatchObject({ view: { status: 'approved' } })
   })
 
-  // A protective test only: React 18 does not warn about a state set after unmount, so this shows that
-  // late answers do not throw or break the hook, not that the guard on `mounted` is what holds.
-  it('does not throw when the answers come after the screen is gone', async () => {
+  // The state lives in the store, not in the screen: the answers that come after the screen is gone
+  // are kept for the next screen that reads the store, and nothing throws.
+  it('keeps the answers that come after the screen is gone, for the next screen', async () => {
     const errors = jest.spyOn(console, 'error').mockImplementation(() => undefined)
     const read = deferred<VerificationView>()
     const sent = deferred<typeof document>()
@@ -234,12 +242,12 @@ describe('useVerification: concurrent calls', () => {
       upload: () => sent.promise,
       remove: async () => undefined,
     }
-    const { result, unmount } = await renderHook(() => useVerification(api))
+    const store = createVerificationStore({ api })
+    const { result, unmount } = await renderHook(() => useVerificationOf(store))
     let outcome: Promise<unknown> = Promise.resolve()
     await act(async () => {
       outcome = result.current.upload(file, { kind: 'diploma' })
     })
-    const before = result.current
 
     await unmount()
     await act(async () => {
@@ -248,7 +256,8 @@ describe('useVerification: concurrent calls', () => {
       await outcome
     })
 
-    expect(result.current).toBe(before)
+    expect(store.getState().state).toMatchObject({ status: 'ready', view: { status: 'pending' } })
+    expect(store.getState().uploading).toBe(false)
     expect(errors).not.toHaveBeenCalled()
     errors.mockRestore()
   })

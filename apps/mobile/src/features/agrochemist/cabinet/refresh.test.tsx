@@ -48,6 +48,7 @@ jest.mock('@/features/agrochemist/chooseDocument', () => ({
 }))
 jest.mock('@/services', () => {
   const api = { verification: jest.fn(), upload: jest.fn(), remove: jest.fn() }
+  const store = jest.requireActual('@/store/verification').createVerificationStore({ api })
   const useProfile = (select?: (s: object) => unknown) => {
     const state = { roles: mockRoles, me: mockMe, phase: 'ready', error: null }
     return select ? select(state) : state
@@ -55,13 +56,18 @@ jest.mock('@/services', () => {
   useProfile.getState = () => ({ load: jest.fn() })
   return {
     __api: api,
+    __store: store,
     agrochemistApi: api,
+    useVerificationStore: store,
     useProfile,
     useSession: (select: (s: object) => unknown) => select({ logout: jest.fn() }),
   }
 })
 
-const api = (jest.requireMock('@/services') as { __api: Record<string, jest.Mock> }).__api
+const { __api: api, __store: store } = jest.requireMock('@/services') as {
+  __api: Record<string, jest.Mock>
+  __store: { getState: () => { reset: () => void } }
+}
 
 const document = {
   file: { uri: 'file:///d.pdf', name: 'd.pdf', type: 'application/pdf' },
@@ -99,6 +105,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  store.getState().reset()
   mockFocusEffects.length = 0
   mockRoles = ['agrochemist']
   mockChoose.mockResolvedValue({ status: 'chosen', document })

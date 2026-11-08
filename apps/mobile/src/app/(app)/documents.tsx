@@ -1,5 +1,5 @@
 import { Redirect, useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native'
 
@@ -13,7 +13,6 @@ import { PROBLEM_PARAMS } from '@/features/agrochemist/documentRules'
 import { MissingDocumentScreen } from '@/features/agrochemist/MissingDocumentScreen'
 import { useVerification } from '@/features/agrochemist/useVerification'
 import { mapVerificationStatus } from '@/features/agrochemist/verificationStatus'
-import { agrochemistApi } from '@/services'
 import { colors, spacing } from '@/theme/tokens'
 
 // What the upload screen says for each state: after a refusal the document is sent again, while the check
@@ -40,9 +39,15 @@ export default function DocumentsScreen() {
 function AgrochemistDocuments() {
   const { t } = useTranslation()
   const router = useRouter()
-  const verification = useVerification(agrochemistApi)
+  const verification = useVerification()
   const [removeProblem, setRemoveProblem] = useState<UploadProblem | null>(null)
-  const { state, reload } = verification
+  const { state, reload, refresh } = verification
+
+  // The state may have changed since the last read (an administrator decided while the profile was open), so
+  // the screen reads it again as it opens; the list on the screen stays until the answer comes.
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'))
 

@@ -7,6 +7,8 @@ type Stores = {
   history: { reset: () => void }
   // the profile read from the server; its answer also saves the roles on the phone
   profile: { reset: () => void; load: () => Promise<void> }
+  // the check of an agrochemist and its documents
+  verification: { reset: () => void }
 }
 
 // Another farmer may sign in on the same phone. When the user changes (a sign-out or another sign-in),
@@ -19,6 +21,7 @@ export function onUserChange(state: Session, previous: Session, stores: Stores):
     stores.diagnosis.clearAnswers()
     stores.history.reset()
     stores.profile.reset()
+    stores.verification.reset()
   }
   stores.diagnosis.restore()
   // A sign-in or a registration is online, so the profile is asked for at once: its answer saves the roles

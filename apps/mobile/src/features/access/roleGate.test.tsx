@@ -42,6 +42,16 @@ jest.mock('@/services', () => {
       currentUser: () => 'u1',
     }),
     useSession: (select: (s: object) => unknown) => select({ logout: () => mockLogout() }),
+    // the check of an agrochemist is not what these tests are about: its read fails, as with no connection
+    useVerificationStore: jest.requireActual('@/store/verification').createVerificationStore({
+      api: {
+        verification: async () => {
+          throw new Error('not under test')
+        },
+        upload: jest.fn(),
+        remove: jest.fn(),
+      },
+    }),
   }
 })
 

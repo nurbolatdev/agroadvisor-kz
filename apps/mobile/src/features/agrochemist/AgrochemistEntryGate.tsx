@@ -3,7 +3,7 @@ import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native'
 
 import { Screen } from '@/components/ui'
 import { hasAgrochemistRole } from '@/features/access/roles'
-import { agrochemistApi, useProfile, useSession } from '@/services'
+import { useProfile, useSession } from '@/services'
 import { colors } from '@/theme/tokens'
 
 import { MissingDocumentScreen } from './MissingDocumentScreen'
@@ -42,7 +42,7 @@ export function AgrochemistEntryGate({ children }: { children: ReactNode }) {
 }
 
 function VerificationCover({ onCovered }: { onCovered: (covered: boolean) => void }) {
-  const verification = useVerification(agrochemistApi)
+  const verification = useVerification()
   const logout = useSession((s) => s.logout)
   const { state, reload } = verification
   const [waited, setWaited] = useState(false)
