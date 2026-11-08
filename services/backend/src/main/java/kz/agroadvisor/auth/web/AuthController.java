@@ -50,13 +50,14 @@ public class AuthController {
                     description = "Lower case, like the roles in MeResponse; another case is 400 validation_failed")
             String role,
             @Size(max = 4)
-            @ArraySchema(arraySchema = @Schema(nullable = true, description = "Agrochemist only: fields of work, up "
-                    + "to four different values. Another value, a duplicate, or any value for a farmer is 400 "
-                    + "invalid_profile_fields"),
+            @ArraySchema(arraySchema = @Schema(nullable = true, description = "Required for an agrochemist (at "
+                    + "least one), not allowed for a farmer: fields of work, up to four different values. A "
+                    + "missing or unknown value, a duplicate, or any value for a farmer is 400 invalid_profile_fields"),
                     schema = @Schema(allowableValues = {"plant_protection", "agrochemistry", "phytopathology",
                         "soil_science"}))
             List<String> specializations,
-            @Min(0) @Max(80) @Schema(nullable = true, description = "Agrochemist only: years of experience, 0-80")
+            @Min(0) @Max(80) @Schema(nullable = true, description = "Required for an agrochemist, not allowed for a farmer: years of "
+                    + "experience, 0-80 (missing is 400 invalid_profile_fields)")
             Integer experienceYears) {
     }
 

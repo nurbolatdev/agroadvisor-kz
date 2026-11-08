@@ -75,12 +75,31 @@ class AuthFlowIntegrationTest {
     }
 
     @Test
-    void anAgrochemistWithoutTheOptionalFieldsHasNoSpecializationsAndNoExperience() throws Exception {
-        Session s = register(newPhone(), "agrochemist");
+    void theSpecializationsAreReturnedInTheOrderOfTheEnumWhateverTheOrderOfTheRequest() throws Exception {
+        MvcResult r = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                .content(agrochemistBody(newPhone(), "\"specializations\":[\"soil_science\",\"plant_protection\"],"
+                        + "\"experienceYears\":0"))).andExpect(status().isCreated()).andReturn();
 
-        mvc.perform(get("/api/agrochemist/verification").header("Authorization", "Bearer " + s.access()))
-                .andExpect(jsonPath("$.specializations").isEmpty())
-                .andExpect(jsonPath("$.experienceYears").value(org.hamcrest.Matchers.nullValue()));
+        mvc.perform(get("/api/agrochemist/verification").header("Authorization", "Bearer " + read(r, "accessToken")))
+                .andExpect(jsonPath("$.specializations[0]").value("plant_protection"))
+                .andExpect(jsonPath("$.specializations[1]").value("soil_science"))
+                .andExpect(jsonPath("$.experienceYears").value(0));
+    }
+
+    @Test
+    void anAgrochemistMustGiveAtLeastOneSpecializationAndTheExperience() throws Exception {
+        record Case(String extra) {
+        }
+        for (Case c : List.of(
+                new Case(""),
+                new Case("\"experienceYears\":5"),
+                new Case("\"specializations\":[],\"experienceYears\":5"),
+                new Case("\"specializations\":[\"agrochemistry\"]"))) {
+            String phone = newPhone();
+            expectPost("/api/auth/register", agrochemistBody(phone, c.extra()), 400, "invalid_profile_fields");
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM users WHERE phone = ?", Integer.class, phone))
+                    .as("[" + c.extra() + "]").isZero();
+        }
     }
 
     @Test
@@ -88,12 +107,14 @@ class AuthFlowIntegrationTest {
         record Case(String extra, String code) {
         }
         for (Case c : List.of(
-                new Case("\"specializations\":[\"astrology\"]", "invalid_profile_fields"),
-                new Case("\"specializations\":[\"agrochemistry\",\"agrochemistry\"]", "invalid_profile_fields"),
+                new Case("\"specializations\":[\"astrology\"],\"experienceYears\":5", "invalid_profile_fields"),
+                new Case("\"specializations\":[\"Agrochemistry\"],\"experienceYears\":5", "invalid_profile_fields"),
+                new Case("\"specializations\":[\"agrochemistry\",\"agrochemistry\"],\"experienceYears\":5",
+                        "invalid_profile_fields"),
                 new Case("\"specializations\":[\"plant_protection\",\"agrochemistry\",\"phytopathology\","
-                        + "\"soil_science\",\"agrochemistry\"]", "validation_failed"),
-                new Case("\"experienceYears\":81", "validation_failed"),
-                new Case("\"experienceYears\":-1", "validation_failed"))) {
+                        + "\"soil_science\",\"agrochemistry\"],\"experienceYears\":5", "validation_failed"),
+                new Case("\"specializations\":[\"agrochemistry\"],\"experienceYears\":81", "validation_failed"),
+                new Case("\"specializations\":[\"agrochemistry\"],\"experienceYears\":-1", "validation_failed"))) {
             String phone = newPhone();
             expectPost("/api/auth/register", agrochemistBody(phone, c.extra()), 400, c.code());
             assertThat(jdbc.queryForObject("SELECT count(*) FROM users WHERE phone = ?", Integer.class, phone))
@@ -479,8 +500,11 @@ class AuthFlowIntegrationTest {
     }
 
     private static String body(String login, String password, String role) {
+        // An agrochemist has to give the specializations and the experience
+        String profile = role.equals("agrochemist")
+                ? ",\"specializations\":[\"plant_protection\"],\"experienceYears\":3" : "";
         return "{\"login\":\"" + login + "\",\"password\":\"" + password + "\",\"fullName\":\"Test User\",\"role\":\""
-                + role + "\"}";
+                + role + "\"" + profile + "}";
     }
 
     private static String loginBody(String login, String password) {

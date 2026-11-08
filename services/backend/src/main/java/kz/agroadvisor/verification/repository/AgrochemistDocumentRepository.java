@@ -8,6 +8,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import kz.agroadvisor.verification.model.Specialization;
+import kz.agroadvisor.verification.model.SpecializationsConverter;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -42,9 +45,11 @@ public class AgrochemistDocumentRepository {
             instant(rs, "reviewed_at"), rs.getObject("reviewed_by", UUID.class), rs.getString("rejection_reason"),
             codes(rs.getString("specialization")), nullableInt(rs, "experience_years"));
 
-    /** The column keeps the codes joined by commas; empty or missing means none. */
+    private static final SpecializationsConverter SPECIALIZATIONS = new SpecializationsConverter();
+
+    /** The codes in the order of the enum; the column's own format stays inside the converter. */
     private static List<String> codes(String stored) {
-        return stored == null || stored.isBlank() ? List.of() : List.of(stored.split(","));
+        return SPECIALIZATIONS.convertToEntityAttribute(stored).stream().map(Specialization::code).toList();
     }
 
     private final JdbcTemplate jdbc;

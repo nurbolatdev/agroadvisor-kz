@@ -639,7 +639,7 @@ export interface components {
         RegisterRequest: {
             /**
              * Format: int32
-             * @description Agrochemist only: years of experience, 0-80
+             * @description Required for an agrochemist, not allowed for a farmer: years of experience, 0-80 (missing is 400 invalid_profile_fields)
              */
             experienceYears?: number | null;
             fullName: string;
@@ -652,7 +652,7 @@ export interface components {
              * @enum {string}
              */
             role?: "farmer" | "agrochemist";
-            /** @description Agrochemist only: fields of work, up to four different values. Another value, a duplicate, or any value for a farmer is 400 invalid_profile_fields */
+            /** @description Required for an agrochemist (at least one), not allowed for a farmer: fields of work, up to four different values. A missing or unknown value, a duplicate, or any value for a farmer is 400 invalid_profile_fields */
             specializations?: ("plant_protection" | "agrochemistry" | "phytopathology" | "soil_science")[];
         };
         SummaryView: {

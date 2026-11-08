@@ -1,9 +1,9 @@
 package kz.agroadvisor.verification.service;
 
-import java.util.HashSet;
+import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import kz.agroadvisor.common.web.ApiException;
+import kz.agroadvisor.verification.model.Specialization;
+import kz.agroadvisor.verification.model.SpecializationsConverter;
 
 /**
  * Verification status of agrochemists. The status lives in {@code agrochemist_profiles}, not in the
@@ -30,38 +32,53 @@ public class AgrochemistVerificationService {
         this.jdbc = jdbc;
     }
 
-    /** What an agrochemist can name as the field of work at registration; the app shows a label per code. */
-    public static final Set<String> SPECIALIZATIONS =
-            Set.of("plant_protection", "agrochemistry", "phytopathology", "soil_science");
-
-    /** The most specializations one profile can have (the column holds up to 160 characters). */
-    public static final int MAX_SPECIALIZATIONS = 4;
+    /** The most specializations one profile can have: all of them. */
+    public static final int MAX_SPECIALIZATIONS = Specialization.values().length;
 
     /** The most years of experience the column accepts (a database check, V3). */
     public static final int MAX_EXPERIENCE_YEARS = 80;
 
+    private static final SpecializationsConverter SPECIALIZATIONS = new SpecializationsConverter();
+
+    /** What an agrochemist gives at registration; checked as a whole before anything is written. */
+    public record ProfileFields(Set<Specialization> specializations, int experienceYears) {
+    }
+
     /**
-     * Checks the optional profile fields of a registration before anything is written. Both are optional for an
-     * agrochemist and not allowed for anyone else.
+     * Checks the profile fields of a registration before anything is written. An agrochemist must give at least
+     * one specialization (different, from the known ones) and the years of experience (0-80); a farmer must give
+     * neither.
+     *
+     * @return the checked fields for an agrochemist, {@code null} for a farmer
      */
-    public void validateProfileFields(boolean agrochemist, List<String> specializations, Integer experienceYears) {
+    public ProfileFields validateProfileFields(boolean agrochemist, List<String> specializations,
+            Integer experienceYears) {
         boolean sent = (specializations != null && !specializations.isEmpty()) || experienceYears != null;
-        if (!sent) {
-            return;
-        }
         if (!agrochemist) {
-            throw invalidFields("Specializations and experience are only for an agrochemist");
+            if (sent) {
+                throw invalidFields("Specializations and experience are only for an agrochemist");
+            }
+            return null;
         }
-        if (specializations != null) {
-            if (specializations.size() > MAX_SPECIALIZATIONS || new HashSet<>(specializations).size() != specializations.size()
-                    || !SPECIALIZATIONS.containsAll(specializations)) {
-                throw invalidFields("Specializations must be up to " + MAX_SPECIALIZATIONS
-                        + " different values of " + new TreeSet<>(SPECIALIZATIONS));
+        if (specializations == null || specializations.isEmpty()) {
+            throw invalidFields("Give at least one specialization");
+        }
+        if (experienceYears == null) {
+            throw invalidFields("Give the years of experience");
+        }
+        Set<Specialization> parsed = EnumSet.noneOf(Specialization.class);
+        for (String code : specializations) {
+            Specialization s = Specialization.fromCode(code).orElseThrow(() -> invalidFields(
+                    "Unknown specialization, the known ones are "
+                            + Arrays.stream(Specialization.values()).map(Specialization::code).toList()));
+            if (!parsed.add(s)) {
+                throw invalidFields("Each specialization can be given once");
             }
         }
-        if (experienceYears != null && (experienceYears < 0 || experienceYears > MAX_EXPERIENCE_YEARS)) {
+        if (experienceYears < 0 || experienceYears > MAX_EXPERIENCE_YEARS) {
             throw invalidFields("Experience must be between 0 and " + MAX_EXPERIENCE_YEARS + " years");
         }
+        return new ProfileFields(parsed, experienceYears);
     }
 
     private static ApiException invalidFields(String message) {
@@ -70,10 +87,9 @@ public class AgrochemistVerificationService {
 
     /** Creates the profile with status {@code pending}; documents are uploaded later. */
     @Transactional
-    public void createPendingProfile(UUID userId, List<String> specializations, Integer experienceYears) {
-        String stored = specializations == null || specializations.isEmpty() ? null : String.join(",", specializations);
+    public void createPendingProfile(UUID userId, ProfileFields fields) {
         jdbc.update("INSERT INTO agrochemist_profiles (user_id, specialization, experience_years) VALUES (?, ?, ?)",
-                userId, stored, experienceYears);
+                userId, SPECIALIZATIONS.convertToDatabaseColumn(fields.specializations()), fields.experienceYears());
     }
 
     @Transactional(readOnly = true)

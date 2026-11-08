@@ -59,7 +59,8 @@ public class AuthService {
             List<String> specializations, Integer experienceYears) {
         Login login = parseLogin(rawLogin, HttpStatus.BAD_REQUEST, INVALID_LOGIN);
         Role role = selfAssignableRole(roleName);
-        verification.validateProfileFields(role == Role.AGROCHEMIST, specializations, experienceYears);
+        var profileFields = verification.validateProfileFields(role == Role.AGROCHEMIST, specializations,
+                experienceYears);
         if (password.getBytes(StandardCharsets.UTF_8).length > BCRYPT_MAX_BYTES) {
             throw new ApiException(HttpStatus.BAD_REQUEST, PASSWORD_TOO_LONG,
                     "Password must be at most " + BCRYPT_MAX_BYTES + " bytes");
@@ -68,7 +69,7 @@ public class AuthService {
                 language == null ? "ru" : language, Set.of(role));
         if (role == Role.AGROCHEMIST) {
             // Tokens are issued right away so documents can be uploaded; privileges wait for approval
-            verification.createPendingProfile(user.getId(), specializations, experienceYears);
+            verification.createPendingProfile(user.getId(), profileFields);
         }
         return issueTokens(user.getId(), refreshTokens.startSession(user.getId()));
     }
