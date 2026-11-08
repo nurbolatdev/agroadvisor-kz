@@ -40,13 +40,23 @@ public class UserService {
 
     @Transactional
     public User create(Login login, String passwordHash, String fullName, String language, Set<Role> roles) {
+        return create(login, passwordHash, fullName, language, roles, null);
+    }
+
+    /** {@code regionId} is the region picked at registration, or null; the caller checks that it exists. */
+    @Transactional
+    public User create(Login login, String passwordHash, String fullName, String language, Set<Role> roles,
+            Long regionId) {
         if (findByLogin(login).isPresent()) {
             throw loginTaken();
         }
         try {
-            return users.saveAndFlush(new User(login, passwordHash, fullName, language, roles));
+            User user = new User(login, passwordHash, fullName, language, roles);
+            user.assignRegion(regionId);
+            return users.saveAndFlush(user);
         } catch (DataIntegrityViolationException e) {
-            // Lost a race with a parallel registration of the same login
+            // Lost a race with a parallel registration of the same login. (The region was checked by the caller;
+            // regions are never deleted, so its foreign key cannot be what failed here.)
             throw loginTaken();
         }
     }

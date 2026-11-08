@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
+import kz.agroadvisor.catalog.service.RegionService;
 import kz.agroadvisor.common.web.ApiException;
 import kz.agroadvisor.users.model.Login;
 import kz.agroadvisor.users.model.Role;
@@ -26,6 +27,7 @@ public class AuthService {
     public static final String ROLE_NOT_ALLOWED = "role_not_allowed";
     public static final String PASSWORD_TOO_LONG = "password_too_long";
     public static final String ACCOUNT_BLOCKED = "account_blocked";
+    public static final String INVALID_REGION = "invalid_region";
 
     /** BCrypt ignores everything after 72 bytes, so longer passwords are refused instead of truncated. */
     private static final int BCRYPT_MAX_BYTES = 72;
@@ -34,15 +36,17 @@ public class AuthService {
     private static final Set<Role> SELF_ASSIGNABLE = Set.of(Role.FARMER, Role.AGROCHEMIST);
 
     private final UserService users;
+    private final RegionService regions;
     private final AgrochemistVerificationService verification;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwt;
     private final RefreshTokenService refreshTokens;
     private final String dummyHash;
 
-    public AuthService(UserService users, AgrochemistVerificationService verification,
+    public AuthService(UserService users, RegionService regions, AgrochemistVerificationService verification,
                        PasswordEncoder passwordEncoder, JwtService jwt, RefreshTokenService refreshTokens) {
         this.users = users;
+        this.regions = regions;
         this.verification = verification;
         this.passwordEncoder = passwordEncoder;
         this.jwt = jwt;
@@ -56,7 +60,7 @@ public class AuthService {
 
     @Transactional
     public Tokens register(String rawLogin, String password, String fullName, String language, String roleName,
-            List<String> specializations, Integer experienceYears) {
+            List<String> specializations, Integer experienceYears, Long regionId) {
         Login login = parseLogin(rawLogin, HttpStatus.BAD_REQUEST, INVALID_LOGIN);
         Role role = selfAssignableRole(roleName);
         var profileFields = verification.validateProfileFields(role == Role.AGROCHEMIST, specializations,
@@ -65,8 +69,12 @@ public class AuthService {
             throw new ApiException(HttpStatus.BAD_REQUEST, PASSWORD_TOO_LONG,
                     "Password must be at most " + BCRYPT_MAX_BYTES + " bytes");
         }
+        // the only check that asks the database comes after the cheap ones, right before the user is made
+        if (regionId != null && !regions.exists(regionId)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, INVALID_REGION, "Unknown region: " + regionId);
+        }
         User user = users.create(login, passwordEncoder.encode(password), fullName.trim(),
-                language == null ? "ru" : language, Set.of(role));
+                language == null ? "ru" : language, Set.of(role), regionId);
         if (role == Role.AGROCHEMIST) {
             // Tokens are issued right away so documents can be uploaded; privileges wait for approval
             verification.createPendingProfile(user.getId(), profileFields);

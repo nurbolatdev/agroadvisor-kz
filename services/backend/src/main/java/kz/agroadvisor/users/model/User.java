@@ -50,6 +50,10 @@ public class User {
     @Convert(converter = RoleConverter.class)
     private Set<Role> roles = new HashSet<>();
 
+    /** The region picked at registration; null when none was picked (the id of {@code regions}). */
+    @Column(name = "region_id")
+    private Long regionId;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
 
@@ -72,6 +76,15 @@ public class User {
 
     public UUID getId() {
         return id;
+    }
+
+    public Long getRegionId() {
+        return regionId;
+    }
+
+    /** The caller checks that the region exists. */
+    public void assignRegion(Long regionId) {
+        this.regionId = regionId;
     }
 
     public String getPhone() {

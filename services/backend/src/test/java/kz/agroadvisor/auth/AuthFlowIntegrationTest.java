@@ -160,6 +160,56 @@ class AuthFlowIntegrationTest {
                 .andExpect(jsonPath("$.roles[0]").value("farmer"));
     }
 
+    private long regionId(String code) {
+        return jdbc.queryForObject("SELECT id FROM regions WHERE code = ?", Long.class, code);
+    }
+
+    private String withRegion(String role, String login, Object regionId) {
+        String profile = role.equals("agrochemist")
+                ? ",\"specializations\":[\"plant_protection\"],\"experienceYears\":3" : "";
+        return "{\"login\":\"" + login + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Test User\",\"role\":\""
+                + role + "\"" + profile + ",\"regionId\":" + regionId + "}";
+    }
+
+    @Test
+    void aFarmerAndAnAgrochemistCanPickARegionAndSeeItInTheProfile() throws Exception {
+        for (String role : new String[] {"farmer", "agrochemist"}) {
+            long akmola = regionId("akmola");
+            MvcResult r = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                    .content(withRegion(role, newPhone(), akmola))).andExpect(status().isCreated()).andReturn();
+
+            mvc.perform(get("/api/users/me").header("Authorization", "Bearer " + read(r, "accessToken")))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.regionId").value(akmola));
+        }
+    }
+
+    @Test
+    void theRegionIsOptional_withoutOneTheProfileSaysNull() throws Exception {
+        Session s = register(newPhone(), "farmer");
+
+        mvc.perform(get("/api/users/me").header("Authorization", "Bearer " + s.access()))
+                .andExpect(jsonPath("$.regionId").value(org.hamcrest.Matchers.nullValue()));
+        // an explicit null is the same as none
+        expectPost("/api/auth/register", withRegion("farmer", newPhone(), "null"), 201, null);
+    }
+
+    @Test
+    void anUnknownRegionIsRefusedAndNoUserIsCreated() throws Exception {
+        String phone = newPhone();
+
+        expectPost("/api/auth/register", withRegion("farmer", phone, 999_999), 400, "invalid_region");
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM users WHERE phone = ?", Integer.class, phone))
+                .isZero();
+    }
+
+    @Test
+    void aRegionIdThatIsNotPositiveOrNotANumberIsAValidationError() throws Exception {
+        expectPost("/api/auth/register", withRegion("farmer", newPhone(), 0), 400, "validation_failed");
+        expectPost("/api/auth/register", withRegion("farmer", newPhone(), -5), 400, "validation_failed");
+        expectPost("/api/auth/register", withRegion("farmer", newPhone(), "\"akmola\""), 400, null);    }
+
     @Test
     void phoneIsNormalizedAndDuplicatesAreRejected() throws Exception {
         register("8 701 555 00 01", "farmer");

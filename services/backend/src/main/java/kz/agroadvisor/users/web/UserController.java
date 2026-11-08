@@ -50,7 +50,7 @@ public class UserController {
 
     private static MeResponse toResponse(User user) {
         return new MeResponse(user.getId(), user.getPhone(), user.getEmail(), user.getFullName(),
-                user.getLanguage(), user.getRoles().stream().map(Role::code).sorted().toList());
+                user.getLanguage(), user.getRoles().stream().map(Role::code).sorted().toList(), user.getRegionId());
     }
 
     /** What a person may change about themselves: the language, for now. */
@@ -66,6 +66,8 @@ public class UserController {
             @Schema(requiredMode = REQUIRED) String fullName,
             @Schema(requiredMode = REQUIRED, allowableValues = {"ru", "kk", "en"}) String language,
             @ArraySchema(schema = @Schema(allowableValues = {"farmer", "agrochemist", "admin"}))
-            @Schema(requiredMode = REQUIRED) List<String> roles) {
+            @Schema(requiredMode = REQUIRED) List<String> roles,
+            @Schema(nullable = true, description = "The id of the region picked at registration (see "
+                    + "GET /api/regions); null when none was picked") Long regionId) {
     }
 }
