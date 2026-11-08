@@ -111,6 +111,7 @@ export const en: Translation = {
     home: 'Home',
     community: 'Community',
     camera: 'Diagnose by photo',
+    requests: 'Requests',
     chats: 'Chats',
     profile: 'Profile',
   },
@@ -170,9 +171,64 @@ export const en: Translation = {
     // an application that was started and not finished: the account exists, the document was never sent
     missing: {
       title: 'Application not finished',
-      hint: 'The document was not sent. Until it is, an administrator cannot check your profile and farmers cannot see you.',
+      hint: 'There is no document in your application. Until there is one, an administrator cannot check your profile and farmers cannot see you.',
       action: 'Upload a diploma or certificate',
       submit: 'Send the document',
+    },
+    // the requests tab (frames 22a-22c); the counters, the rating and the switch of the frames come with the
+    // requests (M14), they are not drawn before
+    cabinet: {
+      greeting: 'Hello, {{name}}',
+      subtitle: 'Agrochemist profile',
+      qualified: 'Qualification confirmed',
+      // the notice of frame 22a (its own words, not the short status of the profile)
+      pending: {
+        title: 'Profile under review',
+        hint: 'Farmers will see you after your documents are confirmed — usually 1–2 working days.',
+      },
+      checkStatus: 'Check the status',
+      checkStatusLink: 'Check the status →',
+      timeline: {
+        title: 'Application status',
+        sent: 'Application sent · {{date}}',
+        review: 'Document check',
+        published: 'Profile published',
+        // told to a screen reader: a step is a mark on the screen, so its state is also said in words
+        done: 'done',
+        current: 'now',
+        todo: 'next',
+      },
+      requestsTitle: 'Farmers’ requests',
+      locked: { title: 'Available after the check', hint: 'Farmers’ requests will appear here' },
+      newRequests: 'New requests',
+      noRequests: { title: 'No requests yet', hint: 'Farmers’ requests will appear here' },
+      reason: 'Reason: {{reason}}',
+      reuploadAction: 'Upload the document again',
+      notAvailable: 'Farmers’ requests will be available after your documents are confirmed',
+      add: {
+        title: 'Add a document',
+        hint: 'Your application is waiting for the check. A document you add is checked with it.',
+      },
+      requested: {
+        title: 'Add a document',
+        hint: 'An administrator asked for more documents. Add them and the application is checked again.',
+      },
+      reupload: {
+        title: 'Upload the document again',
+        hint: 'An administrator will check the document again, usually within 1–2 working days.',
+      },
+    },
+    // the profile of an agrochemist (frame 21a)
+    profile: {
+      experience: 'experience',
+      // English has two forms; the unused ones keep the key sets of the languages equal
+      years_one: '{{n}} year',
+      years_few: '{{n}} years',
+      years_many: '{{n}} years',
+      years_other: '{{n}} years',
+      documents: 'Documents',
+      documentsChecked: 'Checked',
+      specialization: 'Specialization',
     },
     reasonLabel: 'Reason',
     documents: {
@@ -183,6 +239,15 @@ export const en: Translation = {
       takePhoto: 'Take a photo',
       fromGallery: 'From the gallery',
       remove: 'Remove',
+      listTitle: 'Documents of the application',
+      locked: 'The documents of an approved profile cannot be changed',
+      confirmRemove: {
+        title: 'Remove the document?',
+        message: 'The document will be removed from the application.',
+        messageLast:
+          'This is the only document. Without it the application is not finished and a new one has to be uploaded.',
+        cancel: 'Cancel',
+      },
       uploading: 'Uploading…',
     },
     errors: {
