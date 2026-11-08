@@ -185,10 +185,12 @@ describe('signing out', () => {
     await session.getState().register(other)
 
     expect(session.getState().userId).not.toBe(firstId)
-    // nothing is carried over: the history and the profile are asked for again
+    // nothing is carried over: the history is empty and the profile is asked for again, by the sign-in itself
+    // (its answer saves the roles of the new person on the phone)
     expect(history.getState().items).toEqual([])
-    expect(profile.getState().me).toBeNull()
-    await profile.getState().load()
+    await new Promise((resolve) => setImmediate(resolve))
+    expect(profile.getState().phase).toBe('ready')
+    expect(profile.getState().me).not.toBeNull()
     expect(usersApi.me).toHaveBeenCalledTimes(2)
     // and the language is still the one of the phone
     expect(useSettings.getState().language).toBe('kk')
