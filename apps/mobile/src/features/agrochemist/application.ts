@@ -39,6 +39,8 @@ type ApplicationState = {
   setAccount: (account: Account) => void
   setQualification: (qualification: Qualification) => void
   setDocument: (document: ApplicationDocument | null) => void
+  // The screen has shown the failure (for example by taking the person back to the field it is about)
+  clearFailure: () => void
   // Registers (once) and then sends the document. Safe to press again: see the rules at the top of the store.
   submit: () => Promise<SubmitResult>
   // The person left the "application sent" screen: the app opens.
@@ -85,6 +87,7 @@ export function createApplicationStore(deps: ApplicationDeps) {
     setAccount: (account) => set({ account }),
     setQualification: (qualification) => set({ qualification }),
     setDocument: (document) => set({ document }),
+    clearFailure: () => set({ failure: null }),
 
     async submit() {
       if (working) return 'busy'

@@ -1,17 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useRouter } from 'expo-router'
 import { FlaskConical, Sprout } from 'lucide-react-native'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { StyleSheet, View } from 'react-native'
 
-import { AppText, Button, Screen } from '@/components/ui'
+import { AppText, Button, Screen, StepHeader } from '@/components/ui'
 import { toFormFailure } from '@/features/auth/errors'
 import { FormField } from '@/features/auth/FormField'
 import { RoleCard } from '@/features/auth/RoleCard'
 import { registerSchema, type RegisterForm } from '@/features/auth/schemas'
-import { StepHeader } from '@/features/auth/StepHeader'
 import { useApplication, useSession } from '@/services'
 import { useSettings } from '@/store/settings'
 import { colors, spacing } from '@/theme/tokens'
@@ -30,7 +29,9 @@ export default function RegisterScreen() {
   const language = useSettings((s) => s.language)
   const setAccount = useApplication((s) => s.setAccount)
   const saved = useApplication((s) => s.account)
-  const [role, setRole] = useState<ChosenRole>('farmer')
+  const failure = useApplication((s) => s.failure)
+  // Coming back from step 2 means the person is an agrochemist
+  const [role, setRole] = useState<ChosenRole>(saved ? 'agrochemist' : 'farmer')
   const [formError, setFormError] = useState<string | null>(null)
 
   const { control, handleSubmit, setError, formState } = useForm<RegisterForm>({
@@ -43,6 +44,17 @@ export default function RegisterScreen() {
       password: saved?.password ?? '',
     },
   })
+
+  // Step 2 sent the person back because the account was refused for a field of this step (the login is taken,
+  // the password is not accepted): the message goes under that field.
+  useEffect(() => {
+    if (failure?.stage !== 'register') return
+    const refused = toFormFailure(failure.error)
+    if (refused.field === 'login' || refused.field === 'password') {
+      setError(refused.field, { message: refused.messageKey })
+      useApplication.getState().clearFailure()
+    }
+  }, [failure, setError])
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/login'))
 

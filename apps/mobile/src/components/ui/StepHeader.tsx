@@ -1,8 +1,10 @@
 import { ChevronLeft } from 'lucide-react-native'
 import { Pressable, StyleSheet, View } from 'react-native'
 
-import { AppText, ProgressBar } from '@/components/ui'
 import { colors, sizes, spacing } from '@/theme/tokens'
+
+import { AppText } from './AppText'
+import { ProgressBar } from './ProgressBar'
 
 type Props = {
   title: string

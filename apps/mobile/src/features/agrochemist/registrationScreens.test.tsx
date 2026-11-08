@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
+import { ApiError, NetworkError } from '@/api/errors'
 import ApplicationSentScreen from '@/app/(auth)/register-sent'
 import QualificationScreen from '@/app/(auth)/register-qualification'
 import RegisterScreen from '@/app/(auth)/register'
@@ -125,6 +126,24 @@ describe('registration, step 1 (frame 03)', () => {
     })
   })
 
+  it('coming back with a taken login shows it under the login field, keeps the rest and forgets the failure', async () => {
+    const store = services.useApplication.getState()
+    store.setAccount({ fullName: 'Aigul', login: '+77001112233', password: 'secret-pass-1' })
+    // what step 2 leaves when the server says the login is taken
+    services.useApplication.setState({
+      failure: { stage: 'register', error: new ApiError(409, 'login_taken', 'taken') },
+    })
+
+    await render(<RegisterScreen />)
+
+    expect(await screen.findByText('This phone or e-mail is already taken')).toBeTruthy()
+    expect(screen.getByLabelText('Phone or e-mail').props.value).toBe('+77001112233')
+    expect(
+      screen.getByRole('radio', { name: /Agrochemist/ }).props.accessibilityState.selected,
+    ).toBe(true)
+    expect(services.useApplication.getState().failure).toBeNull()
+  })
+
   it('does not go on with an empty form', async () => {
     await render(<RegisterScreen />)
     await fireEvent.press(screen.getByRole('radio', { name: /Agrochemist/ }))
@@ -148,6 +167,37 @@ describe('registration, step 2 (frame 03a)', () => {
     await fireEvent.press(await screen.findByRole('button', { name: 'Choose a PDF' }))
     await screen.findByText('diploma.pdf')
   }
+
+  it('a taken login takes the person back to step 1 and no document is sent', async () => {
+    withAccount()
+    services.__deps.register.mockRejectedValueOnce(new ApiError(409, 'login_taken', 'taken'))
+    await render(<QualificationScreen />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Agrochemistry' }))
+    await fireEvent.changeText(screen.getByLabelText('Years of experience'), '3')
+    await chooseDocumentOnScreen()
+    await fireEvent.press(screen.getByRole('checkbox'))
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Send for review' }))
+
+    await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1))
+    expect(services.__deps.upload).not.toHaveBeenCalled()
+    expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it('a failure that is not about step 1 keeps the person here', async () => {
+    withAccount()
+    services.__deps.register.mockRejectedValueOnce(new NetworkError())
+    await render(<QualificationScreen />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Agrochemistry' }))
+    await fireEvent.changeText(screen.getByLabelText('Years of experience'), '3')
+    await chooseDocumentOnScreen()
+    await fireEvent.press(screen.getByRole('checkbox'))
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Send for review' }))
+
+    expect(await screen.findByText(/No connection to the server/)).toBeTruthy()
+    expect(mockBack).not.toHaveBeenCalled()
+  })
 
   it('without step 1 goes back to it', async () => {
     await render(<QualificationScreen />)
