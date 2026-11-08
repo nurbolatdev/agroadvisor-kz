@@ -222,10 +222,10 @@ export const en: Translation = {
     profile: {
       experience: 'experience',
       // English has two forms; the unused ones keep the key sets of the languages equal
-      years_one: '{{n}} year',
-      years_few: '{{n}} years',
-      years_many: '{{n}} years',
-      years_other: '{{n}} years',
+      years_one: '{{count}} year',
+      years_few: '{{count}} years',
+      years_many: '{{count}} years',
+      years_other: '{{count}} years',
       documents: 'Documents',
       documentsChecked: 'Checked',
       specialization: 'Specialization',

@@ -228,11 +228,11 @@ export const ru = {
     // the profile of an agrochemist (frame 21a)
     profile: {
       experience: 'опыт',
-      // the form is chosen by pluralForm (i18n/plural.ts), not by i18next: 1, 21 — год; 2–4 — года; 5–20 — лет
-      years_one: '{{n}} год',
-      years_few: '{{n}} года',
-      years_many: '{{n}} лет',
-      years_other: '{{n}} года',
+      // plural forms of ru: 1, 21 — год; 2–4 — года; 5–20 — лет
+      years_one: '{{count}} год',
+      years_few: '{{count}} года',
+      years_many: '{{count}} лет',
+      years_other: '{{count}} года',
       documents: 'Документы',
       documentsChecked: 'Проверены',
       specialization: 'Специализация',

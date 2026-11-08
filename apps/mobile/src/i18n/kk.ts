@@ -226,10 +226,10 @@ export const kk: Translation = {
     profile: {
       experience: 'тәжірибе',
       // the noun does not change after a number in Kazakh; the four keys keep the key sets equal
-      years_one: '{{n}} жыл',
-      years_few: '{{n}} жыл',
-      years_many: '{{n}} жыл',
-      years_other: '{{n}} жыл',
+      years_one: '{{count}} жыл',
+      years_few: '{{count}} жыл',
+      years_many: '{{count}} жыл',
+      years_other: '{{count}} жыл',
       documents: 'Құжаттар',
       documentsChecked: 'Тексерілді',
       specialization: 'Мамандану',

@@ -1,7 +1,6 @@
 import { en } from './en'
 import { DEFAULT_LANGUAGE, isLanguage, LANGUAGES, resolveLanguage } from './index'
 import { kk } from './kk'
-import { pluralForm } from './plural'
 import { ru } from './ru'
 
 function keys(value: object, prefix = ''): string[] {
@@ -28,14 +27,28 @@ describe('translations', () => {
 
 describe('years of experience', () => {
   const dictionaries = { ru, kk, en }
-  // what the profile does: the form by pluralForm, the text from the dictionary
+  // A text with a count, as the app asks for it: i18next picks the form with Intl.PluralRules. It runs on a
+  // fresh copy of the modules, so that the polyfill (i18n/polyfills.ts) is what supplies the missing API.
+  const translate = async (language: 'ru' | 'kk' | 'en', key: string, count: number) => {
+    let instance: { init: (o: object) => Promise<unknown>; t: (k: string, o: object) => string } =
+      null as never
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('./polyfills')
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      instance = require('i18next').createInstance()
+    })
+    await instance.init({
+      lng: language,
+      resources: { [language]: { translation: dictionaries[language] } },
+      interpolation: { escapeValue: false },
+    })
+    return instance.t(key, { count })
+  }
   const years = (language: 'ru' | 'kk' | 'en', n: number) =>
-    dictionaries[language].agrochemist.profile[`years_${pluralForm(language, n)}`].replace(
-      '{{n}}',
-      String(n),
-    )
+    translate(language, 'agrochemist.profile.years', n)
 
-  // The phones' Hermes has no Intl.PluralRules (i18next would say "12 года"): nothing here may need it.
+  // The Hermes engine of the phones has no Intl.PluralRules: the tests take it away, as on the phone.
   const original = Intl.PluralRules
   beforeAll(() => {
     // @ts-expect-error simulating the engine of the phone
@@ -61,21 +74,34 @@ describe('years of experience', () => {
     [22, '22 года'],
     [25, '25 лет'],
     [111, '111 лет'],
-  ])('is written in Russian as %s -> %s', (n, text) => {
-    expect(years('ru', n)).toBe(text)
+  ])('is written in Russian as %s -> %s', async (n, text) => {
+    expect(await years('ru', n)).toBe(text)
   })
 
   it.each([
     [1, '1 year'],
     [2, '2 years'],
-    [12, '12 years'],
-  ])('is written in English as %s -> %s', (n, text) => {
-    expect(years('en', n)).toBe(text)
+    [5, '5 years'],
+    [11, '11 years'],
+    [21, '21 years'],
+    [22, '22 years'],
+  ])('is written in English as %s -> %s', async (n, text) => {
+    expect(await years('en', n)).toBe(text)
   })
 
-  it.each([1, 2, 5, 12, 21])('does not change the noun in Kazakh (%s)', (n) => {
-    expect(years('kk', n)).toBe(`${n} жыл`)
+  it.each([1, 2, 5, 11, 21, 22])('does not change the noun in Kazakh (%s)', async (n) => {
+    expect(await years('kk', n)).toBe(`${n} жыл`)
   })
+
+  // every other text of the app that is asked for with a count (today: the queue on the home screen)
+  it.each([1, 2, 5, 11, 21, 22])(
+    'has a text for the queue with %s in every language',
+    async (n) => {
+      expect(await translate('ru', 'home.queue', n)).toBe(`Не отправлено: ${n}`)
+      expect(await translate('kk', 'home.queue', n)).toBe(`Жіберілмеген: ${n}`)
+      expect(await translate('en', 'home.queue', n)).toBe(`Not sent: ${n}`)
+    },
+  )
 })
 
 describe('resolveLanguage', () => {

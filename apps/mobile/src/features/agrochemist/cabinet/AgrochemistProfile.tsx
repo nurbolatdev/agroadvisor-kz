@@ -6,7 +6,6 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 
 import { AppText, Badge, ErrorState, Screen } from '@/components/ui'
 import { initials } from '@/features/profile/describeUser'
-import { pluralForm } from '@/i18n/plural'
 import { MenuRow } from '@/features/profile/MenuRow'
 import { agrochemistApi, useProfile, useSession } from '@/services'
 import { useSettings } from '@/store/settings'
@@ -23,7 +22,7 @@ import { mapVerificationStatus } from '../verificationStatus'
 // remove them. An arrow stands only at a row that opens something, so "Specialization" has none (there is no
 // screen to change it).
 export function AgrochemistProfile() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const router = useRouter()
   const { me, phase, error } = useProfile()
   const language = useSettings((s) => s.language)
@@ -102,9 +101,7 @@ export function AgrochemistProfile() {
       {view && view.experienceYears != null ? (
         <View style={[styles.block, styles.tile]}>
           <AppText variant="h1">
-            {t(`agrochemist.profile.years_${pluralForm(i18n.language, view.experienceYears)}`, {
-              n: view.experienceYears,
-            })}
+            {t('agrochemist.profile.years', { count: view.experienceYears })}
           </AppText>
           <AppText variant="small" color={colors.textMuted}>
             {t('agrochemist.profile.experience')}
