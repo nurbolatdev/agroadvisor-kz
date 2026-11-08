@@ -17,14 +17,11 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
-import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Error;
-import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
 
@@ -148,7 +145,7 @@ class S3PhotoStorageTest {
         }
     }
 
-    // --- list, head, deleteAll (orphan cleanup) ---
+    // --- list, deleteAll (orphan cleanup) ---
 
     private static S3Object object(String key, Instant modified) {
         return S3Object.builder().key(key).lastModified(modified).build();
@@ -191,32 +188,6 @@ class S3PhotoStorageTest {
                 .thenReturn(ListObjectsV2Response.builder().isTruncated(false).build());
 
         assertThat(storage.list("diagnoses/")).isEmpty();
-    }
-
-    @Test
-    void headGivesTheKeyAndTheLastModifiedTime() {
-        Instant t = Instant.parse("2026-11-01T00:00:00Z");
-        when(s3.headObject(any(HeadObjectRequest.class))).thenReturn(HeadObjectResponse.builder().lastModified(t).build());
-
-        assertThat(storage.head("diagnoses/u/a.jpg")).contains(new StoredObject("diagnoses/u/a.jpg", t));
-    }
-
-    @Test
-    void headOfAMissingObjectIsEmpty() {
-        when(s3.headObject(any(HeadObjectRequest.class))).thenThrow(NoSuchKeyException.builder().build());
-        assertThat(storage.head("diagnoses/u/a.jpg")).isEmpty();
-
-        when(s3.headObject(any(HeadObjectRequest.class)))
-                .thenThrow(S3Exception.builder().statusCode(404).build());
-        assertThat(storage.head("diagnoses/u/b.jpg")).isEmpty();
-    }
-
-    @Test
-    void headOfAnUnreachableStorageIsNotMistakenForAMissingObject() {
-        when(s3.headObject(any(HeadObjectRequest.class)))
-                .thenThrow(S3Exception.builder().statusCode(500).build());
-
-        assertThatThrownBy(() -> storage.head("diagnoses/u/a.jpg")).isInstanceOf(S3Exception.class);
     }
 
     @Test

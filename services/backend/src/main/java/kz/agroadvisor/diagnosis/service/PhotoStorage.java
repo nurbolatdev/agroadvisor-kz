@@ -29,9 +29,6 @@ public interface PhotoStorage {
      */
     Stream<StoredObject> list(String prefix);
 
-    /** The key and last-modified time of one object, or empty when there is none. */
-    Optional<StoredObject> head(String key);
-
     /**
      * Removes the objects in batches of at most 1000 and returns the keys that could not be removed (empty
      * when all went). A failed call counts all keys of its batch as failed; it never throws for a storage fault.

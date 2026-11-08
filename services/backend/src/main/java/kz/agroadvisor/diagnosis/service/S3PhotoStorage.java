@@ -19,13 +19,10 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
-import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import kz.agroadvisor.common.web.ApiException;
 
@@ -93,21 +90,6 @@ public class S3PhotoStorage implements PhotoStorage {
         return s3.listObjectsV2Paginator(ListObjectsV2Request.builder().bucket(bucket).prefix(prefix).build())
                 .contents().stream()
                 .map(o -> new StoredObject(o.key(), o.lastModified()));
-    }
-
-    @Override
-    public Optional<StoredObject> head(String key) {
-        try {
-            HeadObjectResponse head = s3.headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build());
-            return Optional.of(new StoredObject(key, head.lastModified()));
-        } catch (NoSuchKeyException e) {
-            return Optional.empty();
-        } catch (S3Exception e) {
-            if (e.statusCode() == 404) {
-                return Optional.empty();
-            }
-            throw e;
-        }
     }
 
     @Override
