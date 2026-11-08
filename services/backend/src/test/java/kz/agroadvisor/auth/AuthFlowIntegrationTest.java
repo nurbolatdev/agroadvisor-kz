@@ -54,6 +54,65 @@ class AuthFlowIntegrationTest {
 
     // ---- registration
 
+    private String agrochemistBody(String login, String extra) {
+        return "{\"login\":\"" + login + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Aigul\","
+                + "\"role\":\"agrochemist\"" + (extra.isEmpty() ? "" : "," + extra) + "}";
+    }
+
+    @Test
+    void anAgrochemistRegistersWithSpecializationsAndExperienceAndSeesThemInTheVerification() throws Exception {
+        String phone = newPhone();
+        MvcResult r = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                .content(agrochemistBody(phone, "\"specializations\":[\"plant_protection\",\"agrochemistry\"],"
+                        + "\"experienceYears\":12"))).andExpect(status().isCreated()).andReturn();
+
+        mvc.perform(get("/api/agrochemist/verification").header("Authorization", "Bearer " + read(r, "accessToken")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("pending"))
+                .andExpect(jsonPath("$.specializations[0]").value("plant_protection"))
+                .andExpect(jsonPath("$.specializations[1]").value("agrochemistry"))
+                .andExpect(jsonPath("$.experienceYears").value(12));
+    }
+
+    @Test
+    void anAgrochemistWithoutTheOptionalFieldsHasNoSpecializationsAndNoExperience() throws Exception {
+        Session s = register(newPhone(), "agrochemist");
+
+        mvc.perform(get("/api/agrochemist/verification").header("Authorization", "Bearer " + s.access()))
+                .andExpect(jsonPath("$.specializations").isEmpty())
+                .andExpect(jsonPath("$.experienceYears").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
+    void invalidProfileFieldsAreRefusedAndNoUserIsCreated() throws Exception {
+        record Case(String extra, String code) {
+        }
+        for (Case c : List.of(
+                new Case("\"specializations\":[\"astrology\"]", "invalid_profile_fields"),
+                new Case("\"specializations\":[\"agrochemistry\",\"agrochemistry\"]", "invalid_profile_fields"),
+                new Case("\"specializations\":[\"plant_protection\",\"agrochemistry\",\"phytopathology\","
+                        + "\"soil_science\",\"agrochemistry\"]", "validation_failed"),
+                new Case("\"experienceYears\":81", "validation_failed"),
+                new Case("\"experienceYears\":-1", "validation_failed"))) {
+            String phone = newPhone();
+            expectPost("/api/auth/register", agrochemistBody(phone, c.extra()), 400, c.code());
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM users WHERE phone = ?", Integer.class, phone))
+                    .as(c.extra()).isZero();
+        }
+    }
+
+    @Test
+    void specializationsAndExperienceAreOnlyForAnAgrochemist() throws Exception {
+        for (String extra : List.of("\"specializations\":[\"agrochemistry\"]", "\"experienceYears\":5")) {
+            String phone = newPhone();
+            String farmer = "{\"login\":\"" + phone + "\",\"password\":\"" + PASSWORD + "\",\"fullName\":\"Erlan\","
+                    + "\"role\":\"farmer\"," + extra + "}";
+            expectPost("/api/auth/register", farmer, 400, "invalid_profile_fields");
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM users WHERE phone = ?", Integer.class, phone))
+                    .isZero();
+        }
+    }
+
     @Test
     void theRoleIsLowerCaseAndAnotherCaseIsAValidationError() throws Exception {
         Session lower = register(newPhone(), "agrochemist");

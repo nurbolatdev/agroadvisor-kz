@@ -1,6 +1,7 @@
 package kz.agroadvisor.auth.service;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -54,9 +55,11 @@ public class AuthService {
     }
 
     @Transactional
-    public Tokens register(String rawLogin, String password, String fullName, String language, String roleName) {
+    public Tokens register(String rawLogin, String password, String fullName, String language, String roleName,
+            List<String> specializations, Integer experienceYears) {
         Login login = parseLogin(rawLogin, HttpStatus.BAD_REQUEST, INVALID_LOGIN);
         Role role = selfAssignableRole(roleName);
+        verification.validateProfileFields(role == Role.AGROCHEMIST, specializations, experienceYears);
         if (password.getBytes(StandardCharsets.UTF_8).length > BCRYPT_MAX_BYTES) {
             throw new ApiException(HttpStatus.BAD_REQUEST, PASSWORD_TOO_LONG,
                     "Password must be at most " + BCRYPT_MAX_BYTES + " bytes");
@@ -65,7 +68,7 @@ public class AuthService {
                 language == null ? "ru" : language, Set.of(role));
         if (role == Role.AGROCHEMIST) {
             // Tokens are issued right away so documents can be uploaded; privileges wait for approval
-            verification.createPendingProfile(user.getId());
+            verification.createPendingProfile(user.getId(), specializations, experienceYears);
         }
         return issueTokens(user.getId(), refreshTokens.startSession(user.getId()));
     }

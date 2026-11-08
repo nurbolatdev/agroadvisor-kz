@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,7 +82,13 @@ public class AgrochemistDocumentService {
             Instant submittedAt,
             @Schema(nullable = true) Instant reviewedAt,
             @Schema(nullable = true, description = "Why the admin rejected or asked for more documents") String rejectionReason,
-            @Schema(requiredMode = REQUIRED) List<DocumentView> documents) {
+            @Schema(requiredMode = REQUIRED) List<DocumentView> documents,
+            @ArraySchema(arraySchema = @Schema(requiredMode = REQUIRED,
+                    description = "Fields of work given at registration; may be empty"),
+                    schema = @Schema(allowableValues = {"plant_protection", "agrochemistry", "phytopathology",
+                        "soil_science"}))
+            List<String> specializations,
+            @Schema(nullable = true, description = "Years of experience given at registration") Integer experienceYears) {
     }
 
     /** Validates, stores the file, records it and queues the profile. Nothing stays behind if a step fails. */
@@ -133,7 +140,7 @@ public class AgrochemistDocumentService {
     public VerificationView verification(UUID userId) {
         Profile profile = profile(userId);
         return new VerificationView(profile.status(), profile.submittedAt(), profile.reviewedAt(),
-                profile.rejectionReason(), documents(userId));
+                profile.rejectionReason(), documents(userId), profile.specializations(), profile.experienceYears());
     }
 
     private Profile profile(UUID userId) {

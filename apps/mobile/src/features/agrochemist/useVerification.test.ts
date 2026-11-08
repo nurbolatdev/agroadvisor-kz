@@ -123,6 +123,8 @@ function viewOf(status: VerificationView['status']): VerificationView {
     reviewedAt: null,
     rejectionReason: null,
     documents: [],
+    specializations: [],
+    experienceYears: null,
   }
 }
 

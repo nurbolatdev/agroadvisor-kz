@@ -2,11 +2,15 @@ package kz.agroadvisor.auth.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
+import java.util.List;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -44,7 +48,16 @@ public class AuthController {
             @Size(max = 20) @Pattern(regexp = "[a-z]+", message = "must be lower case")
             @Schema(allowableValues = {"farmer", "agrochemist"},
                     description = "Lower case, like the roles in MeResponse; another case is 400 validation_failed")
-            String role) {
+            String role,
+            @Size(max = 4)
+            @ArraySchema(arraySchema = @Schema(nullable = true, description = "Agrochemist only: fields of work, up "
+                    + "to four different values. Another value, a duplicate, or any value for a farmer is 400 "
+                    + "invalid_profile_fields"),
+                    schema = @Schema(allowableValues = {"plant_protection", "agrochemistry", "phytopathology",
+                        "soil_science"}))
+            List<String> specializations,
+            @Min(0) @Max(80) @Schema(nullable = true, description = "Agrochemist only: years of experience, 0-80")
+            Integer experienceYears) {
     }
 
     public record LoginRequest(@NotBlank @Size(max = 120) String login, @NotBlank @Size(max = 72) String password) {
@@ -70,7 +83,7 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     public TokenResponse register(@Valid @RequestBody RegisterRequest request) {
         return TokenResponse.of(auth.register(request.login(), request.password(), request.fullName(),
-                request.language(), request.role()));
+                request.language(), request.role(), request.specializations(), request.experienceYears()));
     }
 
     @SecurityRequirements

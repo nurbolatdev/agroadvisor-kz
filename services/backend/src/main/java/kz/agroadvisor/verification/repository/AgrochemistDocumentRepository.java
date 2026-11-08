@@ -21,14 +21,15 @@ public class AgrochemistDocumentRepository {
     }
 
     public record Profile(UUID userId, String status, Instant submittedAt, Instant reviewedAt, UUID reviewedBy,
-            String rejectionReason) {
+            String rejectionReason, List<String> specializations, Integer experienceYears) {
     }
 
     private static final String DOCUMENT_COLUMNS =
             "id, user_id, kind, object_key, title, issuer, year, content_type, size_bytes, uploaded_at";
 
     private static final String PROFILE_SQL = """
-            SELECT user_id, verification_status, submitted_at, reviewed_at, reviewed_by, rejection_reason
+            SELECT user_id, verification_status, submitted_at, reviewed_at, reviewed_by, rejection_reason,
+                   specialization, experience_years
             FROM agrochemist_profiles WHERE user_id = ?""";
 
     private static final RowMapper<Document> DOCUMENT = (rs, i) -> new Document(
@@ -38,7 +39,13 @@ public class AgrochemistDocumentRepository {
 
     private static final RowMapper<Profile> PROFILE = (rs, i) -> new Profile(
             rs.getObject("user_id", UUID.class), rs.getString("verification_status"), instant(rs, "submitted_at"),
-            instant(rs, "reviewed_at"), rs.getObject("reviewed_by", UUID.class), rs.getString("rejection_reason"));
+            instant(rs, "reviewed_at"), rs.getObject("reviewed_by", UUID.class), rs.getString("rejection_reason"),
+            codes(rs.getString("specialization")), nullableInt(rs, "experience_years"));
+
+    /** The column keeps the codes joined by commas; empty or missing means none. */
+    private static List<String> codes(String stored) {
+        return stored == null || stored.isBlank() ? List.of() : List.of(stored.split(","));
+    }
 
     private final JdbcTemplate jdbc;
 

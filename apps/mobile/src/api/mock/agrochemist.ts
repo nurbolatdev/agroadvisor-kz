@@ -83,6 +83,9 @@ export function createMockAgrochemistApi({
         reviewedAt,
         rejectionReason,
         documents: [...documents],
+        // What the demo agrochemist gave at registration (the values of frame 21a)
+        specializations: ['plant_protection', 'agrochemistry'],
+        experienceYears: 12,
       }
       return view
     },
