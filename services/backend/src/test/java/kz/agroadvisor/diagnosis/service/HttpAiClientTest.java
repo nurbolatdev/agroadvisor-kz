@@ -48,6 +48,9 @@ class HttpAiClientTest {
     private final List<Reply> replies = new CopyOnWriteArrayList<>();
     private final AtomicInteger requests = new AtomicInteger();
     private volatile String lastBody = "";
+    private volatile int healthStatus = 200;
+    private volatile String healthBody =
+            "{\"status\": \"ok\", \"model_version\": \"effnet-b0-v1\", \"classes_version\": 1, \"calibrated\": true}";
 
     private record Reply(int status, String body, long delayMillis) {
     }
@@ -56,8 +59,7 @@ class HttpAiClientTest {
     void startFakeAiService() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/predict", this::answer);
-        server.createContext("/health", exchange -> send(exchange, 200,
-                "{\"status\": \"ok\", \"model_version\": \"effnet-b0-v1\", \"classes_version\": 1, \"calibrated\": true}"));
+        server.createContext("/health", exchange -> send(exchange, healthStatus, healthBody));
         server.start();
     }
 
@@ -118,6 +120,64 @@ class HttpAiClientTest {
         ApiException error = catchThrowableOfType(ApiException.class, call);
         assertThat(error).as("an ApiException").isNotNull();
         return error;
+    }
+
+    @Test
+    void readsTheLoadedModelFromHealth() {
+        assertThat(client(0).modelInfo()).isEqualTo(new ModelInfo("effnet-b0-v1", 1, true));
+    }
+
+    @Test
+    void anUncalibratedModelIsReportedAsSuch() {
+        healthBody = "{\"status\": \"ok\", \"model_version\": \"effnet-b0-v2\", \"classes_version\": 2, "
+                + "\"calibrated\": false, \"a_field_added_later\": 1}";
+
+        assertThat(client(0).modelInfo()).isEqualTo(new ModelInfo("effnet-b0-v2", 2, false));
+    }
+
+    @Test
+    void aServiceThatIsNotReadyIsUnavailable() {
+        healthStatus = 503;
+        healthBody = "{\"status\": \"model_not_loaded\", \"model_version\": null, \"classes_version\": 1, "
+                + "\"calibrated\": null}";
+
+        ApiException error = failure(() -> client(0).modelInfo());
+
+        assertThat(error.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(error.getCode()).isEqualTo("ai_unavailable");
+    }
+
+    @Test
+    void anAnswerWithoutTheModelOrTheClassesVersionIsUnavailable() {
+        healthBody = "{\"status\": \"ok\", \"model_version\": null, \"classes_version\": 1, \"calibrated\": true}";
+        assertThat(failure(() -> client(0).modelInfo()).getCode()).isEqualTo("ai_unavailable");
+
+        healthBody = "{\"status\": \"ok\", \"model_version\": \"effnet-b0-v1\", \"calibrated\": true}";
+        assertThat(failure(() -> client(0).modelInfo()).getCode()).isEqualTo("ai_unavailable");
+    }
+
+    @Test
+    void aServiceThatCannotBeReachedIsUnavailable() throws IOException {
+        int closedPort;
+        try (ServerSocket socket = new ServerSocket(0)) {
+            closedPort = socket.getLocalPort();
+        }
+
+        ApiException error = failure(() -> client("http://127.0.0.1:" + closedPort, 0).modelInfo());
+
+        assertThat(error.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(error.getCode()).isEqualTo("ai_unavailable");
+    }
+
+    @Test
+    void aPlaceholderModelIsUnavailableUnlessItIsAllowed() {
+        healthBody = "{\"status\": \"ok\", \"model_version\": \"placeholder-v0\", \"classes_version\": 1, "
+                + "\"calibrated\": false}";
+        String url = "http://127.0.0.1:" + server.getAddress().getPort();
+
+        assertThat(failure(() -> client(url, 0).modelInfo()).getCode()).isEqualTo("ai_unavailable");
+        assertThat(client(url, 0, Duration.ofMillis(20), true).modelInfo().modelVersion())
+                .isEqualTo("placeholder-v0");
     }
 
     @Test

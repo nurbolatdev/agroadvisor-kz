@@ -334,6 +334,16 @@ Returns the registry with `active` classes only. The backend and the mobile app 
 { "status": "model_not_loaded", "model_version": null, "classes_version": 1, "calibrated": null }
 ```
 
+### The backend's `GET /api/meta`
+
+The app shows the version of the model in the profile. The backend passes it on from this `/health` (there is no other source and no stub in the app): any signed-in user, `200`:
+
+```json
+{ "modelVersion": "effnet-b0-v1", "classesVersion": 1 }
+```
+
+The answer of the AI service is kept for `app.meta.cache-ttl` (60 s), so many phones do not each call it and a new model shows up soon after a deploy. When `/health` cannot be read (not reachable, not `200`, no model version or classes version) or the model is a placeholder (unless `app.ai.allow-placeholder` is on), the answer is `503 ai_unavailable` and the app shows no model line. A failure is never kept and an old answer is never served after its time is over. The path has no version, like every other path of the backend (`/api/...`).
+
 ## Compatibility rules
 
 - New fields may be added to responses; clients must ignore unknown fields.

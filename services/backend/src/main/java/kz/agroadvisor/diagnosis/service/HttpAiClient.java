@@ -111,6 +111,27 @@ class HttpAiClient implements AiClient {
         return catalog.crops("en").stream().map(CropView::code).toList();
     }
 
+    @Override
+    public ModelInfo modelInfo() {
+        WireHealth health;
+        try {
+            health = http.get().uri("/health").exchange((request, response) ->
+                    response.getStatusCode().value() == 200 ? response.bodyTo(WireHealth.class) : null);
+        } catch (RuntimeException e) {
+            log.warn("AI service did not answer /health: {}", e.toString());
+            throw unavailable();
+        }
+        // Not ready (/health is not 200), or an answer without the model: nothing to show
+        if (health == null || health.modelVersion() == null || health.classesVersion() == null) {
+            throw unavailable();
+        }
+        // A placeholder model is the same as no model for an app that must not show an invented version
+        if (Prediction.isPlaceholderVersion(health.modelVersion()) && !allowPlaceholder) {
+            throw unavailable();
+        }
+        return new ModelInfo(health.modelVersion(), health.classesVersion(), Boolean.TRUE.equals(health.calibrated()));
+    }
+
     private Prediction once(String crop, byte[] image) {
         Raw raw;
         try {
@@ -288,6 +309,7 @@ class HttpAiClient implements AiClient {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record WireHealth(String status, @JsonProperty("model_version") String modelVersion, Boolean calibrated) {
+    record WireHealth(String status, @JsonProperty("model_version") String modelVersion,
+            @JsonProperty("classes_version") Integer classesVersion, Boolean calibrated) {
     }
 }

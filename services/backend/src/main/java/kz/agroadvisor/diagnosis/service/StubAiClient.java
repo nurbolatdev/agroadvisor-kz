@@ -35,6 +35,11 @@ class StubAiClient implements AiClient {
     }
 
     @Override
+    public ModelInfo modelInfo() {
+        return new ModelInfo(MODEL_VERSION, CLASSES_VERSION, false);
+    }
+
+    @Override
     public List<String> crops() {
         // Codes do not depend on the language; any one hits the same cache entry
         return catalog.crops("en").stream().map(CropView::code).toList();

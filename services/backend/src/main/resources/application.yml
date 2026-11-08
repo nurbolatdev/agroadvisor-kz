@@ -60,6 +60,8 @@ app:
     # object has the same name and the same bytes as the new owner's. Not counted: the rate limiter and the
     # lookups, which run before the claim.
     claim-timeout: 90s
+  meta:
+    cache-ttl: 60s # how long GET /api/meta keeps the answer of the AI service
   rate-limit:
     diagnosis-per-minute: 5 # new diagnoses per user per minute, given back when we fail; there are no daily limits
     diagnosis-attempts-per-minute: 20 # attempts per user per minute, never given back (a retry storm guard for the AI)
