@@ -32,6 +32,7 @@ jest.mock(
 jest.mock('@/features/agrochemist/chooseDocument', () => ({ chooseDocument: jest.fn() }))
 jest.mock('@/services', () => {
   const api = { verification: jest.fn(), upload: jest.fn(), remove: jest.fn() }
+  const store = jest.requireActual('@/store/verification').createVerificationStore({ api })
   const useProfile = (select?: (s: object) => unknown) => {
     const state = { roles: mockRoles, me: null, phase: 'ready', error: null }
     return select ? select(state) : state
@@ -39,13 +40,18 @@ jest.mock('@/services', () => {
   useProfile.getState = () => ({ load: jest.fn() })
   return {
     __api: api,
+    __store: store,
     agrochemistApi: api,
+    useVerificationStore: store,
     useProfile,
     useSession: (select: (s: object) => unknown) => select({ logout: jest.fn() }),
   }
 })
 
-const api = (jest.requireMock('@/services') as { __api: Record<string, jest.Mock> }).__api
+const { __api: api, __store: store } = jest.requireMock('@/services') as {
+  __api: Record<string, jest.Mock>
+  __store: { getState: () => { reset: () => void } }
+}
 
 const ids = [1, 2, 3].map((n) => `00000000-0000-4000-8000-00000000000${n}`)
 
@@ -75,6 +81,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  store.getState().reset()
   mockRoles = ['agrochemist']
   mockCanGoBack = true
   alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
@@ -244,6 +251,19 @@ describe('the documents of the application', () => {
       expect(screen.queryByText('Upload the document again')).toBeNull()
       expect(screen.queryByText(/waiting for the check/)).toBeNull()
     })
+  })
+
+  it('reads the state again as it opens: a decision that came meanwhile shows at once', async () => {
+    api.verification.mockResolvedValue(view('pending', 1))
+    const first = await render(<DocumentsScreen />)
+    await screen.findByText('Add a document')
+    await first.unmount() // the person goes back to the profile and waits there
+
+    api.verification.mockResolvedValue(view('approved', 1)) // an administrator confirmed the profile
+    await render(<DocumentsScreen />)
+
+    expect(await screen.findByText(/documents of an approved profile/i)).toBeTruthy()
+    expect(screen.queryByText('Add a document')).toBeNull()
   })
 
   describe('who and how', () => {

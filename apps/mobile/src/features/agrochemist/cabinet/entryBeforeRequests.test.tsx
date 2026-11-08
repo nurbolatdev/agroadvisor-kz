@@ -25,6 +25,7 @@ jest.mock('@/features/agrochemist/chooseDocument', () => ({
 }))
 jest.mock('@/services', () => {
   const api = { verification: jest.fn(), upload: jest.fn(), remove: jest.fn() }
+  const store = jest.requireActual('@/store/verification').createVerificationStore({ api })
   const state = {
     get me() {
       return mockMe
@@ -37,13 +38,18 @@ jest.mock('@/services', () => {
   useProfile.getState = () => ({ load: jest.fn() })
   return {
     __api: api,
+    __store: store,
     agrochemistApi: api,
+    useVerificationStore: store,
     useProfile,
     useSession: (select: (s: object) => unknown) => select({ logout: jest.fn() }),
   }
 })
 
-const api = (jest.requireMock('@/services') as { __api: Record<string, jest.Mock> }).__api
+const { __api: api, __store: store } = jest.requireMock('@/services') as {
+  __api: Record<string, jest.Mock>
+  __store: { getState: () => { reset: () => void } }
+}
 
 const document = {
   file: { uri: 'file:///d.pdf', name: 'd.pdf', type: 'application/pdf' },
@@ -75,6 +81,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  store.getState().reset()
   mockChoose.mockResolvedValue({ status: 'chosen', document })
 })
 
@@ -106,6 +113,15 @@ describe('a pending profile with no document leads to the upload, not to "wait f
 
     expect(await screen.findByText('Profile under review')).toBeTruthy()
     expect(screen.queryByText('Application not finished')).toBeNull()
+  })
+
+  it('asks the server once at the start: the entry gate and the requests tab share the state (#100)', async () => {
+    api.verification.mockResolvedValue(view(1))
+
+    await render(app())
+
+    expect(await screen.findByText('Profile under review')).toBeTruthy()
+    expect(api.verification).toHaveBeenCalledTimes(1)
   })
 
   it('after the document is sent the person gets the waiting screen', async () => {

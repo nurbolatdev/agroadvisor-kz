@@ -1,13 +1,13 @@
 import { Redirect, useFocusEffect, useRouter } from 'expo-router'
 import { Check, Clock, Lock, ShieldCheck, TriangleAlert, Upload } from 'lucide-react-native'
-import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 
 import type { VerificationView } from '@/api/agrochemist'
 import { AppText, Badge, Button, EmptyState, ErrorState, Screen } from '@/components/ui'
 import { hasAgrochemistRole } from '@/features/access/roles'
-import { agrochemistApi, useProfile } from '@/services'
+import { useProfile } from '@/services'
 import { colors, fonts, radii, sizes, spacing } from '@/theme/tokens'
 
 import { mapVerificationStatus } from '../verificationStatus'
@@ -33,18 +33,13 @@ function AgrochemistRequests() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const me = useProfile((s) => s.me)
-  const { state, reload } = useVerification(agrochemistApi)
-  // the first read is made by the hook itself; the next ones come when the tab is shown again (a document
-  // sent from the documents screen, the decision of an administrator)
-  const skipFirst = useRef(true)
+  const { state, reload, refresh } = useVerification()
+  // read again whenever the tab is shown (the decision of an administrator, a document sent from the documents
+  // screen); at the start of the app this joins the first read that is already on its way
   useFocusEffect(
     useCallback(() => {
-      if (skipFirst.current) {
-        skipFirst.current = false
-        return
-      }
-      void reload()
-    }, [reload]),
+      void refresh()
+    }, [refresh]),
   )
 
   const name = me ? firstName(me.fullName) : ''

@@ -1,13 +1,13 @@
 import { useFocusEffect, useRouter } from 'expo-router'
 import { Globe, Leaf, LogOut, ShieldCheck } from 'lucide-react-native'
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 
 import { AppText, Badge, ErrorState, Screen } from '@/components/ui'
 import { initials } from '@/features/profile/describeUser'
 import { MenuRow } from '@/features/profile/MenuRow'
-import { agrochemistApi, useProfile, useSession } from '@/services'
+import { useProfile, useSession } from '@/services'
 import { useSettings } from '@/store/settings'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
@@ -27,16 +27,15 @@ export function AgrochemistProfile() {
   const { me, phase, error } = useProfile()
   const language = useSettings((s) => s.language)
   const logout = useSession((s) => s.logout)
-  const { state, reload } = useVerification(agrochemistApi)
-  const skipFirst = useRef(true)
+  const { state, reload, refresh } = useVerification()
 
   useFocusEffect(
     useCallback(() => {
       void useProfile.getState().load()
-      // the first read is the hook's own; the next ones follow a document sent meanwhile
-      if (skipFirst.current) skipFirst.current = false
-      else void reload()
-    }, [reload]),
+      // read again whenever the tab is shown (the decision of an administrator, a document sent meanwhile); at
+      // the start of the app this joins the first read that is already on its way
+      void refresh()
+    }, [refresh]),
   )
 
   const view = state.status === 'ready' ? state.view : null

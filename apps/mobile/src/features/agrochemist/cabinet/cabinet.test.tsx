@@ -44,6 +44,7 @@ jest.mock('@/features/agrochemist/chooseDocument', () => ({
 }))
 jest.mock('@/services', () => {
   const api = { verification: jest.fn(), upload: jest.fn(), remove: jest.fn() }
+  const store = jest.requireActual('@/store/verification').createVerificationStore({ api })
   // `mockMe` is read when the store is used, not when this factory runs (it does not exist yet then)
   const state = {
     get me() {
@@ -57,13 +58,18 @@ jest.mock('@/services', () => {
   useProfile.getState = () => ({ load: jest.fn() })
   return {
     __api: api,
+    __store: store,
     agrochemistApi: api,
+    useVerificationStore: store,
     useProfile,
     useSession: (select: (s: object) => unknown) => select({ logout: mockLogout }),
   }
 })
 
-const api = (jest.requireMock('@/services') as { __api: Record<string, jest.Mock> }).__api
+const { __api: api, __store: store } = jest.requireMock('@/services') as {
+  __api: Record<string, jest.Mock>
+  __store: { getState: () => { reset: () => void } }
+}
 
 function view(
   status: VerificationView['status'],
@@ -95,6 +101,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  store.getState().reset()
 })
 
 describe('requests tab (frames 22a, 22b, 22c)', () => {
