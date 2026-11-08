@@ -33,6 +33,16 @@ app:
     bucket: ${S3_BUCKET:diagnosis-photos}
     access-key: ${S3_ACCESS_KEY:}
     secret-key: ${S3_SECRET_KEY:}
+    # Removes photo objects no diagnosis points to (issue #69). The bucket is not versioned, so a deletion is
+    # final: dry-run stays on until the first nights have been checked by hand (docs/adr/0002-orphan-photo-cleanup.md).
+    orphan-cleanup:
+      enabled: ${APP_PHOTOS_ORPHAN_CLEANUP_ENABLED:true}
+      dry-run: ${APP_PHOTOS_ORPHAN_CLEANUP_DRY_RUN:true}
+      min-age: ${APP_PHOTOS_ORPHAN_CLEANUP_MIN_AGE:PT24H} # must exceed claim-timeout and the 1 h cleanup of claims
+      cron: ${APP_PHOTOS_ORPHAN_CLEANUP_CRON:0 30 3 * * *} # Asia/Almaty
+      batch-size: ${APP_PHOTOS_ORPHAN_CLEANUP_BATCH_SIZE:500}
+      max-deletes-per-run: ${APP_PHOTOS_ORPHAN_CLEANUP_MAX_DELETES_PER_RUN:500}
+      max-orphan-ratio: ${APP_PHOTOS_ORPHAN_CLEANUP_MAX_ORPHAN_RATIO:0.2} # above this share of old objects: abort
   ai:
     # http: the AI service (docs/api/ai-predict.md); stub: a fake that answers "healthy" (experiments only)
     client: ${AI_CLIENT:http}
