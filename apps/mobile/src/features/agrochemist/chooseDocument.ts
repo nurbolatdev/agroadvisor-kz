@@ -57,7 +57,7 @@ async function chooseFile(): Promise<ChooseResult> {
 async function choosePhoto(source: 'camera' | 'gallery'): Promise<ChooseResult> {
   if (source === 'camera') {
     const permission = await ImagePicker.requestCameraPermissionsAsync()
-    if (!permission.granted) return { status: 'refused', problem: 'generic' }
+    if (!permission.granted) return { status: 'refused', problem: 'camera_denied' }
   }
   const options: ImagePicker.ImagePickerOptions = {
     mediaTypes: ['images'],

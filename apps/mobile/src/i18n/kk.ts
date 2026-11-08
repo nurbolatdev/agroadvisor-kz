@@ -58,6 +58,7 @@ export const kk: Translation = {
       document: 'Диплом немесе сертификат',
       upload: 'Құжатты жүктеу',
       uploadHint: 'Камера, галерея немесе файл · PDF, JPG 10 МБ дейін',
+      openSettings: 'Баптауларды ашу',
       uploaded: '{{size}} · жүктелді',
       sizeMb: '{{value}} МБ',
       sizeKb: '{{value}} КБ',
@@ -189,6 +190,8 @@ export const kk: Translation = {
       empty: 'Файл бос. Басқасын таңдаңыз',
       too_large: 'Файл {{mb}} МБ-тан үлкен. Кішірек файл таңдаңыз',
       unsupported_format: 'PDF, JPEG немесе PNG қолайлы',
+      camera_denied:
+        'Камераға рұқсат жоқ. Телефон баптауларында камераға рұқсат беріңіз немесе галереядан фото таңдаңыз',
       corrupted: 'Файл бүлінген. Басқасын таңдаңыз',
       invalid_document: 'Файл қабылданбады. Басқасын таңдаңыз',
       invalid_fields: 'Атауын, ұйымды және жылды тексеріңіз',

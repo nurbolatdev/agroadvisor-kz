@@ -55,6 +55,7 @@ export const ru = {
       document: 'Диплом или сертификат',
       upload: 'Загрузить документ',
       uploadHint: 'Камера, галерея или файл · PDF, JPG до 10 МБ',
+      openSettings: 'Открыть настройки',
       uploaded: '{{size}} · загружено',
       sizeMb: '{{value}} МБ',
       sizeKb: '{{value}} КБ',
@@ -194,6 +195,8 @@ export const ru = {
       empty: 'Файл пустой. Выберите другой',
       too_large: 'Файл больше {{mb}} МБ. Выберите файл поменьше',
       unsupported_format: 'Подойдёт PDF, JPEG или PNG',
+      camera_denied:
+        'Нет доступа к камере. Разрешите камеру в настройках телефона или выберите фото из галереи',
       corrupted: 'Файл повреждён. Выберите другой',
       invalid_document: 'Файл не принят. Выберите другой',
       invalid_fields: 'Проверьте название, организацию и год',

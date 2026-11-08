@@ -6,6 +6,7 @@ export type UploadProblem =
   | 'empty'
   | 'too_large'
   | 'unsupported_format'
+  | 'camera_denied' // the person did not allow the camera; told with a button to the settings
   | 'corrupted'
   | 'invalid_document' // the backend refuses the file and gives no known reason
   | 'invalid_fields'
@@ -25,6 +26,7 @@ const PROBLEMS: Record<UploadProblem, true> = {
   empty: true,
   too_large: true,
   unsupported_format: true,
+  camera_denied: true,
   corrupted: true,
   invalid_document: true,
   invalid_fields: true,

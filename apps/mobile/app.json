@@ -45,7 +45,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "AgroAdvisor использует камеру, чтобы сфотографировать больной лист для диагностики.",
+          "cameraPermission": "AgroAdvisor использует камеру, чтобы сфотографировать больной лист для диагностики, а агрохимик — снять диплом или сертификат для проверки.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
@@ -53,7 +53,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "AgroAdvisor открывает галерею, чтобы вы выбрали фото листа для диагностики.",
+          "photosPermission": "AgroAdvisor открывает галерею, чтобы вы выбрали фото листа для диагностики, а агрохимик — фото диплома или сертификата для проверки.",
+          "cameraPermission": "AgroAdvisor использует камеру, чтобы сфотографировать больной лист для диагностики, а агрохимик — снять диплом или сертификат для проверки.",
           "microphonePermission": false
         }
       ]

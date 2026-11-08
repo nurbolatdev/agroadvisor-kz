@@ -57,6 +57,7 @@ export const en: Translation = {
       document: 'Diploma or certificate',
       upload: 'Upload a document',
       uploadHint: 'Camera, gallery or file · PDF, JPG up to 10 MB',
+      openSettings: 'Open settings',
       uploaded: '{{size}} · uploaded',
       sizeMb: '{{value}} MB',
       sizeKb: '{{value}} KB',
@@ -188,6 +189,8 @@ export const en: Translation = {
       empty: 'The file is empty. Choose another one',
       too_large: 'The file is larger than {{mb}} MB. Choose a smaller one',
       unsupported_format: 'Use a PDF, JPEG or PNG file',
+      camera_denied:
+        'No access to the camera. Allow the camera in the phone settings or choose a photo from the gallery',
       corrupted: 'The file is damaged. Choose another one',
       invalid_document: 'The file was not accepted. Choose another one',
       invalid_fields: 'Check the title, the issuer and the year',

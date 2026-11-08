@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { BackHandler } from 'react-native'
+import { BackHandler, Linking } from 'react-native'
 
 import { ApiError, NetworkError } from '@/api/errors'
 import ApplicationSentScreen from '@/app/(auth)/register-sent'
@@ -259,6 +259,20 @@ describe('registration, step 2 (frame 03a)', () => {
     expect(screen.getByText('2.4 MB · uploaded')).toBeTruthy()
     await fireEvent.press(screen.getByRole('button', { name: 'Remove the document' }))
     expect(screen.queryByText('diploma.pdf')).toBeNull()
+  })
+
+  it('a refused camera is told in words and the button opens the settings of the phone', async () => {
+    withAccount()
+    const openSettings = jest.spyOn(Linking, 'openSettings').mockResolvedValue(undefined)
+    mockChoose.mockResolvedValue({ status: 'refused', problem: 'camera_denied' })
+    await render(<QualificationScreen />)
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Upload a document' }))
+    await fireEvent.press(await screen.findByRole('button', { name: 'Take a photo' }))
+
+    expect(await screen.findByText(/No access to the camera/)).toBeTruthy()
+    await fireEvent.press(screen.getByRole('button', { name: 'Open settings' }))
+    expect(openSettings).toHaveBeenCalledTimes(1)
   })
 
   it('tells why a file was refused', async () => {

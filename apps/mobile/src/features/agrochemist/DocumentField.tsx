@@ -1,7 +1,7 @@
 import { FileText, Upload, X } from 'lucide-react-native'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { Linking, Pressable, StyleSheet, View } from 'react-native'
 
 import { AppText, Button } from '@/components/ui'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
@@ -90,6 +90,13 @@ export function DocumentField({ document, onChange, disabled = false, error }: P
         <AppText variant="small" color={colors.danger} accessibilityRole="alert">
           {t(problemKey(problem), PROBLEM_PARAMS)}
         </AppText>
+      ) : null}
+      {problem === 'camera_denied' ? (
+        <Button
+          variant="secondary"
+          label={t('register.qualification.openSettings')}
+          onPress={() => void Linking.openSettings()}
+        />
       ) : null}
       {error ? (
         <AppText variant="caption" color={colors.danger} accessibilityRole="alert">
