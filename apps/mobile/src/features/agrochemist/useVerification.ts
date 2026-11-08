@@ -4,6 +4,7 @@ import type { AgrochemistApi, UploadFile, UploadMeta, VerificationView } from '@
 import { NetworkError } from '@/api/errors'
 
 import { toUploadProblem, type UploadProblem } from './errors'
+import { announceVerificationChanged, onVerificationChanged } from './verificationEvents'
 
 export type VerificationState =
   | { status: 'loading' }
@@ -46,6 +47,8 @@ export function useVerification(api: AgrochemistApi) {
   const mounted = useRef(false)
   // Read at once, not after a redraw: two taps in a row are both seen.
   const working = useRef(false)
+  // who this hook is, for the announcements of changes between screens (verificationEvents.ts)
+  const self = useRef(Symbol('verification'))
 
   const read = useCallback(async () => {
     latest.current += 1
@@ -73,6 +76,15 @@ export function useVerification(api: AgrochemistApi) {
     }
   }, [read])
 
+  // Another screen sent or removed a document: read again (the one that did it has read already)
+  useEffect(
+    () =>
+      onVerificationChanged((source) => {
+        if (source !== self.current) void read()
+      }),
+    [read],
+  )
+
   const reload = useCallback(() => {
     setState((previous) => (previous.status === 'error' ? { status: 'loading' } : previous))
     return read()
@@ -91,12 +103,16 @@ export function useVerification(api: AgrochemistApi) {
       try {
         await action()
         await read()
+        announceVerificationChanged(self.current)
         return { ok: true }
       } catch (error) {
         const problem = toUploadProblem(error)
         // One failure, one message: this read is silent when it fails too (the list on the screen stays),
         // so a send without a connection is not followed by a second error from the read.
-        if (STALE_AFTER.includes(problem)) await read()
+        if (STALE_AFTER.includes(problem)) {
+          await read()
+          announceVerificationChanged(self.current)
+        }
         return { ok: false, problem: tell(problem) }
       } finally {
         working.current = false
