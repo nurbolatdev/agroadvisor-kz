@@ -41,6 +41,18 @@ export const ru = {
       agrochemist: { title: 'Агрохимик', hint: 'Консультирую фермеров' },
     },
     next: 'Далее',
+    // the "Region" row of step 1 (frame 03); the field is optional
+    region: {
+      label: 'Область',
+      placeholder: 'Выберите область',
+      title: 'Область',
+      none: 'Не указывать',
+      close: 'Закрыть список областей',
+      errors: {
+        offline: 'Нет связи с сервером. Список областей не загрузился',
+        server: 'Сервер не ответил. Список областей не загрузился',
+      },
+    },
     qualification: {
       title: 'Подтвердите квалификацию',
       hint: 'Документы увидит только администратор платформы',
