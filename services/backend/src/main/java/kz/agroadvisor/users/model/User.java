@@ -98,6 +98,11 @@ public class User {
         return status;
     }
 
+    /** The language of the interface and of the texts the server writes for this user (ru, kk or en). */
+    public void changeLanguage(String language) {
+        this.language = language;
+    }
+
     public void setStatus(UserStatus status) {
         this.status = status;
     }

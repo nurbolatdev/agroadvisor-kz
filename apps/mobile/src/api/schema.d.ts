@@ -424,7 +424,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Save the language of the interface and of the server's texts for this user; the last explicit choice wins, on the phone or here. Answers with the whole profile */
+        patch: operations["updateMe"];
         trace?: never;
     };
 }
@@ -703,6 +704,10 @@ export interface components {
             product: string;
             /** @enum {string} */
             type: "chemical" | "biological";
+        };
+        UpdateMeRequest: {
+            /** @enum {string} */
+            language: "ru" | "kk" | "en";
         };
         VerificationView: {
             documents: components["schemas"]["DocumentView"][];
@@ -1551,6 +1556,30 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    updateMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMeRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

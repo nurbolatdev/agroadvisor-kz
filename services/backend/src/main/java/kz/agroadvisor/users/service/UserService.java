@@ -51,6 +51,18 @@ public class UserService {
         }
     }
 
+    /**
+     * Saves the language the person picked; the last explicit choice wins, on the phone or here. The caller
+     * checks the value (ru, kk or en). An unknown user is a 401, as for {@code GET /api/users/me}.
+     */
+    @Transactional
+    public User changeLanguage(UUID id, String language) {
+        User user = users.findById(id)
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "unauthorized", "Authentication required"));
+        user.changeLanguage(language);
+        return users.saveAndFlush(user);
+    }
+
     private static ApiException loginTaken() {
         return new ApiException(HttpStatus.CONFLICT, LOGIN_TAKEN, "This login is already registered");
     }
