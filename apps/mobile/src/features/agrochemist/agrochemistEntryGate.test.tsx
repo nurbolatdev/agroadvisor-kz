@@ -1,11 +1,12 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { Text } from 'react-native'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { useEffect } from 'react'
+import { AppState, Text } from 'react-native'
 
 import type { VerificationView } from '@/api/agrochemist'
 import { NetworkError } from '@/api/errors'
 import { initI18n } from '@/i18n'
 
-import { AgrochemistEntryGate } from './AgrochemistEntryGate'
+import { AgrochemistEntryGate, ENTRY_COVER_MS } from './AgrochemistEntryGate'
 
 const mockChoose = jest.fn()
 const mockLogout = jest.fn()
@@ -169,5 +170,121 @@ describe('the entry of an agrochemist whose application has no document', () => 
     await fireEvent.press(await screen.findByRole('button', { name: 'Sign out' }))
 
     expect(mockLogout).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('the cover and the app under it', () => {
+  afterEach(() => {
+    jest.useRealTimers()
+    jest.restoreAllMocks()
+  })
+
+  it('covers the app with a neutral screen while the state is read, so the tabs do not flash by', async () => {
+    api.verification.mockReturnValue(new Promise(() => undefined)) // never answers
+
+    await render(app())
+
+    expect(screen.getByTestId('entry-cover')).toBeTruthy()
+    expect(screen.queryByText('the app')).toBeNull() // hidden from the reader of the screen too
+    expect(screen.getByText('the app', { includeHiddenElements: true })).toBeTruthy()
+  })
+
+  it('shows the app after a short wait when the network does not answer: nothing waits for it for long', async () => {
+    jest.useFakeTimers()
+    api.verification.mockReturnValue(new Promise(() => undefined))
+    await render(app())
+    expect(screen.queryByText('the app')).toBeNull()
+
+    await act(async () => {
+      jest.advanceTimersByTime(ENTRY_COVER_MS)
+    })
+
+    expect(screen.getByText('the app')).toBeTruthy()
+    expect(screen.queryByTestId('entry-cover')).toBeNull()
+  })
+
+  it('still asks for the document when the answer comes late, after the app was shown', async () => {
+    jest.useFakeTimers()
+    let answer: (value: VerificationView) => void = () => undefined
+    api.verification.mockReturnValue(new Promise<VerificationView>((resolve) => (answer = resolve)))
+    await render(app())
+    await act(async () => {
+      jest.advanceTimersByTime(ENTRY_COVER_MS)
+    })
+    expect(screen.getByText('the app')).toBeTruthy()
+
+    await act(async () => {
+      answer(view('pending', 0))
+    })
+
+    expect(screen.getByText('Application not finished')).toBeTruthy()
+  })
+
+  it('never rebuilds the app: its screens stay mounted when the role becomes known and the cover comes and goes', async () => {
+    let mounts = 0
+    function Counted() {
+      useEffect(() => {
+        mounts += 1
+      }, [])
+      return <Text>the app</Text>
+    }
+    const tree = () => (
+      <AgrochemistEntryGate>
+        <Counted />
+      </AgrochemistEntryGate>
+    )
+    mockRoles = null
+    const view_ = await render(tree())
+    expect(mounts).toBe(1)
+
+    mockRoles = ['agrochemist']
+    api.verification.mockResolvedValueOnce(view('pending', 0)).mockResolvedValue(view('pending', 1))
+    api.upload.mockResolvedValue({})
+    mockChoose.mockResolvedValue({ status: 'chosen', document })
+    await view_.rerender(tree())
+    await fireEvent.press(await screen.findByRole('button', { name: 'Upload a document' }))
+    await fireEvent.press(await screen.findByRole('button', { name: 'Choose a PDF' }))
+    await screen.findByText('d.pdf')
+    await fireEvent.press(screen.getByRole('button', { name: 'Send the document' }))
+    await screen.findByText('the app')
+
+    expect(mounts).toBe(1)
+  })
+
+  it('reads the state again when the person comes back to the app', async () => {
+    let onChange: (state: string) => void = () => undefined
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, handler) => {
+      onChange = handler as (state: string) => void
+      return { remove: jest.fn() }
+    })
+    api.verification.mockResolvedValueOnce(view('approved', 1))
+    await render(app())
+    await screen.findByText('the app')
+    expect(api.verification).toHaveBeenCalledTimes(1)
+    api.verification.mockResolvedValue(view('pending', 0))
+
+    await act(async () => {
+      onChange('active')
+    })
+
+    expect(await screen.findByText('Application not finished')).toBeTruthy()
+    expect(api.verification).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not read it again when the app goes to the background', async () => {
+    let onChange: (state: string) => void = () => undefined
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, handler) => {
+      onChange = handler as (state: string) => void
+      return { remove: jest.fn() }
+    })
+    api.verification.mockResolvedValue(view('approved', 1))
+    await render(app())
+    await screen.findByText('the app')
+
+    await act(async () => {
+      onChange('background')
+    })
+
+    expect(api.verification).toHaveBeenCalledTimes(1)
   })
 })
