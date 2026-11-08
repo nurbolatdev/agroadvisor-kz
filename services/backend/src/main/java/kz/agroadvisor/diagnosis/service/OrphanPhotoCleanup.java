@@ -34,7 +34,11 @@ import kz.agroadvisor.diagnosis.repository.DiagnosisRepository;
  * {@code min-age} are looked at; a candidate is checked against the database twice (once while walking, once
  * right before the deletion); one run deletes at most {@code max-deletes-per-run}; if more than
  * {@code max-orphan-ratio} of the old objects look orphaned, something is wrong with the comparison itself and
- * the run deletes nothing; {@code dry-run} only counts. One instance works at a time (advisory lock).
+ * the run deletes nothing; {@code dry-run} only counts. One instance works at a time (advisory lock); the limit
+ * is per run, so several instances that run one after another (clock skew) can each delete up to the limit.
+ *
+ * <p>Invariant: "alive" means {@code diagnoses.photo_key}. A new table that refers to an object under
+ * {@code diagnoses/} must be added to {@link DiagnosisRepository#findExistingPhotoKeys}.
  */
 @Component
 @ConditionalOnProperty(prefix = "app.photos.orphan-cleanup", name = "enabled", havingValue = "true",
@@ -78,11 +82,12 @@ public class OrphanPhotoCleanup {
         this.props = props;
         this.clock = clock;
         Gauge.builder("agroadvisor.photos.orphan_cleanup.last_success", lastSuccess, AtomicLong::get)
-                .description("Epoch seconds of the last run that finished without an abort or an error")
+                .description("Epoch seconds of the last run of this instance that walked the whole bucket without "
+                        + "aborting (a dry run counts; objects that could not be deleted are counted as outcome=failed)")
                 .register(meters);
     }
 
-    @Scheduled(cron = "${app.photos.orphan-cleanup.cron}", zone = "Asia/Almaty")
+    @Scheduled(cron = "${app.photos.orphan-cleanup.cron:0 30 3 * * *}", zone = "Asia/Almaty")
     void scheduled() {
         run();
     }
@@ -124,6 +129,9 @@ public class OrphanPhotoCleanup {
             Iterator<StoredObject> it = objects.iterator();
             while (it.hasNext()) {
                 StoredObject object = it.next();
+                if (object.key().endsWith("/")) {
+                    continue; // a folder marker, not a photo
+                }
                 scanned++;
                 if (object.lastModified().isAfter(youngerThan)) {
                     young++;

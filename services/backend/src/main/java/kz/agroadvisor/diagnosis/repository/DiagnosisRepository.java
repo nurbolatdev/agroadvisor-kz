@@ -29,6 +29,9 @@ public interface DiagnosisRepository extends JpaRepository<Diagnosis, UUID> {
      * keys are compared as they are: {@code photo_key} holds the full storage key, exactly the string the storage
      * lists ({@code diagnoses/<userId>/<name>.<ext>}), so no conversion is needed and a key that differs in
      * any character is another key. The caller sends batches (hundreds, not the whole bucket).
+     *
+     * <p>The orphaned photo cleanup deletes every object under {@code diagnoses/} that this method does not
+     * report. Any new table or column that refers to such an object must be added here first.
      */
     default Set<String> findExistingPhotoKeys(Collection<String> keys) {
         return keys.isEmpty() ? Set.of() : findPhotoKeysIn(keys);

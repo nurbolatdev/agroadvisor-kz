@@ -50,7 +50,7 @@ Safety layers, because the deletion is final:
 | --- | --- |
 | `min-age` = 24 h (the application does not start unless it exceeds both the claim timeout and the 1 h cleanup of claims) | an object of a request that is still working is never looked at |
 | second database look right before `DeleteObjects` | a candidate that became live meanwhile is kept |
-| `max-deletes-per-run` = 500 | a bug costs at most this many photos per night |
+| `max-deletes-per-run` = 500 | a bug costs at most this many photos per run; the limit is per run, so with several instances whose clocks differ a little, each of them can run once after the other and delete up to the limit |
 | `max-orphan-ratio` = 0.2 | if more than a fifth of the old objects look orphaned, the comparison itself is broken (wrong key format, wrong database, wrong prefix): the run aborts and deletes nothing |
 | `dry-run` = on by default | the first nights only count |
 | PostgreSQL advisory lock | one instance works at a time; deletes are idempotent anyway |
@@ -89,7 +89,17 @@ that the journal marks as unconfirmed instead of listing everything.
 - A run holds one database connection for its whole duration (the advisory lock is per session). The pool is
   large enough for one.
 - If releasing the lock fails, the connection is discarded instead of going back to the pool with the lock held.
+- **Alive means `diagnoses.photo_key`.** Anything else that refers to an object under `diagnoses/` (for example a
+  community post made from a diagnosis result) must be added to `DiagnosisRepository.findExistingPhotoKeys`
+  before it is released, or the cleanup deletes that photo once its diagnosis row is gone or the key is
+  referenced only there. The invariant is written next to the query and next to the migration.
+- **Roll-out order.** Switch `dry-run` off only when every instance runs the code with random object names. An
+  instance of the old code overwrites an old object on a keyed retry (the hash name); if that happened between
+  the second database look and `DeleteObjects` of an instance running the cleanup, a live photo would go.
 - Monitoring: `agroadvisor.photos.orphans{outcome=found|removed|failed|aborted|skipped_young}`,
   `agroadvisor.photos.orphan_cleanup.duration` and `agroadvisor.photos.orphan_cleanup.last_success` (epoch
-  seconds). Alert when `last_success` is older than 48 h, and on any `aborted`.
+  seconds of the last run of that instance that walked the whole bucket without aborting; a dry run counts,
+  deletions that failed are counted as `failed`). The gauge is in memory and starts at 0, and an instance that
+  never gets the lock keeps 0: alert on `max()` over the instances when `last_success` is older than 48 h, with
+  a grace period after a deploy, and on any `aborted`.
 - Rollback: `APP_PHOTOS_ORPHAN_CLEANUP_ENABLED=false` and a restart.

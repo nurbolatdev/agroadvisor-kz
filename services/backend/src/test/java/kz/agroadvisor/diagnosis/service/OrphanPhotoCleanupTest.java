@@ -135,16 +135,36 @@ class OrphanPhotoCleanupTest {
     void doesNotTouchAnObjectYoungerThanTheMinimumAgeEvenWithoutARow() {
         livePadding(10);
         stored.add(new StoredObject("diagnoses/u/fresh.jpg", YOUNG));
+        OrphanPhotoCleanup job = cleanup(false);
+        // the batch list is reused by the job, so what is asked is noted at the moment of the question
+        List<String> asked = new ArrayList<>();
+        when(diagnoses.findExistingPhotoKeys(anyCollection())).thenAnswer(call -> {
+            Collection<String> keys = call.getArgument(0);
+            asked.addAll(keys);
+            Set<String> answer = new HashSet<>(keys);
+            answer.retainAll(live);
+            return answer;
+        });
 
-        var summary = cleanup(false).run();
+        var summary = job.run();
 
+        assertThat(asked).hasSize(10);
         assertThat(summary.young()).isEqualTo(1);
         assertThat(summary.found()).isZero();
         verify(photos, never()).deleteAll(anyCollection());
-        ArgumentCaptor<Collection<String>> asked = ArgumentCaptor.forClass(Collection.class);
-        verify(diagnoses, times(1)).findExistingPhotoKeys(asked.capture());
-        assertThat(asked.getValue()).doesNotContain("diagnoses/u/fresh.jpg"); // not even looked up
+        assertThat(asked).doesNotContain("diagnoses/u/fresh.jpg"); // not even looked up
         assertThat(count("skipped_young")).isEqualTo(1);
+    }
+
+    @Test
+    void skipsFolderMarkers() {
+        livePadding(10);
+        stored.add(new StoredObject("diagnoses/u/", OLD));
+
+        var summary = cleanup(false).run();
+
+        assertThat(summary.scanned()).isEqualTo(10);
+        assertThat(summary.found()).isZero();
     }
 
     @Test

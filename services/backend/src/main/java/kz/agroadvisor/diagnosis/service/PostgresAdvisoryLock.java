@@ -6,6 +6,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import javax.sql.DataSource;
 
+import com.zaxxer.hikari.HikariDataSource;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,7 +77,12 @@ public class PostgresAdvisoryLock implements ExclusiveRun {
             // Closing a pooled connection returns it with the session (and the lock) alive: drop the session
             log.error("Releasing the advisory lock {} failed, the connection is discarded: {}", lockId, e.toString());
             try {
-                connection.unwrap(Connection.class).abort(Runnable::run);
+                if (dataSource.isWrapperFor(HikariDataSource.class)) {
+                    // Marks the connection as broken, so the pool closes it and never hands it out again
+                    dataSource.unwrap(HikariDataSource.class).evictConnection(connection);
+                } else {
+                    connection.unwrap(Connection.class).abort(Runnable::run);
+                }
             } catch (SQLException | RuntimeException abortFailure) {
                 log.error("The connection could not be discarded: {}", abortFailure.toString());
             }
