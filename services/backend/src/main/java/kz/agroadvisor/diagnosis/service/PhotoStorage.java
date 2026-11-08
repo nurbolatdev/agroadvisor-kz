@@ -1,7 +1,10 @@
 package kz.agroadvisor.diagnosis.service;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /** Stores diagnosis photos outside the database; the database keeps only the returned key. */
 public interface PhotoStorage {
@@ -21,4 +24,19 @@ public interface PhotoStorage {
 
     /** Removes a stored photo, e.g. when the diagnosis it belongs to could not be recorded. */
     void delete(String key);
+
+    /**
+     * The objects whose key starts with the prefix, read page by page as the stream is consumed, so a
+     * large bucket is never held in memory. A storage fault surfaces as an exception while iterating.
+     */
+    Stream<StoredObject> list(String prefix);
+
+    /** The key and last-modified time of one object, or empty when there is none. */
+    Optional<StoredObject> head(String key);
+
+    /**
+     * Removes the objects in batches of at most 1000 and returns the keys that could not be removed (empty
+     * when all went). A failed call counts all keys of its batch as failed; it never throws for a storage fault.
+     */
+    List<String> deleteAll(Collection<String> keys);
 }
