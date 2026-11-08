@@ -18,7 +18,7 @@ export function RoleCard({ icon: Icon, title, hint, selected, onPress }: Props) 
   return (
     <Pressable
       accessibilityRole="radio"
-      accessibilityState={{ selected }}
+      accessibilityState={{ checked: selected }}
       onPress={onPress}
       style={[styles.card, selected && styles.cardSelected]}
     >

@@ -53,6 +53,7 @@ export function DocumentField({ document, onChange, disabled = false, error }: P
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('register.qualification.upload')}
+        accessibilityState={{ disabled }}
         onPress={() => !disabled && setChoosing((open) => !open)}
         style={styles.zone}
       >
@@ -112,6 +113,7 @@ export function DocumentField({ document, onChange, disabled = false, error }: P
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('register.qualification.removeDocument')}
+            accessibilityState={{ disabled }}
             hitSlop={spacing.sm}
             onPress={() => !disabled && onChange(null)}
             style={styles.remove}

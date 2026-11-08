@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { ApiError, NetworkError } from '@/api/errors'
 import type { RegisterBody } from '@/api/auth'
 
@@ -25,6 +28,11 @@ function setup(overrides: Partial<ApplicationDeps> = {}) {
     upload: async () => {
       calls.push('upload')
     },
+    // no such account by default: the sign-in before a second register finds nothing
+    login: async () => {
+      calls.push('login')
+      throw new ApiError(401, 'invalid_credentials', 'no such account')
+    },
     documentCount: async () => {
       calls.push('count')
       return 0
@@ -46,7 +54,7 @@ describe('the application of an agrochemist', () => {
   it('registers, sends the document and ends as sent', async () => {
     const { store, calls, bodies } = setup()
 
-    await expect(store.getState().submit()).resolves.toBe('sent')
+    await expect(store.getState().submit()).resolves.toMatchObject({ result: 'sent' })
 
     expect(calls).toEqual(['register', 'upload'])
     expect(store.getState().phase).toBe('sent')
@@ -78,13 +86,13 @@ describe('the application of an agrochemist', () => {
       },
     })
 
-    await expect(store.getState().submit()).resolves.toBe('failed')
+    await expect(store.getState().submit()).resolves.toMatchObject({ result: 'failed' })
     expect(store.getState().failure).toMatchObject({ stage: 'register' })
     expect(store.getState().phase).toBe('editing')
     expect(store.getState().account?.password).toBe('secret-pass-1')
 
     fail = false
-    await expect(store.getState().submit()).resolves.toBe('sent')
+    await expect(store.getState().submit()).resolves.toMatchObject({ result: 'sent' })
   })
 
   it('after a failed upload sends only the document again and never registers twice', async () => {
@@ -96,12 +104,12 @@ describe('the application of an agrochemist', () => {
       },
     })
 
-    await expect(store.getState().submit()).resolves.toBe('failed')
+    await expect(store.getState().submit()).resolves.toMatchObject({ result: 'failed' })
     expect(store.getState().phase).toBe('registered')
     expect(store.getState().failure).toMatchObject({ stage: 'upload' })
 
     failUpload = false
-    await expect(store.getState().submit()).resolves.toBe('sent')
+    await expect(store.getState().submit()).resolves.toMatchObject({ result: 'sent' })
     expect(store.getState().phase).toBe('sent')
 
     expect(calls.filter((c) => c === 'register')).toHaveLength(1)
@@ -123,18 +131,110 @@ describe('the application of an agrochemist', () => {
     release()
     const firstResult = await first
 
-    expect(second).toBe('busy')
-    expect(firstResult).toBe('sent')
+    expect(second.result).toBe('busy')
+    expect(firstResult.result).toBe('sent')
     expect(calls.filter((c) => c === 'register')).toHaveLength(1)
     expect(calls.filter((c) => c === 'upload')).toHaveLength(1)
   })
 
-  it('presses after the application is sent do not register again', async () => {
+  it('presses after the application is sent register nothing and send nothing again', async () => {
     const { store, calls } = setup()
     await store.getState().submit()
-    await store.getState().submit()
+
+    await expect(store.getState().submit()).resolves.toMatchObject({ result: 'sent' })
 
     expect(calls.filter((c) => c === 'register')).toHaveLength(1)
+    expect(calls.filter((c) => c === 'upload')).toHaveLength(1)
+  })
+
+  it('gives the failure in the outcome, so a screen does not have to read it from the store', async () => {
+    const { store } = setup({
+      register: async () => {
+        throw new ApiError(409, 'login_taken', 'taken')
+      },
+    })
+
+    const outcome = await store.getState().submit()
+
+    expect(outcome.result).toBe('failed')
+    expect(outcome.failure).toMatchObject({ stage: 'register' })
+  })
+
+  describe('a register that got no answer', () => {
+    it('signs in before it registers again, and carries on with the account it finds', async () => {
+      let first = true
+      const { store, calls } = setup({
+        register: async () => {
+          calls.push('register')
+          if (first) {
+            first = false
+            throw new NetworkError() // the account was made, the answer never came
+          }
+        },
+        login: async () => {
+          calls.push('login')
+        },
+      })
+
+      await expect(store.getState().submit()).resolves.toMatchObject({ result: 'failed' })
+      await expect(store.getState().submit()).resolves.toMatchObject({ result: 'sent' })
+
+      expect(calls).toEqual(['register', 'login', 'upload'])
+    })
+
+    it('registers again when there is no such account', async () => {
+      let first = true
+      const { store, calls } = setup({
+        register: async () => {
+          calls.push('register')
+          if (first) {
+            first = false
+            throw new NetworkError() // the request never reached the server
+          }
+        },
+      })
+
+      await store.getState().submit()
+      await expect(store.getState().submit()).resolves.toMatchObject({ result: 'sent' })
+
+      expect(calls).toEqual(['register', 'login', 'register', 'upload'])
+    })
+
+    it('does not sign in after a plain refusal of the server', async () => {
+      let first = true
+      const { store, calls } = setup({
+        register: async () => {
+          calls.push('register')
+          if (first) {
+            first = false
+            throw new ApiError(409, 'login_taken', 'taken')
+          }
+        },
+      })
+
+      await store.getState().submit()
+      await store.getState().submit()
+
+      expect(calls).not.toContain('login')
+    })
+
+    it('treats an error of the server like a lost answer', async () => {
+      let first = true
+      const { store, calls } = setup({
+        register: async () => {
+          calls.push('register')
+          if (first) {
+            first = false
+            throw new ApiError(500, 'internal', 'boom')
+          }
+        },
+      })
+
+      await store.getState().submit()
+      await store.getState().submit()
+
+      expect(calls).toContain('login')
+    })
   })
 
   describe('a send that got no answer', () => {
@@ -152,10 +252,10 @@ describe('the application of an agrochemist', () => {
         },
       })
 
-      await expect(store.getState().submit()).resolves.toBe('failed')
+      await expect(store.getState().submit()).resolves.toMatchObject({ result: 'failed' })
       expect(store.getState().failure).toEqual({ stage: 'upload', problem: 'offline' })
 
-      await expect(store.getState().submit()).resolves.toBe('sent')
+      await expect(store.getState().submit()).resolves.toMatchObject({ result: 'sent' })
 
       expect(upload).toBe(1)
       expect(calls).toEqual(['register', 'upload', 'count'])
@@ -174,7 +274,7 @@ describe('the application of an agrochemist', () => {
       })
 
       await store.getState().submit()
-      await expect(store.getState().submit()).resolves.toBe('sent')
+      await expect(store.getState().submit()).resolves.toMatchObject({ result: 'sent' })
 
       expect(calls).toEqual(['register', 'upload', 'count', 'upload'])
     })
@@ -202,7 +302,7 @@ describe('the application of an agrochemist', () => {
     const { store, calls } = setup()
     store.getState().setDocument(null)
 
-    await expect(store.getState().submit()).resolves.toBe('incomplete')
+    await expect(store.getState().submit()).resolves.toMatchObject({ result: 'incomplete' })
     expect(calls).toEqual([])
   })
 
@@ -235,5 +335,13 @@ describe('the application of an agrochemist', () => {
     const { store } = setup()
     // zustand's persist middleware adds .persist to the store; none is there
     expect('persist' in store).toBe(false)
+  })
+
+  it('does not reach for the storage of the phone: its source imports none (the password stays in memory)', () => {
+    const source = readFileSync(join(__dirname, 'application.ts'), 'utf8')
+
+    for (const forbidden of ['mmkv', '@/lib/storage', 'persist', 'SecureStore', 'AsyncStorage']) {
+      expect(source).not.toContain(forbidden)
+    }
   })
 })

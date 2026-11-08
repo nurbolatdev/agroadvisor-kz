@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { BackHandler } from 'react-native'
 
 import { ApiError, NetworkError } from '@/api/errors'
 import ApplicationSentScreen from '@/app/(auth)/register-sent'
@@ -11,6 +12,9 @@ const mockReplace = jest.fn()
 const mockBack = jest.fn()
 const mockChoose = jest.fn()
 
+const mockSetOptions = jest.fn()
+let mockFocused = true
+
 jest.mock('expo-router', () => ({
   useRouter: () => ({
     push: mockPush,
@@ -18,6 +22,8 @@ jest.mock('expo-router', () => ({
     back: mockBack,
     canGoBack: () => true,
   }),
+  useIsFocused: () => mockFocused,
+  useNavigation: () => ({ setOptions: mockSetOptions }),
   Link: ({ children }: { children: unknown }) => children,
   Redirect: ({ href }: { href: string }) => {
     const { Text } = require('react-native')
@@ -38,6 +44,7 @@ jest.mock('@/services', () => {
   const { createApplicationStore } = require('@/features/agrochemist/application')
   const deps = {
     register: jest.fn(async () => undefined),
+    login: jest.fn(async () => undefined),
     upload: jest.fn(async () => undefined),
     documentCount: jest.fn(async () => 0),
     releaseEntry: jest.fn(),
@@ -74,6 +81,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockFocused = true
   services.useApplication.getState().reset()
   mockChoose.mockResolvedValue({ status: 'chosen', document: diploma })
 })
@@ -139,7 +147,7 @@ describe('registration, step 1 (frame 03)', () => {
     expect(await screen.findByText('This phone or e-mail is already taken')).toBeTruthy()
     expect(screen.getByLabelText('Phone or e-mail').props.value).toBe('+77001112233')
     expect(
-      screen.getByRole('radio', { name: /Agrochemist/ }).props.accessibilityState.selected,
+      screen.getByRole('radio', { name: /Agrochemist/ }).props.accessibilityState.checked,
     ).toBe(true)
     expect(services.useApplication.getState().failure).toBeNull()
   })
@@ -303,6 +311,139 @@ describe('registration, step 2 (frame 03a)', () => {
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/register-sent'))
     expect(services.__deps.register).toHaveBeenCalledTimes(1)
     expect(services.__deps.upload).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('no way back once the account exists', () => {
+  const entered = {
+    qualification: { specializations: ['agrochemistry' as const], experienceYears: 7 },
+    document: {
+      file: { uri: 'file:///d.pdf', name: 'd.pdf', type: 'application/pdf' },
+      meta: { kind: 'diploma' as const },
+    },
+    account: { fullName: 'Aigul', login: '+77001112233', password: '' },
+  }
+
+  function backHandlers() {
+    const handlers: (() => boolean)[] = []
+    jest.spyOn(BackHandler, 'addEventListener').mockImplementation((_event, handler) => {
+      handlers.push(handler as () => boolean)
+      return { remove: jest.fn() }
+    })
+    return handlers
+  }
+
+  it('step 2 locks the swipe and the system Back and draws no arrow', async () => {
+    const handlers = backHandlers()
+    services.useApplication.setState({ ...entered, phase: 'registered' })
+
+    await render(<QualificationScreen />)
+
+    expect(mockSetOptions).toHaveBeenLastCalledWith({ gestureEnabled: false })
+    expect(handlers).toHaveLength(1)
+    expect(handlers[0]()).toBe(true) // the press is handled: the system does not go back
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()
+  })
+
+  it('step 2 before the account exists can still be left', async () => {
+    const handlers = backHandlers()
+    services.useApplication.getState().setAccount(entered.account)
+
+    await render(<QualificationScreen />)
+
+    expect(mockSetOptions).toHaveBeenLastCalledWith({ gestureEnabled: true })
+    expect(handlers).toHaveLength(0)
+    expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy()
+  })
+
+  it('step 2 opened again after the account was made shows what was entered', async () => {
+    services.useApplication.setState({ ...entered, phase: 'registered' })
+
+    await render(<QualificationScreen />)
+
+    expect(screen.getByLabelText('Years of experience').props.value).toBe('7')
+    expect(
+      screen.getByRole('button', { name: 'Agrochemistry' }).props.accessibilityState.selected,
+    ).toBe(true)
+    expect(screen.getByText('d.pdf')).toBeTruthy()
+    expect(screen.getByRole('checkbox').props.accessibilityState.checked).toBe(true)
+  })
+
+  it('step 1 leads on to step 2 instead of letting the person register a second account', async () => {
+    services.useApplication.setState({ ...entered, phase: 'registered' })
+
+    await render(<RegisterScreen />)
+
+    expect(screen.getByText('redirect to /register-qualification')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Create account' })).toBeNull()
+    expect(services.__farmerRegister).not.toHaveBeenCalled()
+  })
+
+  it('step 1 leads on to the sent screen when the application is sent', async () => {
+    services.useApplication.setState({ ...entered, phase: 'sent' })
+
+    await render(<RegisterScreen />)
+
+    expect(screen.getByText('redirect to /register-sent')).toBeTruthy()
+  })
+
+  it('the sent screen locks the swipe and the system Back', async () => {
+    const handlers = backHandlers()
+
+    await render(<ApplicationSentScreen />)
+
+    expect(mockSetOptions).toHaveBeenLastCalledWith({ gestureEnabled: false })
+    expect(handlers[0]()).toBe(true)
+  })
+})
+
+describe('the refusal of step 1 found on step 2', () => {
+  const refused = {
+    failure: { stage: 'register' as const, error: new ApiError(409, 'login_taken', 'taken') },
+    account: { fullName: 'Aigul', login: '+77001112233', password: 'secret-pass-1' },
+  }
+
+  it('step 1 under step 2 leaves the failure alone: step 2 is still using it', async () => {
+    services.useApplication.setState(refused)
+    mockFocused = false
+
+    await render(<RegisterScreen />)
+
+    expect(screen.queryByText('This phone or e-mail is already taken')).toBeNull()
+    expect(services.useApplication.getState().failure).not.toBeNull()
+  })
+
+  it('step 1 shows it as soon as it is the screen on top, and then forgets it', async () => {
+    services.useApplication.setState(refused)
+    mockFocused = false
+    const view = await render(<RegisterScreen />)
+
+    mockFocused = true
+    await view.rerender(<RegisterScreen />)
+
+    expect(await screen.findByText('This phone or e-mail is already taken')).toBeTruthy()
+    expect(services.useApplication.getState().failure).toBeNull()
+  })
+
+  it('step 2 takes the person back by the outcome, whoever else watches the store', async () => {
+    services.useApplication.getState().setAccount(refused.account)
+    services.__deps.register.mockRejectedValueOnce(new ApiError(409, 'login_taken', 'taken'))
+    // a screen under step 2 that takes the failure the moment it is set, as step 1 once did
+    const stop = services.useApplication.subscribe((state) => {
+      if (state.failure) services.useApplication.getState().clearFailure()
+    })
+    await render(<QualificationScreen />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Agrochemistry' }))
+    await fireEvent.changeText(screen.getByLabelText('Years of experience'), '3')
+    fireEvent.press(screen.getByRole('button', { name: 'Upload a document' }))
+    await fireEvent.press(await screen.findByRole('button', { name: 'Choose a PDF' }))
+    await screen.findByText('diploma.pdf')
+    await fireEvent.press(screen.getByRole('checkbox'))
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Send for review' }))
+
+    await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1))
+    stop()
   })
 })
 

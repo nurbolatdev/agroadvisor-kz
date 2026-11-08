@@ -13,7 +13,8 @@ type Props = {
   // 0..1, drawn under the title; absent together with the caption
   progress?: number
   backLabel: string
-  onBack: () => void
+  // absent: there is no way back from this screen, and no arrow is drawn
+  onBack?: () => void
 }
 
 // The top of the registration screens (frames 03, 03a): the arrow, the title and the step in the middle, and
@@ -22,15 +23,19 @@ export function StepHeader({ title, caption, progress, backLabel, onBack }: Prop
   return (
     <View style={styles.wrap}>
       <View style={styles.row}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={backLabel}
-          hitSlop={spacing.sm}
-          onPress={onBack}
-          style={styles.back}
-        >
-          <ChevronLeft size={sizes.icon} color={colors.text} />
-        </Pressable>
+        {onBack ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={backLabel}
+            hitSlop={spacing.sm}
+            onPress={onBack}
+            style={styles.back}
+          >
+            <ChevronLeft size={sizes.icon} color={colors.text} />
+          </Pressable>
+        ) : (
+          <View style={styles.back} />
+        )}
         <View style={styles.titles}>
           <AppText variant="h2" style={styles.center}>
             {title}

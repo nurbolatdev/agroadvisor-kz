@@ -10,6 +10,7 @@ import { DocumentField } from '@/features/agrochemist/DocumentField'
 import { PROBLEM_PARAMS } from '@/features/agrochemist/documentRules'
 import { problemKey } from '@/features/agrochemist/errors'
 import { toFormFailure } from '@/features/auth/errors'
+import { useLockedBack } from '@/features/auth/useLockedBack'
 import { useApplication } from '@/services'
 import { colors, spacing } from '@/theme/tokens'
 
@@ -30,18 +31,32 @@ export default function QualificationScreen() {
   const account = useApplication((s) => s.account)
   const phase = useApplication((s) => s.phase)
   const failure = useApplication((s) => s.failure)
-  const [specializations, setSpecializations] = useState<Specialization[]>([])
-  const [experience, setExperience] = useState('')
-  const [document, setDocument] = useState<ChosenDocument | null>(null)
-  const [consent, setConsent] = useState(false)
+  // What the person entered before (the screen is opened again after a refusal on step 1, or after the
+  // account was made and the document did not go): the form is not empty then
+  const entered = useApplication.getState()
+  const [specializations, setSpecializations] = useState<Specialization[]>(
+    entered.qualification?.specializations ?? [],
+  )
+  const [experience, setExperience] = useState(
+    entered.qualification ? String(entered.qualification.experienceYears) : '',
+  )
+  const [document, setDocument] = useState<ChosenDocument | null>(
+    entered.document
+      ? { file: entered.document.file, name: entered.document.file.name, size: null }
+      : null,
+  )
+  // the agreement was given when the person pressed "Send for review" before
+  const [consent, setConsent] = useState(entered.qualification !== null)
   const [problems, setProblems] = useState<Problems>({})
+
+  const busy = phase === 'registering' || phase === 'uploading'
+  // After the account exists only the document can still change: the rest was sent with the registration, and
+  // there is no way back to step 1 (it would let the person register a second account)
+  const locked = phase !== 'editing'
+  useLockedBack(locked)
 
   // Nothing to register without step 1 (the app was restarted, or the address was opened directly)
   if (!account) return <Redirect href="/register" />
-
-  const busy = phase === 'registering' || phase === 'uploading'
-  // After the account exists only the document can still change: the rest was sent with the registration
-  const locked = phase !== 'editing'
 
   const toggle = (value: Specialization) => {
     if (locked) return
@@ -69,13 +84,14 @@ export default function QualificationScreen() {
       experienceYears: years,
     })
     store.setDocument({ file: document.file, meta: { kind: 'diploma' } })
-    const result = await store.submit()
-    if (result === 'sent') {
+    const outcome = await store.submit()
+    if (outcome.result === 'sent') {
       router.replace('/register-sent')
       return
     }
-    // A refusal that is about a field of step 1: step 1 shows it at the field (it reads the failure)
-    const failed = useApplication.getState().failure
+    // A refusal that is about a field of step 1: back to step 1, which shows it at the field. The failure
+    // stays in the store for it (step 1 takes it when it is on screen again).
+    const failed = outcome.failure
     if (failed?.stage === 'register' && toFormFailure(failed.error).field !== undefined) {
       router.back()
     }
@@ -88,7 +104,7 @@ export default function QualificationScreen() {
         caption={t('register.stepOf', { current: 2, total: 2 })}
         progress={1}
         backLabel={t('common.back')}
-        onBack={() => router.back()}
+        onBack={locked ? undefined : () => router.back()}
       />
 
       <AppText variant="h1" style={styles.title}>
@@ -101,7 +117,7 @@ export default function QualificationScreen() {
       <AppText variant="caption" style={styles.label}>
         {t('register.qualification.specialization')}
       </AppText>
-      <View accessibilityRole="menu" style={styles.chips}>
+      <View style={styles.chips}>
         {SPECIALIZATIONS.map((value) => (
           <Chip
             key={value}
@@ -176,7 +192,7 @@ export default function QualificationScreen() {
         </View>
       ) : null}
       {busy ? (
-        <View style={styles.notice}>
+        <View accessibilityLiveRegion="polite" style={styles.notice}>
           <AppText variant="small">{t('register.qualification.sending')}</AppText>
           <AppText variant="caption" color={colors.textMuted}>
             {t('register.qualification.sendingHint')}

@@ -33,7 +33,8 @@ type SessionState = {
   // hold: stay on the registration screens until releaseEntry() (see entryHeld)
   register: (body: RegisterBody, options?: { hold?: boolean }) => Promise<void>
   releaseEntry: () => void
-  login: (body: LoginRequest) => Promise<void>
+  // hold: as for register (an application whose account was made but whose answer was lost)
+  login: (body: LoginRequest, options?: { hold?: boolean }) => Promise<void>
   logout: () => Promise<void>
   // For the API client. Returns a fresh access token or null; concurrent calls share one request,
   // because the backend rotates refresh tokens and a second use of the old one would sign us out.
@@ -149,9 +150,9 @@ export function createSessionStore(deps: {
         set({ entryHeld: false })
       },
 
-      async login(body) {
+      async login(body, options) {
         const startedIn = generation
-        await accept(await authApi.login(body), startedIn)
+        await accept(await authApi.login(body), startedIn, options?.hold ?? false)
       },
 
       async logout() {

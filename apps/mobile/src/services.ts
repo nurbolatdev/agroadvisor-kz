@@ -11,6 +11,7 @@ import { createMockDiseaseApi } from '@/api/mock/diseases'
 import { createMockUsersApi } from '@/api/mock/users'
 import { createUsersApi } from '@/api/users'
 import { createApplicationStore } from '@/features/agrochemist/application'
+import { shouldResetApplication } from '@/features/agrochemist/applicationLifecycle'
 import { createDiseaseCatalog } from '@/features/diseases/catalog'
 import { createPendingQueue } from '@/features/diagnosis/pendingQueue'
 import { preparePhoto } from '@/features/diagnosis/photo'
@@ -75,10 +76,16 @@ export const agrochemistMockControls = mockAgrochemist?.controls ?? null
 // the "application sent" screen.
 export const useApplication = createApplicationStore({
   register: (body) => useSession.getState().register(body, { hold: true }),
+  login: (body) => useSession.getState().login(body, { hold: true }),
   upload: (file, meta) => agrochemistApi.upload(file, meta),
   documentCount: async () => (await agrochemistApi.verification()).documents.length,
   releaseEntry: () => useSession.getState().releaseEntry(),
   language: () => useSettings.getState().language,
+})
+
+// An application belongs to the session it was made in (see shouldResetApplication)
+useSession.subscribe((state, previous) => {
+  if (shouldResetApplication(state, previous)) useApplication.getState().reset()
 })
 
 export const diseaseApi = API_MODE === 'mock' ? createMockDiseaseApi() : createDiseaseApi(apiClient)

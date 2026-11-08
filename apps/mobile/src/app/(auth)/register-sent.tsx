@@ -3,14 +3,17 @@ import { useTranslation } from 'react-i18next'
 import { StyleSheet, View } from 'react-native'
 
 import { AppText, Button, Screen } from '@/components/ui'
+import { useLockedBack } from '@/features/auth/useLockedBack'
 import { useApplication } from '@/services'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
 // Screen 03b: the application of an agrochemist is sent. The session is already open; the router has been
-// kept on the registration screens until now, and "Open the app" lets the person into the app.
+// kept on the registration screens until now, and "Open the app" lets the person into the app. The only way
+// out is that button: the registration is over, nothing before this screen can be used again.
 export default function ApplicationSentScreen() {
   const { t } = useTranslation()
   const finish = useApplication((s) => s.finish)
+  useLockedBack(true)
 
   return (
     <Screen>

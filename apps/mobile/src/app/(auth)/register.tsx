@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link, useRouter } from 'expo-router'
+import { Link, Redirect, useIsFocused, useRouter } from 'expo-router'
 import { FlaskConical, Sprout } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -30,6 +30,8 @@ export default function RegisterScreen() {
   const setAccount = useApplication((s) => s.setAccount)
   const saved = useApplication((s) => s.account)
   const failure = useApplication((s) => s.failure)
+  const phase = useApplication((s) => s.phase)
+  const focused = useIsFocused()
   // Coming back from step 2 means the person is an agrochemist
   const [role, setRole] = useState<ChosenRole>(saved ? 'agrochemist' : 'farmer')
   const [formError, setFormError] = useState<string | null>(null)
@@ -46,15 +48,22 @@ export default function RegisterScreen() {
   })
 
   // Step 2 sent the person back because the account was refused for a field of this step (the login is taken,
-  // the password is not accepted): the message goes under that field.
+  // the password is not accepted): the message goes under that field. Only while this screen is the one
+  // shown: under step 2 (in the stack) it must leave the failure alone, step 2 is still using it.
   useEffect(() => {
-    if (failure?.stage !== 'register') return
+    if (!focused || failure?.stage !== 'register') return
     const refused = toFormFailure(failure.error)
     if (refused.field === 'login' || refused.field === 'password') {
       setError(refused.field, { message: refused.messageKey })
       useApplication.getState().clearFailure()
     }
-  }, [failure, setError])
+  }, [focused, failure, setError])
+
+  // Once the account of an agrochemist exists this step is closed: another press here would register a second
+  // account. The person is led on to where the application stands.
+  if (phase !== 'editing') {
+    return <Redirect href={phase === 'sent' ? '/register-sent' : '/register-qualification'} />
+  }
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/login'))
 
