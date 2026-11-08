@@ -28,8 +28,11 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.Assert;
 
 import kz.agroadvisor.catalog.model.Disease;
 import kz.agroadvisor.catalog.repository.DiseaseRepository;
@@ -184,6 +187,10 @@ public class DiagnosisService {
      * work or failed on its side, charged when compute was spent on, or the fault is in, the client's input.
      */
     public Created create(UUID userId, String crop, byte[] photo, String idempotencyKey) {
+        // finish() must commit by itself: inside an outer transaction the commit would come later, after the
+        // decision to keep or remove the photo object was already made, and the claim would not be released.
+        Assert.state(!TransactionSynchronizationManager.isActualTransactionActive(),
+                "DiagnosisService.create must not run inside a transaction");
         if (idempotencyKey != null && !IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, DiagnosisErrors.INVALID_IDEMPOTENCY_KEY,
                     "Idempotency-Key must be 8-80 characters: letters, digits, '-', '_', '.', ':'");
@@ -242,32 +249,35 @@ public class DiagnosisService {
             }
             claimId = acquired.claimId();
         }
-        // Without a key the object name is random and the photo is ours alone, so it can be removed on a
-        // failure. With a key the name is the same for every attempt (see objectName), so another attempt may
-        // be using that very object: it is never removed here (an abandoned one is rare and harmless).
+        // Every attempt writes its own object (the name is random, see objectName), so the photo is ours alone
+        // and is removed when it is certain that no row points to it (see discardIfNoRow). When that is not
+        // certain, it is left to the cleanup of orphaned photos.
         String photoKey = null;
+        // Set when the transaction body is done: a failure after that is raised by the commit itself
+        AtomicBoolean atCommit = new AtomicBoolean();
         Diagnosis saved;
         try {
             // The fingerprint above is of the client's bytes; what is kept and sent to the model has no metadata
             byte[] clean = strip(photo);
             // The model first: when it is down nothing is written, and a keyed request leaves no object behind
             Prediction prediction = predict(crop, clean);
-            photoKey = photos.store(userId, objectName(idempotencyKey, fingerprint), clean, contentType);
-            saved = finish(userId, crop, photoKey, prediction, idempotencyKey, fingerprint, claimId);
+            photoKey = photos.store(userId, objectName(), clean, contentType);
+            saved = finish(userId, crop, photoKey, prediction, idempotencyKey, fingerprint, claimId, atCommit);
             made.set(true);
         } catch (DataIntegrityViolationException e) {
             // Lost the race on (user_id, idempotency_key): the other request's row is the answer
             Optional<Diagnosis> winner = idempotencyKey == null ? Optional.empty()
                     : diagnoses.findByUserIdAndIdempotencyKey(userId, idempotencyKey);
             release(userId, idempotencyKey, claimId, e);
+            // The loser's own object goes; the winner's row points to the winner's object, not to this one
+            discardIfNoRow(photoKey, winner, atCommit, e);
             if (winner.isEmpty()) {
-                discardUnkeyed(photoKey, idempotencyKey, e);
                 throw e;
             }
             return replay(winner.get(), crop, fingerprint);
         } catch (RuntimeException e) {
             release(userId, idempotencyKey, claimId, e);
-            discardUnkeyed(photoKey, idempotencyKey, e);
+            discardIfNoRow(photoKey, Optional.empty(), atCommit, e);
             throw e;
         }
         // Outside the try: the row is committed, so a failure here must not delete the photo it points to
@@ -352,7 +362,7 @@ public class DiagnosisService {
      * delete touches no row, which is not an error: the diagnosis insert still decides who is first.
      */
     private Diagnosis finish(UUID userId, String crop, String photoKey, Prediction prediction, String key,
-            String fingerprint, UUID claimId) {
+            String fingerprint, UUID claimId, AtomicBoolean atCommit) {
         return tx.execute(status -> {
             Diagnosis saved = diagnoses.saveAndFlush(new Diagnosis(userId, crop, photoKey, prediction.status(),
                     prediction.top1().code(),
@@ -362,6 +372,8 @@ public class DiagnosisService {
             if (claimId != null && claims.release(userId, key, claimId) == 0) {
                 log.debug("The claim of key {} was taken over before the diagnosis was saved", key);
             }
+            // Past this point only the commit can fail; whether it went through is then unknown to us
+            atCommit.set(true);
             return saved;
         });
     }
@@ -378,10 +390,24 @@ public class DiagnosisService {
         }
     }
 
-    private void discardUnkeyed(String photoKey, String idempotencyKey, RuntimeException cause) {
-        if (photoKey != null && idempotencyKey == null) {
-            discard(photoKey, cause);
+    /**
+     * Removes this attempt's own object, but only when it is certain that no row points to it: the failure came
+     * from the body of the transaction (which is rolled back), not from the commit, and it is not a
+     * transaction-system failure (a broken commit or rollback leaves the outcome unknown). Then, if another
+     * request's row won the race, it does not point to this object. In every uncertain case the object stays and
+     * the cleanup of orphaned photos decides later, against the database.
+     */
+    private void discardIfNoRow(String photoKey, Optional<Diagnosis> winner, AtomicBoolean atCommit,
+            RuntimeException cause) {
+        if (photoKey == null) {
+            return;
         }
+        if (atCommit.get() || cause instanceof TransactionException
+                || winner.map(w -> photoKey.equals(w.getPhotoKey())).orElse(false)) {
+            log.warn("Photo object '{}' is kept: it is not certain that no diagnosis points to it", photoKey);
+            return;
+        }
+        discard(photoKey, cause);
     }
 
     private byte[] strip(byte[] photo) {
@@ -395,15 +421,13 @@ public class DiagnosisService {
     }
 
     /**
-     * The object name inside the user's folder. With a key it is SHA-256 of {@code key + "\n" + fingerprint}:
-     * the same name always means the same Idempotency-Key <em>and</em> the same photo bytes, by construction.
-     * So no later request, however old its claim is gone, can write other bytes under the name of an existing
-     * diagnosis' photo, and the "immutable" cache header of the photo endpoint stays true. Without a key
-     * the name is random.
+     * The object name inside the user's folder: a new random UUID for every attempt, with or without an
+     * Idempotency-Key. No attempt ever writes over an object another attempt wrote, so the photo of an existing
+     * diagnosis can never be replaced (the "immutable" cache header of the photo endpoint stays true) and an
+     * attempt that fails can remove its own object without touching anyone else's.
      */
-    static String objectName(String idempotencyKey, String fingerprint) {
-        return idempotencyKey == null ? UUID.randomUUID().toString()
-                : fingerprint((idempotencyKey + "\n" + fingerprint).getBytes(StandardCharsets.UTF_8));
+    static String objectName() {
+        return UUID.randomUUID().toString();
     }
 
     private Created replay(Diagnosis existing, String crop, String fingerprint) {
@@ -456,6 +480,8 @@ public class DiagnosisService {
         try {
             photos.delete(photoKey);
         } catch (RuntimeException cleanup) {
+            log.warn("Photo object '{}' could not be removed, the cleanup of orphaned photos will: {}", photoKey,
+                    cleanup.toString());
             cause.addSuppressed(cleanup);
         }
     }

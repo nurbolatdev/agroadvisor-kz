@@ -57,8 +57,8 @@ app:
     #   total ........................................................................... 82.4 s
     # 90 s leaves 7.6 s for pauses of the JVM and the host. A request that still outlives its claim cannot
     # do harm: its claim is fenced (claim_id), the unique index of diagnoses keeps one result, and its photo
-    # object has the same name and the same bytes as the new owner's. Not counted: the rate limiter and the
-    # lookups, which run before the claim.
+    # object has a name of its own, so it never overwrites the new owner's. Not counted: the rate limiter and
+    # the lookups, which run before the claim.
     claim-timeout: 90s
   meta:
     cache-ttl: 60s # how long GET /api/meta keeps the answer of the AI service

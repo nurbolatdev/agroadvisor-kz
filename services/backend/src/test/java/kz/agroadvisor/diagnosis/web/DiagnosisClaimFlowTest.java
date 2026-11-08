@@ -139,6 +139,7 @@ class DiagnosisClaimFlowTest {
             return objectKey;
         });
         when(photos.load(anyString())).thenAnswer(call -> Optional.ofNullable(objects.get(call.<String>getArgument(0))));
+        doAnswer(call -> objects.remove(call.<String>getArgument(0))).when(photos).delete(anyString());
     }
 
     @AfterEach
@@ -287,7 +288,9 @@ class DiagnosisClaimFlowTest {
         assertThat(count("diagnoses")).isEqualTo(1);
         assertThat(count("diagnosis_requests")).isZero();
         verify(ai, times(2)).predict(eq("tomato"), any(byte[].class));
-        assertThat(objects).hasSize(1); // both wrote the same name with the same bytes
+        // Both wrote an object of their own; the slow loser removed its object, the winner's photo is the one left
+        Diagnosis only = diagnoses.findByUserIdAndIdempotencyKey(farmer.getId(), key).orElseThrow();
+        assertThat(objects).hasSize(1).containsKey(only.getPhotoKey());
     }
 
     /** The owner's claim must survive the slow request of an older owner: its release deletes nothing. */
@@ -344,9 +347,8 @@ class DiagnosisClaimFlowTest {
     /**
      * The overwrite the object name exists to prevent, through a real race: request A with photo 2 is about to
      * upload when its claim row is swept; request B with photo 1 gets the key and finishes first. Only then does
-     * A write. With a name made from the key alone A would put photo 2 over B's photo; with the fingerprint in
-     * the name it writes another object, and its insert loses to B's diagnosis. (A's object stays behind as an
-     * orphan, see issue #69.)
+     * A write. Every attempt has a name of its own, so A writes another object and never B's, and its insert
+     * loses to B's diagnosis; A then removes its own object, so only B's photo is left.
      */
     @Test
     void aSweptClaimOfOtherBytesCannotWriteOverTheFinishedDiagnosisPhoto() throws Exception {
@@ -366,7 +368,7 @@ class DiagnosisClaimFlowTest {
         assertThat(JsonPath.<String>read(late.getResponse().getContentAsString(), "$.reason")).isEqualTo("photo");
         assertThat(count("diagnoses")).isEqualTo(1);
         assertThat(objects.get(finished.getPhotoKey())).isEqualTo(firstPhoto).isEqualTo(JPEG);
-        assertThat(objects).hasSize(2).containsKey(finished.getPhotoKey());
+        assertThat(objects).hasSize(1).containsKey(finished.getPhotoKey());
     }
 
     private Map<String, byte[]> snapshot() {
