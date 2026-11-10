@@ -1,6 +1,6 @@
 {
   "ios": {
-    "NSCameraUsageDescription": "AgroAdvisor uses the camera to photograph a sick leaf for diagnosis.",
-    "NSPhotoLibraryUsageDescription": "AgroAdvisor opens the gallery so you can choose a photo of a leaf for diagnosis."
+    "NSCameraUsageDescription": "AgroAdvisor uses the camera to photograph a sick leaf for diagnosis or, if you are an agrochemist, your diploma or certificate for verification.",
+    "NSPhotoLibraryUsageDescription": "AgroAdvisor opens the gallery so you can choose a photo of a leaf for diagnosis or, if you are an agrochemist, a photo of your diploma or certificate for verification."
   }
 }
