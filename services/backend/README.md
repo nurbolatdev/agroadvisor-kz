@@ -74,6 +74,26 @@ The API is protected by Bearer JWT (HS256) and denies everything that is not lis
 
 Access tokens live 15 minutes and carry only the user id. Status and roles are read from the database on every request, so blocking a user or changing roles applies immediately.
 
+#### Rate limits
+
+Abuse is stopped before any password hashing or database work. A refused request gets `429` with `code: rate_limited` and a `Retry-After` header (seconds until the window ends).
+
+| Endpoint | Bucket | Default | Environment variable |
+| --- | --- | --- | --- |
+| `POST /api/auth/login` | per client address | 30 per minute | `APP_RATE_LIMIT_LOGIN_PER_IP_PER_MINUTE` |
+| `POST /api/auth/login` | per account | 10 per minute | `APP_RATE_LIMIT_LOGIN_PER_ACCOUNT_PER_MINUTE` |
+| `POST /api/auth/register` | per client address | 20 per hour | `APP_RATE_LIMIT_REGISTER_PER_IP_PER_HOUR` |
+| `POST /api/auth/refresh` | per client address | 60 per minute | `APP_RATE_LIMIT_REFRESH_PER_IP_PER_MINUTE` |
+| `POST /api/diagnoses` | per user, new diagnoses | 5 per minute | `app.rate-limit.diagnosis-per-minute` |
+| `POST /api/diagnoses` | per user, attempts | 20 per minute | `app.rate-limit.diagnosis-attempts-per-minute` |
+
+- Login checks the client address first, then the account. The account is the normalized login (`8 701…`, `+7 701…` and `7701…` are one account) stored as a SHA-256 hash, so phones and e-mails never appear in Redis keys. The answer is the same for any login string, so existence of an account is not revealed.
+- Windows are fixed: around a window boundary a client can send up to twice the limit.
+- Every attempt counts, successful or not. While an attack on one account lasts, its owner can be locked out for the rest of the window; this is the accepted trade-off.
+- Many farmers can share one public address (mobile carrier NAT), so the per-address limits are generous and the per-account limit carries the brute-force protection. Raise them with the variables above without a release.
+- Redis is an accelerator: if it is down, requests are allowed and a warning is logged.
+- The client address is the TCP peer; `X-Forwarded-For` and `Forwarded` are ignored, so they cannot be used to dodge the limit. Behind a reverse proxy set `server.forward-headers-strategy=native` and narrow `server.tomcat.remoteip.internal-proxies` to the proxy network. Never enable this on a port that is reachable without the proxy.
+
 ## Test
 
 ```bash
