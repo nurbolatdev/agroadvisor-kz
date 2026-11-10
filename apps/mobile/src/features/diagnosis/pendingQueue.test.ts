@@ -3,6 +3,7 @@ import {
   type KeyValueStore,
   type QueueFiles,
 } from './pendingQueue'
+import type { PendingDiagnosis } from './pending'
 
 const A = '00000000-0000-4000-8000-00000000000a'
 const B = '00000000-0000-4000-8000-00000000000b'
@@ -12,7 +13,6 @@ const createPendingQueue = (
   deps: Omit<Parameters<typeof createQueue>[0], 'currentUser'> &
     Partial<Pick<Parameters<typeof createQueue>[0], 'currentUser'>>,
 ) => createQueue({ currentUser: () => A, ...deps })
-import type { PendingDiagnosis } from './pending'
 
 function fakeStore(initial?: string): KeyValueStore & { raw(): string | undefined } {
   let value = initial
