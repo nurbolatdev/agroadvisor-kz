@@ -14,6 +14,13 @@ app:
     # The job is built by hand in the tests that exercise it; a running one would only scan a fake storage
     orphan-cleanup:
       enabled: false
+  rate-limit:
+    # The whole suite signs up from one MockMvc address; the limits themselves are tested in
+    # AuthRateLimitIntegrationTest
+    login-per-ip-per-minute: 100000
+    login-per-account-per-minute: 100000
+    register-per-ip-per-hour: 100000
+    refresh-per-ip-per-minute: 100000
   security:
     # The job is built by hand in the test that exercises it; a running one could delete other tests' rows
     refresh-cleanup:
