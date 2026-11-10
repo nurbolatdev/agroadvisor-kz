@@ -47,9 +47,9 @@ comm -23 <(grep -oE '^[A-Z_]+=' .env.example | sort) <(grep -oE '^[A-Z_]+=' .env
 | PostgreSQL 16 + PostGIS 3.5 | `agroadvisor-postgres` | `5433` | `jdbc:postgresql://localhost:5433/agroadvisor` |
 | Redis 7.4 | `agroadvisor-redis` | `6379` | `redis://:<REDIS_PASSWORD>@localhost:6379` |
 | SeaweedFS 4.48 — S3 API | `agroadvisor-seaweedfs` | `8333` | endpoint `http://localhost:8333`, path-style access, any region |
-| SeaweedFS — file browser | `agroadvisor-seaweedfs` | `8888` | http://localhost:8888/buckets/ |
 
 - Credentials come from `.env`; ports can be changed there too.
+- Every port is published on `127.0.0.1` only, so nothing is reachable from other machines on the same network. The SeaweedFS filer (`8888`, no authentication) is not published at all; to look inside the bucket use `docker compose exec seaweedfs weed shell` or the S3 API with the keys from `.env`.
 - PostgreSQL uses host port 5433 because 5432 is often taken by a locally installed PostgreSQL.
 - The `postgis` extension is enabled on first start (`postgres/init/01-extensions.sql`).
 - Photos go to the `diagnosis-photos` bucket. SeaweedFS speaks the S3 API, so the backend uses a regular S3 client.
