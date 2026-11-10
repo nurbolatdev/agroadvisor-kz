@@ -77,6 +77,7 @@ jobs:
       pull-requests: read
     outputs:
       ai: ${{ steps.filter.outputs.ai }}
+      backend: ${{ steps.filter.outputs.backend }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4.0.3
@@ -85,6 +86,10 @@ jobs:
           filters: |
             ai:
               - 'services/ai-service/**'
+              - 'infra/**'
+              - '.github/workflows/ci.yml'
+            backend:
+              - 'services/backend/**'
               - 'infra/**'
               - '.github/workflows/ci.yml'
 
@@ -155,6 +160,67 @@ jobs:
           echo "$body"
           echo "$body" | grep -q '"model_version":"effnet-b0-v1"'
           echo "$body" | grep -q '"calibrated":true'
+
+  # Builds the backend image for linux/amd64 (the runner's own platform, the staging target), checks that it
+  # refuses to start without the prod settings, then starts it through infra/docker-compose.yml (profile app)
+  # together with PostgreSQL, Redis and SeaweedFS. The AI service is not part of the profile: the backend
+  # starts without it.
+  # Runs only when the backend, infra or this workflow changed (see `changes`).
+  backend-image:
+    name: backend-image
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      # The tag is the `image:` of the backend service in infra/docker-compose.yml.
+      - name: Build
+        run: docker build --platform linux/amd64 -t agroadvisor-backend:local services/backend
+      - name: Runs as a non-root user
+        run: |
+          uid=$(docker run --rm --platform linux/amd64 --entrypoint id agroadvisor-backend:local -u)
+          echo "uid=$uid"
+          [ "$uid" != 0 ]
+      - name: Refuses to start without the prod settings
+        run: |
+          # ProdSettingsCheck exits with 1; docker errors (125-127) must not pass
+          set +e
+          out=$(timeout 120 docker run --rm --platform linux/amd64 agroadvisor-backend:local 2>&1)
+          code=$?
+          set -e
+          echo "$out" | tail -n 5
+          [ "$code" -eq 1 ] || { echo "expected exit 1 (startup refused without settings), got $code"; exit 1; }
+          echo "$out" | grep -q 'missing environment variables: DB_URL'
+      - name: Starts with the stack from infra (profile app)
+        working-directory: infra
+        # Throwaway values: the containers live only in this job.
+        env:
+          POSTGRES_PASSWORD: ci-postgres
+          REDIS_PASSWORD: ci-redis
+          S3_ACCESS_KEY: ci-access-key
+          S3_SECRET_KEY: ci-secret-key
+        run: |
+          export JWT_SECRET="$(openssl rand -base64 48)"
+          docker compose --profile app up -d --no-build backend
+          status=""
+          for i in $(seq 1 60); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' agroadvisor-backend)
+            [ "$status" = healthy ] && break
+            sleep 3
+          done
+          [ "$status" = healthy ] || { echo "backend is $status"; docker compose --profile app ps -a; exit 1; }
+          curl -fsS --max-time 5 http://127.0.0.1:8080/actuator/health/liveness | grep -q '"status":"UP"'
+          curl -fsS --max-time 5 -o /dev/null http://127.0.0.1:8080/api/regions
+      - name: Logs on failure
+        if: failure()
+        working-directory: infra
+        env:
+          POSTGRES_PASSWORD: ci-postgres
+          REDIS_PASSWORD: ci-redis
+          S3_ACCESS_KEY: ci-access-key
+          S3_SECRET_KEY: ci-secret-key
+        run: docker compose --profile app logs --no-color --tail 200
 
   admin-web:
     name: admin-web
