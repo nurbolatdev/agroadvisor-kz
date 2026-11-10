@@ -1,0 +1,39 @@
+# Server profile: every address and secret comes from the environment; empty values stop the start
+# (ProdSettingsCheck lists the missing variable names). Nothing here has a default address or a secret.
+# Photo keys (S3_ACCESS_KEY, S3_SECRET_KEY) and JWT_SECRET are read from the environment by application.yml.
+spring:
+  datasource:
+    url: ${DB_URL:}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+  data:
+    redis:
+      host: ${REDIS_HOST:}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+app:
+  photos:
+    endpoint: ${S3_ENDPOINT:}
+  ai:
+    # A literal on purpose: the stub answers "healthy" and must not be reachable through an environment variable
+    client: http
+    url: ${AI_SERVICE_URL:}
+    allow-placeholder: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+
+# Stated again in case the base file changes
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
