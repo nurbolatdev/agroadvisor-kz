@@ -218,7 +218,7 @@ Connect timeout 2 s, read timeout 10 s (inference takes about 100 ms on a CPU, p
 
 In every failure the stored photo is deleted and no diagnosis is saved. For a saved diagnosis `status` is the source of truth: with `status=unknown` `top1` may be a class of the crop with a low probability and must not be shown as a diagnosis.
 
-The placeholder guard applies to every answer, not only at startup: `app.ai.allow-placeholder` is `false` by default and `true` only in the local and test profiles; with `true` the diagnosis is saved and flagged `placeholder: true`.
+The placeholder guard applies to every answer, not only at startup: `app.ai.allow-placeholder` is `false` by default and `true` only in the local and test profiles (the `prod` profile refuses to start with `true`); with `true` the diagnosis is saved and flagged `placeholder: true`.
 
 #### Time budget and the app's timeout
 
