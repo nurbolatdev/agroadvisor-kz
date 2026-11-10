@@ -12,6 +12,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.jayway.jsonpath.JsonPath;
 
@@ -207,13 +208,17 @@ class AuthRateLimitIntegrationTest {
         };
     }
 
+    // the class shares one Redis and a fixed clock, so every address must be used by one test only:
+    // a counter makes them unique by construction
+    private static final AtomicInteger ADDRESSES = new AtomicInteger();
+
     private static String ipv4() {
-        ThreadLocalRandom r = ThreadLocalRandom.current();
-        return "198.51." + r.nextInt(0, 256) + "." + r.nextInt(1, 255);
+        int n = ADDRESSES.getAndIncrement();
+        return "198.51." + (n / 254) + "." + (n % 254 + 1);
     }
 
     private static String ipv6() {
-        return "2001:db8::" + Integer.toHexString(ThreadLocalRandom.current().nextInt(1, 0xFFFFFF));
+        return "2001:db8::" + Integer.toHexString(ADDRESSES.getAndIncrement() + 1);
     }
 
     private static String newPhone() {
