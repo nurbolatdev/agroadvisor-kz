@@ -5,8 +5,11 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 import java.util.List;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -92,6 +95,13 @@ public class AuthController {
     @SecurityRequirements
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
+    @ApiResponse(responseCode = "201", description = "Created",
+            content = @Content(schema = @Schema(implementation = TokenResponse.class)))
+    @ApiResponse(responseCode = "429", description = "rate_limited: more than 20 sign-ups in an hour from one "
+            + "address. Repeat after the seconds in Retry-After",
+            headers = @Header(name = "Retry-After", description = "Seconds until the window of the limit ends",
+                    schema = @Schema(type = "string", example = "42")),
+            content = @Content)
     public TokenResponse register(@Valid @RequestBody RegisterRequest request, HttpServletRequest http) {
         limits.register(http.getRemoteAddr());
         return TokenResponse.of(auth.register(request.login(), request.password(), request.fullName(),
@@ -101,6 +111,13 @@ public class AuthController {
 
     @SecurityRequirements
     @PostMapping("/login")
+    @ApiResponse(responseCode = "200", description = "OK",
+            content = @Content(schema = @Schema(implementation = TokenResponse.class)))
+    @ApiResponse(responseCode = "429", description = "rate_limited: more than 30 attempts in a minute from one "
+            + "address, or more than 10 in a minute for one account. Repeat after the seconds in Retry-After",
+            headers = @Header(name = "Retry-After", description = "Seconds until the window of the limit ends",
+                    schema = @Schema(type = "string", example = "42")),
+            content = @Content)
     public TokenResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
         limits.login(http.getRemoteAddr(), request.login());
         return TokenResponse.of(auth.login(request.login(), request.password()));
@@ -108,6 +125,13 @@ public class AuthController {
 
     @SecurityRequirements
     @PostMapping("/refresh")
+    @ApiResponse(responseCode = "200", description = "OK",
+            content = @Content(schema = @Schema(implementation = TokenResponse.class)))
+    @ApiResponse(responseCode = "429", description = "rate_limited: more than 60 refreshes in a minute from one "
+            + "address. Repeat after the seconds in Retry-After",
+            headers = @Header(name = "Retry-After", description = "Seconds until the window of the limit ends",
+                    schema = @Schema(type = "string", example = "42")),
+            content = @Content)
     public TokenResponse refresh(@Valid @RequestBody RefreshRequest request, HttpServletRequest http) {
         limits.refresh(http.getRemoteAddr());
         return TokenResponse.of(auth.refresh(request.refreshToken()));

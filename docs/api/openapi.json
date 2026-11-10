@@ -1440,6 +1440,19 @@
               }
             },
             "description" : "OK"
+          },
+          "429" : {
+            "description" : "rate_limited: more than 30 attempts in a minute from one address, or more than 10 in a minute for one account. Repeat after the seconds in Retry-After",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds until the window of the limit ends",
+                "schema" : {
+                  "example" : "42",
+                  "type" : "string"
+                },
+                "style" : "simple"
+              }
+            }
           }
         },
         "security" : [ ],
@@ -1502,6 +1515,19 @@
               }
             },
             "description" : "OK"
+          },
+          "429" : {
+            "description" : "rate_limited: more than 60 refreshes in a minute from one address. Repeat after the seconds in Retry-After",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds until the window of the limit ends",
+                "schema" : {
+                  "example" : "42",
+                  "type" : "string"
+                },
+                "style" : "simple"
+              }
+            }
           }
         },
         "security" : [ ],
@@ -1531,6 +1557,19 @@
               }
             },
             "description" : "Created"
+          },
+          "429" : {
+            "description" : "rate_limited: more than 20 sign-ups in an hour from one address. Repeat after the seconds in Retry-After",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Seconds until the window of the limit ends",
+                "schema" : {
+                  "example" : "42",
+                  "type" : "string"
+                },
+                "style" : "simple"
+              }
+            }
           }
         },
         "security" : [ ],
