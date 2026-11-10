@@ -14,7 +14,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-agroadvisor}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/.env}
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
@@ -32,7 +32,7 @@ services:
     environment:
       REDISCLI_AUTH: ${REDIS_PASSWORD}
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -53,8 +53,9 @@ services:
       - source: s3-config
         target: /etc/seaweedfs/s3.json
     ports:
-      - "${S3_PORT:-8333}:8333"
-      - "${S3_FILER_PORT:-8888}:8888"
+      # Only the S3 gateway is published, and only on loopback. The filer (8888) has no
+      # authentication and would expose every stored object, so it is not published at all.
+      - "127.0.0.1:${S3_PORT:-8333}:8333"
     volumes:
       - seaweedfs-data:/data
     healthcheck:
@@ -89,7 +90,7 @@ services:
       AI_REQUIRE_MODEL: "true"
       AI_MODEL_VERSION: ${AI_MODEL_VERSION:-effnet-b0-v1}
     ports:
-      - "${AI_SERVICE_PORT:-8000}:8000"
+      - "127.0.0.1:${AI_SERVICE_PORT:-8000}:8000"
     volumes:
       - ../services/ai-service/ml/weights:/srv/ml/weights:ro
 
