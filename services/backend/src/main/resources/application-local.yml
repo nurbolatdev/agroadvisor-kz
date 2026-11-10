@@ -1,3 +1,4 @@
+# Enable with -Dspring-boot.run.profiles=local; it is not active by default.
 # Local development against the Docker Compose stack from infra/ (see infra/README.md).
 # Database settings are read from infra/.env, so passwords live in one place.
 spring:

@@ -23,10 +23,17 @@ Java 21, Spring Boot 4.1, Maven (wrapper included), PostgreSQL 16 + PostGIS, spr
    ```
 2. Start the API from `services/backend`:
    ```bash
-   ./mvnw spring-boot:run
+   ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
    ```
 
-The default profile is `local`: it connects to PostgreSQL on `localhost:5433` and reads the database name, user and password from `infra/.env`, so passwords are kept in one place.
+Profiles:
+
+- No profile: safe defaults (API docs off, placeholder model refused, health without details) and no datasource, so the application does not start by itself.
+- `local`: development against `infra/`. Enable it explicitly; in an IDE set "Active profiles" to `local`. Do not export `SPRING_PROFILES_ACTIVE` in a shell where tests run.
+- `test`: used by the tests.
+- `prod`: the server, see [Production profile](#production-profile).
+
+The `local` profile connects to PostgreSQL on `localhost:5433` and reads the database name, user and password from `infra/.env`, so passwords are kept in one place.
 
 Diagnoses call the AI service at `AI_SERVICE_URL` (default `http://localhost:8000`; `cd infra && docker compose --profile ai up -d`). To work without it set `AI_CLIENT=stub` (a fake that always answers "healthy"; `allow-placeholder` is already `true` in the local profile).
 
@@ -38,9 +45,24 @@ Diagnoses call the AI service at `AI_SERVICE_URL` (default `http://localhost:800
 
 Settings can be overridden with environment variables: `SERVER_PORT`, `DB_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`.
 
+### Production profile
+
+The `prod` profile takes every address and secret from the environment:
+
+| Variable | Meaning |
+| --- | --- |
+| `DB_URL` | Full JDBC URL of PostgreSQL |
+| `DB_USERNAME`, `DB_PASSWORD` | Database credentials |
+| `REDIS_HOST`, `REDIS_PASSWORD` | Redis address and password (required); `REDIS_PORT` defaults to 6379 |
+| `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Photo storage; `S3_BUCKET` is optional |
+| `JWT_SECRET` | Base64 signing key |
+| `AI_SERVICE_URL` | Address of the AI service |
+
+The start is aborted with a list of the missing variable names. It is also refused with `app.ai.allow-placeholder=true` or springdoc enabled. `AI_CLIENT` has no effect in `prod`; any override of `app.ai.client` (such as `APP_AI_CLIENT`) to a value other than `http` aborts the start. Actuator exposes only `health`, without details.
+
 ### Authentication
 
-The API is protected by Bearer JWT (HS256) and denies everything that is not listed as public in `SecurityConfig`. Set `JWT_SECRET` (in `infra/.env` or the environment) to a Base64 string of at least 32 random bytes — `openssl rand -base64 48`. The application does not start without it. Never commit it. Swagger UI and `/v3/api-docs` are served only in the `local` and `test` profiles (`springdoc.*.enabled`); elsewhere they are off and not public.
+The API is protected by Bearer JWT (HS256) and denies everything that is not listed as public in `SecurityConfig`. Set `JWT_SECRET` (in `infra/.env` or the environment) to a Base64 string of at least 32 random bytes — `openssl rand -base64 48`. The application does not start without it. Never commit it. Swagger UI and `/v3/api-docs` are served only in the `local` and `test` profiles (`springdoc.*.enabled`); elsewhere they are off and not public, and never in `prod`.
 
 | Endpoint | Purpose |
 | --- | --- |

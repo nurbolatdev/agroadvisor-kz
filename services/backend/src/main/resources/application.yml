@@ -1,8 +1,6 @@
 spring:
   application:
     name: agroadvisor-backend
-  profiles:
-    default: local
   data:
     redis:
       # Short timeouts: with Redis down a request must fall back to the database quickly, not wait 60 s
