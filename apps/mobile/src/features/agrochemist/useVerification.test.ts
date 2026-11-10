@@ -25,8 +25,22 @@ async function setup() {
 
 describe('useVerification', () => {
   it('loads the state of the check', async () => {
-    const { result } = await setup()
+    // the first read is held: the answer of the mock can come before the first assertion
+    const { api } = createMockAgrochemistApi({ delayMs: 0 })
+    const gate = deferred<void>()
+    const held: AgrochemistApi = {
+      ...api,
+      verification: async () => {
+        await gate.promise
+        return api.verification()
+      },
+    }
+    const { result } = await renderHook(() => useVerification(held))
     expect(result.current.state.status).toBe('loading')
+
+    await act(async () => {
+      gate.resolve()
+    })
     await waitFor(() => expect(result.current.state.status).toBe('ready'))
     expect(result.current.state).toMatchObject({ view: { status: 'pending', documents: [] } })
   })

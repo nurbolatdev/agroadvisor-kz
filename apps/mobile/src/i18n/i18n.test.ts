@@ -33,9 +33,7 @@ describe('years of experience', () => {
     let instance: { init: (o: object) => Promise<unknown>; t: (k: string, o: object) => string } =
       null as never
     jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('./polyfills')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       instance = require('i18next').createInstance()
     })
     await instance.init({
