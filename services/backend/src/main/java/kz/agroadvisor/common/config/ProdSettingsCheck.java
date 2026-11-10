@@ -21,8 +21,10 @@ import org.springframework.util.StringUtils;
  * connection error.
  *
  * <p>It checks Spring keys, not environment variables: {@code SPRING_DATASOURCE_URL} counts as {@code DB_URL}.
- * That also means an environment variable such as {@code APP_AI_ALLOWPLACEHOLDER=true} or
- * {@code AI_CLIENT=stub} that overrides the yml is caught. The message holds names only, never values.
+ * That also means an environment variable such as {@code APP_AI_ALLOWPLACEHOLDER=true} that overrides the yml
+ * is caught. {@code AI_CLIENT} has no effect in {@code prod}; any override of {@code app.ai.client} (such as
+ * {@code APP_AI_CLIENT}) to a value other than {@code http} aborts the start. The message holds names only,
+ * never values.
  */
 @Component
 @Profile("prod")

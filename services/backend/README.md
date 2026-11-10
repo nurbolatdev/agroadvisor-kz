@@ -58,7 +58,7 @@ The `prod` profile takes every address and secret from the environment:
 | `JWT_SECRET` | Base64 signing key |
 | `AI_SERVICE_URL` | Address of the AI service |
 
-The start is aborted with a list of the missing variable names. It is also refused with `app.ai.allow-placeholder=true`, `AI_CLIENT=stub` or springdoc enabled. Actuator exposes only `health`, without details.
+The start is aborted with a list of the missing variable names. It is also refused with `app.ai.allow-placeholder=true` or springdoc enabled. `AI_CLIENT` has no effect in `prod`; any override of `app.ai.client` (such as `APP_AI_CLIENT`) to a value other than `http` aborts the start. Actuator exposes only `health`, without details.
 
 ### Authentication
 
