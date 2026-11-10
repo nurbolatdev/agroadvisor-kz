@@ -60,6 +60,14 @@ The `prod` profile takes every address and secret from the environment:
 
 The start is aborted with a list of the missing variable names. It is also refused with `app.ai.allow-placeholder=true` or springdoc enabled. `AI_CLIENT` has no effect in `prod`; any override of `app.ai.client` (such as `APP_AI_CLIENT`) to a value other than `http` aborts the start. Actuator exposes only `health`, without details.
 
+### Container image
+
+```bash
+docker build -t agroadvisor-backend:local services/backend
+```
+
+The image is a multi-stage build (Temurin 21, layered jar, non-root user 10001). It starts in the `prod` profile by default (`SPRING_PROFILES_ACTIVE=prod`) and refuses to start without the variables from the table above. It listens on port 8080; do not change `SERVER_PORT`, the health check uses that port. Memory follows the container limit (`JAVA_TOOL_OPTIONS`, 75% of RAM, exit on out-of-memory); override the variable to tune it. The health check calls `/actuator/health/liveness`. Tests are not built or run in the image; the CI job `backend` runs them. The whole stack with the image runs from `infra/` under the `app` profile (see `infra/README.md`).
+
 ### Authentication
 
 The API is protected by Bearer JWT (HS256) and denies everything that is not listed as public in `SecurityConfig`. Set `JWT_SECRET` (in `infra/.env` or the environment) to a Base64 string of at least 32 random bytes — `openssl rand -base64 48`. The application does not start without it. Never commit it. Swagger UI and `/v3/api-docs` are served only in the `local` and `test` profiles (`springdoc.*.enabled`); elsewhere they are off and not public, and never in `prod`.

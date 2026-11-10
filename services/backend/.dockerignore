@@ -1,0 +1,10 @@
+target/
+src/test/
+.env
+.env.*
+.idea/
+.vscode/
+*.iml
+HELP.md
+Dockerfile
+.dockerignore
