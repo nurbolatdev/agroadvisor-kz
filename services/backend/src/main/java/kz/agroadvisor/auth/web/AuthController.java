@@ -97,8 +97,8 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     @ApiResponse(responseCode = "201", description = "Created",
             content = @Content(schema = @Schema(implementation = TokenResponse.class)))
-    @ApiResponse(responseCode = "429", description = "rate_limited: more than 20 sign-ups in an hour from one "
-            + "address. Repeat after the seconds in Retry-After",
+    @ApiResponse(responseCode = "429", description = "rate_limited: by default more than 20 sign-ups in an hour "
+            + "from one address (the limit is configurable). Repeat after the seconds in Retry-After",
             headers = @Header(name = "Retry-After", description = "Seconds until the window of the limit ends",
                     schema = @Schema(type = "string", example = "42")),
             content = @Content)
@@ -113,8 +113,9 @@ public class AuthController {
     @PostMapping("/login")
     @ApiResponse(responseCode = "200", description = "OK",
             content = @Content(schema = @Schema(implementation = TokenResponse.class)))
-    @ApiResponse(responseCode = "429", description = "rate_limited: more than 30 attempts in a minute from one "
-            + "address, or more than 10 in a minute for one account. Repeat after the seconds in Retry-After",
+    @ApiResponse(responseCode = "429", description = "rate_limited: by default more than 30 attempts in a minute "
+            + "from one address, or more than 10 in a minute for one account (the limits are configurable). "
+            + "Repeat after the seconds in Retry-After",
             headers = @Header(name = "Retry-After", description = "Seconds until the window of the limit ends",
                     schema = @Schema(type = "string", example = "42")),
             content = @Content)
@@ -127,8 +128,8 @@ public class AuthController {
     @PostMapping("/refresh")
     @ApiResponse(responseCode = "200", description = "OK",
             content = @Content(schema = @Schema(implementation = TokenResponse.class)))
-    @ApiResponse(responseCode = "429", description = "rate_limited: more than 60 refreshes in a minute from one "
-            + "address. Repeat after the seconds in Retry-After",
+    @ApiResponse(responseCode = "429", description = "rate_limited: by default more than 60 refreshes in a minute "
+            + "from one address (the limit is configurable). Repeat after the seconds in Retry-After",
             headers = @Header(name = "Retry-After", description = "Seconds until the window of the limit ends",
                     schema = @Schema(type = "string", example = "42")),
             content = @Content)

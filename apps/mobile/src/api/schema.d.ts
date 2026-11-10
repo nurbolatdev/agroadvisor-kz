@@ -1286,7 +1286,7 @@ export interface operations {
                     "*/*": components["schemas"]["TokenResponse"];
                 };
             };
-            /** @description rate_limited: more than 30 attempts in a minute from one address, or more than 10 in a minute for one account. Repeat after the seconds in Retry-After */
+            /** @description rate_limited: by default more than 30 attempts in a minute from one address, or more than 10 in a minute for one account (the limits are configurable). Repeat after the seconds in Retry-After */
             429: {
                 headers: {
                     /** @description Seconds until the window of the limit ends */
@@ -1359,7 +1359,7 @@ export interface operations {
                     "*/*": components["schemas"]["TokenResponse"];
                 };
             };
-            /** @description rate_limited: more than 60 refreshes in a minute from one address. Repeat after the seconds in Retry-After */
+            /** @description rate_limited: by default more than 60 refreshes in a minute from one address (the limit is configurable). Repeat after the seconds in Retry-After */
             429: {
                 headers: {
                     /** @description Seconds until the window of the limit ends */
@@ -1392,7 +1392,7 @@ export interface operations {
                     "*/*": components["schemas"]["TokenResponse"];
                 };
             };
-            /** @description rate_limited: more than 20 sign-ups in an hour from one address. Repeat after the seconds in Retry-After */
+            /** @description rate_limited: by default more than 20 sign-ups in an hour from one address (the limit is configurable). Repeat after the seconds in Retry-After */
             429: {
                 headers: {
                     /** @description Seconds until the window of the limit ends */
