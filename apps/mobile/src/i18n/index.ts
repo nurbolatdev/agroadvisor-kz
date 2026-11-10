@@ -1,6 +1,6 @@
 import './polyfills' // before i18next is initialised: it asks Intl.PluralRules for the plural forms
 
-import i18n from 'i18next'
+import i18n, { changeLanguage, use as addModule } from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
 import { en } from './en'
@@ -28,10 +28,10 @@ export function resolveLanguage(
 
 export function initI18n(language: Language) {
   if (i18n.isInitialized) {
-    void i18n.changeLanguage(language)
+    void changeLanguage(language)
     return i18n
   }
-  void i18n.use(initReactI18next).init({
+  void addModule(initReactI18next).init({
     resources: {
       ru: { translation: ru },
       kk: { translation: kk },
