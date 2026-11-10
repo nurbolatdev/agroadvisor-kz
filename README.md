@@ -23,7 +23,7 @@ Farmers take a photo of a plant, get a diagnosis with confidence score and treat
 
 The whole backend stack (PostgreSQL with PostGIS, Redis, SeaweedFS and the API running with the `prod` Spring profile) starts with one command.
 
-Requirements: Docker Desktop or Docker Engine with Compose v2.23 or newer, and free ports 5433, 6379, 8333, 8888 and 8080.
+Requirements: Docker Desktop or Docker Engine with Compose v2.23 or newer, and free ports 5433, 6379, 8333 and 8080 (and 8000 with the `ai` profile).
 
 ```bash
 cd infra
@@ -39,10 +39,12 @@ Check that the API is up:
 curl http://127.0.0.1:8080/actuator/health/liveness
 ```
 
-Photo diagnosis needs the AI service. Download the model weights once, then add the `ai` profile:
+Photo diagnosis needs the AI service. Download the model weights once (this needs the service's Python environment, see [its README](services/ai-service/README.md#setup)), then add the `ai` profile:
 
 ```bash
-cd services/ai-service && python -m ml.fetch_weights effnet-b0-v1
+cd services/ai-service
+python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+.venv/bin/python -m ml.fetch_weights effnet-b0-v1
 cd ../../infra && docker compose --profile app --profile ai up -d --build
 ```
 

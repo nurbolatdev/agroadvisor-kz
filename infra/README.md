@@ -40,7 +40,7 @@ curl http://127.0.0.1:8080/actuator/health/liveness   # {"status":"UP"}
 
 All services should show `healthy`, including `agroadvisor-backend` with the `app` profile. `agroadvisor-seaweedfs-init` shows `Exited (0)` — it only creates the photo bucket and stops. `--build` rebuilds the image after a `git pull`.
 
-Diagnosis needs the AI service and its weights, which are not in git. Fetch them once (`python -m ml.fetch_weights effnet-b0-v1` in `services/ai-service`), then start both profiles: `docker compose --profile app --profile ai up -d --build` (or set `COMPOSE_PROFILES=app,ai` in `.env`). Without the `ai` profile the API starts and diagnosis answers `503 ai_unavailable`.
+Diagnosis needs the AI service and its weights, which are not in git. Fetch them once: in `services/ai-service` create the environment (`python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`, see its [README](../services/ai-service/README.md#setup)) and run `.venv/bin/python -m ml.fetch_weights effnet-b0-v1`. Then start both profiles: `docker compose --profile app --profile ai up -d --build` (or set `COMPOSE_PROFILES=app,ai` in `.env`). Without the `ai` profile the API starts and diagnosis answers `503 ai_unavailable`.
 
 ### Secrets and an older `.env`
 
@@ -92,4 +92,4 @@ comm -23 <(grep -oE '^[A-Z_]+=' .env.example | sort) <(grep -oE '^[A-Z_]+=' .env
 | Stop and delete all data | `docker compose --profile app --profile ai down -v` |
 | Disk usage of Docker | `docker system df` |
 
-Always pass the profiles to `down`: without them compose leaves the `agroadvisor-backend` and AI containers running. `down -v` wipes the database, cache and photos — the next `up` starts from an empty state and runs `postgres/init/` again.
+Pass both profiles to `down` so older Compose versions also remove the profile containers (`agroadvisor-backend`, AI service); current versions remove them even without the flags. `down -v` wipes the database, cache and photos — the next `up` starts from an empty state and runs `postgres/init/` again.

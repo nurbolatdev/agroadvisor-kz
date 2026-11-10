@@ -172,6 +172,12 @@ jobs:
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Throwaway values for the compose steps: the containers live only in this job.
+    env:
+      POSTGRES_PASSWORD: ci-postgres
+      REDIS_PASSWORD: ci-redis
+      S3_ACCESS_KEY: ci-access-key
+      S3_SECRET_KEY: ci-secret-key
     steps:
       - uses: actions/checkout@v7
       # The tag is the `image:` of the backend service in infra/docker-compose.yml.
@@ -194,12 +200,6 @@ jobs:
           echo "$out" | grep -q 'missing environment variables: DB_URL'
       - name: Starts with the stack from infra (profile app)
         working-directory: infra
-        # Throwaway values: the containers live only in this job.
-        env:
-          POSTGRES_PASSWORD: ci-postgres
-          REDIS_PASSWORD: ci-redis
-          S3_ACCESS_KEY: ci-access-key
-          S3_SECRET_KEY: ci-secret-key
         run: |
           export JWT_SECRET="$(openssl rand -base64 48)"
           docker compose --profile app up -d --no-build backend
@@ -215,11 +215,6 @@ jobs:
       - name: Logs on failure
         if: failure()
         working-directory: infra
-        env:
-          POSTGRES_PASSWORD: ci-postgres
-          REDIS_PASSWORD: ci-redis
-          S3_ACCESS_KEY: ci-access-key
-          S3_SECRET_KEY: ci-secret-key
         run: docker compose --profile app logs --no-color --tail 200
 
   admin-web:
