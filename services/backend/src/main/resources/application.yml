@@ -73,6 +73,10 @@ app:
   rate-limit:
     diagnosis-per-minute: 5 # new diagnoses per user per minute, given back when we fail; there are no daily limits
     diagnosis-attempts-per-minute: 20 # attempts per user per minute, never given back (a retry storm guard for the AI)
+    login-per-ip-per-minute: ${APP_RATE_LIMIT_LOGIN_PER_IP_PER_MINUTE:30} # login attempts per client address per minute
+    login-per-account-per-minute: ${APP_RATE_LIMIT_LOGIN_PER_ACCOUNT_PER_MINUTE:10} # login attempts per account per minute
+    register-per-ip-per-hour: ${APP_RATE_LIMIT_REGISTER_PER_IP_PER_HOUR:20} # sign-ups per client address per hour
+    refresh-per-ip-per-minute: ${APP_RATE_LIMIT_REFRESH_PER_IP_PER_MINUTE:60} # token refreshes per client address per minute
   security:
     jwt:
       # Base64, at least 32 random bytes (openssl rand -base64 48). Kept outside git; startup fails without it.

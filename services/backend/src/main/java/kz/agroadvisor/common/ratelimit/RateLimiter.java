@@ -21,8 +21,10 @@ import kz.agroadvisor.common.web.ApiException;
  *
  * <p>A caller names its own {@code bucket} and takes the limit from {@link RateLimitProperties}, for
  * example {@code check("diagnosis", userId, limits.diagnosisPerMinute(), Duration.ofMinutes(1))}.
- * The {@code subject} must come from the authenticated principal (the JWT subject), never from request
- * parameters, otherwise a client could dodge the limit by changing it.
+ * For authenticated endpoints the {@code subject} must come from the principal (the JWT subject), never
+ * from request parameters, otherwise a client could dodge the limit by changing it. The public auth
+ * endpoints have no principal: they use the client address and the hashed, normalized login, and changing
+ * either only moves the caller to a bucket that is still guarded by the other limit.
  *
  * <p>Known trade-offs: windows are fixed, so a client can make up to twice the limit around a window
  * boundary (for example 5 calls at 10:00:59 and 5 more at 10:01:00); and if Redis is unavailable the
