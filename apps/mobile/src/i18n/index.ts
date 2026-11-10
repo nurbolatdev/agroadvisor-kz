@@ -1,5 +1,7 @@
 import './polyfills' // before i18next is initialised: it asks Intl.PluralRules for the plural forms
 
+// the named exports are the bound methods of the default instance (i18next bindMemberFunctions);
+// the member form i18n.use / i18n.changeLanguage trips import/no-named-as-default-member
 import i18n, { changeLanguage, use as addModule } from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
