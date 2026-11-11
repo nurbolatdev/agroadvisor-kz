@@ -257,6 +257,125 @@ describe('session store', () => {
     expect(tokens.value).toBe('saved')
   })
 
+  it('retries the refresh once at once when no answer arrives', async () => {
+    const api = createMockAuthApi()
+    const first = await api.register(credentials)
+    const seen: string[] = []
+    const lossy: AuthApi = {
+      ...api,
+      refresh: async (token) => {
+        seen.push(token)
+        // the first attempt gets no answer; the retry carries the same token (the server accepts it
+        // again inside its reuse window if it had already rotated it)
+        if (seen.length === 1) throw new NetworkError()
+        return api.refresh(token)
+      },
+    }
+    const tokens = memoryTokens(first.refreshToken)
+    const session = createSessionStore({ authApi: lossy, tokens })
+
+    const access = await session.getState().refreshAccessToken()
+
+    expect(seen).toEqual([first.refreshToken, first.refreshToken]) // the same token, sent twice
+    expect(access).not.toBeNull()
+    expect(session.getState().status).toBe('signedIn')
+  })
+
+  it('restores the session after one lost attempt and saves the new token', async () => {
+    const api = createMockAuthApi()
+    const first = await api.register(credentials)
+    let calls = 0
+    const lossy: AuthApi = {
+      ...api,
+      refresh: async (token) => {
+        calls += 1
+        if (calls === 1) throw new NetworkError()
+        return api.refresh(token)
+      },
+    }
+    const tokens = memoryTokens(first.refreshToken)
+    const session = createSessionStore({ authApi: lossy, tokens })
+
+    await session.getState().restore()
+
+    expect(calls).toBe(2)
+    expect(session.getState().status).toBe('signedIn')
+    expect(tokens.value).not.toBe(first.refreshToken)
+  })
+
+  it('shares one pair of attempts between concurrent callers during the retry', async () => {
+    const api = createMockAuthApi()
+    const first = await api.register(credentials)
+    let calls = 0
+    const lossy: AuthApi = {
+      ...api,
+      refresh: async (token) => {
+        calls += 1
+        if (calls === 1) throw new NetworkError()
+        return api.refresh(token)
+      },
+    }
+    const session = createSessionStore({ authApi: lossy, tokens: memoryTokens(first.refreshToken) })
+
+    await Promise.all([
+      session.getState().refreshAccessToken(),
+      session.getState().refreshAccessToken(),
+    ])
+
+    expect(calls).toBe(2)
+  })
+
+  it('does not retry when the user logged out after the first attempt failed', async () => {
+    const api = createMockAuthApi()
+    const first = await api.register(credentials)
+    let calls = 0
+    let session!: ReturnType<typeof createSessionStore>
+    const lossy: AuthApi = {
+      ...api,
+      refresh: async () => {
+        calls += 1
+        await session.getState().logout() // the user leaves while the attempt is failing
+        throw new NetworkError()
+      },
+    }
+    session = createSessionStore({ authApi: lossy, tokens: memoryTokens(first.refreshToken) })
+
+    await session.getState().refreshAccessToken()
+
+    expect(calls).toBe(1)
+    expect(session.getState().status).toBe('signedOut')
+  })
+
+  it('does not retry more than once and keeps the saved token when the network stays down', async () => {
+    const refresh = jest.fn(async () => {
+      throw new NetworkError()
+    })
+    const tokens = memoryTokens('saved')
+    const session = createSessionStore({
+      authApi: { ...createMockAuthApi(), refresh },
+      tokens,
+    })
+
+    expect(await session.getState().refreshAccessToken()).toBeNull()
+
+    expect(refresh).toHaveBeenCalledTimes(2)
+    expect(tokens.value).toBe('saved')
+  })
+
+  it('does not retry an answer of the server', async () => {
+    const refresh = jest.fn(async () => {
+      throw new ApiError(500, 'internal_error', 'boom')
+    })
+    const session = createSessionStore({
+      authApi: { ...createMockAuthApi(), refresh },
+      tokens: memoryTokens('saved'),
+    })
+
+    await session.getState().refreshAccessToken()
+
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
   it('shares one refresh request between concurrent callers', async () => {
     const api = createMockAuthApi()
     const first = await api.register(credentials)
