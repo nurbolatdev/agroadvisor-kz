@@ -80,6 +80,17 @@ describe('live diseases', () => {
     expect(requests.map((r) => r.path)).toEqual(['/api/diseases', '/api/diseases/wheat__rust'])
   })
 
+  it('keeps both the dosage and the method of a treatment', async () => {
+    const both = {
+      treatments: [{ type: 'chemical', product: 'X', activeIngredient: null, dosage: '2 л/га', method: 'Опрыскивание' }],
+    }
+    const { api } = setup({ '/api/diseases/x': detail('x', both) })
+
+    const disease = await api.getDisease('x')
+
+    expect(disease?.chemicalTreatment[0].dosage).toBe('2 л/га · Опрыскивание')
+  })
+
   it('shows a disease without a rating as medium', async () => {
     const { api } = setup({ '/api/diseases/x': detail('x', {}, { severity: null, kind: 'pest' }) })
 

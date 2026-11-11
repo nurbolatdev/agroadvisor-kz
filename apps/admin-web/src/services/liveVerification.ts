@@ -1,6 +1,6 @@
 import i18n from '@/i18n'
 import type { AdminApi } from '@/services/api'
-import type { HttpClient } from '@/services/http'
+import { ApiError, type HttpClient } from '@/services/http'
 import type { Agrochemist, AgrochemistDocument, VerificationStatus } from '@/shared/types'
 
 /** Answers of `GET /api/admin/agrochemists` and `/{userId}` (docs/api/agrochemist-verification.md). */
@@ -52,13 +52,24 @@ function toDocument(agrochemistId: string, document: BackendDocument): Agrochemi
   }
 }
 
+/** The backend sends codes joined by commas (`plant_protection,agrochemistry`); the screens show the names. */
+function specializationText(codes: string | null): string {
+  if (!codes) return '—'
+  return codes
+    .split(',')
+    .map((code) => code.trim())
+    .filter(Boolean)
+    .map((code) => String(i18n.t(`agrochemists:specializations.${code}` as never, { defaultValue: code })))
+    .join(', ')
+}
+
 function toAgrochemist(details: Details): Agrochemist {
   const requested = details.status === 'documents_requested'
   return {
     id: details.userId,
     name: details.fullName,
-    specialization: details.specialization ?? '',
-    region: '', // the backend keeps no region of an agrochemist yet
+    specialization: specializationText(details.specialization),
+    region: '—', // the backend keeps no region of an agrochemist yet
     experienceYears: details.experienceYears ?? 0,
     documents: details.documents.map((d) => toDocument(details.userId, d)),
     status: requested ? 'pending' : (details.status as VerificationStatus),
@@ -102,18 +113,27 @@ export function createLiveVerification(
   return {
     // The backend has no statistics endpoint: the cards count the loaded queue (up to PAGE_SIZE per status),
     // and "rejected" is the whole list, not only this month's.
-    getVerificationStats: async () => ({
-      pending: await count(BACKEND_STATUSES.pending),
-      approved: await count(BACKEND_STATUSES.approved),
-      rejectedThisMonth: await count(BACKEND_STATUSES.rejected),
-    }),
+    getVerificationStats: async () => {
+      const [pending, approved, rejected] = await Promise.all([
+        count(BACKEND_STATUSES.pending),
+        count(BACKEND_STATUSES.approved),
+        count(BACKEND_STATUSES.rejected),
+      ])
+      return { pending, approved, rejectedThisMonth: rejected }
+    },
 
     getAgrochemists: async (filters = {}) => {
       const statuses = BACKEND_STATUSES[filters.status ?? 'pending']
       const summaries = (await Promise.all(statuses.map(list))).flat()
       const needle = filters.search?.trim().toLowerCase()
       const wanted = needle ? summaries.filter((s) => s.fullName.toLowerCase().includes(needle)) : summaries
-      const full = await Promise.all(wanted.map((s) => details(s.userId)))
+      // A profile can disappear between the list and its detail; that one row is skipped, any other failure stops.
+      const settled = await Promise.allSettled(wanted.map((s) => details(s.userId)))
+      const full: Details[] = []
+      for (const result of settled) {
+        if (result.status === 'fulfilled') full.push(result.value)
+        else if (!(result.reason instanceof ApiError && result.reason.status === 404)) throw result.reason
+      }
       return full.map(toAgrochemist).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
     },
 

@@ -47,7 +47,7 @@ function toTreatment(treatment: BackendTreatment): Treatment {
   return {
     name: treatment.product,
     activeIngredient: treatment.activeIngredient ?? undefined,
-    dosage: treatment.dosage ?? treatment.method ?? '',
+    dosage: [treatment.dosage, treatment.method].filter(Boolean).join(' · '),
   }
 }
 

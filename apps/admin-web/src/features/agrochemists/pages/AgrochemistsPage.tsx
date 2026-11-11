@@ -2,6 +2,7 @@ import { Check, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
+import { LoadError } from '@/components/ui/LoadError'
 import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SearchBar } from '@/components/ui/SearchBar'
@@ -11,6 +12,7 @@ import { DecisionCell } from '@/features/agrochemists/components/DecisionCell'
 import { RejectModal } from '@/features/agrochemists/components/RejectModal'
 import { VerificationKpis } from '@/features/agrochemists/components/VerificationKpis'
 import { useVerificationDecisions } from '@/features/agrochemists/useVerificationDecisions'
+import i18n from '@/i18n'
 import { api } from '@/services/api'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
 import { usePageParam } from '@/shared/hooks/usePagination'
@@ -24,7 +26,10 @@ export function AgrochemistsPage() {
   const [rejecting, setRejecting] = useState<Agrochemist>()
   const { page, setPage, resetPage } = usePageParam()
   const stats = useApiQuery(() => api.getVerificationStats(), [])
-  const list = useApiQuery(() => api.getAgrochemists({ status, search }), [status, search])
+  // The search is applied here, to what is loaded: a keystroke must not repeat the requests to the backend.
+  const list = useApiQuery(() => api.getAgrochemists({ status }), [status, i18n.language])
+  const query = search.trim().toLowerCase()
+  const rows = list.data?.filter((item) => !query || item.name.toLowerCase().includes(query))
   const decisions = useVerificationDecisions(() => {
     list.reload()
     stats.reload()
@@ -70,9 +75,9 @@ export function AgrochemistsPage() {
             {decisions.error}
           </p>
         ) : null}
-        {list.data ? (
+        {rows ? (
           <AgrochemistsTable
-            agrochemists={list.data}
+            agrochemists={rows}
             onOpenDocuments={setViewing}
             page={page}
             onPageChange={setPage}
@@ -94,6 +99,8 @@ export function AgrochemistsPage() {
               },
             ]}
           />
+        ) : list.error ? (
+          <LoadError onRetry={list.reload} />
         ) : (
           <Loader />
         )}

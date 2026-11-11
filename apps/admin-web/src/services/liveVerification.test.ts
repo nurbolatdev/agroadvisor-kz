@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import type { HttpClient } from './http'
+import { ApiError, type HttpClient } from './http'
 import { createLiveVerification } from './liveVerification'
 
 const summary = (id: string, name: string, status: string, at = '2026-11-01T10:00:00Z') => ({
   userId: id,
   fullName: name,
-  specialization: 'Агроном',
+  specialization: 'plant_protection,soil_science', // the backend sends codes joined by commas
   status,
   submittedAt: at,
   documentCount: 1,
@@ -28,6 +28,7 @@ function setup(routes: Record<string, unknown>) {
       calls.push({ path, opts })
       const key = opts.query?.status ? `${path}?${opts.query.status}` : path
       if (!(key in routes)) throw new Error(`unexpected call ${key}`)
+      if (routes[key] instanceof Error) throw routes[key]
       return routes[key]
     }),
   } as unknown as HttpClient
@@ -56,7 +57,7 @@ describe('live verification', () => {
       status: 'pending',
       documentsRequestedAt: '2026-11-06T09:00:00Z',
       experienceYears: 7,
-      region: '',
+      region: '—',
     })
     expect(result[1].documentsRequestedAt).toBeUndefined()
     expect(result[1].documents[0]).toEqual({
@@ -66,6 +67,32 @@ describe('live verification', () => {
       year: 2015,
       fileUrl: '/api/admin/agrochemists/a/documents/d1/file',
     })
+  })
+
+  it('shows the names of the specializations, the language of the interface', async () => {
+    const { live } = setup({
+      '/api/admin/agrochemists?approved': [summary('a', 'Айдар', 'approved')],
+      '/api/admin/agrochemists/a': detailsOf('a', 'Айдар', 'approved'),
+    })
+
+    const [item] = await live.getAgrochemists({ status: 'approved' })
+
+    expect(item.specialization).toBe('Защита растений, Почвоведение')
+    expect(item.region).toBe('—')
+  })
+
+  it('skips an application that disappeared between the list and its detail, and stops on other failures', async () => {
+    const routes = {
+      '/api/admin/agrochemists?approved': [summary('a', 'Айдар', 'approved'), summary('b', 'Берик', 'approved')],
+      '/api/admin/agrochemists/a': detailsOf('a', 'Айдар', 'approved'),
+      '/api/admin/agrochemists/b': new ApiError(404, 'agrochemist_not_found', 'gone'),
+    }
+    const { live } = setup(routes)
+
+    expect((await live.getAgrochemists({ status: 'approved' })).map((a) => a.id)).toEqual(['a'])
+
+    const failing = setup({ ...routes, '/api/admin/agrochemists/b': new ApiError(500, 'internal_error', 'x') })
+    await expect(failing.live.getAgrochemists({ status: 'approved' })).rejects.toMatchObject({ status: 500 })
   })
 
   it('searches by name among the loaded applications without loading the others', async () => {

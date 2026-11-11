@@ -25,6 +25,12 @@ const agrochemists: Translation<typeof ru> = {
     notFound: 'Бұл атпен ешкім табылмады',
     empty: 'Өтінім жоқ',
   },
+  specializations: {
+    plant_protection: 'Өсімдік қорғау',
+    agrochemistry: 'Агрохимия',
+    phytopathology: 'Фитопатология',
+    soil_science: 'Топырақтану',
+  },
   decision: {
     approved: 'Расталды',
     approvedOn: 'Расталды {{date}}',

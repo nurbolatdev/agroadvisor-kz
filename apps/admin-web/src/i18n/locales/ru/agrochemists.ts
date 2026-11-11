@@ -22,6 +22,12 @@ const agrochemists = {
     notFound: 'Никого не нашли по этому имени',
     empty: 'Заявок нет',
   },
+  specializations: {
+    plant_protection: 'Защита растений',
+    agrochemistry: 'Агрохимия',
+    phytopathology: 'Фитопатология',
+    soil_science: 'Почвоведение',
+  },
   decision: {
     approved: 'Подтверждён',
     approvedOn: 'Подтверждён {{date}}',

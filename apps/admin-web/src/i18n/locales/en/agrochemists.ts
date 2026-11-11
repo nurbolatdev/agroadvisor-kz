@@ -25,6 +25,12 @@ const agrochemists: Translation<typeof ru> = {
     notFound: 'No one found by this name',
     empty: 'No applications',
   },
+  specializations: {
+    plant_protection: 'Plant protection',
+    agrochemistry: 'Agrochemistry',
+    phytopathology: 'Phytopathology',
+    soil_science: 'Soil science',
+  },
   decision: {
     approved: 'Approved',
     approvedOn: 'Approved {{date}}',
