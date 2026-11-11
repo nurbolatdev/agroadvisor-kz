@@ -311,9 +311,11 @@ class AuthFlowIntegrationTest {
     }
 
     @Test
-    void reusingAUsedRefreshTokenRevokesTheWholeFamily() throws Exception {
-        Session first = register(newPhone(), "farmer");
+    void reusingAUsedRefreshTokenAfterTheWindowRevokesTheWholeFamily() throws Exception {
+        String phone = newPhone();
+        Session first = register(phone, "farmer");
         Session second = refresh(first.refresh());
+        moveUseBack(phone, 60);
 
         expectPost("/api/auth/refresh", "{\"refreshToken\":\"" + first.refresh() + "\"}", 401, "refresh_token_reused");
 
@@ -327,6 +329,7 @@ class AuthFlowIntegrationTest {
         Session phoneSession = register(phone, "farmer");
         Session laptopSession = login(phone);
         Session rotated = refresh(phoneSession.refresh());
+        moveUseBack(phone, 60);
 
         expectPost("/api/auth/refresh", "{\"refreshToken\":\"" + phoneSession.refresh() + "\"}", 401, "refresh_token_reused");
 
@@ -335,7 +338,19 @@ class AuthFlowIntegrationTest {
     }
 
     @Test
-    void parallelRefreshWithTheSameTokenSucceedsOnlyOnceAndEndsTheSession() throws Exception {
+    void aReplayInsideTheWindowGetsANewPairAndKeepsTheSession() throws Exception {
+        Session first = register(newPhone(), "farmer");
+        Session second = refresh(first.refresh());
+
+        Session third = refresh(first.refresh());
+
+        assertThat(third.refresh()).isNotEqualTo(first.refresh()).isNotEqualTo(second.refresh());
+        refresh(second.refresh());
+        refresh(third.refresh());
+    }
+
+    @Test
+    void parallelRefreshWithTheSameTokenRotatesOnceAndServesTheOthersAsReplays() throws Exception {
         String phone = newPhone();
         Session s = register(phone, "farmer");
         int threads = 6;
@@ -343,41 +358,47 @@ class AuthFlowIntegrationTest {
         CountDownLatch go = new CountDownLatch(1);
         ExecutorService pool = Executors.newFixedThreadPool(threads);
         try {
-            List<Future<Integer>> results = new java.util.ArrayList<>();
-            java.util.concurrent.atomic.AtomicReference<String> winnerRefresh = new java.util.concurrent.atomic.AtomicReference<>();
+            List<Future<String[]>> results = new java.util.ArrayList<>();
             for (int i = 0; i < threads; i++) {
-                Callable<Integer> call = () -> {
+                Callable<String[]> call = () -> {
                     ready.countDown();
                     go.await();
                     var response = mvc.perform(post("/api/auth/refresh").contentType(MediaType.APPLICATION_JSON)
                             .content("{\"refreshToken\":\"" + s.refresh() + "\"}")).andReturn().getResponse();
-                    if (response.getStatus() == 200) {
-                        winnerRefresh.set(JsonPath.read(response.getContentAsString(), "$.refreshToken"));
-                    }
-                    return response.getStatus();
+                    String token = response.getStatus() == 200
+                            ? JsonPath.read(response.getContentAsString(), "$.refreshToken") : null;
+                    return new String[] {String.valueOf(response.getStatus()), token};
                 };
                 results.add(pool.submit(call));
             }
             ready.await();
             go.countDown();
-            int ok = 0;
-            for (Future<Integer> f : results) {
-                int code = f.get();
-                if (code == 200) {
-                    ok++;
-                } else {
-                    assertThat(code).isEqualTo(401);
-                }
+            List<String> tokens = new java.util.ArrayList<>();
+            for (Future<String[]> f : results) {
+                String[] answer = f.get();
+                // Inside the reuse window exactly one request rotates normally and the others are replays,
+                // so all of them succeed and none of them revokes the family.
+                assertThat(answer[0]).isEqualTo("200");
+                tokens.add(answer[1]);
             }
-            assertThat(ok).isEqualTo(1);
+            assertThat(tokens).doesNotContainNull().doesNotHaveDuplicates();
 
-            // Chosen policy (strict): a token presented a second time is treated as a replay and the whole
-            // session is revoked, including the new token the winner received. The client must send one
-            // refresh request at a time (single-flight); a lost race means signing in again.
-            assertThat(winnerRefresh.get()).isNotBlank();
-            expectPost("/api/auth/refresh", "{\"refreshToken\":\"" + winnerRefresh.get() + "\"}", 401,
-                    "invalid_refresh_token");
-            assertThat(activeRefreshTokens(phone)).isZero();
+            assertThat(jdbc.queryForObject("""
+                    SELECT count(*) FROM refresh_tokens
+                    WHERE user_id = (SELECT id FROM users WHERE phone = ?)
+                    """, Integer.class, phone)).isEqualTo(threads + 1);
+            assertThat(jdbc.queryForObject("""
+                    SELECT count(*) FROM refresh_tokens
+                    WHERE revoked_at IS NOT NULL AND user_id = (SELECT id FROM users WHERE phone = ?)
+                    """, Integer.class, phone)).isZero();
+            assertThat(jdbc.queryForObject("""
+                    SELECT count(*) FROM refresh_tokens
+                    WHERE used_at IS NOT NULL AND user_id = (SELECT id FROM users WHERE phone = ?)
+                    """, Integer.class, phone)).isEqualTo(1);
+            assertThat(activeRefreshTokens(phone)).isEqualTo(threads);
+            for (String token : tokens) {
+                refresh(token);
+            }
         } finally {
             pool.shutdownNow();
         }
@@ -536,6 +557,14 @@ class AuthFlowIntegrationTest {
         if (expectedCode != null) {
             result.andExpect(jsonPath("$.code").value(expectedCode));
         }
+    }
+
+    /** Pretends the used tokens of the user were used {@code seconds} earlier, i.e. outside the reuse window. */
+    private void moveUseBack(String phone, int seconds) {
+        jdbc.update("""
+                UPDATE refresh_tokens SET used_at = used_at - make_interval(secs => ?)
+                WHERE used_at IS NOT NULL AND user_id = (SELECT id FROM users WHERE phone = ?)
+                """, (double) seconds, phone);
     }
 
     private int activeRefreshTokens(String phone) {

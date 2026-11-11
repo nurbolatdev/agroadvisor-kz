@@ -59,9 +59,10 @@ class RefreshTokenCleanupTest {
     /** Inserts a row that expires {@code expiresAgoDays} ago (negative: in the future); returns its raw token. */
     private String insert(UUID user, UUID family, int expiresAgoDays, boolean used) {
         String raw = UUID.randomUUID().toString();
+        // a used row is used an hour ago: outside the reuse window, so a replay still revokes the family
         jdbc.update("""
                 INSERT INTO refresh_tokens (user_id, family_id, token_hash, expires_at, used_at, created_at)
-                VALUES (?, ?, ?, now() - make_interval(days => ?), CASE WHEN ? THEN now() END,
+                VALUES (?, ?, ?, now() - make_interval(days => ?), CASE WHEN ? THEN now() - interval '1 hour' END,
                         now() - make_interval(days => ?))
                 """, user, family, RefreshTokenService.hash(raw), expiresAgoDays, used, expiresAgoDays + 30);
         return raw;

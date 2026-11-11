@@ -87,6 +87,8 @@ app:
       cron: ${APP_SECURITY_REFRESH_CLEANUP_CRON:0 0 4 * * *} # Asia/Almaty
       retention: ${APP_SECURITY_REFRESH_CLEANUP_RETENTION:P7D}
       batch-size: ${APP_SECURITY_REFRESH_CLEANUP_BATCH_SIZE:1000}
+    # A used refresh token presented again within this window gets a new pair (lost response); 0 = strict, max PT60S
+    refresh-reuse-window: ${APP_SECURITY_REFRESH_REUSE_WINDOW:PT10S}
 
 management:
   health:
