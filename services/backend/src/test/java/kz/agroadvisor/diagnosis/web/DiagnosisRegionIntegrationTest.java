@@ -68,9 +68,7 @@ class DiagnosisRegionIntegrationTest {
         return users.saveAndFlush(user);
     }
 
-    private String diagnose(User user, String key, int expectedStatus) throws Exception {
-        when(photos.store(any(UUID.class), anyString(), any(byte[].class), anyString()))
-                .thenReturn("diagnoses/test/photo.jpg");
+    private MockMultipartHttpServletRequestBuilder request(User user, String key) {
         MockMultipartHttpServletRequestBuilder request = multipart("/api/diagnoses")
                 .file(new MockMultipartFile("image", "leaf", "image/jpeg", JPEG))
                 .param("crop", "tomato")
@@ -78,8 +76,14 @@ class DiagnosisRegionIntegrationTest {
         if (key != null) {
             request.header("Idempotency-Key", key);
         }
-        String body = mvc.perform(request).andExpect(status().is(expectedStatus)).andReturn().getResponse()
-                .getContentAsString();
+        return request;
+    }
+
+    private String diagnose(User user, String key, int expectedStatus) throws Exception {
+        when(photos.store(any(UUID.class), anyString(), any(byte[].class), anyString()))
+                .thenReturn("diagnoses/test/photo.jpg");
+        String body = mvc.perform(request(user, key)).andExpect(status().is(expectedStatus)).andReturn()
+                .getResponse().getContentAsString();
         return JsonPath.read(body, "$.id");
     }
 
@@ -94,14 +98,12 @@ class DiagnosisRegionIntegrationTest {
         when(photos.store(any(UUID.class), anyString(), any(byte[].class), anyString()))
                 .thenReturn("diagnoses/test/photo.jpg");
 
-        String id = diagnose(user, null, 201);
-
-        assertThat(storedRegion(id)).isEqualTo(regionId("akmola"));
-        mvc.perform(multipart("/api/diagnoses").file(new MockMultipartFile("image", "leaf", "image/jpeg", JPEG))
-                        .param("crop", "tomato")
-                        .header("Authorization", "Bearer " + jwt.issueAccessToken(user.getId())))
+        String body = mvc.perform(request(user, null))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.regionId").doesNotExist());
+                .andExpect(jsonPath("$.regionId").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(storedRegion(JsonPath.read(body, "$.id"))).isEqualTo(regionId("akmola"));
     }
 
     @Test
@@ -121,12 +123,7 @@ class DiagnosisRegionIntegrationTest {
         stored.assignRegion(regionId("kostanay"));
         users.saveAndFlush(stored);
 
-        MockMultipartHttpServletRequestBuilder replay = multipart("/api/diagnoses")
-                .file(new MockMultipartFile("image", "leaf", "image/jpeg", JPEG))
-                .param("crop", "tomato")
-                .header("Authorization", "Bearer " + jwt.issueAccessToken(user.getId()))
-                .header("Idempotency-Key", key);
-        mvc.perform(replay)
+        mvc.perform(request(user, key))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Idempotent-Replayed", "true"))
                 .andExpect(jsonPath("$.id").value(first));

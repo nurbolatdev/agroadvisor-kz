@@ -361,8 +361,9 @@ public class DiagnosisService {
 
     /**
      * The one transaction that ends a request: the diagnosis is inserted (and flushed, so that a clash with
-     * the unique index of V11 surfaces here) with the user's current region, and our claim is deleted. If the claim was taken over, the
-     * delete touches no row, which is not an error: the diagnosis insert still decides who is first.
+     * the unique index of V11 surfaces here) with the user's current region, and our claim is deleted. If
+     * the claim was taken over, the delete touches no row, which is not an error: the diagnosis insert
+     * still decides who is first.
      */
     private Diagnosis finish(UUID userId, String crop, String photoKey, Prediction prediction, String key,
             String fingerprint, UUID claimId, AtomicBoolean atCommit) {
