@@ -56,10 +56,11 @@ Only SHA-256 hashes of tokens are stored, so the server cannot hand out "the sam
   of its family can outlive that logout, because the logout `UPDATE` does not see a row committed after it
   started. A per-user `pg_advisory_xact_lock` in rotation and revocation would close it; suggested as a
   separate issue.
-- **Client coverage.** The mobile client does not retry a refresh automatically after a network error; the
-  next refresh comes with the user's next action. If that happens later than the window, the strict rule
-  applies and the user signs in again. Follow-up: one immediate retry on a network error in the mobile client,
-  or a larger window up to 60 s.
+- **Client coverage.** The mobile client retries a refresh once, immediately, when no answer arrives (a
+  network error, not a server answer), and the refresh request has its own 4 s timeout, so both attempts start
+  inside the 10 s window. No retry is sent after a logout. If the network stays down, the saved token is kept
+  and the next refresh comes with the user's next action; if that is later than the window, the strict rule
+  applies and the user signs in again.
 - **Rollback.** Set `APP_SECURITY_REFRESH_REUSE_WINDOW=0`.
 
 ## Answer for the defence: what happens if the connection drops during a token refresh?
