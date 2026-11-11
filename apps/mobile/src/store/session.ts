@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 
-import type { AuthApi, LoginRequest, RegisterBody, TokenResponse } from '@/api/auth'
+import {
+  REFRESH_FIRST_ATTEMPT_TIMEOUT_MS,
+  type AuthApi,
+  type LoginRequest,
+  type RegisterBody,
+  type TokenResponse,
+} from '@/api/auth'
 import { ApiError, NetworkError } from '@/api/errors'
 import { userIdOfToken } from '@/lib/jwt'
 
@@ -89,7 +95,7 @@ export function createSessionStore(deps: {
       startedIn: number,
     ): Promise<TokenResponse> {
       try {
-        return await authApi.refresh(refreshToken)
+        return await authApi.refresh(refreshToken, { timeoutMs: REFRESH_FIRST_ATTEMPT_TIMEOUT_MS })
       } catch (error) {
         // after a logout there is nothing to recover: do not send the old token again
         if (!(error instanceof NetworkError) || startedIn !== generation) throw error
