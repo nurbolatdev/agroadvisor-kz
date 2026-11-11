@@ -23,13 +23,23 @@ export type AuthApi = {
   logout: (refreshToken: string) => Promise<void>
 }
 
+// The server accepts a used refresh token again only for 10 s (backend reuse window). The session store
+// retries a refresh once when no answer comes, so both attempts must start inside that window: two
+// timeouts add up to well under 10 s. The default 15 s timeout would make the retry always too late.
+export const REFRESH_TIMEOUT_MS = 4_000
+
 export function createAuthApi(client: ApiClient): AuthApi {
   return {
     register: (body) => client.request('/api/auth/register', { method: 'POST', body, auth: false }),
     login: (body) => client.request('/api/auth/login', { method: 'POST', body, auth: false }),
     refresh: (refreshToken) => {
       const body: Schemas['RefreshRequest'] = { refreshToken }
-      return client.request('/api/auth/refresh', { method: 'POST', body, auth: false })
+      return client.request('/api/auth/refresh', {
+        method: 'POST',
+        body,
+        auth: false,
+        timeoutMs: REFRESH_TIMEOUT_MS,
+      })
     },
     logout: (refreshToken) => {
       const body: Schemas['RefreshRequest'] = { refreshToken }

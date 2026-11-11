@@ -84,11 +84,15 @@ export function createSessionStore(deps: {
     // again for a few seconds (the reuse window), so one immediate retry after "no answer" recovers the
     // session; a later retry would meet the strict rule and sign the user out. Only NetworkError is retried:
     // a verdict or a 5xx is an answer.
-    async function refreshWithOneRetry(refreshToken: string): Promise<TokenResponse> {
+    async function refreshWithOneRetry(
+      refreshToken: string,
+      startedIn: number,
+    ): Promise<TokenResponse> {
       try {
         return await authApi.refresh(refreshToken)
       } catch (error) {
-        if (!(error instanceof NetworkError)) throw error
+        // after a logout there is nothing to recover: do not send the old token again
+        if (!(error instanceof NetworkError) || startedIn !== generation) throw error
         return authApi.refresh(refreshToken)
       }
     }
@@ -107,7 +111,7 @@ export function createSessionStore(deps: {
         return { kind: 'rejected' }
       }
       try {
-        const response = await refreshWithOneRetry(refreshToken)
+        const response = await refreshWithOneRetry(refreshToken, startedIn)
         await accept(response, startedIn)
         return startedIn === generation
           ? { kind: 'ok', accessToken: response.accessToken }

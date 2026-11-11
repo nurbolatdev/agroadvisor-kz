@@ -257,7 +257,7 @@ describe('session store', () => {
     expect(tokens.value).toBe('saved')
   })
 
-  it('retries the refresh once at once when the answer was lost', async () => {
+  it('retries the refresh once at once when no answer arrives', async () => {
     const api = createMockAuthApi()
     const first = await api.register(credentials)
     const seen: string[] = []
@@ -265,7 +265,8 @@ describe('session store', () => {
       ...api,
       refresh: async (token) => {
         seen.push(token)
-        // the first answer never arrives; the server accepts the same token again (reuse window)
+        // the first attempt gets no answer; the retry carries the same token (the server accepts it
+        // again inside its reuse window if it had already rotated it)
         if (seen.length === 1) throw new NetworkError()
         return api.refresh(token)
       },
@@ -278,6 +279,71 @@ describe('session store', () => {
     expect(seen).toEqual([first.refreshToken, first.refreshToken]) // the same token, sent twice
     expect(access).not.toBeNull()
     expect(session.getState().status).toBe('signedIn')
+  })
+
+  it('restores the session after one lost attempt and saves the new token', async () => {
+    const api = createMockAuthApi()
+    const first = await api.register(credentials)
+    let calls = 0
+    const lossy: AuthApi = {
+      ...api,
+      refresh: async (token) => {
+        calls += 1
+        if (calls === 1) throw new NetworkError()
+        return api.refresh(token)
+      },
+    }
+    const tokens = memoryTokens(first.refreshToken)
+    const session = createSessionStore({ authApi: lossy, tokens })
+
+    await session.getState().restore()
+
+    expect(calls).toBe(2)
+    expect(session.getState().status).toBe('signedIn')
+    expect(tokens.value).not.toBe(first.refreshToken)
+  })
+
+  it('shares one pair of attempts between concurrent callers during the retry', async () => {
+    const api = createMockAuthApi()
+    const first = await api.register(credentials)
+    let calls = 0
+    const lossy: AuthApi = {
+      ...api,
+      refresh: async (token) => {
+        calls += 1
+        if (calls === 1) throw new NetworkError()
+        return api.refresh(token)
+      },
+    }
+    const session = createSessionStore({ authApi: lossy, tokens: memoryTokens(first.refreshToken) })
+
+    await Promise.all([
+      session.getState().refreshAccessToken(),
+      session.getState().refreshAccessToken(),
+    ])
+
+    expect(calls).toBe(2)
+  })
+
+  it('does not retry when the user logged out after the first attempt failed', async () => {
+    const api = createMockAuthApi()
+    const first = await api.register(credentials)
+    let calls = 0
+    let session!: ReturnType<typeof createSessionStore>
+    const lossy: AuthApi = {
+      ...api,
+      refresh: async () => {
+        calls += 1
+        await session.getState().logout() // the user leaves while the attempt is failing
+        throw new NetworkError()
+      },
+    }
+    session = createSessionStore({ authApi: lossy, tokens: memoryTokens(first.refreshToken) })
+
+    await session.getState().refreshAccessToken()
+
+    expect(calls).toBe(1)
+    expect(session.getState().status).toBe('signedOut')
   })
 
   it('does not retry more than once and keeps the saved token when the network stays down', async () => {
