@@ -2,7 +2,16 @@
 
 Web admin panel of AgroAdvisor KZ. Administrators moderate the farmer community, verify agrochemists, keep the disease and shop directories up to date and follow how the AI diagnosis model performs.
 
-The app runs on mock data with a simulated network delay, so it works without the backend. All data goes through one service contract, which will later be backed by the REST API.
+The pages show mock data with a simulated network delay; the sign-in already talks to the backend. All data goes through one service contract, which is being moved to the REST API page by page.
+
+### Run modes
+
+| Mode | How | Needs |
+| --- | --- | --- |
+| `live` (default) | `npm run dev` | Backend started with `-Dspring-boot.run.profiles=local` (its CORS allows `http://localhost:5173`, not `127.0.0.1`), `VITE_API_BASE_URL` (default `http://localhost:8080` in development; a production build must set it) and an account with the `admin` role. The first administrator is created by the backend bootstrap (`APP_BOOTSTRAP_ADMIN_*`, see the backend README) |
+| `mock` | `VITE_API_MODE=mock npm run dev` | Nothing: no backend and no sign-in, demo data only |
+
+Set the variables in a `.env` file of this folder (not committed). The refresh token of the session is kept in the tab's `sessionStorage`; a duplicated tab copies it, and then the first tab to refresh ends the session of the other.
 
 ![Overview](../../docs/screenshots/admin/overview.png)
 

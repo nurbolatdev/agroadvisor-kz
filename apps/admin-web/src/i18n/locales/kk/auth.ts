@@ -2,7 +2,7 @@ import type ru from '@/i18n/locales/ru/auth'
 import type { Translation } from '@/i18n/types'
 
 const auth: Translation<typeof ru> = {
-  title: 'Әкімшілікке кіру',
+  title: 'Әкімші панеліне кіру',
   subtitle: 'Тек әкімшілерге арналған',
   login: 'Телефон немесе e-mail',
   password: 'Құпиясөз',
