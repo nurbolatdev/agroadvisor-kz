@@ -46,6 +46,11 @@ class AdminBootstrapRunner implements ApplicationRunner {
         }
         Login login = Login.parse(properties.login());
         if (users.findByLogin(login).isPresent()) {
+            // Another instance may have created this very administrator between the two checks
+            if (users.hasAdmin()) {
+                log.info("Admin bootstrap skipped: another instance created the administrator");
+                return;
+            }
             throw new IllegalStateException(
                     "app.bootstrap-admin.login belongs to an existing non-admin account; use another login");
         }
