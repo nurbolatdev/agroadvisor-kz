@@ -32,6 +32,14 @@ const agrochemists: Translation<typeof ru> = {
     requestedOn: 'Сұралды {{date}}',
     request: 'Сұрау',
     saveError: 'Шешімді сақтау мүмкін болмады',
+    requestReason: 'Біліктілігіңізді растайтын диплом немесе сертификат жүктеңіз.',
+    errors: {
+      no_documents: 'Растау мүмкін емес: маман құжат жібермеген',
+      reason_required: 'Себебін көрсетіңіз',
+      self_review_forbidden: 'Өз өтінішіңіз бойынша шешім қабылдауға болмайды',
+      agrochemist_not_found: 'Өтініш табылмады',
+      network: 'Серверге қосылу мүмкін емес',
+    },
   },
   documentsModal: {
     title: 'Маман құжаттары',
