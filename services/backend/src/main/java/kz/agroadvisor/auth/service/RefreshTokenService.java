@@ -145,7 +145,7 @@ public class RefreshTokenService {
                        (used_at > now() - make_interval(secs => ?)) AS recent
                 FROM refresh_tokens WHERE token_hash = ? AND used_at IS NOT NULL
                 """, (rs, i) -> new UsedRow(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
-                rs.getBoolean(3), rs.getBoolean(4)), (double) reuseWindow.toSeconds(), hash);
+                rs.getBoolean(3), rs.getBoolean(4)), reuseWindow.toMillis() / 1000.0, hash);
         if (rows.isEmpty()) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, INVALID, "Refresh token is invalid or expired");
         }

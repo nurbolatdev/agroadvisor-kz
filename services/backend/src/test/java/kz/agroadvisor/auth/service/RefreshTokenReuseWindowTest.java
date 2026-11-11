@@ -112,6 +112,22 @@ class RefreshTokenReuseWindowTest {
     }
 
     @Test
+    void aFractionalWindowIsHonouredToTheMillisecond() {
+        UUID user = newUser();
+        UUID family = UUID.randomUUID();
+        String old = insert(user, family, 1, 5);
+        insert(user, family, null, 7);
+
+        assertThat(service(Duration.ofMillis(1500)).rotate(old).userId()).isEqualTo(user);
+        assertThat(revoked(family)).isZero();
+
+        String late = insert(user, family, 2, 5);
+        assertThatThrownBy(() -> service(Duration.ofMillis(1500)).rotate(late))
+                .satisfies(e -> assertCode(e, RefreshTokenService.REUSED));
+        assertThat(revoked(family)).isEqualTo(rows(family));
+    }
+
+    @Test
     void aZeroWindowIsStrict() {
         UUID user = newUser();
         UUID family = UUID.randomUUID();
