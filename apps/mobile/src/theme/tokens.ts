@@ -1,4 +1,4 @@
-// Design tokens from the Figma design system (.team/reference/design-system.md).
+// Design tokens from the Figma design system of the project.
 // Components take values from here, never hardcoded HEX or px.
 
 export const colors = {
