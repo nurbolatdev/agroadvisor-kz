@@ -76,15 +76,29 @@ export function createSession(deps: { api: AuthApi; storage: TokenStorage }) {
     return true
   }
 
+  /** The role is checked for the interface only; the backend enforces it on every admin call. */
+  async function requireAdmin(user: Me, refreshToken: string | null) {
+    if (user.roles.includes('admin')) return
+    if (refreshToken) await api.logout(refreshToken).catch(() => undefined)
+    end()
+    throw new NotAdminError()
+  }
+
   async function signIn(tokens: TokenPair, startedIn: number) {
     if (!accept(tokens, startedIn)) return
-    const user = await api.me()
-    if (startedIn !== generation) return
-    if (!user.roles.includes('admin')) {
-      await api.logout(tokens.refreshToken).catch(() => undefined)
-      end()
-      throw new NotAdminError()
+    let user: Me
+    try {
+      user = await api.me()
+    } catch (error) {
+      // do not keep the tokens of an account that was not checked
+      if (startedIn === generation) {
+        await api.logout(tokens.refreshToken).catch(() => undefined)
+        end()
+      }
+      throw error
     }
+    if (startedIn !== generation) return
+    await requireAdmin(user, tokens.refreshToken)
     setState({ status: 'signedIn', user })
   }
 
@@ -101,7 +115,8 @@ export function createSession(deps: { api: AuthApi; storage: TokenStorage }) {
     } catch (error) {
       // A verdict of the server ends the session; no answer (offline, 5xx) keeps the saved token.
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-        end()
+        // not when the person has meanwhile signed in again: that session is not the one rejected
+        if (startedIn === generation) end()
         return null
       }
       throw error
@@ -137,20 +152,23 @@ export function createSession(deps: { api: AuthApi; storage: TokenStorage }) {
         const token = await refresh()
         if (token && startedIn === generation) {
           const user = await api.me()
-          if (!user.roles.includes('admin')) {
-            end()
-          } else if (startedIn === generation) {
-            setState({ status: 'signedIn', user })
-          }
+          if (startedIn !== generation) return
+          await requireAdmin(user, storage.get())
+          if (startedIn === generation) setState({ status: 'signedIn', user })
         }
       } catch {
         // no answer: the saved token stays, the person sees the login screen and a reload tries again
-        if (startedIn === generation) setState({ status: 'signedOut', user: null })
+        if (startedIn === generation) {
+          accessToken = null
+          setState({ status: 'signedOut', user: null })
+        }
       }
     },
 
     /** @throws ApiError (wrong password, blocked, rate limited), NetworkError, NotAdminError */
     async login(login: string, password: string): Promise<void> {
+      // A new sign-in replaces whatever a restore at start is still doing: its answers are dropped.
+      generation += 1
       const startedIn = generation
       await signIn(await api.login(login, password), startedIn)
     },
@@ -182,6 +200,8 @@ export function createAuthApi(getClient: () => HttpClient): AuthApi {
 }
 
 export function createBrowserTokenStorage(key = 'agroadvisor.admin.refresh'): TokenStorage {
+  // Known limit: "Duplicate tab" copies sessionStorage, so both tabs hold the same refresh token; the first
+  // to rotate it makes the other one's use a reuse, and (after the short reuse window) the session ends.
   // Storage can be blocked (private mode, site settings): then the session lasts until a reload.
   let fallback: string | null = null
   return {

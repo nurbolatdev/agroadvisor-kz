@@ -109,6 +109,48 @@ describe('admin session', () => {
     expect(storage.value).toBe('saved')
   })
 
+  it('keeps a sign-in made while the restore at start is still running', async () => {
+    let rejectRefresh: (e: unknown) => void = () => undefined
+    const api = fakeApi({
+      refresh: vi.fn(() => new Promise<never>((_resolve, reject) => (rejectRefresh = reject))),
+    })
+    const storage = memoryStorage('old-saved')
+    const session = createSession({ api, storage })
+
+    const restoring = session.restore()
+    await session.login('admin@example.kz', 'secret')
+    rejectRefresh(unauthorized()) // the old token is rejected after the person has signed in again
+    await restoring
+
+    expect(session.getState()).toEqual({ status: 'signedIn', user: admin })
+    expect(storage.value).toBe('r1')
+    expect(session.getAccessToken()).toBe('a1')
+  })
+
+  it('drops the tokens of an account whose profile could not be read', async () => {
+    const api = fakeApi({ me: vi.fn(async () => Promise.reject(new NetworkError())) })
+    const storage = memoryStorage()
+    const session = createSession({ api, storage })
+
+    await expect(session.login('a', 'b')).rejects.toBeInstanceOf(NetworkError)
+
+    expect(session.getAccessToken()).toBeNull()
+    expect(storage.value).toBeNull()
+    expect(api.logout).toHaveBeenCalledWith('r1')
+  })
+
+  it('revokes the saved session of an account that is not an administrator', async () => {
+    const api = fakeApi({ me: vi.fn(async () => farmer) })
+    const storage = memoryStorage('saved')
+    const session = createSession({ api, storage })
+
+    await session.restore()
+
+    expect(api.logout).toHaveBeenCalledWith('r2')
+    expect(session.getState().status).toBe('signedOut')
+    expect(storage.value).toBeNull()
+  })
+
   it('shares one refresh request between concurrent callers', async () => {
     const api = fakeApi()
     const session = createSession({ api, storage: memoryStorage('saved') })
