@@ -29,6 +29,7 @@ class SecurityConfig {
                                     ProblemAccessDeniedHandler deniedHandler,
                                     @Value("${springdoc.api-docs.enabled:false}") boolean docsEnabled) throws Exception {
         http
+                .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
