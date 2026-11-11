@@ -76,7 +76,7 @@ The API is protected by Bearer JWT (HS256) and denies everything that is not lis
 | --- | --- |
 | `POST /api/auth/register` | Sign up as `farmer` (default) or `agrochemist`; `admin` is rejected |
 | `POST /api/auth/login` | Phone or e-mail plus password |
-| `POST /api/auth/refresh` | Rotate the refresh token (7 days); reusing a used token revokes the whole session family |
+| `POST /api/auth/refresh` | Rotate the refresh token (7 days); a token used again within 10 s gets a new pair (lost response), later reuse revokes the whole session family |
 | `POST /api/auth/logout` | End this session |
 | `POST /api/auth/logout-all` | End all sessions (needs an access token) |
 
@@ -101,6 +101,14 @@ Abuse is stopped before any password hashing or database work. A refused request
 - Many farmers can share one public address (mobile carrier NAT), so the per-address limits are generous and the per-account limit carries the brute-force protection. Raise them with the variables above without a release.
 - Redis is an accelerator: if it is down, requests are allowed and a warning is logged.
 - The client address is the TCP peer; `X-Forwarded-For` and `Forwarded` are ignored, so they cannot be used to dodge the limit. Behind a reverse proxy set `server.forward-headers-strategy=native` and narrow `server.tomcat.remoteip.internal-proxies` to the proxy network. Never enable this on a port that is reachable without the proxy.
+
+#### Refresh token reuse window
+
+On a bad network the response to a refresh can be lost while the server has already rotated the token. The client then retries with the old token. A used token presented again within a short window after its first use gets a new token pair in the same session family instead of revoking it. Revoked (logout, theft detection) and expired tokens are never revived. After the window, reuse revokes the whole family with `refresh_token_reused`, as before. See [ADR 0003](../../docs/adr/0003-refresh-token-reuse-window.md).
+
+| Environment variable | Default | Meaning |
+| --- | --- | --- |
+| `APP_SECURITY_REFRESH_REUSE_WINDOW` | `PT10S` | ISO-8601 duration measured in database time; `0` = strict rotation, at most `PT60S` |
 
 #### Refresh token cleanup
 
