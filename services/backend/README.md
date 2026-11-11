@@ -57,6 +57,7 @@ The `prod` profile takes every address and secret from the environment:
 | `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Photo storage; `S3_BUCKET` is optional |
 | `JWT_SECRET` | Base64 signing key |
 | `AI_SERVICE_URL` | Address of the AI service |
+| `APP_CORS_ORIGINS` | Optional. Comma-separated browser origins of the admin web (`https://host[:port]`, no wildcard, no path); empty = no cross-origin access. Tokens travel in `Authorization`, so no credentials are allowed |
 
 The start is aborted with a list of the missing variable names. It is also refused with `app.ai.allow-placeholder=true` or springdoc enabled. `AI_CLIENT` has no effect in `prod`; any override of `app.ai.client` (such as `APP_AI_CLIENT`) to a value other than `http` aborts the start. Actuator exposes only `health`, without details.
 

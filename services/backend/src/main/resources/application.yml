@@ -89,6 +89,9 @@ app:
       batch-size: ${APP_SECURITY_REFRESH_CLEANUP_BATCH_SIZE:1000}
     # A used refresh token presented again within this window gets a new pair (lost response); 0 = strict, max PT60S
     refresh-reuse-window: ${APP_SECURITY_REFRESH_REUSE_WINDOW:PT10S}
+  # Browser origins of the admin web, comma separated (https://host[:port]); empty = no cross-origin access
+  cors:
+    allowed-origins: ${APP_CORS_ORIGINS:}
 
 management:
   health:
