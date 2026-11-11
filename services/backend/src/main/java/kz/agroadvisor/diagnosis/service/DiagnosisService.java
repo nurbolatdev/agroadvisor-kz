@@ -47,6 +47,7 @@ import kz.agroadvisor.diagnosis.model.ClassScore;
 import kz.agroadvisor.diagnosis.model.Diagnosis;
 import kz.agroadvisor.diagnosis.repository.DiagnosisClaims;
 import kz.agroadvisor.diagnosis.repository.DiagnosisRepository;
+import kz.agroadvisor.users.service.UserService;
 
 /**
  * Photo diagnosis: validates the request, keeps the photo, asks the AI service and records the result.
@@ -76,11 +77,13 @@ public class DiagnosisService {
     private final DiagnosisClaims claims;
     private final TransactionTemplate tx;
     private final DiagnosisProperties props;
+    private final UserService users;
 
     public DiagnosisService(AiClient ai, PhotoStorage photos, DiagnosisRepository diagnoses,
             DiseaseRepository diseases, MeterRegistry meters, RateLimiter rateLimiter, RateLimitProperties limits,
             ImageMetadataStripper metadata, DiagnosisClaims claims, TransactionTemplate tx,
-            DiagnosisProperties props) {
+            DiagnosisProperties props, UserService users) {
+        this.users = users;
         this.metadata = metadata;
         this.claims = claims;
         this.tx = tx;
@@ -358,17 +361,19 @@ public class DiagnosisService {
 
     /**
      * The one transaction that ends a request: the diagnosis is inserted (and flushed, so that a clash with
-     * the unique index of V11 surfaces here) and our claim is deleted. If the claim was taken over, the
+     * the unique index of V11 surfaces here) with the user's current region, and our claim is deleted. If the claim was taken over, the
      * delete touches no row, which is not an error: the diagnosis insert still decides who is first.
      */
     private Diagnosis finish(UUID userId, String crop, String photoKey, Prediction prediction, String key,
             String fingerprint, UUID claimId, AtomicBoolean atCommit) {
         return tx.execute(status -> {
+            // Snapshot of the region at the moment of saving, after the model has answered
+            Long regionId = users.regionOf(userId).orElse(null);
             Diagnosis saved = diagnoses.saveAndFlush(new Diagnosis(userId, crop, photoKey, prediction.status(),
                     prediction.top1().code(),
                     BigDecimal.valueOf(prediction.top1().confidence()).setScale(4, RoundingMode.HALF_UP),
                     prediction.top3(), prediction.detectedCrop(), prediction.modelVersion(),
-                    prediction.classesVersion(), prediction.inferenceMs(), key, fingerprint));
+                    prediction.classesVersion(), prediction.inferenceMs(), key, fingerprint, regionId));
             if (claimId != null && claims.release(userId, key, claimId) == 0) {
                 log.debug("The claim of key {} was taken over before the diagnosis was saved", key);
             }
