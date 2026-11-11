@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 import type { AuthApi, LoginRequest, RegisterBody, TokenResponse } from '@/api/auth'
-import { ApiError } from '@/api/errors'
+import { ApiError, NetworkError } from '@/api/errors'
 import { userIdOfToken } from '@/lib/jwt'
 
 export type TokenStorage = {
@@ -80,6 +80,19 @@ export function createSessionStore(deps: {
       await tokens.clear().catch(() => undefined)
     }
 
+    // The server may have rotated the token and lost the answer on the way back. It accepts the same token
+    // again for a few seconds (the reuse window), so one immediate retry after "no answer" recovers the
+    // session; a later retry would meet the strict rule and sign the user out. Only NetworkError is retried:
+    // a verdict or a 5xx is an answer.
+    async function refreshWithOneRetry(refreshToken: string): Promise<TokenResponse> {
+      try {
+        return await authApi.refresh(refreshToken)
+      } catch (error) {
+        if (!(error instanceof NetworkError)) throw error
+        return authApi.refresh(refreshToken)
+      }
+    }
+
     async function doRefresh(): Promise<RefreshResult> {
       const startedIn = generation
       let refreshToken: string | null
@@ -94,7 +107,7 @@ export function createSessionStore(deps: {
         return { kind: 'rejected' }
       }
       try {
-        const response = await authApi.refresh(refreshToken)
+        const response = await refreshWithOneRetry(refreshToken)
         await accept(response, startedIn)
         return startedIn === generation
           ? { kind: 'ok', accessToken: response.accessToken }

@@ -257,6 +257,59 @@ describe('session store', () => {
     expect(tokens.value).toBe('saved')
   })
 
+  it('retries the refresh once at once when the answer was lost', async () => {
+    const api = createMockAuthApi()
+    const first = await api.register(credentials)
+    const seen: string[] = []
+    const lossy: AuthApi = {
+      ...api,
+      refresh: async (token) => {
+        seen.push(token)
+        // the first answer never arrives; the server accepts the same token again (reuse window)
+        if (seen.length === 1) throw new NetworkError()
+        return api.refresh(token)
+      },
+    }
+    const tokens = memoryTokens(first.refreshToken)
+    const session = createSessionStore({ authApi: lossy, tokens })
+
+    const access = await session.getState().refreshAccessToken()
+
+    expect(seen).toEqual([first.refreshToken, first.refreshToken]) // the same token, sent twice
+    expect(access).not.toBeNull()
+    expect(session.getState().status).toBe('signedIn')
+  })
+
+  it('does not retry more than once and keeps the saved token when the network stays down', async () => {
+    const refresh = jest.fn(async () => {
+      throw new NetworkError()
+    })
+    const tokens = memoryTokens('saved')
+    const session = createSessionStore({
+      authApi: { ...createMockAuthApi(), refresh },
+      tokens,
+    })
+
+    expect(await session.getState().refreshAccessToken()).toBeNull()
+
+    expect(refresh).toHaveBeenCalledTimes(2)
+    expect(tokens.value).toBe('saved')
+  })
+
+  it('does not retry an answer of the server', async () => {
+    const refresh = jest.fn(async () => {
+      throw new ApiError(500, 'internal_error', 'boom')
+    })
+    const session = createSessionStore({
+      authApi: { ...createMockAuthApi(), refresh },
+      tokens: memoryTokens('saved'),
+    })
+
+    await session.getState().refreshAccessToken()
+
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
   it('shares one refresh request between concurrent callers', async () => {
     const api = createMockAuthApi()
     const first = await api.register(credentials)
