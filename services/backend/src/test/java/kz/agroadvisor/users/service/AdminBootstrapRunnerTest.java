@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import java.util.Optional;
 import java.util.Set;
 
+import kz.agroadvisor.common.web.ApiException;
 import kz.agroadvisor.users.config.AdminBootstrapProperties;
 import kz.agroadvisor.users.model.Login;
 import kz.agroadvisor.users.model.Role;
@@ -20,6 +21,7 @@ import kz.agroadvisor.users.model.User;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 class AdminBootstrapRunnerTest {
@@ -61,6 +63,39 @@ class AdminBootstrapRunnerTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("non-admin");
         verify(users, never()).create(any(), anyString(), anyString(), anyString(), any());
+    }
+
+    @Test
+    void skipsWhenAnotherInstanceWonTheRace() {
+        when(users.hasAdmin()).thenReturn(false, true);
+        when(users.findByLogin(any())).thenReturn(Optional.empty());
+        when(encoder.encode(PASSWORD)).thenReturn("hash");
+        when(users.create(any(), anyString(), anyString(), anyString(), any()))
+                .thenThrow(new ApiException(HttpStatus.CONFLICT, UserService.LOGIN_TAKEN, "taken"));
+
+        runner.run(null);
+    }
+
+    @Test
+    void failsWhenTheLoginIsTakenButNoAdminExists() {
+        when(users.hasAdmin()).thenReturn(false, false);
+        when(users.findByLogin(any())).thenReturn(Optional.empty());
+        when(encoder.encode(PASSWORD)).thenReturn("hash");
+        when(users.create(any(), anyString(), anyString(), anyString(), any()))
+                .thenThrow(new ApiException(HttpStatus.CONFLICT, UserService.LOGIN_TAKEN, "taken"));
+
+        assertThatThrownBy(() -> runner.run(null)).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void thePasswordIsMaskedInToString() {
+        assertThat(properties.toString()).doesNotContain(PASSWORD).contains("password=****");
+    }
+
+    @Test
+    void enabledRefusesALongName() {
+        assertThatThrownBy(() -> new AdminBootstrapProperties(true, "+77001234567", PASSWORD, "n".repeat(121), "ru"))
+                .hasMessageContaining("full-name");
     }
 
     @Test

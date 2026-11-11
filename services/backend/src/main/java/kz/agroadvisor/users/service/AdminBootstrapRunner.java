@@ -2,6 +2,7 @@ package kz.agroadvisor.users.service;
 
 import java.util.Set;
 
+import kz.agroadvisor.common.web.ApiException;
 import kz.agroadvisor.users.config.AdminBootstrapProperties;
 import kz.agroadvisor.users.model.Login;
 import kz.agroadvisor.users.model.Role;
@@ -48,8 +49,17 @@ class AdminBootstrapRunner implements ApplicationRunner {
             throw new IllegalStateException(
                     "app.bootstrap-admin.login belongs to an existing non-admin account; use another login");
         }
-        users.create(login, passwordEncoder.encode(properties.password()), properties.fullName().trim(),
-                properties.language(), Set.of(Role.ADMIN));
+        try {
+            users.create(login, passwordEncoder.encode(properties.password()), properties.fullName().trim(),
+                    properties.language(), Set.of(Role.ADMIN));
+        } catch (ApiException e) {
+            // Another instance starting at the same moment created the account first
+            if (UserService.LOGIN_TAKEN.equals(e.getCode()) && users.hasAdmin()) {
+                log.info("Admin bootstrap skipped: another instance created the administrator");
+                return;
+            }
+            throw new IllegalStateException("The first administrator could not be created: " + e.getCode(), e);
+        }
         log.info("First administrator created");
     }
 }

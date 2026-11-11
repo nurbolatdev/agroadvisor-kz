@@ -67,10 +67,10 @@ No API call can create an administrator (`admin` cannot be chosen at registratio
 | --- | --- |
 | `APP_BOOTSTRAP_ADMIN_ENABLED` | `true` to turn the bootstrap on (default `false`) |
 | `APP_BOOTSTRAP_ADMIN_LOGIN` | Phone (`+7...`) or e-mail; required when enabled |
-| `APP_BOOTSTRAP_ADMIN_PASSWORD` | 12 to 72 bytes; required when enabled; never logged |
+| `APP_BOOTSTRAP_ADMIN_PASSWORD` | At least 12 characters, at most 72 bytes; required when enabled; never logged |
 | `APP_BOOTSTRAP_ADMIN_FULL_NAME`, `APP_BOOTSTRAP_ADMIN_LANGUAGE` | Optional; default `Administrator` and `ru` (`ru`, `kk` or `en`) |
 
-It runs at every start but only creates the account when no administrator exists, so after the first start the variables can be removed. A login that already belongs to another account is never promoted: the start fails with an explanation. Invalid values stop the start.
+It runs at every start but only creates the account when no administrator exists (a blocked administrator counts as existing), so after the first start the variables can be removed. Two instances starting together are safe: the loser of the race sees the administrator and skips. With the `local` profile the CORS origin `http://localhost:5173` (Vite) is allowed by default; other profiles allow none unless `APP_CORS_ORIGINS` is set. A login that already belongs to another account is never promoted: the start fails with an explanation. Invalid values stop the start.
 
 The start is aborted with a list of the missing variable names. It is also refused with `app.ai.allow-placeholder=true` or springdoc enabled. `AI_CLIENT` has no effect in `prod`; any override of `app.ai.client` (such as `APP_AI_CLIENT`) to a value other than `http` aborts the start. Actuator exposes only `health`, without details.
 

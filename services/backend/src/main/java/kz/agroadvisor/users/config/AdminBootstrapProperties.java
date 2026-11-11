@@ -28,6 +28,14 @@ public record AdminBootstrapProperties(
 
     static final int MIN_PASSWORD = 12;
     static final int MAX_PASSWORD_BYTES = 72;
+    static final int MAX_NAME = 120;
+
+    /** The password is masked so that dumping the bean never reveals it. */
+    @Override
+    public String toString() {
+        return "AdminBootstrapProperties[enabled=" + enabled + ", login=" + login + ", password=****, fullName="
+                + fullName + ", language=" + language + "]";
+    }
 
     public AdminBootstrapProperties {
         if (enabled) {
@@ -49,8 +57,9 @@ public record AdminBootstrapProperties(
             throw new IllegalArgumentException("app.bootstrap-admin.password must be " + MIN_PASSWORD + " to "
                     + MAX_PASSWORD_BYTES + " bytes long");
         }
-        if (fullName == null || fullName.isBlank()) {
-            throw new IllegalArgumentException("app.bootstrap-admin.full-name must not be blank");
+        if (fullName == null || fullName.isBlank() || fullName.trim().length() > MAX_NAME) {
+            throw new IllegalArgumentException(
+                    "app.bootstrap-admin.full-name must be 1 to " + MAX_NAME + " characters");
         }
         if (!"ru".equals(language) && !"kk".equals(language) && !"en".equals(language)) {
             throw new IllegalArgumentException("app.bootstrap-admin.language must be ru, kk or en");

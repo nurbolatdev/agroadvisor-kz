@@ -128,6 +128,12 @@ services:
       # the backend refuses to start and names the missing variable in its log.
       JWT_SECRET: ${JWT_SECRET:-}
       AI_SERVICE_URL: http://ai-service:8000
+      APP_CORS_ORIGINS: ${APP_CORS_ORIGINS:-}
+      APP_BOOTSTRAP_ADMIN_ENABLED: ${APP_BOOTSTRAP_ADMIN_ENABLED:-false}
+      APP_BOOTSTRAP_ADMIN_LOGIN: ${APP_BOOTSTRAP_ADMIN_LOGIN:-}
+      APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:-}
+      APP_BOOTSTRAP_ADMIN_FULL_NAME: ${APP_BOOTSTRAP_ADMIN_FULL_NAME:-Administrator}
+      APP_BOOTSTRAP_ADMIN_LANGUAGE: ${APP_BOOTSTRAP_ADMIN_LANGUAGE:-ru}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     healthcheck:
