@@ -92,6 +92,13 @@ app:
   # Browser origins of the admin web, comma separated (https://host[:port]); empty = no cross-origin access
   cors:
     allowed-origins: ${APP_CORS_ORIGINS:}
+  # First administrator, created at startup when no admin exists; off by default, credentials only from the environment
+  bootstrap-admin:
+    enabled: ${APP_BOOTSTRAP_ADMIN_ENABLED:false}
+    login: ${APP_BOOTSTRAP_ADMIN_LOGIN:}
+    password: ${APP_BOOTSTRAP_ADMIN_PASSWORD:}
+    full-name: ${APP_BOOTSTRAP_ADMIN_FULL_NAME:Administrator}
+    language: ${APP_BOOTSTRAP_ADMIN_LANGUAGE:ru}
 
 management:
   health:

@@ -46,6 +46,11 @@ public class UserService {
                 : users.findByEmail(login.value());
     }
 
+    @Transactional(readOnly = true)
+    public boolean hasAdmin() {
+        return users.existsWithRole(Role.ADMIN);
+    }
+
     @Transactional
     public User create(Login login, String passwordHash, String fullName, String language, Set<Role> roles) {
         return create(login, passwordHash, fullName, language, roles, null);
