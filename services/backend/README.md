@@ -76,7 +76,7 @@ The API is protected by Bearer JWT (HS256) and denies everything that is not lis
 | --- | --- |
 | `POST /api/auth/register` | Sign up as `farmer` (default) or `agrochemist`; `admin` is rejected |
 | `POST /api/auth/login` | Phone or e-mail plus password |
-| `POST /api/auth/refresh` | Rotate the refresh token (7 days); a token used again within 10 s gets a new pair (lost response), later reuse revokes the whole session family |
+| `POST /api/auth/refresh` | Rotate the refresh token (7 days); a token used again within the reuse window (10 s by default) gets a new pair (lost response), later reuse revokes the whole session family |
 | `POST /api/auth/logout` | End this session |
 | `POST /api/auth/logout-all` | End all sessions (needs an access token) |
 

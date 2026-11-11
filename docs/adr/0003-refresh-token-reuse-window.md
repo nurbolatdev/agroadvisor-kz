@@ -2,7 +2,6 @@
 
 - Status: accepted (decision of the team lead)
 - Scope: `services/backend`
-- Review item: П11 (project review of 2026-11-10, item 11)
 
 ## Context
 
@@ -59,8 +58,8 @@ Only SHA-256 hashes of tokens are stored, so the server cannot hand out "the sam
   separate issue.
 - **Client coverage.** The mobile client does not retry a refresh automatically after a network error; the
   next refresh comes with the user's next action. If that happens later than the window, the strict rule
-  applies and the user signs in again. Follow-up: one immediate retry on a network error (П11б), or a larger
-  window up to 60 s.
+  applies and the user signs in again. Follow-up: one immediate retry on a network error in the mobile client,
+  or a larger window up to 60 s.
 - **Rollback.** Set `APP_SECURITY_REFRESH_REUSE_WINDOW=0`.
 
 ## Answer for the defence: what happens if the connection drops during a token refresh?
