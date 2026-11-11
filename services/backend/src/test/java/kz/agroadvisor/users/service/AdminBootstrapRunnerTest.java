@@ -77,6 +77,16 @@ class AdminBootstrapRunnerTest {
     }
 
     @Test
+    void skipsWhenAnotherInstanceCreatedTheAdminBetweenTheChecks() {
+        when(users.hasAdmin()).thenReturn(false, true);
+        when(users.findByLogin(any())).thenReturn(Optional.of(mock(User.class)));
+
+        runner.run(null); // no exception
+
+        verify(users, never()).create(any(), anyString(), anyString(), anyString(), any());
+    }
+
+    @Test
     void failsWhenTheLoginIsTakenButNoAdminExists() {
         when(users.hasAdmin()).thenReturn(false, false);
         when(users.findByLogin(any())).thenReturn(Optional.empty());
