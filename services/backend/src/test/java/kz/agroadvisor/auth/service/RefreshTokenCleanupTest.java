@@ -2,6 +2,10 @@ package kz.agroadvisor.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -95,12 +99,8 @@ class RefreshTokenCleanupTest {
 
     @Test
     void aFailureIsLoggedAndNotThrown() {
-        RefreshTokenService broken = new RefreshTokenService(null, null) {
-            @Override
-            public int deleteExpired(Duration retention, int limit) {
-                throw new IllegalStateException("database is down");
-            }
-        };
+        RefreshTokenService broken = mock(RefreshTokenService.class);
+        when(broken.deleteExpired(any(), anyInt())).thenThrow(new IllegalStateException("database is down"));
         RefreshTokenCleanup job = new RefreshTokenCleanup(broken,
                 new RefreshCleanupProperties(true, "0 0 4 * * *", Duration.ofDays(7), 10));
 
