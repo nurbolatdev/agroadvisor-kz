@@ -33,6 +33,7 @@ import kz.agroadvisor.diagnosis.model.Diagnosis;
 import kz.agroadvisor.diagnosis.repository.DiagnosisClaims;
 import kz.agroadvisor.diagnosis.repository.DiagnosisRepository;
 import kz.agroadvisor.diagnosis.service.DiagnosisService.DiagnosisView;
+import kz.agroadvisor.users.service.UserService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -64,9 +65,10 @@ class DiagnosisServiceTest {
     private final RateLimiter limiter = mock(RateLimiter.class);
     private final DiagnosisClaims claims = mock(DiagnosisClaims.class);
     private final PlatformTransactionManager txManager = mock(PlatformTransactionManager.class);
+    private final UserService users = mock(UserService.class);
     private final DiagnosisService service = new DiagnosisService(ai, photos, diagnoses, diseases, meters, limiter,
             new RateLimitProperties(5, 20, 30, 10, 20, 60), new ImageMetadataStripper(), claims, new TransactionTemplate(txManager),
-            new DiagnosisProperties(Duration.ofSeconds(90)));
+            new DiagnosisProperties(Duration.ofSeconds(90)), users);
     private final UUID userId = UUID.randomUUID();
     private final UUID claimId = UUID.randomUUID();
 
@@ -109,6 +111,50 @@ class DiagnosisServiceTest {
         assertThat(saved.getValue().getClassesVersion()).isEqualTo(3);
         assertThat(view.top1().code()).isEqualTo("tomato__late_blight");
         assertThat(view.placeholder()).isFalse();
+    }
+
+    @Test
+    void savesTheRegionOfTheUserWithTheDiagnosis() {
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+        when(users.regionOf(userId)).thenReturn(Optional.of(3L));
+
+        create("tomato", JPEG);
+
+        ArgumentCaptor<Diagnosis> saved = ArgumentCaptor.forClass(Diagnosis.class);
+        verify(diagnoses).saveAndFlush(saved.capture());
+        assertThat(saved.getValue().getRegionId()).isEqualTo(3L);
+    }
+
+    @Test
+    void savesNoRegionWhenTheUserHasNone() {
+        when(ai.predict("tomato", JPEG)).thenReturn(prediction("tomato__healthy", "efficientnet-b0-v3"));
+        when(users.regionOf(userId)).thenReturn(Optional.empty());
+
+        create("tomato", JPEG);
+
+        ArgumentCaptor<Diagnosis> saved = ArgumentCaptor.forClass(Diagnosis.class);
+        verify(diagnoses).saveAndFlush(saved.capture());
+        assertThat(saved.getValue().getRegionId()).isNull();
+    }
+
+    @Test
+    void readsNoRegionWhenTheModelFails() {
+        when(ai.predict("tomato", JPEG)).thenThrow(new IllegalStateException("model down"));
+
+        assertThatThrownBy(() -> create("tomato", JPEG)).isInstanceOf(IllegalStateException.class);
+
+        verify(users, never()).regionOf(any());
+    }
+
+    @Test
+    void readsNoRegionOnAReplay() {
+        when(diagnoses.findByUserIdAndIdempotencyKey(userId, "key-12345678"))
+                .thenReturn(Optional.of(storedWithKey("key-12345678")));
+        when(diseases.findAllById(any())).thenReturn(List.of());
+
+        service.create(userId, "tomato", JPEG, "key-12345678");
+
+        verify(users, never()).regionOf(any());
     }
 
     @Test

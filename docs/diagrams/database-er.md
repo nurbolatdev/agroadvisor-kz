@@ -178,6 +178,7 @@ Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` wit
 ### Notes
 
 - **`diagnoses.top1_code` has no foreign key.** A new model may return a class that is not in the catalog yet; the diagnosis is saved and shown as "description coming soon" (rule 5 in [`docs/ai/classes.md`](../ai/classes.md)).
+- **`diagnoses.region_id`** is copied from `users.region_id` when the diagnosis is saved and never updated: it keeps the farmer's profile region at that time, for the outbreak map and the model-quality figures. Null when the user picked no region. `district_id` and `location` are not filled yet.
 - **`agrochemist_profiles.verified`** is computed from `verification_status`, so the two never disagree. Farmers see only verified agrochemists.
 - **`agrochemist_profiles.reviewed_by`** references `users(id)` with the default `NO ACTION` on purpose: an admin who reviewed someone is never deleted (audit trail); an admin is blocked (`users.status`) instead.
 - **Documents (`V13`).** `agrochemist_documents` records what the stored object is: `content_type` (recognised from the file's first bytes at upload, never from the client's header) and `size_bytes`, so the admin can be given the file with the right type. The migration refuses to apply if the table already has rows (nothing wrote to it before the verification API).

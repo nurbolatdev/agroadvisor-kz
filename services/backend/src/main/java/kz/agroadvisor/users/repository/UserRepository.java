@@ -15,4 +15,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("select u from User u where lower(u.email) = :email")
     Optional<User> findByEmail(@Param("email") String email);
+
+    /** Reads one column, so the roles of the user are not loaded. */
+    @Query("select u.regionId from User u where u.id = :id")
+    Optional<Long> findRegionIdById(@Param("id") UUID id);
 }

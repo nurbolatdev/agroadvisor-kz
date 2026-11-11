@@ -31,6 +31,14 @@ public class UserService {
         return users.findById(id);
     }
 
+    /**
+     * The region of the profile, or empty when there is none (or no such user). Takes part in the
+     * transaction of the caller.
+     */
+    public Optional<Long> regionOf(UUID id) {
+        return users.findRegionIdById(id);
+    }
+
     @Transactional(readOnly = true)
     public Optional<User> findByLogin(Login login) {
         return login.type() == Login.Type.PHONE

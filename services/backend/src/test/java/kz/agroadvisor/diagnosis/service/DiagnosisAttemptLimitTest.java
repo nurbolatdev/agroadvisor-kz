@@ -47,6 +47,7 @@ import kz.agroadvisor.diagnosis.model.ClassScore;
 import kz.agroadvisor.diagnosis.model.Diagnosis;
 import kz.agroadvisor.diagnosis.repository.DiagnosisClaims;
 import kz.agroadvisor.diagnosis.repository.DiagnosisRepository;
+import kz.agroadvisor.users.service.UserService;
 
 /**
  * The two limits of a diagnosis against a real Redis: the diagnosis token (5 a minute, given back when we
@@ -86,7 +87,8 @@ class DiagnosisAttemptLimitTest {
         when(claims.find(any(), anyString(), any())).thenReturn(Optional.empty());
         service = new DiagnosisService(ai, photos, diagnoses, diseases, new SimpleMeterRegistry(),
                 new RateLimiter(redis, Clock.fixed(START, ZoneOffset.UTC)), limits, new ImageMetadataStripper(),
-                claims, new TransactionTemplate(txManager), new DiagnosisProperties(Duration.ofSeconds(90)));
+                claims, new TransactionTemplate(txManager), new DiagnosisProperties(Duration.ofSeconds(90)),
+                mock(UserService.class));
     }
 
     @AfterEach

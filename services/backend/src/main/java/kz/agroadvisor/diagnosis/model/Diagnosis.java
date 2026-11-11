@@ -19,8 +19,8 @@ import org.hibernate.type.SqlTypes;
 
 /**
  * One recognition result in a user's history. {@code top1Code} has no foreign key to the reference on
- * purpose: the model may know a class the reference does not describe yet. Region, district and
- * location columns are not mapped until the outbreak map needs them.
+ * purpose: the model may know a class the reference does not describe yet. The region is copied from
+ * the user's profile; the district and location columns are not mapped until the outbreak map needs them.
  */
 @Entity
 @Table(name = "diagnoses")
@@ -76,6 +76,13 @@ public class Diagnosis {
     @Column(name = "request_fingerprint")
     private String requestFingerprint;
 
+    /**
+     * The user's region when the diagnosis was made, copied from the profile; a later change of the profile
+     * does not touch it. Null when the user had none.
+     */
+    @Column(name = "region_id", updatable = false)
+    private Long regionId;
+
     protected Diagnosis() {
     }
 
@@ -89,6 +96,15 @@ public class Diagnosis {
     public Diagnosis(UUID userId, String cropCode, String photoKey, String status, String top1Code,
             BigDecimal top1Confidence, List<ClassScore> top3, String detectedCrop, String modelVersion,
             int classesVersion, Integer inferenceMs, String idempotencyKey, String requestFingerprint) {
+        this(userId, cropCode, photoKey, status, top1Code, top1Confidence, top3, detectedCrop, modelVersion,
+                classesVersion, inferenceMs, idempotencyKey, requestFingerprint, null);
+    }
+
+    public Diagnosis(UUID userId, String cropCode, String photoKey, String status, String top1Code,
+            BigDecimal top1Confidence, List<ClassScore> top3, String detectedCrop, String modelVersion,
+            int classesVersion, Integer inferenceMs, String idempotencyKey, String requestFingerprint,
+            Long regionId) {
+        this.regionId = regionId;
         this.idempotencyKey = idempotencyKey;
         this.requestFingerprint = requestFingerprint;
         this.userId = userId;
@@ -122,6 +138,10 @@ public class Diagnosis {
 
     public String getRequestFingerprint() {
         return requestFingerprint;
+    }
+
+    public Long getRegionId() {
+        return regionId;
     }
 
     public String getPhotoKey() {
