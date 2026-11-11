@@ -80,7 +80,13 @@ export function createLiveDiseases(client: HttpClient): DiseasesApi {
     getDiseases: async (filters = {}) => {
       const summaries = await client.request<Summary[]>('/api/diseases', { query: { crop: filters.crop } })
       const wanted = summaries.filter((s) => KINDS[s.kind] && s.cropCode && CROPS.includes(s.cropCode))
-      const details = await Promise.all(wanted.map((s) => detail(s.code)))
+      // A disease can disappear between the list and its detail; that one is skipped, any other failure stops.
+      const settled = await Promise.allSettled(wanted.map((s) => detail(s.code)))
+      const details: Detail[] = []
+      for (const result of settled) {
+        if (result.status === 'fulfilled') details.push(result.value)
+        else if (!(result.reason instanceof ApiError && result.reason.status === 404)) throw result.reason
+      }
       return details.map(toDisease).filter((d): d is Disease => d !== null)
     },
 

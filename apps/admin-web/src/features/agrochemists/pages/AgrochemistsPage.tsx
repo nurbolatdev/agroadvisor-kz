@@ -100,7 +100,12 @@ export function AgrochemistsPage() {
             ]}
           />
         ) : list.error ? (
-          <LoadError onRetry={list.reload} />
+          <LoadError
+            onRetry={() => {
+              list.reload()
+              stats.reload()
+            }}
+          />
         ) : (
           <Loader />
         )}
