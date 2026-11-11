@@ -1,4 +1,4 @@
-import type { AuthApi } from '@/api/auth'
+import { REFRESH_FIRST_ATTEMPT_TIMEOUT_MS, type AuthApi } from '@/api/auth'
 import { ApiError, NetworkError } from '@/api/errors'
 import { createMockAuthApi } from '@/api/mock/auth'
 
@@ -255,6 +255,25 @@ describe('session store', () => {
 
     expect(session.getState().status).toBe('signedIn')
     expect(tokens.value).toBe('saved')
+  })
+
+  it('gives the first attempt a short timeout and the retry the default one', async () => {
+    const api = createMockAuthApi()
+    const first = await api.register(credentials)
+    const timeouts: (number | undefined)[] = []
+    const lossy: AuthApi = {
+      ...api,
+      refresh: async (token, options) => {
+        timeouts.push(options?.timeoutMs)
+        if (timeouts.length === 1) throw new NetworkError()
+        return api.refresh(token)
+      },
+    }
+    const session = createSessionStore({ authApi: lossy, tokens: memoryTokens(first.refreshToken) })
+
+    await session.getState().refreshAccessToken()
+
+    expect(timeouts).toEqual([REFRESH_FIRST_ATTEMPT_TIMEOUT_MS, undefined])
   })
 
   it('retries the refresh once at once when no answer arrives', async () => {
