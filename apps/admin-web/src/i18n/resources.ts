@@ -1,5 +1,6 @@
 import enAgrochemists from '@/i18n/locales/en/agrochemists'
 import enAiQuality from '@/i18n/locales/en/aiQuality'
+import enAuth from '@/i18n/locales/en/auth'
 import enCommon from '@/i18n/locales/en/common'
 import enCommunity from '@/i18n/locales/en/community'
 import enDashboard from '@/i18n/locales/en/dashboard'
@@ -13,6 +14,7 @@ import enUi from '@/i18n/locales/en/ui'
 import enUsers from '@/i18n/locales/en/users'
 import kkAgrochemists from '@/i18n/locales/kk/agrochemists'
 import kkAiQuality from '@/i18n/locales/kk/aiQuality'
+import kkAuth from '@/i18n/locales/kk/auth'
 import kkCommon from '@/i18n/locales/kk/common'
 import kkCommunity from '@/i18n/locales/kk/community'
 import kkDashboard from '@/i18n/locales/kk/dashboard'
@@ -26,6 +28,7 @@ import kkUi from '@/i18n/locales/kk/ui'
 import kkUsers from '@/i18n/locales/kk/users'
 import ruAgrochemists from '@/i18n/locales/ru/agrochemists'
 import ruAiQuality from '@/i18n/locales/ru/aiQuality'
+import ruAuth from '@/i18n/locales/ru/auth'
 import ruCommon from '@/i18n/locales/ru/common'
 import ruCommunity from '@/i18n/locales/ru/community'
 import ruDashboard from '@/i18n/locales/ru/dashboard'
@@ -43,6 +46,7 @@ export const resources = {
   ru: {
     agrochemists: ruAgrochemists,
     aiQuality: ruAiQuality,
+    auth: ruAuth,
     common: ruCommon,
     community: ruCommunity,
     dashboard: ruDashboard,
@@ -58,6 +62,7 @@ export const resources = {
   kk: {
     agrochemists: kkAgrochemists,
     aiQuality: kkAiQuality,
+    auth: kkAuth,
     common: kkCommon,
     community: kkCommunity,
     dashboard: kkDashboard,
@@ -73,6 +78,7 @@ export const resources = {
   en: {
     agrochemists: enAgrochemists,
     aiQuality: enAiQuality,
+    auth: enAuth,
     common: enCommon,
     community: enCommunity,
     dashboard: enDashboard,

@@ -4,6 +4,7 @@ import {
   LayoutGrid,
   Leaf,
   type LucideIcon,
+  LogOut,
   Settings,
   ShieldCheck,
   Store,
@@ -15,6 +16,8 @@ import { NavLink } from 'react-router-dom'
 import { BrandLink } from '@/layouts/BrandLink'
 import { LanguageSwitcher } from '@/layouts/LanguageSwitcher'
 import type { SidebarBadges } from '@/layouts/useSidebarCounters'
+import { session } from '@/services/backend'
+import { API_MODE } from '@/services/config'
 import { ROUTES } from '@/shared/constants/routes'
 
 type NavKey =
@@ -61,6 +64,9 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ]
 
+const NAV_ROW_CLASSES =
+  'flex h-10.5 items-center gap-3 rounded-[10px] px-3 text-[15px] leading-5 transition-colors'
+
 const SETTINGS_ITEM: NavItem = { labelKey: 'settings', icon: Settings, to: ROUTES.settings }
 
 function SidebarLink({
@@ -77,7 +83,7 @@ function SidebarLink({
       onClick={onNavigate}
       end={to === ROUTES.dashboard}
       className={({ isActive }) =>
-        `flex h-10.5 items-center gap-3 rounded-[10px] px-3 text-[15px] leading-5 transition-colors ${
+        `${NAV_ROW_CLASSES} ${
           isActive ? 'bg-primary-soft font-semibold text-primary-dark' : 'text-text hover:bg-bg'
         }`
       }
@@ -103,6 +109,7 @@ interface SidebarNavProps {
 /** Menu content shared by the desktop sidebar and the mobile drawer. */
 export function SidebarNav({ badges, onNavigate }: SidebarNavProps) {
   const { t } = useTranslation('layout')
+  const { t: tAuth } = useTranslation('auth')
   return (
     <>
       <BrandLink onNavigate={onNavigate} />
@@ -127,6 +134,16 @@ export function SidebarNav({ badges, onNavigate }: SidebarNavProps) {
       <div className="flex flex-col gap-3">
         <LanguageSwitcher />
         <SidebarLink {...SETTINGS_ITEM} onNavigate={onNavigate} />
+        {API_MODE === 'live' ? (
+          <button
+            type="button"
+            onClick={() => void session.logout()}
+            className={`${NAV_ROW_CLASSES} text-text hover:bg-bg`}
+          >
+            <LogOut size={20} strokeWidth={2} aria-hidden="true" className="shrink-0" />
+            <span className="flex-1 text-left whitespace-nowrap">{tAuth('logout')}</span>
+          </button>
+        ) : null}
       </div>
     </>
   )
