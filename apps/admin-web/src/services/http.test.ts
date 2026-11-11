@@ -122,6 +122,98 @@ describe('http client', () => {
     await expect(client.request('/x')).rejects.toMatchObject({ status: 502, code: 'unknown', message: 'Bad Gateway' })
   })
 
+  it('retries with the token another call has just renewed, without a second refresh', async () => {
+    const calls: string[] = []
+    const queue = [json(401, {}), json(200, { ok: 1 })]
+    let token = 'old'
+    const refresh = vi.fn(async () => 'never')
+    const client = createHttpClient({
+      baseUrl: 'http://api.test',
+      getAccessToken: () => token,
+      refreshAccessToken: refresh,
+      fetchFn: (async (_url: string, init?: RequestInit) => {
+        calls.push((init?.headers as Record<string, string>).Authorization)
+        token = 'renewed' // a parallel call renewed it while this one was in flight
+        return queue.shift()!
+      }) as unknown as typeof fetch,
+    })
+
+    await client.request('/x')
+
+    expect(refresh).not.toHaveBeenCalled()
+    expect(calls).toEqual(['Bearer old', 'Bearer renewed'])
+  })
+
+  it('passes a failing refresh to the caller and does not report an expired session', async () => {
+    const expired = vi.fn()
+    const client = createHttpClient({
+      baseUrl: 'http://api.test',
+      getAccessToken: () => 'old',
+      refreshAccessToken: async () => {
+        throw new NetworkError()
+      },
+      onSessionExpired: expired,
+      fetchFn: (async () => json(401, {})) as unknown as typeof fetch,
+    })
+
+    await expect(client.request('/x')).rejects.toBeInstanceOf(NetworkError)
+
+    expect(expired).not.toHaveBeenCalled()
+  })
+
+  it('refuses a successful answer that is not JSON', async () => {
+    const { client } = setup([new Response('<html>proxy</html>', { status: 200 })])
+
+    await expect(client.request('/x')).rejects.toMatchObject({ status: 200, code: 'invalid_response' })
+  })
+
+  it('treats a stream that breaks while the body is read as a network error', async () => {
+    const broken = {
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      text: async () => {
+        throw new TypeError('terminated')
+      },
+    } as unknown as Response
+    const { client } = setup([broken])
+
+    await expect(client.request('/x')).rejects.toBeInstanceOf(NetworkError)
+  })
+
+  it('returns a Blob for a file and an HTTP status when the text is empty', async () => {
+    const { client } = setup([new Response('PDF', { status: 200 }), new Response(null, { status: 503, statusText: '' })])
+
+    expect(await client.request<Blob>('/file', { responseType: 'blob' })).toBeInstanceOf(Blob)
+    await expect(client.request('/x')).rejects.toMatchObject({ status: 503, message: 'HTTP 503' })
+  })
+
+  it('lets the abort of the caller through instead of a network error', async () => {
+    const controller = new AbortController()
+    const fetchFn = (async (_url: string, init?: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      })) as unknown as typeof fetch
+    const client = createHttpClient({
+      baseUrl: 'http://api.test',
+      getAccessToken: () => null,
+      refreshAccessToken: async () => null,
+      fetchFn,
+    })
+
+    const pending = client.request('/x', { signal: controller.signal })
+    controller.abort()
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it('rejects a path without a leading slash or with a query string', async () => {
+    const { client } = setup([json(200, {})])
+
+    await expect(client.request('x')).rejects.toThrow('must start with')
+    await expect(client.request('/x?a=1')).rejects.toThrow('no query string')
+  })
+
   it('returns undefined for 204', async () => {
     const { client } = setup([new Response(null, { status: 204 })])
 
