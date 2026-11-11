@@ -22,6 +22,9 @@ app:
     register-per-ip-per-hour: 100000
     refresh-per-ip-per-minute: 100000
   security:
+    # The job is built by hand in the test that exercises it; a running one could delete other tests' rows
+    refresh-cleanup:
+      enabled: false
     jwt:
       # Test-only secret (32+ bytes, Base64). Never used outside the test profile.
       secret: dGVzdC1vbmx5LWp3dC1zZWNyZXQtMzItYnl0ZXMtbWluaW11bS0wMTIzNDU2Nzg5

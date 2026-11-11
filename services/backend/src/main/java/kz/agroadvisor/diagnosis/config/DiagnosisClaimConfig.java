@@ -6,11 +6,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
 /** Claim settings and the check that the claim timeout covers the longest request. */
 @Configuration
-@EnableScheduling
 @EnableConfigurationProperties({DiagnosisProperties.class, AiProperties.class, PhotoStorageProperties.class})
 public class DiagnosisClaimConfig {
 

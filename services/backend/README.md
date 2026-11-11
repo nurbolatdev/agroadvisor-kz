@@ -102,6 +102,17 @@ Abuse is stopped before any password hashing or database work. A refused request
 - Redis is an accelerator: if it is down, requests are allowed and a warning is logged.
 - The client address is the TCP peer; `X-Forwarded-For` and `Forwarded` are ignored, so they cannot be used to dodge the limit. Behind a reverse proxy set `server.forward-headers-strategy=native` and narrow `server.tomcat.remoteip.internal-proxies` to the proxy network. Never enable this on a port that is reachable without the proxy.
 
+#### Refresh token cleanup
+
+A nightly job at 04:00 (`Asia/Almaty`) deletes refresh tokens that expired more than 7 days ago, in batches, so the `refresh_tokens` table does not grow without bound. Used and revoked rows are kept until they expire plus the retention period: reuse detection needs them, so a replayed old token still revokes its session family. Settings:
+
+| Environment variable | Default | Meaning |
+| --- | --- | --- |
+| `APP_SECURITY_REFRESH_CLEANUP_ENABLED` | `true` | `false` switches the job off |
+| `APP_SECURITY_REFRESH_CLEANUP_CRON` | `0 0 4 * * *` | Schedule, evaluated in `Asia/Almaty` |
+| `APP_SECURITY_REFRESH_CLEANUP_RETENTION` | `P7D` | How long after expiry a row is kept (ISO-8601 duration) |
+| `APP_SECURITY_REFRESH_CLEANUP_BATCH_SIZE` | `1000` | Rows deleted per transaction (1 to 10000) |
+
 ## Test
 
 ```bash

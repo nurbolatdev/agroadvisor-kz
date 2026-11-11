@@ -81,6 +81,12 @@ app:
     jwt:
       # Base64, at least 32 random bytes (openssl rand -base64 48). Kept outside git; startup fails without it.
       secret: ${JWT_SECRET:}
+    # Deletes refresh tokens that expired more than `retention` ago; used and revoked rows stay until then
+    refresh-cleanup:
+      enabled: ${APP_SECURITY_REFRESH_CLEANUP_ENABLED:true}
+      cron: ${APP_SECURITY_REFRESH_CLEANUP_CRON:0 0 4 * * *} # Asia/Almaty
+      retention: ${APP_SECURITY_REFRESH_CLEANUP_RETENTION:P7D}
+      batch-size: ${APP_SECURITY_REFRESH_CLEANUP_BATCH_SIZE:1000}
 
 management:
   health:

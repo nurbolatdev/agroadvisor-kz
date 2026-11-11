@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
@@ -86,6 +87,22 @@ public class RefreshTokenService {
     @Transactional
     public void revokeAll(UUID userId) {
         jdbc.update("UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = ? AND revoked_at IS NULL", userId);
+    }
+
+    /**
+     * Deletes up to {@code limit} rows that expired more than {@code retention} ago and returns how many went.
+     * Used and revoked rows are not deleted earlier on purpose: reuse detection needs the used row to exist, so a
+     * replayed old token keeps revoking its family until the row expires. Every revoked row expires too, so
+     * nothing stays forever. The query walks {@code refresh_tokens_expires_at_idx}.
+     */
+    @Transactional
+    public int deleteExpired(Duration retention, int limit) {
+        return jdbc.update("""
+                DELETE FROM refresh_tokens WHERE id IN (
+                    SELECT id FROM refresh_tokens
+                    WHERE expires_at < now() - make_interval(secs => ?)
+                    LIMIT ?)
+                """, (double) retention.toSeconds(), limit);
     }
 
     private String issue(UUID userId, UUID familyId) {
