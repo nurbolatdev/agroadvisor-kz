@@ -25,6 +25,12 @@ const agrochemists: Translation<typeof ru> = {
     notFound: 'No one found by this name',
     empty: 'No applications',
   },
+  specializations: {
+    plant_protection: 'Plant protection',
+    agrochemistry: 'Agrochemistry',
+    phytopathology: 'Phytopathology',
+    soil_science: 'Soil science',
+  },
   decision: {
     approved: 'Approved',
     approvedOn: 'Approved {{date}}',
@@ -32,6 +38,14 @@ const agrochemists: Translation<typeof ru> = {
     requestedOn: 'Requested {{date}}',
     request: 'Request',
     saveError: 'Could not save the decision',
+    requestReason: 'Please upload a diploma or a certificate that confirms your qualification.',
+    errors: {
+      no_documents: 'Cannot approve: the specialist has sent no documents',
+      reason_required: 'Give a reason',
+      self_review_forbidden: 'You cannot decide on your own application',
+      agrochemist_not_found: 'The application was not found',
+      network: 'Cannot reach the server',
+    },
   },
   documentsModal: {
     title: 'Specialist documents',

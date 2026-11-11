@@ -4,10 +4,12 @@ import { Link, useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { LoadError } from '@/components/ui/LoadError'
 import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { TreatmentTable } from '@/features/diseases/components/TreatmentTable'
 import { SEVERITY_TONES } from '@/features/diseases/diseases'
+import i18n from '@/i18n'
 import { api } from '@/services/api'
 import { ROUTES } from '@/shared/constants/routes'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
@@ -28,9 +30,19 @@ function BackLink() {
 export function DiseaseDetailPage() {
   const { t } = useTranslation(['diseases', 'common'])
   const { id = '' } = useParams()
-  const { data: disease, isLoading } = useApiQuery(() => api.getDisease(id), [id])
+  const { data: disease, isLoading, error, reload } = useApiQuery(() => api.getDisease(id), [id, i18n.language])
 
   if (isLoading && !disease) return <Loader />
+  if (error && !disease) {
+    return (
+      <>
+        <BackLink />
+        <Card>
+          <LoadError onRetry={reload} />
+        </Card>
+      </>
+    )
+  }
 
   if (!disease) {
     return (

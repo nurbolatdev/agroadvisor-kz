@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import i18n from '@/i18n'
 import { api } from '@/services/api'
+import { ApiError, NetworkError } from '@/services/http'
 import type { Agrochemist } from '@/shared/types'
 import { notifyDataChanged } from '@/shared/utils/dataEvents'
 
@@ -11,6 +13,16 @@ export function useVerificationDecisions(onChanged: () => void) {
   const { t } = useTranslation('agrochemists')
   const [busyId, setBusyId] = useState<string>()
   const [error, setError] = useState<string>()
+
+  // The backend codes are translated; the mock throws plain messages, which are shown as they are.
+  const decisionErrorText = (cause: unknown): string => {
+    if (cause instanceof NetworkError) return t('decision.errors.network')
+    if (cause instanceof ApiError) {
+      const key = `decision.errors.${cause.code}`
+      return i18n.exists(`agrochemists:${key}`) ? t(key as never) : t('decision.saveError')
+    }
+    return cause instanceof Error ? cause.message : t('decision.saveError')
+  }
 
   const run = async (agrochemist: Agrochemist, decision: Decision, reason = '') => {
     setBusyId(agrochemist.id)
@@ -23,7 +35,7 @@ export function useVerificationDecisions(onChanged: () => void) {
       notifyDataChanged()
       return true
     } catch (reasonError) {
-      setError(reasonError instanceof Error ? reasonError.message : t('decision.saveError'))
+      setError(decisionErrorText(reasonError))
       return false
     } finally {
       setBusyId(undefined)

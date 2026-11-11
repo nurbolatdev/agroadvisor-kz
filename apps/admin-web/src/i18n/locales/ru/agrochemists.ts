@@ -22,6 +22,12 @@ const agrochemists = {
     notFound: 'Никого не нашли по этому имени',
     empty: 'Заявок нет',
   },
+  specializations: {
+    plant_protection: 'Защита растений',
+    agrochemistry: 'Агрохимия',
+    phytopathology: 'Фитопатология',
+    soil_science: 'Почвоведение',
+  },
   decision: {
     approved: 'Подтверждён',
     approvedOn: 'Подтверждён {{date}}',
@@ -29,6 +35,14 @@ const agrochemists = {
     requestedOn: 'Запрошено {{date}}',
     request: 'Запросить',
     saveError: 'Не удалось сохранить решение',
+    requestReason: 'Загрузите диплом или сертификат, подтверждающий квалификацию.',
+    errors: {
+      no_documents: 'Нельзя подтвердить: специалист не прислал документов',
+      reason_required: 'Укажите причину',
+      self_review_forbidden: 'Нельзя решать по собственной заявке',
+      agrochemist_not_found: 'Заявка не найдена',
+      network: 'Нет связи с сервером',
+    },
   },
   documentsModal: {
     title: 'Документы специалиста',

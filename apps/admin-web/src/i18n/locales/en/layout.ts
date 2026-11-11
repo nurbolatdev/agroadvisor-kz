@@ -27,6 +27,8 @@ const layout: Translation<typeof ru> = {
     description: 'The page you are looking for does not exist or was moved.',
     action: 'Go to overview',
   },
+  demoNotice:
+    'Only Verification and Diseases and treatments show data from the backend; the other sections show demo data.',
   language: 'Interface language',
 }
 

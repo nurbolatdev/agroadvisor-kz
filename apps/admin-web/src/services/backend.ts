@@ -1,3 +1,4 @@
+import i18n from '@/i18n'
 import { API_BASE_URL } from '@/services/config'
 import { createHttpClient, type HttpClient } from '@/services/http'
 import { createAuthApi, createBrowserTokenStorage, createSession } from '@/services/session'
@@ -15,6 +16,7 @@ export const session = createSession({
 
 export const httpClient: HttpClient = (client = createHttpClient({
   baseUrl: API_BASE_URL,
+  getLanguage: () => i18n.language, // the reference (diseases) comes in the language of the interface
   getAccessToken: () => session.getAccessToken(),
   refreshAccessToken: () => session.refresh(),
   onSessionExpired: () => session.expire(),

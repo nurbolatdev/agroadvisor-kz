@@ -3,12 +3,14 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { LoadError } from '@/components/ui/LoadError'
 import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
 import { SearchBar } from '@/components/ui/SearchBar'
 import { CropFilter } from '@/features/diseases/components/CropFilter'
 import { DiseaseCard } from '@/features/diseases/components/DiseaseCard'
+import i18n from '@/i18n'
 import { api } from '@/services/api'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
 import { usePagination } from '@/shared/hooks/usePagination'
@@ -18,7 +20,12 @@ export function DiseasesPage() {
   const { t } = useTranslation('diseases')
   const [crop, setCrop] = useState<CropId>()
   const [search, setSearch] = useState('')
-  const { data: diseases } = useApiQuery(() => api.getDiseases({ crop }), [crop])
+  // the reference comes in the language of the interface, so a language switch loads it again
+  const {
+    data: diseases,
+    error,
+    reload,
+  } = useApiQuery(() => api.getDiseases({ crop }), [crop, i18n.language])
 
   const query = search.trim().toLowerCase()
   const visible =
@@ -63,7 +70,11 @@ export function DiseasesPage() {
 
       <div className="mt-4">
         {!diseases ? (
-          <Loader />
+          error ? (
+            <LoadError onRetry={reload} />
+          ) : (
+            <Loader />
+          )
         ) : visible.length === 0 ? (
           <Card>
             <EmptyState
