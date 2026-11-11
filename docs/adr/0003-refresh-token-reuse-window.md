@@ -57,8 +57,9 @@ Only SHA-256 hashes of tokens are stored, so the server cannot hand out "the sam
   started. A per-user `pg_advisory_xact_lock` in rotation and revocation would close it; suggested as a
   separate issue.
 - **Client coverage.** The mobile client retries a refresh once, immediately, when no answer arrives (a
-  network error, not a server answer), and the refresh request has its own 4 s timeout, so both attempts start
-  inside the 10 s window. No retry is sent after a logout. If the network stays down, the saved token is kept
+  network error, not a server answer). The first attempt gives up after 4 s, so the retry starts inside the
+  10 s window; the retry itself waits as long as the client allows (slow networks). No retry is sent after a
+  logout. If the network stays down, the saved token is kept
   and the next refresh comes with the user's next action; if that is later than the window, the strict rule
   applies and the user signs in again.
 - **Rollback.** Set `APP_SECURITY_REFRESH_REUSE_WINDOW=0`.
