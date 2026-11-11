@@ -70,7 +70,11 @@ export function createSession(deps: { api: AuthApi; storage: TokenStorage }) {
   }
 
   function accept(tokens: TokenPair, startedIn: number): boolean {
-    if (startedIn !== generation) return false
+    if (startedIn !== generation) {
+      // Tokens for a session that no longer exists must not stay valid on the server.
+      void api.logout(tokens.refreshToken).catch(() => undefined)
+      return false
+    }
     accessToken = tokens.accessToken
     storage.set(tokens.refreshToken)
     return true
@@ -170,7 +174,13 @@ export function createSession(deps: { api: AuthApi; storage: TokenStorage }) {
       // A new sign-in replaces whatever a restore at start is still doing: its answers are dropped.
       generation += 1
       const startedIn = generation
-      await signIn(await api.login(login, password), startedIn)
+      try {
+        await signIn(await api.login(login, password), startedIn)
+      } catch (error) {
+        // the restore it replaced will not report any more: do not leave the app waiting for it
+        if (state.status === 'restoring') setState({ status: 'signedOut', user: null })
+        throw error
+      }
     },
 
     async logout(): Promise<void> {

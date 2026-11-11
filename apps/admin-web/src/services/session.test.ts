@@ -63,7 +63,7 @@ describe('admin session', () => {
 
     await expect(session.login('a', 'b')).rejects.toMatchObject({ code: 'invalid_credentials' })
 
-    expect(session.getState().status).toBe('restoring') // nothing was decided yet
+    expect(session.getState().status).toBe('signedOut')
     expect(session.getAccessToken()).toBeNull()
   })
 
@@ -125,6 +125,25 @@ describe('admin session', () => {
     expect(session.getState()).toEqual({ status: 'signedIn', user: admin })
     expect(storage.value).toBe('r1')
     expect(session.getAccessToken()).toBe('a1')
+  })
+
+  it('revokes tokens that arrive for a session that has already ended', async () => {
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const api = fakeApi({
+      refresh: vi.fn(async () => {
+        await gate
+        return { accessToken: 'late', refreshToken: 'late-r' }
+      }),
+    })
+    const session = createSession({ api, storage: memoryStorage('saved') })
+
+    const refreshing = session.refresh()
+    session.expire()
+    release()
+    await refreshing
+
+    expect(api.logout).toHaveBeenCalledWith('late-r')
   })
 
   it('drops the tokens of an account whose profile could not be read', async () => {
