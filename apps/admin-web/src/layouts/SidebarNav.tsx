@@ -4,6 +4,7 @@ import {
   LayoutGrid,
   Leaf,
   type LucideIcon,
+  LogOut,
   Settings,
   ShieldCheck,
   Store,
@@ -15,6 +16,7 @@ import { NavLink } from 'react-router-dom'
 import { BrandLink } from '@/layouts/BrandLink'
 import { LanguageSwitcher } from '@/layouts/LanguageSwitcher'
 import type { SidebarBadges } from '@/layouts/useSidebarCounters'
+import { session } from '@/services/backend'
 import { ROUTES } from '@/shared/constants/routes'
 
 type NavKey =
@@ -103,6 +105,7 @@ interface SidebarNavProps {
 /** Menu content shared by the desktop sidebar and the mobile drawer. */
 export function SidebarNav({ badges, onNavigate }: SidebarNavProps) {
   const { t } = useTranslation('layout')
+  const { t: tAuth } = useTranslation('auth')
   return (
     <>
       <BrandLink onNavigate={onNavigate} />
@@ -127,6 +130,14 @@ export function SidebarNav({ badges, onNavigate }: SidebarNavProps) {
       <div className="flex flex-col gap-3">
         <LanguageSwitcher />
         <SidebarLink {...SETTINGS_ITEM} onNavigate={onNavigate} />
+        <button
+          type="button"
+          onClick={() => void session.logout()}
+          className="flex h-10.5 items-center gap-3 rounded-[10px] px-3 text-[15px] leading-5 text-text transition-colors hover:bg-bg"
+        >
+          <LogOut size={20} strokeWidth={2} aria-hidden="true" className="shrink-0" />
+          <span className="flex-1 text-left whitespace-nowrap">{tAuth('logout')}</span>
+        </button>
       </div>
     </>
   )

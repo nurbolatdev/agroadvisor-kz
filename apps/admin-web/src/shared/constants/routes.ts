@@ -9,6 +9,7 @@ export const ROUTES = {
   diseases: '/diseases',
   diseaseDetail: '/diseases/:id',
   settings: '/settings',
+  login: '/login',
   notFound: '*',
 } as const
 

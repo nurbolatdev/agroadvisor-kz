@@ -11,25 +11,33 @@ import {
   ShopsPage,
   UsersPage,
 } from '@/app/pages'
+import { LoginPage } from '@/features/auth/LoginPage'
+import { RequireAuth } from '@/features/auth/RequireAuth'
 import { MainLayout } from '@/layouts/MainLayout'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ROUTES } from '@/shared/constants/routes'
 
 export const router = createBrowserRouter(
   [
+    { path: ROUTES.login, element: <LoginPage /> },
     {
-      element: <MainLayout />,
+      element: <RequireAuth />,
       children: [
-        { path: ROUTES.dashboard, element: <DashboardPage /> },
-        { path: ROUTES.aiQuality, element: <AiQualityPage /> },
-        { path: ROUTES.community, element: <CommunityPage /> },
-        { path: ROUTES.moderation, element: <ModerationPage /> },
-        { path: ROUTES.verification, element: <AgrochemistsPage /> },
-        { path: ROUTES.users, element: <UsersPage /> },
-        { path: ROUTES.shops, element: <ShopsPage /> },
-        { path: ROUTES.diseases, element: <DiseasesPage /> },
-        { path: ROUTES.diseaseDetail, element: <DiseaseDetailPage /> },
-        { path: ROUTES.settings, element: <SettingsPage /> },
+        {
+          element: <MainLayout />,
+          children: [
+            { path: ROUTES.dashboard, element: <DashboardPage /> },
+            { path: ROUTES.aiQuality, element: <AiQualityPage /> },
+            { path: ROUTES.community, element: <CommunityPage /> },
+            { path: ROUTES.moderation, element: <ModerationPage /> },
+            { path: ROUTES.verification, element: <AgrochemistsPage /> },
+            { path: ROUTES.users, element: <UsersPage /> },
+            { path: ROUTES.shops, element: <ShopsPage /> },
+            { path: ROUTES.diseases, element: <DiseasesPage /> },
+            { path: ROUTES.diseaseDetail, element: <DiseaseDetailPage /> },
+            { path: ROUTES.settings, element: <SettingsPage /> },
+          ],
+        },
       ],
     },
     { path: ROUTES.notFound, element: <NotFoundPage /> },
