@@ -28,9 +28,10 @@ before taking the photo. Two questions had to be settled:
 
 **Temperature scaling.**
 
-- The probabilities are divided by a temperature `T` before the softmax. `T` is read from `model_card.json`
-  (`temperature`); for `effnet-b0-v1` (run A5-E001) it is `3.79`. Without it the service logs a warning, uses the raw softmax, and never answers `ok` or `crop_mismatch`
-  (the health endpoint reports the model as not calibrated).
+- The logits are divided by a temperature `T` before the softmax (the answer does not change, only the
+  confidence). `T` is read from `model_card.json` (`temperature`); for `effnet-b0-v1` (run A5-E001) it is
+  `3.79`. Without it the service logs a warning, uses the raw softmax, and never answers `ok` or
+  `crop_mismatch`; `GET /health` then returns `calibrated: false`.
 - `T` is fitted only on the field photos of `val` (1 688 photos) by minimising the log-loss of the answer as the
   service gives it. `test` and the independent `bench` are used only to check it.
 
@@ -40,7 +41,7 @@ before taking the photo. Two questions had to be settled:
 | --- | --- | --- |
 | `AI_OK_THRESHOLD` | 0.70 | best class ≥ 0.70 → `ok` |
 | `AI_LOW_THRESHOLD` | 0.25 | best class below it → "not recognized"; between 0.25 and 0.70 → `low_confidence` |
-| `AI_UNKNOWN_THRESHOLD` | 0.5 | p(`unknown`) ≥ 0.5 → `unknown` |
+| `AI_UNKNOWN_THRESHOLD` | 0.5 | p(`unknown`) inside the crop, after renormalizing, ≥ 0.5 → `unknown` |
 | `AI_CROP_MISMATCH_THRESHOLD` | 0.70 | unmasked top class of another crop at ≥ 0.70 → `crop_mismatch` |
 
 `low` was chosen on `val` and only confirmed on `test` and `bench`. The rule behind it: calling an ordinary
@@ -51,8 +52,9 @@ crop photo "not recognized" is worse than showing `low_confidence` with the thre
 - Without `T` the model says 79–83 % while being right 46–56 % of the time. With `T = 3.79` the calibration
   error (ECE) falls from 0.331 to 0.067 on `val`, from 0.320 to 0.071 on `test`, and from 0.269 to 0.087 on
   `bench`, which was not used for the fit. Accuracy does not change.
-- With `T` and the thresholds above, `ok` covers 15–18 % of field photos and is right 80–98 % of the time. The
-  share of right answers stays at 43–53 % of all photos; they are now sorted into honest statuses.
+- With `T`, `ok` 0.70 and `low` 0.25, `ok` covers 15–18 % of field photos and is right 80–98 % of the time. The
+  share of right answers stays at 43–53 % of all photos (measured with `unknown` answered whenever it wins;
+  with p(`unknown`) ≥ 0.5 it is 46.7 % on `val`); they are now sorted into honest statuses.
 - Without `T` the service would say `ok` for 49–66 % of field photos and be wrong for 27–32 % of those answers;
   with `T` false `crop_mismatch` drops from 5.5 % to 0.1 % on `bench`.
 
@@ -60,9 +62,9 @@ crop photo "not recognized" is worse than showing `low_confidence` with the thre
 
 | Alternative | Why rejected |
 | --- | --- |
-| One model per crop | Four artifacts to train, version and deploy; the `unknown` class and the crop-mismatch check would need a separate model anyway |
-| One model without a mask | The farmer's crop choice is free information; ignoring it lets a tomato photo be answered with a potato disease |
-| Raw softmax as confidence | Overconfident by 0.27–0.33 on field photos (ECE above); `ok` would be wrong for about a third of answers |
+| One model per crop | Four artifacts to train, version and deploy (a judgement, not measured) |
+| One model without a mask | The farmer's crop choice is free information; ignoring it lets a tomato photo be answered with a potato disease (A5-E001 on `bench`: accuracy 0.509 without the mask, 0.563 with it) |
+| Raw softmax as confidence | Overconfident by 0.27–0.33 on field photos (ECE above); `ok` would be wrong for 27–32 % of its answers |
 | Calibrate on `bench` | `bench` is the independent check; fitting on it would leave nothing to test calibration against |
 | A10-E001 (more field data, `T = 1.38`) | Calibrated on its own sources, but overconfident on independent `bench` (ECE 0.305 → 0.243) and its crop-masked macro-F1 on `bench` is lower than A5-E001 (−0.034, interval excludes 0) |
 
@@ -71,9 +73,10 @@ crop photo "not recognized" is worse than showing `low_confidence` with the thre
 - Calibration is tied to one model version. A new model needs its own `T` and a re-check of the thresholds
   before `model_version` changes; the model card must carry `temperature`.
 - `T` fitted on field photos of the training sources does not make a model trustworthy on other sources
-  (A10-E001). The independent `bench` stays the judge.
+  (A10-E001). The independent `bench` stays the judge. It is not a clean selection for A5-E001, though:
+  `bench` was also used to choose A5-E001 over A10-E001.
 - The set of own field photos (`own`) is not collected yet, so quality on real farmers' photos is not
   measured; this is an open item of the A6/A7/A8 work.
-- Weak classes (wheat, `tomato__bacterial_spot`) remain; they are visible in the per-class table of
+- Weak classes (`wheat__stripe_rust`, `wheat__septoria`, `wheat__leaf_rust`, `tomato__bacterial_spot`) remain; they are visible in the per-class table of
   [evaluation.md](../ai/evaluation.md).
 - API contract: [ai-predict.md](../api/ai-predict.md).
