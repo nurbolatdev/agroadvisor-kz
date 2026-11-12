@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import i18n from '@/i18n'
@@ -26,13 +26,17 @@ import { LoginPage } from './LoginPage'
 
 const fake = session as unknown as ReturnType<typeof createFakeSession>
 
+function VerificationStub() {
+  return <p>{`verification page ${useLocation().search}`}</p>
+}
+
 function renderLogin(entry: string | { pathname: string; state?: unknown } = '/login') {
   return render(
     <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<p>dashboard</p>} />
-        <Route path="/verification" element={<p>verification page</p>} />
+        <Route path="/verification" element={<VerificationStub />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -73,7 +77,11 @@ describe('LoginPage', () => {
   it.each([
     ['wrong credentials', new ApiError(401, 'invalid_credentials', 'x'), 'Wrong login or password'],
     ['a blocked account', new ApiError(403, 'account_blocked', 'x'), 'The account is blocked'],
-    ['too many attempts', new ApiError(429, 'rate_limited', 'x'), 'Too many attempts. Try again later'],
+    [
+      'too many attempts',
+      new ApiError(429, 'rate_limited', 'x'),
+      'Too many attempts. Try again later',
+    ],
     ['not an administrator', new NotAdminError(), 'This account has no administrator rights'],
     ['no connection', new NetworkError(), 'Cannot reach the server'],
     ['an unknown failure', new Error('boom'), 'Could not sign in'],
@@ -91,7 +99,19 @@ describe('LoginPage', () => {
     expect(screen.getByLabelText('Phone or e-mail')).toHaveValue('admin@agro.kz')
   })
 
-  it('blocks a second click while the sign-in is in progress', async () => {
+  it('treats a login of spaces as empty', async () => {
+    const user = userEvent.setup()
+    renderLogin()
+
+    await user.type(screen.getByLabelText('Phone or e-mail'), '   ')
+    await user.type(screen.getByLabelText('Password'), 'secret-pass')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(screen.getByText('Fill in this field')).toBeInTheDocument()
+    expect(fake.login).not.toHaveBeenCalled()
+  })
+
+  it('ignores a second click while the sign-in is in progress', async () => {
     let finish!: () => void
     fake.login.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)))
     const user = userEvent.setup()
@@ -100,16 +120,21 @@ describe('LoginPage', () => {
     await user.type(screen.getByLabelText('Phone or e-mail'), 'admin@agro.kz')
     await user.type(screen.getByLabelText('Password'), 'secret-pass')
     await user.click(screen.getByRole('button', { name: 'Sign in' }))
+    await user.click(screen.getByRole('button', { name: 'Signing in…' }))
 
     expect(screen.getByRole('button', { name: 'Signing in…' })).toBeDisabled()
+    expect(fake.login).toHaveBeenCalledOnce()
     finish()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled())
   })
 
   it('returns to the page the person wanted after the sign-in', () => {
     fake.set({ status: 'signedIn', user: { id: 'a1', fullName: 'Admin', roles: ['admin'] } })
-    renderLogin({ pathname: '/login', state: { from: { pathname: '/verification' } } })
-    expect(screen.getByText('verification page')).toBeInTheDocument()
+    renderLogin({
+      pathname: '/login',
+      state: { from: { pathname: '/verification', search: '?status=pending' } },
+    })
+    expect(screen.getByText('verification page ?status=pending')).toBeInTheDocument()
   })
 
   it('opens the dashboard when a signed-in person has nowhere to return to', () => {

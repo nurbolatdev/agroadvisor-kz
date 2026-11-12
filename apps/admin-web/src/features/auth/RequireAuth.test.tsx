@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { act, render, screen } from '@testing-library/react'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import i18n from '@/i18n'
@@ -21,13 +21,27 @@ import { session as realOrFake } from '@/services/backend'
 import { RequireAuth } from './RequireAuth'
 
 const fake = realOrFake as unknown as ReturnType<typeof createFakeSession>
-const admin: SessionState = { status: 'signedIn', user: { id: 'a1', fullName: 'Admin', roles: ['admin'] } }
+const admin: SessionState = {
+  status: 'signedIn',
+  user: { id: 'a1', fullName: 'Admin', roles: ['admin'] },
+}
+
+/** Shows what the guard handed over to the sign-in screen. */
+function LoginStub() {
+  const from = (useLocation().state as { from?: { pathname: string; search: string } } | null)?.from
+  return (
+    <>
+      <p>login screen</p>
+      {from ? <p>{`came from ${from.pathname}${from.search}`}</p> : null}
+    </>
+  )
+}
 
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/login" element={<p>login screen</p>} />
+        <Route path="/login" element={<LoginStub />} />
         <Route element={<RequireAuth />}>
           <Route path="/verification" element={<p>protected page</p>} />
         </Route>
@@ -74,8 +88,12 @@ describe('RequireAuth', () => {
   it('moves on when the session turns out valid', () => {
     fake.set({ status: 'restoring', user: null })
     renderAt('/verification')
-    fake.set(admin)
-    // the store notifies outside of act(); wait for the re-render
-    return screen.findByText('protected page')
+    act(() => fake.set(admin))
+    expect(screen.getByText('protected page')).toBeInTheDocument()
+  })
+
+  it('remembers the page the person wanted, with its query', () => {
+    renderAt('/verification?status=pending')
+    expect(screen.getByText('came from /verification?status=pending')).toBeInTheDocument()
   })
 })
