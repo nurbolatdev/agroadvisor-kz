@@ -94,7 +94,8 @@ jobs:
               - '.github/workflows/ci.yml'
 
   # Builds the production image for linux/amd64 (the runner's own platform, the staging target) and checks
-  # it starts. Real weights are not in git, so the smoke test runs the placeholder model.
+  # it starts. Real weights are not in git, so the first smoke test runs the placeholder model; then the
+  # published weights are fetched and /health and one /predict are checked on them.
   # Runs only when ai-service, infra or this workflow changed (see `changes`).
   ai-image:
     name: ai-image
@@ -160,6 +161,30 @@ jobs:
           echo "$body"
           echo "$body" | grep -q '"model_version":"effnet-b0-v1"'
           echo "$body" | grep -q '"calibrated":true'
+      # One real prediction through the image. The photo is a PlantVillage leaf (CC0 1.0, see docs/ai/dataset.md),
+      # 256 px, no EXIF; the model gives potato__late_blight with about 0.91 on it, so the checks leave room
+      # (class and confidence >= 0.70). A synthetic picture would be refused as low_quality.
+      # Origin: PlantVillage raw/color/Potato___Late_blight/0051e5e8-d1c4-4a84-bf3a-a426cdad6285___RS_LB 4640.JPG,
+      # sha256 96baa8bba4a23978...; in dataset v1 (effnet-b0-v1) it is in the test split. If a new dataset
+      # version puts it into train, or the classes change, replace the photo: the check must not become a
+      # test of memorised data.
+      - name: Predicts a known leaf (/predict)
+        run: |
+          code=$(curl -sS --max-time 60 -o predict.json -w '%{http_code}' \
+            -F "image=@services/ai-service/tests/fixtures/smoke_leaf.jpg;type=image/jpeg" -F "crop=potato" \
+            http://127.0.0.1:8000/predict)
+          cat predict.json; echo
+          [ "$code" = "200" ] || { echo "expected HTTP 200, got $code"; exit 1; }
+          jq -e --arg v "$MODEL_VERSION" '
+            .status == "ok"
+            and .top1.code == "potato__late_blight"
+            and .top1.confidence >= 0.70
+            and .model_version == $v
+            and (.classes_version | type == "number")
+            and (.inference_ms | type == "number")' predict.json
+      - name: AI container logs
+        if: failure()
+        run: docker logs ai || true
 
   # Builds the backend image for linux/amd64 (the runner's own platform, the staging target), checks that it
   # refuses to start without the prod settings, then starts it through infra/docker-compose.yml (profile app)
