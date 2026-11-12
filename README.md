@@ -71,6 +71,12 @@ Russian, Kazakh, English.
 
 International University of Information Technologies (IITU), Almaty.
 
+## License
+
+The source code is licensed under the [Apache License 2.0](LICENSE). The trained model weights and the
+datasets used for training are not part of this repository and are not covered by that license; they keep the
+licenses of their sources (see `docs/ai/dataset.md`).
+
 ## Documentation
 
 - [System architecture](docs/architecture.md)

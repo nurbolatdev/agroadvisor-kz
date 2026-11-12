@@ -1,6 +1,6 @@
 # ADR 0004: Idempotent diagnosis requests
 
-- Status: accepted
+- Status: accepted (decision of the team lead, confirmed 12 Nov 2026)
 - Scope: `services/backend`, `apps/mobile`
 
 ## Context

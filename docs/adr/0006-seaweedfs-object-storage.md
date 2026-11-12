@@ -1,6 +1,6 @@
 # ADR 0006: SeaweedFS as the S3-compatible object storage
 
-- Status: accepted (decision made with the Docker Compose setup, 21 Oct 2026)
+- Status: accepted (decision made with the Docker Compose setup, 21 Oct 2026; confirmed by the team lead, 12 Nov 2026)
 - Scope: `infra`, `services/backend`
 
 ## Context
