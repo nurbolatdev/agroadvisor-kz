@@ -33,7 +33,7 @@ class MigrationsTest {
                 "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class);
         assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13",
-                "14", "15", "16");
+                "14", "15", "16", "17");
     }
 
     @Test
@@ -161,6 +161,62 @@ class MigrationsTest {
         jdbc.update("INSERT INTO agrochemist_profiles (user_id) VALUES (?)", id);
 
         assertThatThrownBy(() -> insertDocument(id, "image/png", 0)).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void agrochemistCannotBeAddedToAFarmer() {
+        UUID id = insertUser("+77010000011", null);
+        addRole(id, "farmer");
+        assertThatThrownBy(() -> addRole(id, "agrochemist"))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("user_roles_one_of_farmer_agrochemist");
+    }
+
+    @Test
+    void farmerCannotBeAddedToAnAgrochemist() {
+        UUID id = insertUser("+77010000012", null);
+        addRole(id, "agrochemist");
+        assertThatThrownBy(() -> addRole(id, "farmer"))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("user_roles_one_of_farmer_agrochemist");
+    }
+
+    @Test
+    void roleCannotBeChangedIntoTheForbiddenPair() {
+        UUID id = insertUser("+77010000013", null);
+        addRole(id, "farmer");
+        addRole(id, "admin");
+        assertThatThrownBy(() -> jdbc.update(
+                "UPDATE user_roles SET role_code = 'agrochemist' WHERE user_id = ? AND role_code = 'admin'", id))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void theOnlyRoleCanBeChanged() {
+        UUID id = insertUser("+77010000016", null);
+        addRole(id, "farmer");
+        jdbc.update("UPDATE user_roles SET role_code = 'agrochemist' WHERE user_id = ?", id);
+        assertThat(jdbc.queryForList("SELECT role_code FROM user_roles WHERE user_id = ?", String.class, id))
+                .containsExactly("agrochemist");
+    }
+
+    @Test
+    void administratorMayHoldAnotherRole() {
+        UUID farmer = insertUser("+77010000014", null);
+        addRole(farmer, "farmer");
+        addRole(farmer, "admin");
+        UUID agrochemist = insertUser("+77010000015", null);
+        addRole(agrochemist, "agrochemist");
+        addRole(agrochemist, "admin");
+
+        assertThat(jdbc.queryForList("SELECT role_code FROM user_roles WHERE user_id = ? ORDER BY 1",
+                String.class, farmer)).containsExactly("admin", "farmer");
+        assertThat(jdbc.queryForList("SELECT role_code FROM user_roles WHERE user_id = ? ORDER BY 1",
+                String.class, agrochemist)).containsExactly("admin", "agrochemist");
+    }
+
+    private void addRole(UUID user, String role) {
+        jdbc.update("INSERT INTO user_roles (user_id, role_code) VALUES (?, ?)", user, role);
     }
 
     private void insertDocument(UUID user, String contentType, int size) {
