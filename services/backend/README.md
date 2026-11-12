@@ -4,12 +4,20 @@ Core REST API of the platform: used by the mobile app and the admin panel.
 
 ## Responsibilities
 
-- Authentication and roles (farmer, agrochemist, admin)
-- Diagnoses: forwarding images to the AI service, storing results
-- Community: posts, answers, votes, moderation
-- Agrochemist verification and consultations
-- Disease reference, regional statistics, analytics for the admin panel
+Done:
+
+- Authentication and roles (farmer, agrochemist, admin), refresh with rotation, rate limits
+- Diagnoses: forwarding images to the AI service, storing results, idempotent retries
+- Agrochemist verification: documents and the admin decision
+- Disease and crop reference, regions; admin editing of crops, diseases and treatments
 - Caching with Redis
+
+Planned (the package exists, there is no code yet):
+
+- Community: posts, answers, votes, moderation
+- Consultations and chat with agrochemists
+- Regional statistics, the disease map and analytics for the admin panel
+- Agro shop directory, push notifications and alerts
 
 ## Stack
 
@@ -145,22 +153,22 @@ Tests need Docker running: the `test` profile starts its own PostgreSQL + PostGI
 
 ## Modules
 
-A modular monolith: one application, one package per business area. Each module has the same layout — `web` (controllers, DTOs), `service`, `repository`, `model` — and other modules call only its `service` package.
+A modular monolith: one application, one package per business area. Each module has the same layout where it needs it — `web` (controllers, DTOs), `service`, `repository`, `model`; planned modules hold only `package-info.java` — and other modules call only its `service` package.
 
-| Package `kz.agroadvisor.…` | Area |
-| --- | --- |
-| `common` | API error format, shared configuration; depends on no other module |
-| `auth` | Registration, login, tokens |
-| `users` | Profiles and roles |
-| `access` | Feature access checks — code asks "may this user use feature X", not "is this user an admin", so paid features can be added later |
-| `catalog` | Crops, diseases, treatments; codes match the AI class registry |
-| `diagnosis` | Photo storage, AI service call, diagnosis history |
-| `community` | Questions, answers, votes, complaints |
-| `consultations` | Farmer ↔ agrochemist consultations and chat |
-| `verification` | Agrochemist document verification |
-| `shops` | Agro shop directory and farmer requests |
-| `notifications` | Push notifications and alerts |
-| `analytics` | Admin statistics and the disease map |
+| Package `kz.agroadvisor.…` | Area | State |
+| --- | --- | --- |
+| `common` | API error format, shared configuration; depends on no other module | done |
+| `auth` | Registration, login, tokens | done |
+| `users` | Profiles and roles | done |
+| `access` | Feature access checks — code asks "may this user use feature X", not "is this user an admin", so paid features can be added later | done (one `FREE` plan for everyone; per-user plans and daily limits planned) |
+| `catalog` | Crops, diseases, treatments, regions; codes match the AI class registry | done |
+| `diagnosis` | Photo storage, AI service call, diagnosis history | done |
+| `verification` | Agrochemist document verification | done |
+| `community` | Questions, answers, votes, complaints | planned |
+| `consultations` | Farmer ↔ agrochemist consultations and chat | planned |
+| `shops` | Agro shop directory and farmer requests | planned |
+| `notifications` | Push notifications and alerts | planned |
+| `analytics` | Admin statistics and the disease map | planned |
 
 Database migrations live in `src/main/resources/db/migration`.
 
