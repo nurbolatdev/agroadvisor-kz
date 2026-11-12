@@ -1,6 +1,6 @@
 # Database ER diagram
 
-PostgreSQL 16 + PostGIS. The schema is owned by Flyway migrations in [`services/backend/src/main/resources/db/migration`](../../services/backend/src/main/resources/db/migration); this page describes migrations `V1`–`V15`.
+PostgreSQL 16 + PostGIS. The schema is owned by Flyway migrations in [`services/backend/src/main/resources/db/migration`](../../services/backend/src/main/resources/db/migration); this page describes migrations `V1`–`V16`.
 
 Conventions:
 
@@ -173,7 +173,7 @@ erDiagram
     }
 ```
 
-Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` with features `diagnosis`, `community`, `consultations`, `disease_map`, `weather`, `calculator`, `shops`, `catalog` — all unlimited. `V8`–`V10` add the crops (tomato, potato, corn, wheat), the `unknown` class, the diseases of the model's classes and their treatments, with draft texts: the Kazakh texts are not checked by a native speaker and treatments must be confirmed by an agrochemist. Regions and districts are still empty.
+Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` with features `diagnosis`, `community`, `consultations`, `disease_map`, `weather`, `calculator`, `shops`, `catalog` — all unlimited. `V8`–`V10` add the crops (tomato, potato, corn, wheat), the `unknown` class, the diseases of the model's classes and their treatments, with draft texts: the Kazakh texts are not checked by a native speaker and treatments must be confirmed by an agrochemist. `V16` adds 10 regions (the leading farming regions for the app's crops) in ru, kk and en; districts are still empty.
 
 ### Notes
 
@@ -186,6 +186,7 @@ Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` wit
 - **Idempotency (`V11`, `V12`).** `POST /api/diagnoses` may carry an `Idempotency-Key`. A partial unique index on `(user_id, idempotency_key)` (rows without a key do not collide) makes a repeat return the first diagnosis. A check constraint requires `request_fingerprint` whenever there is a key, so a repeat can tell the same photo from another one.
 - **Claims (`V14`).** `diagnosis_requests` has a row only while a request with an `Idempotency-Key` is being processed, so a second request with the same key does not call the model again. The primary key `(user_id, idempotency_key)` is the claim (`INSERT … ON CONFLICT DO NOTHING`); no lock is held while the model runs. `claim_id` is a fencing token: a claim older than `app.diagnosis.claim-timeout` is taken over by writing a new `claim_id` (only for the same `request_fingerprint` and crop), and a request releases or finishes only the claim whose `claim_id` it holds. `started_at` is the database clock. The row is deleted in the same transaction that inserts the diagnosis; abandoned rows are removed after an hour. The result stays protected by the unique index of `V11`. Every attempt stores its photo under a new random name, so no attempt overwrites the object of another.
 - **Photo key index (`V15`).** A plain (not unique) index `diagnoses_photo_key_idx` on `diagnoses.photo_key`. The nightly cleanup of orphaned photo objects asks, for batches of keys, which of them a diagnosis still points to (issue #69, [ADR 0002](../adr/0002-orphan-photo-cleanup.md)). Any new table that refers to an object under `diagnoses/` must be added to that lookup, or the cleanup would delete its photo.
+- **Regions (`V16`).** Seed data only, no schema change: the regions a person can pick at registration. The list is a product decision (not all 17 regions); another region is added by a new migration (`V17` or later). The insert is idempotent — an existing region is left as it is.
 - **`diseases.kind` (`V7`)** has `oomycete` for late blight (*Phytophthora*), which is neither a fungus nor a bacterium: the treatment and the advice differ.
 - **Feature access.** Code checks whether the user's plan includes a feature instead of checking roles, so paid plans can be added later as data. Today everyone is on `FREE` and nothing is limited; the per-minute diagnosis rate limit lives in Redis, not in the database.
 
