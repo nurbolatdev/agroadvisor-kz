@@ -11,7 +11,7 @@ the model a second time and spend the user's rate limit again.
 
 ## Decision
 
-- The client sends an `Idempotency-Key` header (one key per attempt, a UUID fits). A repeat with the same key
+- The client sends an `Idempotency-Key` header (one key per diagnosis the user asks for, a UUID fits; every retry of it reuses the key). A repeat with the same key
   returns the first diagnosis with `Idempotent-Replayed: true`; the model is not called again and the diagnosis
   rate limit is not spent.
 - The key is tied to the crop and to the SHA-256 of the photo bytes (`request_fingerprint`). Another crop or

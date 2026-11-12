@@ -29,7 +29,7 @@ Admin web ──┘                          │  ├────► Redis
 
 ### Photo diagnosis
 
-1. The farmer selects a crop and takes a photo in the mobile app; the request may carry an `Idempotency-Key`.
+1. The farmer selects a crop and takes a photo in the mobile app; the request may carry an `Idempotency-Key` (see ADR 0004).
 2. The backend validates the request. With a key it claims the key in the database: a repeated key with the same crop and the same photo returns the diagnosis made the first time, a different crop or photo under the same key answers `422 idempotency_key_reused`, and a request still in progress answers `409 request_in_progress`. Without a key there is no claim and no replay. Request rate is limited per user in Redis.
 3. The backend sends the image to the AI service with connect and read timeouts and one retry. The worst-case length of a request is computed, and the application refuses to start if it exceeds the claim timeout. The AI service decides the outcome from the model's confidence: a diagnosis, low confidence, unknown, or a crop mismatch.
 4. The photo is stored under a fresh object name; one short transaction saves the diagnosis (with the region of the profile at that moment) and releases the claim. Neither the model call nor the storage call happens inside a transaction.
