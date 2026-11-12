@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,6 +74,7 @@ public class RefreshTokenService {
     @Transactional(noRollbackFor = ApiException.class)
     public Rotation rotate(String rawToken) {
         String hash = hash(rawToken);
+        lockOwnerOf(hash);
         List<UUID[]> used = jdbc.query("""
                 UPDATE refresh_tokens SET used_at = now()
                 WHERE token_hash = ? AND used_at IS NULL AND revoked_at IS NULL AND expires_at > now()
@@ -89,16 +91,19 @@ public class RefreshTokenService {
     /** Logout of one device: revokes the family of the presented token. Unknown tokens are ignored. */
     @Transactional
     public void revokeFamilyOf(String rawToken) {
+        String hash = hash(rawToken);
+        lockOwnerOf(hash);
         jdbc.update("""
                 UPDATE refresh_tokens SET revoked_at = now()
                 WHERE revoked_at IS NULL
                   AND family_id = (SELECT family_id FROM refresh_tokens WHERE token_hash = ?)
-                """, hash(rawToken));
+                """, hash);
     }
 
     /** Logout everywhere, also used when a user is blocked. */
     @Transactional
     public void revokeAll(UUID userId) {
+        lock(userId);
         jdbc.update("UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = ? AND revoked_at IS NULL", userId);
     }
 
@@ -116,6 +121,24 @@ public class RefreshTokenService {
                     WHERE expires_at < now() - make_interval(secs => ?)
                     LIMIT ?)
                 """, (double) retention.toSeconds(), limit);
+    }
+
+    /**
+     * Serializes everything that changes the tokens of one user: a rotation, a logout and a logout of all devices
+     * take the same advisory lock first and only then change rows, so they cannot interleave. Without it a logout
+     * running next to a rotation revokes the rows it can see, while the rotation inserts the new token a moment
+     * later, and the person who signed out keeps a live token. The lock is held until the end of the transaction;
+     * the order is always "lock, then change", so there is no deadlock with the row locks of the updates.
+     */
+    private void lock(UUID userId) {
+        jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", (RowCallbackHandler) rs -> { },
+                userId.toString());
+    }
+
+    /** Takes the lock of the owner of a token; an unknown token has no owner and nothing to protect. */
+    private void lockOwnerOf(String hash) {
+        jdbc.queryForList("SELECT user_id FROM refresh_tokens WHERE token_hash = ?", UUID.class, hash)
+                .stream().findFirst().ifPresent(this::lock);
     }
 
     private String issue(UUID userId, UUID familyId) {

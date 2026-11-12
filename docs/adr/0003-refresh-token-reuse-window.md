@@ -52,10 +52,11 @@ Only SHA-256 hashes of tokens are stored, so the server cannot hand out "the sam
   IP (fixed windows, so up to about twice that around a boundary). Replay rows are ordinary rows with the
   7-day lifetime and go with the nightly cleanup.
 - **Retention is unaffected.** The cleanup deletes rows expired more than 7 days ago; the window is seconds.
-- **Known gap (existing, not introduced here).** A token inserted by a rotation at the same moment as a logout
-  of its family can outlive that logout, because the logout `UPDATE` does not see a row committed after it
-  started. A per-user `pg_advisory_xact_lock` in rotation and revocation would close it; suggested as a
-  separate issue.
+- **Rotation and logout in parallel (closed 12 Nov 2026).** A token inserted by a rotation at the same moment as
+  a logout of its family used to outlive that logout, because the logout `UPDATE` does not see a row committed
+  after it started. Now a rotation, a logout and a logout of all devices take the same per-user
+  `pg_advisory_xact_lock` first and only then change rows, so the second one waits for the first and sees its
+  rows (`RefreshTokenLogoutRaceTest`).
 - **Client coverage.** The mobile client retries a refresh once, immediately, when no answer arrives (a
   network error, not a server answer). The first attempt gives up after 4 s, so the retry starts inside the
   10 s window; the retry itself waits as long as the client allows (slow networks). No retry is sent after a
