@@ -142,7 +142,14 @@ public class AuthController {
     @SecurityRequirements
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(@Valid @RequestBody RefreshRequest request) {
+    @ApiResponse(responseCode = "429", description = "rate_limited: by default more than 60 logouts in a minute "
+            + "from one address (the limit of the refreshes, a separate bucket). Repeat after the seconds in "
+            + "Retry-After",
+            headers = @Header(name = "Retry-After", description = "Seconds until the window of the limit ends",
+                    schema = @Schema(type = "string", example = "42")),
+            content = @Content)
+    public void logout(@Valid @RequestBody RefreshRequest request, HttpServletRequest http) {
+        limits.logout(http.getRemoteAddr());
         auth.logout(request.refreshToken());
     }
 

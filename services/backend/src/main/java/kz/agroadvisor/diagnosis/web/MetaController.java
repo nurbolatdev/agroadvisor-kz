@@ -3,6 +3,7 @@ package kz.agroadvisor.diagnosis.web;
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
@@ -33,8 +34,10 @@ public class MetaController {
     @GetMapping
     @Operation(summary = "The version of the recognition model, as the AI service reports it (kept for about a "
             + "minute)")
+    @ApiResponse(responseCode = "200", description = "OK",
+            content = @Content(schema = @Schema(implementation = MetaView.class)))
     @ApiResponse(responseCode = "503", description = "ai_unavailable: the AI service cannot be reached, is not "
-            + "ready, or runs a placeholder model; the app shows no model line then")
+            + "ready, or runs a placeholder model; the app shows no model line then", content = @Content)
     public MetaView meta() {
         ModelInfo model = models.current();
         return new MetaView(model.modelVersion(), model.classesVersion());

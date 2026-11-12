@@ -18,8 +18,8 @@ import org.springframework.validation.annotation.Validated;
  * or by login: {@code loginPerIpPerMinute} (30) stops one source trying many accounts, {@code
  * loginPerAccountPerMinute} (10) stops many sources guessing one account and carries the brute-force
  * protection, {@code registerPerIpPerHour} (20) stops scripted sign-ups, {@code refreshPerIpPerMinute} (60)
- * stops token-guessing. Many farmers can share one public address (mobile carrier NAT), so the per-address
- * values are generous. Every attempt counts, and none is given back.
+ * stops token-guessing and also sets the size of the separate logout bucket. Many farmers can share one public
+ * address (mobile carrier NAT), so the per-address values are generous. Every attempt counts, and none is given back.
  */
 @Validated
 @ConfigurationProperties("app.rate-limit")

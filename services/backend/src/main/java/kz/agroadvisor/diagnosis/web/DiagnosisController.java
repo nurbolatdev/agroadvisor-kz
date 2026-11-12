@@ -70,10 +70,11 @@ public class DiagnosisController {
             headers = @Header(name = "Retry-After", description = "Seconds until the window of the limit ends",
                     schema = @Schema(type = "string", example = "42")))
     public ResponseEntity<DiagnosisView> create(@RequestParam String crop, @RequestParam("image") MultipartFile image,
-            @Parameter(description = "One key per diagnosis attempt (a UUID fits); resend the same request with it "
-                    + "when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): "
-                    + "another crop or another photo under the same key is 422 idempotency_key_reused with reason "
-                    + "crop or photo, so a retry must send the same file. A malformed key is 400 "
+            @Parameter(description = "One key per diagnosis the person wants to make (a UUID fits): the first request "
+                    + "and every resend of it, after a lost answer or a timeout, carry the same key; a new diagnosis "
+                    + "(another photo or crop) needs a new key. The key is tied to the crop and to the exact photo "
+                    + "bytes (SHA-256): another crop or another photo under the same key is 422 "
+                    + "idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 "
                     + "invalid_idempotency_key. A repeat does not spend the diagnosis rate limit. While the first "
                     + "request with the key is still being processed, another one gets 409 request_in_progress with "
                     + "Retry-After: 2 (seconds); the model is not called again and the limit is not spent.",

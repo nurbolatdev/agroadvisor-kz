@@ -50,6 +50,11 @@ public class AuthRateLimits {
         limiter.check("refresh-ip", clientIp, limits.refreshPerIpPerMinute(), MINUTE);
     }
 
+    /** Logout has its own bucket, with the size of the refresh one: the two are one family of calls. */
+    public void logout(String clientIp) {
+        limiter.check("logout-ip", clientIp, limits.refreshPerIpPerMinute(), MINUTE);
+    }
+
     private static String accountKey(String rawLogin) {
         String normalized;
         try {

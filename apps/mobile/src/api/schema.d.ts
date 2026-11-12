@@ -1317,6 +1317,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description rate_limited: by default more than 60 logouts in a minute from one address (the limit of the refreshes, a separate bucket). Repeat after the seconds in Retry-After */
+            429: {
+                headers: {
+                    /** @description Seconds until the window of the limit ends */
+                    "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     logoutAll: {
@@ -1456,7 +1465,7 @@ export interface operations {
                 crop: string;
             };
             header?: {
-                /** @description One key per diagnosis attempt (a UUID fits); resend the same request with it when the answer was lost. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key. A repeat does not spend the diagnosis rate limit. While the first request with the key is still being processed, another one gets 409 request_in_progress with Retry-After: 2 (seconds); the model is not called again and the limit is not spent. */
+                /** @description One key per diagnosis the person wants to make (a UUID fits): the first request and every resend of it, after a lost answer or a timeout, carry the same key; a new diagnosis (another photo or crop) needs a new key. The key is tied to the crop and to the exact photo bytes (SHA-256): another crop or another photo under the same key is 422 idempotency_key_reused with reason crop or photo, so a retry must send the same file. A malformed key is 400 invalid_idempotency_key. A repeat does not spend the diagnosis rate limit. While the first request with the key is still being processed, another one gets 409 request_in_progress with Retry-After: 2 (seconds); the model is not called again and the limit is not spent. */
                 "Idempotency-Key"?: string;
             };
             path?: never;
@@ -1611,14 +1620,21 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description ai_unavailable: the AI service cannot be reached, is not ready, or runs a placeholder model; the app shows no model line then */
-            503: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "*/*": components["schemas"]["MetaView"];
                 };
+            };
+            /** @description ai_unavailable: the AI service cannot be reached, is not ready, or runs a placeholder model; the app shows no model line then */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
