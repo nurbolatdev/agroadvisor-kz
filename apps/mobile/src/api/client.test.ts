@@ -268,6 +268,122 @@ describe('api client', () => {
     }
   })
 
+  describe('timeout while the body is read', () => {
+    // The headers arrive at once; the body is a promise that ends only when the request is aborted
+    function stalledBodyClient(status: number) {
+      const fetchFn = jest.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+        const stalled = new Promise<never>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new TypeError('aborted')))
+        })
+        return {
+          ok: status < 400,
+          status,
+          headers: new Headers(),
+          statusText: 'x',
+          json: () => stalled,
+        } as unknown as Response
+      })
+      return createApiClient({
+        baseUrl: 'http://api',
+        fetchFn: fetchFn as unknown as typeof fetch,
+        getAccessToken: () => null,
+        refreshAccessToken: async () => null,
+        timeoutMs: 1_000,
+      })
+    }
+
+    beforeEach(() => jest.useFakeTimers())
+    afterEach(() => jest.useRealTimers())
+
+    it('gives up on a body that never ends, as a lost connection', async () => {
+      const pending = stalledBodyClient(200)
+        .request('/api/x')
+        .catch((e: unknown) => e)
+      await jest.advanceTimersByTimeAsync(1_000)
+      expect(await pending).toBeInstanceOf(NetworkError)
+    })
+
+    it('still answers with the status when the body of an error never ends', async () => {
+      const pending = stalledBodyClient(503)
+        .request('/api/x')
+        .catch((e: unknown) => e)
+      await jest.advanceTimersByTimeAsync(1_000)
+      expect(await pending).toMatchObject({ status: 503, code: 'unknown' })
+    })
+
+    it('does not abort a body that was read in time', async () => {
+      const { client } = setup([json(200, { ok: true })])
+      const result = await client.request('/api/x')
+      await jest.advanceTimersByTimeAsync(60_000)
+      expect(result).toEqual({ ok: true })
+    })
+
+    it('still answers 401 when the body of that answer never ends and no new token comes', async () => {
+      const client = stalledBodyClient(401)
+      const pending = client.request('/api/x').catch((e: unknown) => e)
+      await jest.advanceTimersByTimeAsync(1_000)
+      expect(await pending).toMatchObject({ status: 401, code: 'unknown' })
+    })
+
+    describe('leaves no timer behind', () => {
+      it('after a read body', async () => {
+        const { client } = setup([json(200, { ok: true })])
+        await client.request('/api/x')
+        expect(jest.getTimerCount()).toBe(0)
+      })
+
+      it('after an empty answer', async () => {
+        const { client } = setup([json(204)])
+        await client.request('/api/x')
+        expect(jest.getTimerCount()).toBe(0)
+      })
+
+      it('after an error answer', async () => {
+        const { client } = setup([json(500, { code: 'internal_error' })])
+        await client.request('/api/x').catch(() => undefined)
+        expect(jest.getTimerCount()).toBe(0)
+      })
+
+      it('after a network error', async () => {
+        const { client } = setup([new TypeError('offline')])
+        await client.request('/api/x').catch(() => undefined)
+        expect(jest.getTimerCount()).toBe(0)
+      })
+
+      it('after a renewed token and a repeat', async () => {
+        const { client } = setup([json(401, {}), json(200, { ok: true })])
+        await client.request('/api/x')
+        expect(jest.getTimerCount()).toBe(0)
+      })
+
+      it('after a refresh that fails', async () => {
+        const fetchFn = jest.fn(async () => json(401, {}))
+        const client = createApiClient({
+          baseUrl: 'http://api',
+          fetchFn: fetchFn as unknown as typeof fetch,
+          getAccessToken: () => 'old',
+          refreshAccessToken: async () => {
+            throw new Error('boom')
+          },
+        })
+        await client.request('/api/x').catch(() => undefined)
+        expect(jest.getTimerCount()).toBe(0)
+      })
+
+      it('after a refresh that gives no token', async () => {
+        const fetchFn = jest.fn(async () => json(401, {}))
+        const client = createApiClient({
+          baseUrl: 'http://api',
+          fetchFn: fetchFn as unknown as typeof fetch,
+          getAccessToken: () => 'old',
+          refreshAccessToken: async () => null,
+        })
+        await client.request('/api/x').catch(() => undefined)
+        expect(jest.getTimerCount()).toBe(0)
+      })
+    })
+  })
+
   it('falls back to code "unknown" for a non-JSON error body', async () => {
     const { client } = setup([new Response('<html>', { status: 502 })])
     await expect(client.request('/api/x')).rejects.toMatchObject({ status: 502, code: 'unknown' })
