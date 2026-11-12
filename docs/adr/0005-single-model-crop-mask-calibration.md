@@ -1,6 +1,6 @@
 # ADR 0005: One model with a crop mask, and calibrated confidence
 
-- Status: accepted
+- Status: accepted (decision of the team lead, confirmed 12 Nov 2026)
 - Scope: `services/ai-service`, `docs/api/ai-predict.md`
 
 ## Context
