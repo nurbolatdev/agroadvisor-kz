@@ -33,7 +33,7 @@ class MigrationsTest {
                 "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class);
         assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13",
-                "14", "15", "16", "17");
+                "14", "15", "16", "17", "18");
     }
 
     @Test
@@ -164,6 +164,113 @@ class MigrationsTest {
     }
 
     @Test
+    void severalPeopleMayReviewOneDiagnosisButEachOnlyOnce() {
+        UUID farmer = insertUser("+77010000021", null);
+        UUID first = insertUser("+77010000022", null);
+        UUID second = insertUser("+77010000023", null);
+        UUID diagnosis = insertDiagnosis(farmer, "ok", "potato__late_blight", null);
+
+        insertReview(diagnosis, first, "confirmed", "potato__late_blight");
+        insertReview(diagnosis, second, "corrected", "potato__early_blight");
+
+        assertThatThrownBy(() -> insertReview(diagnosis, first, "unclear", null))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void reviewNeedsTheRightClassUnlessUnclear() {
+        UUID farmer = insertUser("+77010000024", null);
+        UUID reviewer = insertUser("+77010000025", null);
+        UUID diagnosis = insertDiagnosis(farmer, "ok", "potato__late_blight", null);
+
+        assertThatThrownBy(() -> insertReview(diagnosis, reviewer, "confirmed", null))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void unclearReviewHasNoClass() {
+        UUID farmer = insertUser("+77010000026", null);
+        UUID reviewer = insertUser("+77010000027", null);
+        UUID diagnosis = insertDiagnosis(farmer, "ok", "potato__late_blight", null);
+
+        assertThatThrownBy(() -> insertReview(diagnosis, reviewer, "unclear", "potato__healthy"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void reviewVerdictIsConfirmedCorrectedOrUnclear() {
+        UUID farmer = insertUser("+77010000028", null);
+        UUID reviewer = insertUser("+77010000029", null);
+        UUID diagnosis = insertDiagnosis(farmer, "ok", "potato__late_blight", null);
+
+        assertThatThrownBy(() -> insertReview(diagnosis, reviewer, "maybe", "potato__late_blight"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void reviewClassIsNotBlank() {
+        UUID farmer = insertUser("+77010000034", null);
+        UUID reviewer = insertUser("+77010000035", null);
+        UUID diagnosis = insertDiagnosis(farmer, "ok", "potato__late_blight", null);
+
+        assertThatThrownBy(() -> insertReview(diagnosis, reviewer, "corrected", ""))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void reviewClassHasNoSurroundingSpaces() {
+        UUID farmer = insertUser("+77010000039", null);
+        UUID reviewer = insertUser("+77010000040", null);
+        UUID diagnosis = insertDiagnosis(farmer, "ok", "potato__late_blight", null);
+
+        assertThatThrownBy(() -> insertReview(diagnosis, reviewer, "corrected", " potato__healthy"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void reviewCommentIsAtMost2000Characters() {
+        UUID farmer = insertUser("+77010000036", null);
+        UUID reviewer = insertUser("+77010000037", null);
+        UUID diagnosis = insertDiagnosis(farmer, "ok", "potato__late_blight", null);
+
+        jdbc.update("INSERT INTO diagnosis_reviews (diagnosis_id, reviewer_id, verdict, comment) "
+                + "VALUES (?, ?, 'unclear', ?)", diagnosis, reviewer, "x".repeat(2000));
+        UUID other = insertUser("+77010000038", null);
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO diagnosis_reviews (diagnosis_id, reviewer_id, verdict, "
+                + "comment) VALUES (?, ?, 'unclear', ?)", diagnosis, other, "x".repeat(2001)))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void diagnosesAreIndexedByRegionAndTime() {
+        assertThat(jdbc.queryForList(
+                "SELECT indexname FROM pg_indexes WHERE tablename = 'diagnoses' AND indexname = ?",
+                String.class, "diagnoses_region_id_created_at_idx")).hasSize(1);
+    }
+
+    @Test
+    void reviewsAreDeletedWithTheirDiagnosis() {
+        UUID farmer = insertUser("+77010000030", null);
+        UUID reviewer = insertUser("+77010000031", null);
+        UUID diagnosis = insertDiagnosis(farmer, "ok", "potato__late_blight", null);
+        insertReview(diagnosis, reviewer, "confirmed", "potato__late_blight");
+
+        jdbc.update("DELETE FROM diagnoses WHERE id = ?", diagnosis);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM diagnosis_reviews", Integer.class)).isZero();
+    }
+
+    @Test
+    void aReviewerWhoGaveAVerdictCannotBeDeleted() {
+        UUID farmer = insertUser("+77010000032", null);
+        UUID reviewer = insertUser("+77010000033", null);
+        insertReview(insertDiagnosis(farmer, "ok", "potato__late_blight", null), reviewer, "unclear", null);
+
+        assertThatThrownBy(() -> jdbc.update("DELETE FROM users WHERE id = ?", reviewer))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
     void agrochemistCannotBeAddedToAFarmer() {
         UUID id = insertUser("+77010000011", null);
         addRole(id, "farmer");
@@ -246,13 +353,19 @@ class MigrationsTest {
                 ON CONFLICT (code) DO NOTHING""", code);
     }
 
-    private void insertDiagnosis(UUID user, String status, String top1, String detectedCrop) {
+    private UUID insertDiagnosis(UUID user, String status, String top1, String detectedCrop) {
         String crop = top1.substring(0, top1.indexOf("__"));
-        jdbc.update("""
+        return jdbc.queryForObject("""
                 INSERT INTO diagnoses (user_id, crop_code, photo_key, status, top1_code, top1_confidence,
                                        detected_crop, model_version, classes_version)
                 VALUES (?, ?, 'diagnoses/test.jpg', ?, ?, 0.9, ?, 'effnet-b0-v1', 1)
-                """, user, crop, status, top1, detectedCrop);
+                RETURNING id
+                """, UUID.class, user, crop, status, top1, detectedCrop);
+    }
+
+    private void insertReview(UUID diagnosis, UUID reviewer, String verdict, String correctCode) {
+        jdbc.update("INSERT INTO diagnosis_reviews (diagnosis_id, reviewer_id, verdict, correct_code) "
+                + "VALUES (?, ?, ?, ?)", diagnosis, reviewer, verdict, correctCode);
     }
 
     private boolean verified(UUID id) {
