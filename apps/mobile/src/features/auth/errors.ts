@@ -10,6 +10,7 @@ export type FormFailure = {
     | 'auth.errors.passwordShort'
     | 'auth.errors.passwordLong'
     | 'auth.errors.blocked'
+    | 'auth.errors.rateLimited'
     | 'auth.errors.network'
     | 'auth.errors.generic'
 }
@@ -18,6 +19,10 @@ export type FormFailure = {
 export function toFormFailure(error: unknown): FormFailure {
   if (error instanceof NetworkError) return { messageKey: 'auth.errors.network' }
   if (error instanceof ApiError) {
+    // Sign-in and sign-up are limited by the backend (429); a proxy may answer 429 without a code too
+    if (error.status === 429 || error.code === 'rate_limited') {
+      return { messageKey: 'auth.errors.rateLimited' }
+    }
     switch (error.code) {
       case 'invalid_credentials':
         return { messageKey: 'auth.errors.invalidCredentials' }

@@ -27,6 +27,7 @@ export const kk: Translation = {
       passwordShort: 'Кемінде 8 таңба',
       passwordLong: 'Құпиясөз тым ұзын',
       blocked: 'Аккаунт бұғатталған. Қолдау қызметіне хабарласыңыз',
+      rateLimited: 'Әрекет тым көп. Біраз күтіп, қайталаңыз',
       invalidCredentials: 'Телефон, e-mail немесе құпиясөз қате',
       loginTaken: 'Бұл телефон немесе e-mail бос емес',
       invalidLogin: 'Телефон нөмірін немесе e-mail енгізіңіз',

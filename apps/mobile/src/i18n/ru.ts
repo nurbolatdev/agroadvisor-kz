@@ -25,6 +25,7 @@ export const ru = {
       passwordShort: 'Минимум 8 символов',
       passwordLong: 'Пароль слишком длинный',
       blocked: 'Аккаунт заблокирован. Обратитесь в поддержку',
+      rateLimited: 'Слишком много попыток. Подождите немного и повторите',
       invalidCredentials: 'Неверный телефон, e-mail или пароль',
       loginTaken: 'Этот телефон или e-mail уже занят',
       invalidLogin: 'Введите телефон или e-mail',

@@ -27,6 +27,7 @@ export const en: Translation = {
       passwordShort: 'At least 8 characters',
       passwordLong: 'The password is too long',
       blocked: 'The account is blocked. Contact support',
+      rateLimited: 'Too many attempts. Wait a little and try again',
       invalidCredentials: 'Wrong phone, e-mail or password',
       loginTaken: 'This phone or e-mail is already taken',
       invalidLogin: 'Enter a phone number or an e-mail',
