@@ -18,6 +18,16 @@ describe('toFormFailure', () => {
     })
   })
 
+  it('tells the person to wait when the backend limits the attempts', () => {
+    expect(toFormFailure(new ApiError(429, 'rate_limited', '', [], undefined, 30))).toEqual({
+      messageKey: 'auth.errors.rateLimited',
+    })
+    // a proxy may answer 429 without the backend's code
+    expect(toFormFailure(new ApiError(429, 'unknown', '')).messageKey).toBe(
+      'auth.errors.rateLimited',
+    )
+  })
+
   it('marks the password on a validation error of that field', () => {
     const error = new ApiError(400, 'validation_failed', '', [{ field: 'password', message: 'x' }])
     expect(toFormFailure(error)).toEqual({
