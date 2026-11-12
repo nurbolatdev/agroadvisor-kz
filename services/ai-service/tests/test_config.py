@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -31,6 +33,44 @@ def test_threshold_defaults_match_contract():
     assert settings.low_threshold == 0.25
     assert settings.crop_mismatch_threshold == 0.70
     assert settings.unknown_threshold == 0.5
+
+
+ENV_EXAMPLE = SERVICE_DIR / ".env.example"
+
+
+def _example_variables() -> dict[str, str]:
+    variables = {}
+    for line in ENV_EXAMPLE.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            name, _, value = line.partition("=")
+            variables[name.strip()] = value.strip()
+    return variables
+
+
+def _values(settings: Settings) -> dict:
+    # A path in the example is relative to the service folder, where the service is started
+    return {
+        name: SERVICE_DIR / value if isinstance(value, Path) and not value.is_absolute() else value
+        for name, value in settings.model_dump().items()
+    }
+
+
+def test_env_example_matches_settings_defaults(monkeypatch):
+    for name in _example_variables():
+        monkeypatch.delenv(name, raising=False)
+
+    from_example = Settings(_env_file=ENV_EXAMPLE)
+    defaults = Settings(_env_file=None)
+
+    assert _values(from_example) == _values(defaults)
+
+
+def test_env_example_lists_the_calibrated_settings():
+    # The thresholds and the model version are what a copied .env most often gets wrong.
+    assert {"AI_LOW_THRESHOLD", "AI_UNKNOWN_THRESHOLD", "AI_MODEL_VERSION"} <= set(
+        _example_variables()
+    )
 
 
 def test_rejects_low_threshold_not_below_ok(monkeypatch):
