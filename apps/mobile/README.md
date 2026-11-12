@@ -7,12 +7,14 @@ Mobile application for farmers and agrochemists. Expo (SDK 58), React Native, Ty
 Done (screens in `src/app`, logic in `src/features`):
 
 - Sign-in and registration of a farmer, refresh with rotation, language choice on first launch
-- Photo diagnosis: crop selection, camera and gallery, photo quality check, upload queue, result with the
-  statuses of `/predict`, top-3, treatment plan
+- Photo diagnosis: crop selection, camera and gallery, upload queue, photo quality judged by the server (the
+  app shows the reason: blurry, dark, too small), result by diagnosis status (ok, low confidence, unknown),
+  top-3, treatment plan
 - Diagnosis history
-- Disease reference (list and card)
+- Disease and pest reference (list with crop and type filters, card)
 - Profile and language settings
 - Agrochemist: registration with a diploma or certificate, verification status, documents, requests tab
+  (verification states only; the requests themselves come with consultations)
 - Russian, Kazakh and English interface
 
 Planned (stage 2, not started):
@@ -37,10 +39,12 @@ src/
   store/        # zustand stores: session, diagnosis, history, profile, verification, settings
   theme/        # design tokens: colors, spacing, typography, sizes
   lib/          # helpers: storage on MMKV, token storage, JWT, route guards
+  services.ts   # wiring: api (live or mock), stores, upload queue
 assets/images/  # app icon, splash, adaptive icon (from docs/brand)
+locales/        # native camera and gallery permission texts (app.json)
 ```
 
-Rules: screens take data only through `src/api`; colors, sizes and fonts come from `src/theme/tokens.ts`; every user-facing string goes through i18n in all three languages (a test checks the keys match); tokens are stored in `expo-secure-store`, never in MMKV.
+Rules: screens take data only through `src/api` (wired in `src/services.ts`); colors, sizes and fonts come from `src/theme/tokens.ts`; every user-facing string goes through i18n in all three languages (a test checks the keys match); tokens are stored in `expo-secure-store`, never in MMKV.
 
 ## Run
 
