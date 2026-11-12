@@ -114,6 +114,7 @@ Abuse is stopped before any password hashing or database work. A refused request
 | `POST /api/auth/login` | per account | 10 per minute | `APP_RATE_LIMIT_LOGIN_PER_ACCOUNT_PER_MINUTE` |
 | `POST /api/auth/register` | per client address | 20 per hour | `APP_RATE_LIMIT_REGISTER_PER_IP_PER_HOUR` |
 | `POST /api/auth/refresh` | per client address | 60 per minute | `APP_RATE_LIMIT_REFRESH_PER_IP_PER_MINUTE` |
+| `POST /api/auth/logout` | per client address, its own bucket | 60 per minute | `APP_RATE_LIMIT_REFRESH_PER_IP_PER_MINUTE` (the size is shared with refresh) |
 | `POST /api/diagnoses` | per user, new diagnoses | 5 per minute | `app.rate-limit.diagnosis-per-minute` |
 | `POST /api/diagnoses` | per user, attempts | 20 per minute | `app.rate-limit.diagnosis-attempts-per-minute` |
 

@@ -165,7 +165,30 @@ class AuthRateLimitIntegrationTest {
         refresh(ipv4()).andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void logoutIsLimitedPerClientAddressInItsOwnBucket() throws Exception {
+        String ip = ipv4();
+        for (int i = 0; i < 3; i++) {
+            logout(ip).andExpect(status().isNoContent());
+        }
+
+        logout(ip)
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("rate_limited"))
+                .andExpect(header().string("Retry-After", "60"));
+
+        // another address is not affected, and the refresh bucket of this one is untouched
+        logout(ipv4()).andExpect(status().isNoContent());
+        refresh(ip).andExpect(status().isUnauthorized());
+    }
+
     // ---- helpers
+
+    private ResultActions logout(String ip) throws Exception {
+        return mvc.perform(post("/api/auth/logout").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"unknown-" + ThreadLocalRandom.current().nextLong() + "\"}")
+                .with(from(ip)));
+    }
 
     private ResultActions login(String login, String ip) throws Exception {
         return login(login, ip, PASSWORD);
