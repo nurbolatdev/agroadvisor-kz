@@ -128,10 +128,11 @@ class SecurityIntegrationTest {
 
     @Test
     void userWithSeveralRolesGetsAllAuthorities() throws Exception {
-        tx.executeWithoutResult(s -> users.findById(farmer.getId()).orElseThrow().getRoles().add(Role.AGROCHEMIST));
+        // farmer and agrochemist exclude each other (V17); an administrator may hold another role next to either
+        tx.executeWithoutResult(s -> users.findById(farmer.getId()).orElseThrow().getRoles().add(Role.ADMIN));
         String token = jwt.issueAccessToken(farmer.getId());
         mvc.perform(get("/probe/farmer").header("Authorization", "Bearer " + token)).andExpect(status().isOk());
-        mvc.perform(get("/probe/agrochemist").header("Authorization", "Bearer " + token)).andExpect(status().isOk());
+        mvc.perform(get("/probe/admin").header("Authorization", "Bearer " + token)).andExpect(status().isOk());
     }
 
     @Test

@@ -60,6 +60,10 @@ public class UserService {
     @Transactional
     public User create(Login login, String passwordHash, String fullName, String language, Set<Role> roles,
             Long regionId) {
+        if (roles.contains(Role.FARMER) && roles.contains(Role.AGROCHEMIST)) {
+            // The database refuses this pair too (V17), but its error would be read below as a taken login
+            throw new IllegalArgumentException("farmer and agrochemist exclude each other");
+        }
         if (findByLogin(login).isPresent()) {
             throw loginTaken();
         }
@@ -69,7 +73,8 @@ public class UserService {
             return users.saveAndFlush(user);
         } catch (DataIntegrityViolationException e) {
             // Lost a race with a parallel registration of the same login. (The region was checked by the caller;
-            // regions are never deleted, so its foreign key cannot be what failed here.)
+            // regions are never deleted, so its foreign key cannot be what failed here; the farmer + agrochemist
+            // pair is refused above before it can reach the database.)
             throw loginTaken();
         }
     }
