@@ -7,7 +7,8 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   test: {
-    environment: 'jsdom', // component tests render into a DOM; the logic tests do not mind it
+    // Node by default: the logic tests use the Node `fetch`/`Blob`, which jsdom replaces with its own classes.
+    // Component tests (`*.test.tsx`) ask for the DOM with `// @vitest-environment jsdom` on their first line.
     setupFiles: ['./src/test/setup.ts'],
   },
   resolve: {

@@ -15,7 +15,8 @@ find elements and click them. Adding that is a new library in the stack, a decis
 - **React Testing Library** (`@testing-library/react`, built on `@testing-library/dom`) renders the components.
   `@testing-library/user-event` types and clicks like a person does, `@testing-library/jest-dom` adds matchers
   such as `toBeInTheDocument`. All four are `devDependencies`: they never reach the production bundle.
-- **jsdom** is the DOM for Vitest (`test.environment` in `vite.config.ts`). The logic tests do not care about it.
+- **jsdom** is the DOM for the component tests only (a per-file `@vitest-environment` comment); the logic tests
+  stay in Node.
 - Elements are found the way a person finds them: by role, label and text (`getByRole('button', { name: … })`,
   `getByLabelText`), not by class names or component internals.
 - The tests replace only the edges of the screen: the session (`src/test/fakeSession.ts`), the mode flag and the
@@ -48,8 +49,9 @@ find elements and click them. Adding that is a new library in the stack, a decis
 
 - Five dev packages are added: the three Testing Library packages, `@testing-library/dom` (its required peer
   dependency) and `jsdom`. The admin web CI job `Test` runs the new tests without changes.
-- All admin tests now run in jsdom. It is slower to start than plain Node, and tests that rely on Node-only
-  behaviour would have to opt out (`// @vitest-environment node`); none does today.
+- Tests run in Node by default; a component test asks for the DOM with `// @vitest-environment jsdom` on its
+  first line. Setting jsdom for everything was tried first and broke the HTTP client test in CI (Node 22):
+  jsdom replaces `Blob`, so a `Blob` from the Node `fetch` is no longer an `instanceof` the global one.
 - jsdom does not do layout, so the tests cannot judge the look (blur, spacing). That stays a check against the
   Figma mockups by a person.
 - Further screens (verification, diseases) can be covered the same way, with the fake session and a mocked API
