@@ -548,7 +548,7 @@ export interface components {
              * @example potato
              */
             crop: string;
-            location?: components["schemas"]["Point"];
+            location?: components["schemas"]["FieldPoint"];
             name: string;
         };
         CropBody: {
@@ -678,6 +678,14 @@ export interface components {
             /** Format: int32 */
             year?: number | null;
         };
+        FieldLocation: {
+            latitude: number;
+            longitude: number;
+        };
+        FieldPoint: {
+            latitude: number;
+            longitude: number;
+        };
         FieldResponse: {
             /** @description The area in the unit the farmer chose (areaUnit) */
             area: number;
@@ -697,7 +705,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @description Null when the field has no point */
-            location?: components["schemas"]["Location"];
+            location?: components["schemas"]["FieldLocation"];
             name: string;
             /**
              * Format: int64
@@ -706,10 +714,6 @@ export interface components {
             regionId?: number | null;
             /** Format: date-time */
             updatedAt: string;
-        };
-        Location: {
-            latitude: number;
-            longitude: number;
         };
         LoginRequest: {
             login: string;
@@ -738,10 +742,6 @@ export interface components {
             classesVersion: number;
             /** @example effnet-b0-v1 */
             modelVersion: string;
-        };
-        Point: {
-            latitude: number;
-            longitude: number;
         };
         RefreshRequest: {
             refreshToken: string;
@@ -843,7 +843,7 @@ export interface components {
             areaUnit?: "ha" | "sotka";
             crop?: string;
             /** @description A new point, or null to remove the point; leave the key out to keep it */
-            location?: components["schemas"]["Point"];
+            location?: components["schemas"]["FieldPoint"];
             name?: string;
         };
         UpdateMeRequest: {

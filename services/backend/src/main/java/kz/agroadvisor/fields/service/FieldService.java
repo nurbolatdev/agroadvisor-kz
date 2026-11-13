@@ -40,7 +40,7 @@ public class FieldService {
         static FieldView of(Field field) {
             AreaUnit unit = field.getAreaUnit();
             return new FieldView(field.getId(), field.getName(), field.getCropCode(),
-                    unit.fromHectares(field.getAreaHa()), unit.code(), field.getAreaHa().stripTrailingZeros(),
+                    unit.fromHectares(field.getAreaHa()), unit.code(), AreaUnit.HA.fromHectares(field.getAreaHa()),
                     field.getLatitude(), field.getLongitude(), field.getRegionId(), field.getDistrictId(),
                     field.getCreatedAt(), field.getUpdatedAt());
         }
@@ -97,6 +97,11 @@ public class FieldService {
         Field field = find(owner, id);
 
         if (name != null) {
+            // Bean Validation's regex counts only ASCII spaces, so a name of other blanks reaches this point
+            if (name.isBlank()) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,
+                        "The name must not be blank");
+            }
             field.setName(name.strip());
         }
         if (cropCode != null) {

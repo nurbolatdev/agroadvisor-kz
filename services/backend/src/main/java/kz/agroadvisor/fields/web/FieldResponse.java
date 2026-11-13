@@ -18,13 +18,15 @@ public record FieldResponse(
         @Schema(allowableValues = {"ha", "sotka"}, requiredMode = Schema.RequiredMode.REQUIRED) String areaUnit,
         @Schema(description = "The same area in hectares", requiredMode = Schema.RequiredMode.REQUIRED)
         BigDecimal areaHa,
-        @Schema(description = "Null when the field has no point", nullable = true) Location location,
+        @Schema(description = "Null when the field has no point", types = {"object", "null"},
+                implementation = Location.class) Location location,
         @Schema(description = "Set by the server from the point or the profile", nullable = true) Long regionId,
         @Schema(description = "Set by the server when a district outline holds the point", nullable = true)
         Long districtId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Instant createdAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Instant updatedAt) {
 
+    @Schema(name = "FieldLocation")
     public record Location(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) BigDecimal latitude,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) BigDecimal longitude) {

@@ -205,6 +205,38 @@ class FieldControllerIntegrationTest {
     }
 
     @Test
+    void patchRejectsANameOfUnicodeBlanksWithoutAServerError() throws Exception {
+        String location = createWithPoint();
+
+        // An ideographic space and a form feed are blanks for Java but not for the ASCII regex
+        assertCode(patch(location).header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\": \"\\u3000\"}"), 400, "validation_failed");
+        assertCode(patch(location).header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\": \"\\u001c\"}"), 400, "validation_failed");
+    }
+
+    @Test
+    void aClientCannotSetTheInternalLocationFlag() throws Exception {
+        String location = createWithPoint();
+
+        mvc.perform(patch(location).header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"locationPresent\": true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.location.latitude").value(43.2));
+        mvc.perform(patch(location).header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"location\": {\"latitude\": 50.5, \"longitude\": 71.4}, \"locationPresent\": false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.location.latitude").value(50.5));
+    }
+
+    @Test
+    void aTooLongCropIsABadRequest() throws Exception {
+        assertCode(post("/api/fields").header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\": \"North\", \"crop\": \"" + "x".repeat(41)
+                        + "\", \"area\": 1, \"areaUnit\": \"ha\"}"), 400, "validation_failed");
+    }
+
+    @Test
     void patchAndDeleteOfAnotherFarmersFieldAreNotFound() throws Exception {
         String location = createWithPoint();
         String other = tokenOf(Role.FARMER);

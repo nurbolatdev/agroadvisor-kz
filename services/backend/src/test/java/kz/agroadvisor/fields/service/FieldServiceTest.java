@@ -72,6 +72,27 @@ class FieldServiceTest {
     }
 
     @Test
+    void wholeHectaresAreShownWithoutAnExponent() {
+        FieldView ten = service.create(owner, "Ten", "potato", new BigDecimal("10"), AreaUnit.HA, null, null);
+        FieldView thousandSotki = service.create(owner, "Thousand", "potato", new BigDecimal("1000"),
+                AreaUnit.SOTKA, null, null);
+
+        assertThat(ten.areaHa().toString()).isEqualTo("10");
+        assertThat(thousandSotki.areaHa().toString()).isEqualTo("10");
+        assertThat(thousandSotki.area().toString()).isEqualTo("1000");
+    }
+
+    @Test
+    void updatingToANameOfUnicodeBlanksIsRefused() {
+        FieldView created = service.create(owner, "North", "potato", BigDecimal.ONE, AreaUnit.HA, null, null);
+
+        assertThatThrownBy(() -> service.update(owner, created.id(), "　", null, null, null, false, null,
+                null))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getCode()).isEqualTo(ErrorCodes.VALIDATION_FAILED));
+    }
+
+    @Test
     void refusesAnUnknownCrop() {
         assertThatThrownBy(() -> service.create(owner, "North", "no_such_crop", BigDecimal.ONE, AreaUnit.HA,
                 null, null))

@@ -2,6 +2,7 @@ package kz.agroadvisor.fields.web;
 
 import java.math.BigDecimal;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
@@ -21,6 +22,7 @@ public class UpdateFieldRequest {
     @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank")
     private String name;
 
+    @Size(max = 40)
     @Pattern(regexp = "(?s).*\\S.*", message = "must not be blank")
     private String crop;
 
@@ -35,10 +37,11 @@ public class UpdateFieldRequest {
     private String areaUnit;
 
     @Schema(description = "A new point, or null to remove the point; leave the key out to keep it",
-            nullable = true)
+            types = {"object", "null"}, implementation = CreateFieldRequest.Point.class)
     @Valid
     private CreateFieldRequest.Point location;
 
+    @JsonIgnore
     @Schema(hidden = true)
     private boolean locationPresent;
 
@@ -84,7 +87,11 @@ public class UpdateFieldRequest {
         this.locationPresent = true;
     }
 
-    /** True when the body had the key {@code location}, even with {@code null}. */
+    /**
+     * True when the body had the key {@code location}, even with {@code null}. Not a JSON property: a client
+     * must not be able to set it.
+     */
+    @JsonIgnore
     @Schema(hidden = true)
     public boolean isLocationPresent() {
         return locationPresent;

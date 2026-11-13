@@ -142,11 +142,12 @@
           "crop" : {
             "description" : "Crop code from GET /api/crops",
             "example" : "potato",
-            "minLength" : 1,
+            "maxLength" : 40,
+            "minLength" : 0,
             "type" : "string"
           },
           "location" : {
-            "$ref" : "#/components/schemas/Point"
+            "$ref" : "#/components/schemas/FieldPoint"
           },
           "name" : {
             "maxLength" : 80,
@@ -457,6 +458,34 @@
         "required" : [ "contentType", "id", "kind", "sizeBytes", "uploadedAt" ],
         "type" : "object"
       },
+      "FieldLocation" : {
+        "properties" : {
+          "latitude" : {
+            "type" : "number"
+          },
+          "longitude" : {
+            "type" : "number"
+          }
+        },
+        "required" : [ "latitude", "longitude" ],
+        "type" : "object"
+      },
+      "FieldPoint" : {
+        "properties" : {
+          "latitude" : {
+            "maximum" : 90,
+            "minimum" : -90,
+            "type" : "number"
+          },
+          "longitude" : {
+            "maximum" : 180,
+            "minimum" : -180,
+            "type" : "number"
+          }
+        },
+        "required" : [ "latitude", "longitude" ],
+        "type" : "object"
+      },
       "FieldResponse" : {
         "properties" : {
           "area" : {
@@ -489,9 +518,9 @@
             "type" : "string"
           },
           "location" : {
-            "$ref" : "#/components/schemas/Location",
+            "$ref" : "#/components/schemas/FieldLocation",
             "description" : "Null when the field has no point",
-            "type" : "null"
+            "type" : [ "object", "null" ]
           },
           "name" : {
             "type" : "string"
@@ -507,18 +536,6 @@
           }
         },
         "required" : [ "area", "areaHa", "areaUnit", "createdAt", "crop", "id", "name", "updatedAt" ],
-        "type" : "object"
-      },
-      "Location" : {
-        "properties" : {
-          "latitude" : {
-            "type" : "number"
-          },
-          "longitude" : {
-            "type" : "number"
-          }
-        },
-        "required" : [ "latitude", "longitude" ],
         "type" : "object"
       },
       "LoginRequest" : {
@@ -585,22 +602,6 @@
           }
         },
         "required" : [ "classesVersion", "modelVersion" ],
-        "type" : "object"
-      },
-      "Point" : {
-        "properties" : {
-          "latitude" : {
-            "maximum" : 90,
-            "minimum" : -90,
-            "type" : "number"
-          },
-          "longitude" : {
-            "maximum" : 180,
-            "minimum" : -180,
-            "type" : "number"
-          }
-        },
-        "required" : [ "latitude", "longitude" ],
         "type" : "object"
       },
       "RefreshRequest" : {
@@ -837,13 +838,15 @@
             "type" : "string"
           },
           "crop" : {
+            "maxLength" : 40,
+            "minLength" : 0,
             "pattern" : "(?s).*\\S.*",
             "type" : "string"
           },
           "location" : {
-            "$ref" : "#/components/schemas/Point",
+            "$ref" : "#/components/schemas/FieldPoint",
             "description" : "A new point, or null to remove the point; leave the key out to keep it",
-            "type" : "null"
+            "type" : [ "object", "null" ]
           },
           "name" : {
             "maxLength" : 80,
