@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -13,11 +14,14 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import kz.agroadvisor.verification.service.AgrochemistCropService;
 import kz.agroadvisor.verification.service.AgrochemistDocumentService;
 import kz.agroadvisor.verification.service.AgrochemistDocumentService.DocumentView;
 import kz.agroadvisor.verification.service.AgrochemistDocumentService.VerificationView;
@@ -32,9 +36,12 @@ import kz.agroadvisor.verification.service.AgrochemistDocumentService.Verificati
 public class AgrochemistVerificationController {
 
     private final AgrochemistDocumentService documents;
+    private final AgrochemistCropService cropService;
 
-    public AgrochemistVerificationController(AgrochemistDocumentService documents) {
+    public AgrochemistVerificationController(AgrochemistDocumentService documents,
+            AgrochemistCropService cropService) {
         this.documents = documents;
+        this.cropService = cropService;
     }
 
     @GetMapping("/verification")
@@ -56,6 +63,20 @@ public class AgrochemistVerificationController {
     @GetMapping("/documents")
     public List<DocumentView> list(Authentication authentication) {
         return documents.documents(user(authentication));
+    }
+
+    @GetMapping("/crops")
+    @Operation(operationId = "getAgrochemistCrops", summary = "The crops the agrochemist works with")
+    public CropsResponse crops(Authentication authentication) {
+        return new CropsResponse(cropService.get(user(authentication)));
+    }
+
+    @PutMapping("/crops")
+    @Operation(operationId = "setAgrochemistCrops",
+            summary = "Replace the set of crops (codes from GET /api/crops, at least one, no repeats); "
+                    + "open in any verification status")
+    public CropsResponse setCrops(@Valid @RequestBody CropsRequest request, Authentication authentication) {
+        return new CropsResponse(cropService.replace(user(authentication), request.crops()));
     }
 
     @DeleteMapping("/documents/{id}")

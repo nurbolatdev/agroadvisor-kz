@@ -46,6 +46,35 @@
         },
         "type" : "object"
       },
+      "AgrochemistCropsRequest" : {
+        "properties" : {
+          "crops" : {
+            "description" : "Crop codes from GET /api/crops; at least one, no repeats",
+            "example" : [ "potato" ],
+            "items" : {
+              "maxLength" : 40,
+              "minLength" : 0,
+              "type" : "string"
+            },
+            "maxItems" : 50,
+            "minItems" : 0,
+            "type" : "array"
+          }
+        },
+        "required" : [ "crops" ],
+        "type" : "object"
+      },
+      "AgrochemistCropsResponse" : {
+        "properties" : {
+          "crops" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "ClassScore" : {
         "properties" : {
           "code" : {
@@ -1437,6 +1466,52 @@
           }
         },
         "tags" : [ "catalog-admin-controller" ]
+      }
+    },
+    "/api/agrochemist/crops" : {
+      "get" : {
+        "operationId" : "getAgrochemistCrops",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AgrochemistCropsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "The crops the agrochemist works with",
+        "tags" : [ "agrochemist-verification-controller" ]
+      },
+      "put" : {
+        "operationId" : "setAgrochemistCrops",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AgrochemistCropsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AgrochemistCropsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Replace the set of crops (codes from GET /api/crops, at least one, no repeats); open in any verification status",
+        "tags" : [ "agrochemist-verification-controller" ]
       }
     },
     "/api/agrochemist/documents" : {

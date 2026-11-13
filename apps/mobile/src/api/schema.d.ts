@@ -167,6 +167,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/agrochemist/crops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The crops the agrochemist works with */
+        get: operations["getAgrochemistCrops"];
+        /** Replace the set of crops (codes from GET /api/crops, at least one, no repeats); open in any verification status */
+        put: operations["setAgrochemistCrops"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agrochemist/documents": {
         parameters: {
             query?: never;
@@ -499,6 +517,18 @@ export interface components {
             data?: components["schemas"]["TreatmentData"];
             /** Format: int64 */
             id?: number;
+        };
+        AgrochemistCropsRequest: {
+            /**
+             * @description Crop codes from GET /api/crops; at least one, no repeats
+             * @example [
+             *       "potato"
+             *     ]
+             */
+            crops: string[];
+        };
+        AgrochemistCropsResponse: {
+            crops?: string[];
         };
         ClassScore: {
             code: string;
@@ -1270,6 +1300,50 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getAgrochemistCrops: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AgrochemistCropsResponse"];
+                };
+            };
+        };
+    };
+    setAgrochemistCrops: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgrochemistCropsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AgrochemistCropsResponse"];
+                };
             };
         };
     };
