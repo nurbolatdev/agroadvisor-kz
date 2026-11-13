@@ -394,6 +394,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listFields"];
+        put?: never;
+        post: operations["createField"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fields/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getField"];
+        put?: never;
+        post?: never;
+        delete: operations["deleteField"];
+        options?: never;
+        head?: never;
+        patch: operations["updateField"];
+        trace?: never;
+    };
     "/api/meta": {
         parameters: {
             query?: never;
@@ -499,6 +531,25 @@ export interface components {
             symptoms?: {
                 [key: string]: unknown;
             };
+        };
+        CreateFieldRequest: {
+            /**
+             * @description The area in the unit of areaUnit
+             * @example 250
+             */
+            area: number;
+            /**
+             * @description ha (hectares) or sotka (1 sotka = 0.01 ha)
+             * @enum {string}
+             */
+            areaUnit: "ha" | "sotka";
+            /**
+             * @description Crop code from GET /api/crops
+             * @example potato
+             */
+            crop: string;
+            location?: components["schemas"]["FieldPoint"];
+            name: string;
         };
         CropBody: {
             names: {
@@ -627,6 +678,43 @@ export interface components {
             /** Format: int32 */
             year?: number | null;
         };
+        FieldLocation: {
+            latitude: number;
+            longitude: number;
+        };
+        FieldPoint: {
+            latitude: number;
+            longitude: number;
+        };
+        FieldResponse: {
+            /** @description The area in the unit the farmer chose (areaUnit) */
+            area: number;
+            /** @description The same area in hectares */
+            areaHa: number;
+            /** @enum {string} */
+            areaUnit: "ha" | "sotka";
+            /** Format: date-time */
+            createdAt: string;
+            /** @description Crop code */
+            crop: string;
+            /**
+             * Format: int64
+             * @description Set by the server when a district outline holds the point
+             */
+            districtId?: number | null;
+            /** Format: uuid */
+            id: string;
+            /** @description Null when the field has no point */
+            location?: components["schemas"]["FieldLocation"];
+            name: string;
+            /**
+             * Format: int64
+             * @description Set by the server from the point or the profile
+             */
+            regionId?: number | null;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         LoginRequest: {
             login: string;
             password: string;
@@ -744,6 +832,19 @@ export interface components {
             product: string;
             /** @enum {string} */
             type: "chemical" | "biological";
+        };
+        UpdateFieldRequest: {
+            /** @description The area in the unit of areaUnit; send it together with areaUnit */
+            area?: number;
+            /**
+             * @description ha (hectares) or sotka (1 sotka = 0.01 ha); send it together with area
+             * @enum {string}
+             */
+            areaUnit?: "ha" | "sotka";
+            crop?: string;
+            /** @description A new point, or null to remove the point; leave the key out to keep it */
+            location?: components["schemas"]["FieldPoint"];
+            name?: string;
         };
         UpdateMeRequest: {
             /** @enum {string} */
@@ -1607,6 +1708,118 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DiseaseDetail"];
+                };
+            };
+        };
+    };
+    listFields: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FieldResponse"][];
+                };
+            };
+        };
+    };
+    createField: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFieldRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FieldResponse"];
+                };
+            };
+        };
+    };
+    getField: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FieldResponse"];
+                };
+            };
+        };
+    };
+    deleteField: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateField: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFieldRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FieldResponse"];
                 };
             };
         };

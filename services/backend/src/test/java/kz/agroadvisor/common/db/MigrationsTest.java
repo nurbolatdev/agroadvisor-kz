@@ -33,7 +33,7 @@ class MigrationsTest {
                 "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class);
         assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13",
-                "14", "15", "16", "17", "18");
+                "14", "15", "16", "17", "18", "19");
     }
 
     @Test
@@ -271,6 +271,109 @@ class MigrationsTest {
     }
 
     @Test
+    void fieldsFeatureIsInTheFreePlan() {
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM plan_feature WHERE plan_code = 'FREE' AND feature_code = 'fields'",
+                Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void fieldAreaMustBeAboveZeroAndAtMost10000Hectares() {
+        UUID owner = insertUser("+77010000041", null);
+        insertCrop("potato");
+
+        assertRejected(() -> insertField(owner, "potato", "0", "76.9", "43.2"));
+        assertRejected(() -> insertField(owner, "potato", "10000.0001", "76.9", "43.2"));
+        insertField(owner, "potato", "10000", "76.9", "43.2");
+    }
+
+    @Test
+    void fieldNeedsBothCoordinatesOrNone() {
+        UUID owner = insertUser("+77010000042", null);
+        insertCrop("potato");
+
+        assertRejected(() -> insertField(owner, "potato", "1", "76.9", null));
+        assertRejected(() -> insertField(owner, "potato", "1", null, "43.2"));
+        insertField(owner, "potato", "1", null, null);
+    }
+
+    @Test
+    void fieldCoordinatesStayInRange() {
+        UUID owner = insertUser("+77010000043", null);
+        insertCrop("potato");
+
+        assertRejected(() -> insertField(owner, "potato", "1", "76.9", "90.5"));
+        assertRejected(() -> insertField(owner, "potato", "1", "180.5", "43.2"));
+    }
+
+    @Test
+    void fieldLocationIsComputedFromCoordinates() {
+        UUID owner = insertUser("+77010000044", null);
+        insertCrop("potato");
+        insertField(owner, "potato", "2.5", "76.9", "43.2");
+
+        assertThat(jdbc.queryForObject("SELECT ST_AsText(location) FROM fields WHERE owner_id = ?",
+                String.class, owner)).isEqualTo("POINT(76.9 43.2)");
+    }
+
+    @Test
+    void fieldWithoutCoordinatesHasNoLocation() {
+        UUID owner = insertUser("+77010000045", null);
+        insertCrop("potato");
+        insertField(owner, "potato", "1", null, null);
+
+        assertThat(jdbc.queryForObject("SELECT location IS NULL FROM fields WHERE owner_id = ?",
+                Boolean.class, owner)).isTrue();
+    }
+
+    @Test
+    void fieldNameIsTrimmedAndNotEmpty() {
+        UUID owner = insertUser("+77010000046", null);
+        insertCrop("potato");
+
+        assertRejected(() -> insertField(owner, "potato", " ", "1", "76.9", "43.2"));
+        assertRejected(() -> insertField(owner, "potato", " north ", "1", "76.9", "43.2"));
+        insertField(owner, "potato", "north", "1", "76.9", "43.2");
+    }
+
+    @Test
+    void fieldAreaUnitIsHaOrSotka() {
+        UUID owner = insertUser("+77010000047", null);
+        insertCrop("potato");
+
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO fields (owner_id, name, crop_code, area_ha, area_unit) "
+                        + "VALUES (?, 'f', 'potato', 1, 'acre')", owner))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void fieldNeedsAKnownCrop() {
+        UUID owner = insertUser("+77010000048", null);
+
+        assertThatThrownBy(() -> insertField(owner, "no_such_crop", "1", "76.9", "43.2"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void fieldsAreDeletedWithTheirOwner() {
+        UUID owner = insertUser("+77010000049", null);
+        insertCrop("potato");
+        insertField(owner, "potato", "1", "76.9", "43.2");
+
+        jdbc.update("DELETE FROM users WHERE id = ?", owner);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM fields", Integer.class)).isZero();
+    }
+
+    @Test
+    void fieldsAreIndexedByOwnerAndLocation() {
+        assertThat(jdbc.queryForList(
+                "SELECT indexname FROM pg_indexes WHERE tablename = 'fields' ORDER BY indexname", String.class))
+                .contains("fields_owner_id_created_at_idx", "fields_location_idx");
+    }
+
+    @Test
     void agrochemistCannotBeAddedToAFarmer() {
         UUID id = insertUser("+77010000011", null);
         addRole(id, "farmer");
@@ -351,6 +454,25 @@ class MigrationsTest {
         jdbc.update("""
                 INSERT INTO crops (code, names) VALUES (?, '{"ru": "-", "kk": "-", "en": "-"}')
                 ON CONFLICT (code) DO NOTHING""", code);
+    }
+
+    /** The test runs in one transaction, so a rejected statement is rolled back to a savepoint. */
+    private void assertRejected(Runnable statement) {
+        jdbc.execute("SAVEPOINT rejected");
+        assertThatThrownBy(statement::run).isInstanceOf(DataIntegrityViolationException.class);
+        jdbc.execute("ROLLBACK TO SAVEPOINT rejected");
+    }
+
+    private void insertField(UUID owner, String crop, String areaHa, String longitude, String latitude) {
+        insertField(owner, crop, "North field", areaHa, longitude, latitude);
+    }
+
+    private void insertField(UUID owner, String crop, String name, String areaHa, String longitude,
+                             String latitude) {
+        jdbc.update("""
+                INSERT INTO fields (owner_id, name, crop_code, area_ha, area_unit, longitude, latitude)
+                VALUES (?, ?, ?, ?::numeric, 'ha', ?::numeric, ?::numeric)
+                """, owner, name, crop, areaHa, longitude, latitude);
     }
 
     private UUID insertDiagnosis(UUID user, String status, String top1, String detectedCrop) {
