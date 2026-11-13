@@ -47,10 +47,6 @@ def _example_names() -> list[str]:
     return names
 
 
-def _example_variables() -> dict[str, str]:
-    return {name: "" for name in _example_names()}
-
-
 def _values(settings: Settings) -> dict:
     # A path in the example is relative to the service folder, where the service is started
     return {
@@ -60,8 +56,10 @@ def _values(settings: Settings) -> dict:
 
 
 def test_env_example_matches_settings_defaults(monkeypatch):
-    for name in _example_variables():
-        monkeypatch.delenv(name, raising=False)
+    # The thresholds and the model version are what a copied .env most often gets wrong.
+    # Clear every setting, not only the names in the example, so the test depends on nothing else.
+    for field in Settings.model_fields:
+        monkeypatch.delenv("AI_" + field.upper(), raising=False)
 
     from_example = Settings(_env_file=ENV_EXAMPLE)
     defaults = Settings(_env_file=None)
@@ -79,7 +77,6 @@ def test_env_example_has_no_repeated_names():
 def test_env_example_lists_exactly_the_settings():
     # `extra="ignore"` hides a typo in a name (the default is used instead),
     # so the names must match exactly.
-    # The thresholds and the model version are what a copied .env most often gets wrong.
     expected = {"AI_" + field.upper() for field in Settings.model_fields}
     assert set(_example_names()) == expected
 
