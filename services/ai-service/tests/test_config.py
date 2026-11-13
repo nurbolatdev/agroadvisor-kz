@@ -38,14 +38,17 @@ def test_threshold_defaults_match_contract():
 ENV_EXAMPLE = SERVICE_DIR / ".env.example"
 
 
-def _example_variables() -> dict[str, str]:
-    variables = {}
+def _example_names() -> list[str]:
+    names = []
     for line in ENV_EXAMPLE.read_text().splitlines():
         line = line.strip()
         if line and not line.startswith("#") and "=" in line:
-            name, _, value = line.partition("=")
-            variables[name.strip()] = value.strip()
-    return variables
+            names.append(line.partition("=")[0].strip())
+    return names
+
+
+def _example_variables() -> dict[str, str]:
+    return {name: "" for name in _example_names()}
 
 
 def _values(settings: Settings) -> dict:
@@ -66,11 +69,19 @@ def test_env_example_matches_settings_defaults(monkeypatch):
     assert _values(from_example) == _values(defaults)
 
 
-def test_env_example_lists_the_calibrated_settings():
+def test_env_example_has_no_repeated_names():
+    # With a repeat the last value wins silently, so an old line above a new one
+    # would hide a stale value.
+    names = _example_names()
+    assert len(names) == len(set(names)), sorted({n for n in names if names.count(n) > 1})
+
+
+def test_env_example_lists_exactly_the_settings():
+    # `extra="ignore"` hides a typo in a name (the default is used instead),
+    # so the names must match exactly.
     # The thresholds and the model version are what a copied .env most often gets wrong.
-    assert {"AI_LOW_THRESHOLD", "AI_UNKNOWN_THRESHOLD", "AI_MODEL_VERSION"} <= set(
-        _example_variables()
-    )
+    expected = {"AI_" + field.upper() for field in Settings.model_fields}
+    assert set(_example_names()) == expected
 
 
 def test_rejects_low_threshold_not_below_ok(monkeypatch):
