@@ -103,6 +103,14 @@ public class ConsultationRepository {
                 ITEM, me, id, me, me).stream().findFirst();
     }
 
+    /** The id of the open (requested or active) consultation of the pair, if there is one. */
+    public Optional<UUID> findOpenId(UUID farmerId, UUID agrochemistId) {
+        return jdbc.queryForList("""
+                SELECT id FROM consultations
+                WHERE farmer_id = ? AND agrochemist_id = ? AND status IN ('requested', 'active')""",
+                UUID.class, farmerId, agrochemistId).stream().findFirst();
+    }
+
     /** Reads the row and locks it until the end of the transaction; every status change takes this first. */
     public Optional<Consultation> lock(UUID id) {
         return jdbc.query("SELECT " + COLUMNS + " FROM consultations c WHERE c.id = ? FOR UPDATE",

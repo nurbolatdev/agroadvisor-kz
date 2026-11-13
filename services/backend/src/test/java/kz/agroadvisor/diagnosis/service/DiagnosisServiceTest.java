@@ -67,7 +67,7 @@ class DiagnosisServiceTest {
     private final PlatformTransactionManager txManager = mock(PlatformTransactionManager.class);
     private final UserService users = mock(UserService.class);
     private final DiagnosisService service = new DiagnosisService(ai, photos, diagnoses, diseases, meters, limiter,
-            new RateLimitProperties(5, 20, 30, 10, 20, 60), new ImageMetadataStripper(), claims, new TransactionTemplate(txManager),
+            new RateLimitProperties(5, 20, 30, 10, 20, 60, 10, 30), new ImageMetadataStripper(), claims, new TransactionTemplate(txManager),
             new DiagnosisProperties(Duration.ofSeconds(90)), users);
     private final UUID userId = UUID.randomUUID();
     private final UUID claimId = UUID.randomUUID();
