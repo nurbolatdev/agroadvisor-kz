@@ -236,6 +236,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/agrochemists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Most experienced first. Unknown crop is 400 unknown_crop, unknown regionId is 400 invalid_region. */
+        get: operations["listAgrochemists"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agrochemists/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAgrochemist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -517,6 +550,27 @@ export interface components {
             data?: components["schemas"]["TreatmentData"];
             /** Format: int64 */
             id?: number;
+        };
+        AgrochemistCardResponse: {
+            /** @description Crop codes, alphabetical */
+            crops: string[];
+            /** Format: int32 */
+            experienceYears?: number | null;
+            fullName: string;
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: int64
+             * @description Region of the agrochemist
+             */
+            regionId?: number | null;
+            /** @description Specialization codes */
+            specializations: string[];
+            /**
+             * Format: date-time
+             * @description When the profile was approved
+             */
+            verifiedAt?: string | null;
         };
         AgrochemistCropsRequest: {
             /**
@@ -1435,6 +1489,53 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["VerificationView"];
+                };
+            };
+        };
+    };
+    listAgrochemists: {
+        parameters: {
+            query?: {
+                crop?: string;
+                regionId?: number;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AgrochemistCardResponse"][];
+                };
+            };
+        };
+    };
+    getAgrochemist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AgrochemistCardResponse"];
                 };
             };
         };

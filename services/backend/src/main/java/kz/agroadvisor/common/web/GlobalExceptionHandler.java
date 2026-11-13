@@ -17,6 +17,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 /**
@@ -76,6 +77,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .map(GlobalExceptionHandler::toFieldError)
                 .toList();
         problem.setProperty("errors", errors);
+        return handleExceptionInternal(ex, problem, headers, status, request);
+    }
+
+    /** A bad query parameter ({@code @Min}/{@code @Max} on {@code page}, {@code size}) is a validation failure too. */
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(
+            HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        ProblemDetail problem = ex.getBody();
+        problem.setDetail("Validation failed");
+        problem.setProperty("code", ErrorCodes.VALIDATION_FAILED);
         return handleExceptionInternal(ex, problem, headers, status, request);
     }
 
