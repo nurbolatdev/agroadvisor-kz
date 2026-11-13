@@ -129,6 +129,133 @@
         "required" : [ "code", "confidence" ],
         "type" : "object"
       },
+      "ConsultationAgrochemist" : {
+        "properties" : {
+          "fullName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "fullName", "id" ],
+        "type" : "object"
+      },
+      "ConsultationFarmer" : {
+        "properties" : {
+          "fullName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "regionId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "required" : [ "fullName", "id" ],
+        "type" : "object"
+      },
+      "ConsultationLastMessage" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "hasPhoto" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "senderId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "text" : {
+            "description" : "Up to 140 characters; null for a photo without text",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "createdAt", "hasPhoto", "id", "senderId" ],
+        "type" : "object"
+      },
+      "ConsultationResponse" : {
+        "properties" : {
+          "acceptedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "agrochemist" : {
+            "$ref" : "#/components/schemas/ConsultationAgrochemist"
+          },
+          "closedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "closedBy" : {
+            "description" : "Who declined or closed it",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "diagnosisId" : {
+            "description" : "The attached diagnosis of the farmer, if any",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "farmer" : {
+            "$ref" : "#/components/schemas/ConsultationFarmer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lastMessage" : {
+            "$ref" : "#/components/schemas/ConsultationLastMessage",
+            "description" : "Null only if the consultation has no messages",
+            "type" : "null"
+          },
+          "status" : {
+            "enum" : [ "requested", "active", "declined", "closed" ],
+            "type" : "string"
+          },
+          "unreadCount" : {
+            "description" : "Incoming messages the caller has not read",
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "agrochemist", "createdAt", "farmer", "id", "status", "unreadCount" ],
+        "type" : "object"
+      },
+      "CreateConsultationRequest" : {
+        "properties" : {
+          "agrochemistId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "diagnosisId" : {
+            "description" : "One of the farmer's own diagnoses; the agrochemist sees it through the consultation",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "text" : {
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "agrochemistId", "text" ],
+        "type" : "object"
+      },
       "CreateCrop" : {
         "properties" : {
           "code" : {
@@ -1936,6 +2063,199 @@
         },
         "security" : [ ],
         "tags" : [ "auth-controller" ]
+      }
+    },
+    "/api/consultations" : {
+      "get" : {
+        "operationId" : "listConsultations",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "enum" : [ "requested", "active", "declined", "closed" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "default" : 0,
+            "format" : "int32",
+            "maximum" : 10000,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 50,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ConsultationResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-controller" ]
+      },
+      "post" : {
+        "description" : "The farmer asks a verified agrochemist. 409 consultation_already_open (Location points to it) or consultation_request_limit; 404 agrochemist_not_found or diagnosis_not_found.",
+        "operationId" : "createConsultation",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateConsultationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsultationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-controller" ]
+      }
+    },
+    "/api/consultations/{id}" : {
+      "get" : {
+        "operationId" : "getConsultation",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsultationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-controller" ]
+      }
+    },
+    "/api/consultations/{id}/accept" : {
+      "post" : {
+        "description" : "Only from requested; 409 invalid_consultation_state (reason = current status) or agrochemist_not_listed.",
+        "operationId" : "acceptConsultation",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsultationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-controller" ]
+      }
+    },
+    "/api/consultations/{id}/close" : {
+      "post" : {
+        "description" : "Either side from active; the farmer also from requested (withdrawal). Otherwise 409 invalid_consultation_state (reason = current status).",
+        "operationId" : "closeConsultation",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsultationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-controller" ]
+      }
+    },
+    "/api/consultations/{id}/decline" : {
+      "post" : {
+        "description" : "Only from requested; 409 invalid_consultation_state (reason = current status).",
+        "operationId" : "declineConsultation",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsultationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-controller" ]
       }
     },
     "/api/crops" : {
