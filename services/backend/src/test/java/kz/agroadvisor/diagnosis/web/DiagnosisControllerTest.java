@@ -418,6 +418,17 @@ class DiagnosisControllerTest {
     }
 
     @Test
+    void badPagingParametersAreValidationFailures() throws Exception {
+        for (String[] bad : new String[][] {{"size", "101"}, {"page", "-1"}}) {
+            mvc.perform(get("/api/diagnoses").param(bad[0], bad[1]).header("Authorization", token))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("validation_failed"))
+                    .andExpect(jsonPath("$.errors[0].field").value(bad[0]))
+                    .andExpect(jsonPath("$.errors[0].message").isNotEmpty());
+        }
+    }
+
+    @Test
     void aRepeatWithTheSameKeyStillWorksWhenTheLimitIsUsedUp() throws Exception {
         String key = UUID.randomUUID().toString();
         mvc.perform(multipart("/api/diagnoses").file(image("image/jpeg")).param("crop", "tomato")

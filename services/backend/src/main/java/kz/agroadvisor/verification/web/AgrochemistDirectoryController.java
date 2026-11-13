@@ -33,9 +33,10 @@ public class AgrochemistDirectoryController {
             description = "Most experienced first. Unknown crop is 400 unknown_crop, unknown regionId is 400 "
                     + "invalid_region.")
     public List<AgrochemistCardResponse> list(@RequestParam(required = false) String crop,
-            @RequestParam(required = false) Long regionId, @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(required = false) Long regionId, @RequestParam(defaultValue = "0") @Min(0) @Max(10_000) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
-        return directory.list(crop, regionId, page, size).stream().map(AgrochemistCardResponse::of).toList();
+        String cropFilter = crop == null || crop.isBlank() ? null : crop;
+        return directory.list(cropFilter, regionId, page, size).stream().map(AgrochemistCardResponse::of).toList();
     }
 
     /** Not approved, blocked and missing agrochemists all answer 404 agrochemist_not_found. */

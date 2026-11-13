@@ -57,4 +57,24 @@ A `reject` and a `request_documents` need a non-blank `reason` (`400 reason_requ
 
 Sending, removing and deciding take a lock on the profile, so an approval is never undone by an upload that was checked a moment before, the limit of 5 holds for parallel uploads, and an approved profile never ends up without documents. The file is named `document-{id}.pdf|jpg|png` and is sent with `Content-Security-Policy: sandbox`; the admin web must offer it as a download and not render a PDF on its own origin.
 
+## Crops and the directory
+
+| Method and path | Who | What it does |
+| --- | --- | --- |
+| `GET /api/agrochemist/crops` | agrochemist | The crops the agrochemist works with: `{"crops": ["potato", ...]}`. |
+| `PUT /api/agrochemist/crops` | agrochemist | Replaces the list. Body `{"crops": [...]}`; returns the same shape. |
+| `GET /api/agrochemists?crop=&regionId=&page=0&size=20` | farmer (feature `consultations`) | The verified agrochemists, the most experienced first. `size` is 1 to 50, `page` 0 to 10000. A blank `crop` means no filter. |
+| `GET /api/agrochemists/{id}` | farmer (feature `consultations`) | One verified agrochemist. No contacts are shown. |
+
+Only agrochemists with the status `approved` and an active account are listed.
+
+| Status | `code` | When |
+| --- | --- | --- |
+| 400 | `unknown_crop` | A crop (in the body or in the `crop` filter) is not one of the supported crops. |
+| 400 | `invalid_region` | `regionId` is not a known region. |
+| 400 | `validation_failed` | A bad `page`, `size` or `status` query parameter, or a bad body; the `errors` array names the fields. This also applies to `GET /api/diagnoses` and the admin queue. |
+| 400 | `bad_request` | `{id}` is not a UUID. |
+| 404 | `agrochemist_not_found` | The agrochemist is missing, not approved or blocked (the answers are the same). |
+| 409 | `agrochemist_profile_missing` | The account has the role but no profile (`/api/agrochemist/crops`). |
+
 Not done here: notifying the agrochemist of the decision (push, task B14) and the first admin account (created outside the API).

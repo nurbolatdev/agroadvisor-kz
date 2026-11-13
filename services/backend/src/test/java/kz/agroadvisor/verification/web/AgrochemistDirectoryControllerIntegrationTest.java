@@ -160,6 +160,23 @@ class AgrochemistDirectoryControllerIntegrationTest {
     void aNotUuidIdIsBadRequest() throws Exception {
         String farmer = token(newUser(Role.FARMER, null));
         mvc.perform(get("/api/agrochemists/not-a-uuid").header("Authorization", farmer))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("bad_request"));
+    }
+
+    @Test
+    void aBlankCropIsNoFilter() throws Exception {
+        newUser(Role.AGROCHEMIST, "approved");
+        String farmer = token(newUser(Role.FARMER, null));
+        list(farmer, "?crop=").andExpect(status().isOk());
+        mvc.perform(get("/api/agrochemists").param("crop", "  ").header("Authorization", farmer))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void aPageOverTenThousandIsRefused() throws Exception {
+        String farmer = token(newUser(Role.FARMER, null));
+        list(farmer, "?page=10001").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("validation_failed"));
     }
 }
