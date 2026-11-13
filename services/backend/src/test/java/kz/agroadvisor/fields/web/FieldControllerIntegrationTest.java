@@ -1,6 +1,8 @@
 package kz.agroadvisor.fields.web;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -154,9 +156,98 @@ class FieldControllerIntegrationTest {
     }
 
     @Test
+    void patchChangesOnlyTheKeysThatAreSent() throws Exception {
+        String location = createWithPoint();
+
+        mvc.perform(patch(location).header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\": \"East\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("East"))
+                .andExpect(jsonPath("$.areaHa").value(2.5))
+                .andExpect(jsonPath("$.location.latitude").value(43.2));
+    }
+
+    @Test
+    void patchWithNullLocationRemovesThePoint() throws Exception {
+        String location = createWithPoint();
+
+        mvc.perform(patch(location).header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"location\": null}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.location").value(org.hamcrest.Matchers.nullValue()));
+        mvc.perform(get(location).header("Authorization", farmer))
+                .andExpect(jsonPath("$.location").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
+    void patchWithANewPointMovesIt() throws Exception {
+        String location = createWithPoint();
+
+        mvc.perform(patch(location).header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"location\": {\"latitude\": 50.5, \"longitude\": 71.4}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.location.latitude").value(50.5))
+                .andExpect(jsonPath("$.location.longitude").value(71.4));
+    }
+
+    @Test
+    void patchRejectsAnAreaWithoutItsUnitAndBadValues() throws Exception {
+        String location = createWithPoint();
+
+        assertCode(patch(location).header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"area\": 5}"), 400, "validation_failed");
+        assertCode(patch(location).header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\": \"  \"}"), 400, "validation_failed");
+        assertCode(patch(location).header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"location\": {\"latitude\": 91, \"longitude\": 1}}"), 400, "validation_failed");
+        assertCode(patch(location).header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"crop\": \"no_such_crop\"}"), 400, "unknown_crop");
+    }
+
+    @Test
+    void patchAndDeleteOfAnotherFarmersFieldAreNotFound() throws Exception {
+        String location = createWithPoint();
+        String other = tokenOf(Role.FARMER);
+
+        assertCode(patch(location).header("Authorization", other).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\": \"Mine\"}"), 404, "field_not_found");
+        assertCode(delete(location).header("Authorization", other), 404, "field_not_found");
+        mvc.perform(get(location).header("Authorization", farmer)).andExpect(status().isOk());
+    }
+
+    @Test
+    void deleteRemovesTheFieldAndASecondDeleteIsNotFound() throws Exception {
+        String location = createWithPoint();
+
+        mvc.perform(delete(location).header("Authorization", farmer)).andExpect(status().isNoContent());
+        assertCode(get(location).header("Authorization", farmer), 404, "field_not_found");
+        assertCode(delete(location).header("Authorization", farmer), 404, "field_not_found");
+    }
+
+    @Test
+    void anAgrochemistCannotPatchOrDelete() throws Exception {
+        String location = createWithPoint();
+        String agrochemist = tokenOf(Role.AGROCHEMIST);
+
+        mvc.perform(patch(location).header("Authorization", agrochemist).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\": \"x\"}")).andExpect(status().isForbidden());
+        mvc.perform(delete(location).header("Authorization", agrochemist)).andExpect(status().isForbidden());
+    }
+
+    @Test
     void aMalformedIdIsABadRequest() throws Exception {
         mvc.perform(get("/api/fields/not-a-uuid").header("Authorization", farmer))
                 .andExpect(status().isBadRequest());
+    }
+
+    /** A 2.5 ha field with a point, made by the signed-in farmer; returns its URL. */
+    private String createWithPoint() throws Exception {
+        return mvc.perform(post("/api/fields").header("Authorization", farmer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"name": "North", "crop": "potato", "area": 2.5, "areaUnit": "ha",
+                         "location": {"latitude": 43.2, "longitude": 76.9}}"""))
+                .andExpect(status().isCreated()).andReturn().getResponse().getHeader("Location");
     }
 
     private void assertCode(org.springframework.test.web.servlet.RequestBuilder request, int status, String code)

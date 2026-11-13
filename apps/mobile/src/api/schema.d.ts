@@ -420,10 +420,10 @@ export interface paths {
         get: operations["getField"];
         put?: never;
         post?: never;
-        delete?: never;
+        delete: operations["deleteField"];
         options?: never;
         head?: never;
-        patch?: never;
+        patch: operations["updateField"];
         trace?: never;
     };
     "/api/meta": {
@@ -832,6 +832,19 @@ export interface components {
             product: string;
             /** @enum {string} */
             type: "chemical" | "biological";
+        };
+        UpdateFieldRequest: {
+            /** @description The area in the unit of areaUnit; send it together with areaUnit */
+            area?: number;
+            /**
+             * @description ha (hectares) or sotka (1 sotka = 0.01 ha); send it together with area
+             * @enum {string}
+             */
+            areaUnit?: "ha" | "sotka";
+            crop?: string;
+            /** @description A new point, or null to remove the point; leave the key out to keep it */
+            location?: components["schemas"]["Point"];
+            name?: string;
         };
         UpdateMeRequest: {
             /** @enum {string} */
@@ -1753,6 +1766,52 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FieldResponse"];
+                };
+            };
+        };
+    };
+    deleteField: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateField: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFieldRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

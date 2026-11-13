@@ -7,14 +7,18 @@ import java.util.UUID;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import kz.agroadvisor.fields.model.AreaUnit;
@@ -56,6 +60,25 @@ public class FieldController {
     @Operation(operationId = "getField")
     public FieldResponse get(@PathVariable UUID id, Authentication authentication) {
         return FieldResponse.of(fields.get(owner(authentication), id));
+    }
+
+    /** Only the keys in the body change; see {@link UpdateFieldRequest} for {@code location}. */
+    @PatchMapping("/{id}")
+    @Operation(operationId = "updateField")
+    public FieldResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateFieldRequest request,
+            Authentication authentication) {
+        CreateFieldRequest.Point point = request.getLocation();
+        return FieldResponse.of(fields.update(owner(authentication), id, request.getName(), request.getCrop(),
+                request.getArea(), request.getAreaUnit() == null ? null : AreaUnit.fromCode(request.getAreaUnit()),
+                request.isLocationPresent(), point == null ? null : point.latitude(),
+                point == null ? null : point.longitude()));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(operationId = "deleteField")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable UUID id, Authentication authentication) {
+        fields.delete(owner(authentication), id);
     }
 
     private static UUID owner(Authentication authentication) {

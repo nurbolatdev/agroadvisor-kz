@@ -80,6 +80,47 @@ public class FieldService {
         return FieldView.of(fields.saveAndFlush(field));
     }
 
+    /**
+     * Changes the given parts of a field; a null name, crop or area keeps the value. {@code area} and
+     * {@code unit} come together. When {@code locationGiven} is true the point is replaced by
+     * {@code latitude} and {@code longitude}, or removed when both are null; the region and the district are
+     * found again only then. {@code locationGiven = false} leaves the place alone.
+     */
+    @Transactional
+    public FieldView update(UUID owner, UUID id, String name, String cropCode, BigDecimal area, AreaUnit unit,
+            boolean locationGiven, BigDecimal latitude, BigDecimal longitude) {
+        if ((area == null) != (unit == null)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,
+                    "The area and its unit are set together");
+        }
+        requireCoordinatesTogether(latitude, longitude);
+        Field field = find(owner, id);
+
+        if (name != null) {
+            field.setName(name.strip());
+        }
+        if (cropCode != null) {
+            requireKnownCrop(cropCode);
+            field.setCropCode(cropCode);
+        }
+        if (area != null) {
+            field.setArea(toHectares(area, unit), unit);
+        }
+        if (locationGiven) {
+            Place place = placement.place(owner, latitude, longitude);
+            field.setPlace(latitude, longitude, place.regionId(), place.districtId());
+        }
+        field.setUpdatedAt(Instant.now());
+        return FieldView.of(fields.saveAndFlush(field));
+    }
+
+    /** Removes the field for good; another user's and a missing id are both "not found". */
+    @Transactional
+    public void delete(UUID owner, UUID id) {
+        fields.delete(find(owner, id));
+        fields.flush();
+    }
+
     @Transactional(readOnly = true)
     public List<FieldView> list(UUID owner) {
         return fields.findByOwnerIdOrderByCreatedAtAscIdAsc(owner).stream().map(FieldView::of).toList();

@@ -150,6 +150,114 @@ class FieldServiceTest {
         assertThat(service.list(owner)).containsExactly(created);
     }
 
+    @Test
+    void updatingTheNameKeepsEverythingElse() {
+        FieldView created = service.create(owner, "North", "potato", new BigDecimal("250"), AreaUnit.SOTKA,
+                new BigDecimal("43.2"), new BigDecimal("76.9"));
+
+        FieldView updated = service.update(owner, created.id(), " East ", null, null, null, false, null, null);
+
+        assertThat(updated.name()).isEqualTo("East");
+        assertThat(updated.area()).isEqualTo(created.area());
+        assertThat(updated.areaUnit()).isEqualTo("sotka");
+        assertThat(updated.latitude()).isEqualByComparingTo("43.2");
+        assertThat(updated.updatedAt()).isAfterOrEqualTo(created.updatedAt());
+    }
+
+    @Test
+    void updatingTheAreaNeedsItsUnitAndRecalculatesHectares() {
+        FieldView created = service.create(owner, "North", "potato", BigDecimal.ONE, AreaUnit.HA, null, null);
+
+        FieldView updated = service.update(owner, created.id(), null, null, new BigDecimal("50"), AreaUnit.SOTKA,
+                false, null, null);
+
+        assertThat(updated.areaHa()).isEqualByComparingTo("0.5");
+        assertThat(updated.areaUnit()).isEqualTo("sotka");
+        assertThatThrownBy(() -> service.update(owner, created.id(), null, null, new BigDecimal("5"), null, false,
+                null, null))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getCode()).isEqualTo(ErrorCodes.VALIDATION_FAILED));
+        assertThatThrownBy(() -> service.update(owner, created.id(), null, null, null, AreaUnit.HA, false, null,
+                null))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getCode()).isEqualTo(ErrorCodes.VALIDATION_FAILED));
+    }
+
+    @Test
+    void updatingToAnUnknownCropOrAnAreaOutOfRangeIsRefused() {
+        FieldView created = service.create(owner, "North", "potato", BigDecimal.ONE, AreaUnit.HA, null, null);
+
+        assertThatThrownBy(() -> service.update(owner, created.id(), null, "no_such_crop", null, null, false,
+                null, null))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getCode()).isEqualTo(FieldErrors.UNKNOWN_CROP));
+        assertThatThrownBy(() -> service.update(owner, created.id(), null, null, new BigDecimal("20000"),
+                AreaUnit.HA, false, null, null))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getCode()).isEqualTo(FieldErrors.AREA_OUT_OF_RANGE));
+    }
+
+    @Test
+    void aNewPointInsideADistrictGivesTheNewDistrict() {
+        long region = jdbc.queryForObject("INSERT INTO regions (code, names) VALUES ('field_update_region', "
+                + "'{\"ru\": \"-\", \"kk\": \"-\", \"en\": \"-\"}') RETURNING id", Long.class);
+        long district = jdbc.queryForObject("""
+                INSERT INTO districts (region_id, code, names, boundary)
+                VALUES (?, 'field_update_district', '{"ru": "-", "kk": "-", "en": "-"}',
+                        ST_GeomFromText('MULTIPOLYGON(((76 43, 77 43, 77 44, 76 44, 76 43)))', 4326))
+                RETURNING id""", Long.class, region);
+        FieldView created = service.create(owner, "North", "potato", BigDecimal.ONE, AreaUnit.HA, null, null);
+        assertThat(created.districtId()).isNull();
+
+        FieldView moved = service.update(owner, created.id(), null, null, null, null, true,
+                new BigDecimal("43.5"), new BigDecimal("76.5"));
+
+        assertThat(moved.districtId()).isEqualTo(district);
+        assertThat(moved.regionId()).isEqualTo(region);
+    }
+
+    @Test
+    void anExplicitNullLocationRemovesThePointAndALeftOutOneKeepsIt() {
+        FieldView created = service.create(owner, "North", "potato", BigDecimal.ONE, AreaUnit.HA,
+                new BigDecimal("43.2"), new BigDecimal("76.9"));
+
+        FieldView kept = service.update(owner, created.id(), "Renamed", null, null, null, false, null, null);
+        assertThat(kept.latitude()).isEqualByComparingTo("43.2");
+
+        FieldView removed = service.update(owner, created.id(), null, null, null, null, true, null, null);
+        assertThat(removed.latitude()).isNull();
+        assertThat(removed.longitude()).isNull();
+        assertThat(jdbc.queryForObject("SELECT location IS NULL FROM fields WHERE id = ?", Boolean.class,
+                created.id())).isTrue();
+    }
+
+    @Test
+    void updateAndDeleteOfAnotherOwnersFieldAreNotFound() {
+        UUID other = insertUser("+77010000074");
+        FieldView theirs = service.create(other, "Theirs", "potato", BigDecimal.ONE, AreaUnit.HA, null, null);
+
+        assertThatThrownBy(() -> service.update(owner, theirs.id(), "Mine now", null, null, null, false, null,
+                null))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getCode()).isEqualTo(FieldErrors.FIELD_NOT_FOUND));
+        assertThatThrownBy(() -> service.delete(owner, theirs.id()))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getCode()).isEqualTo(FieldErrors.FIELD_NOT_FOUND));
+        assertThat(service.get(other, theirs.id()).name()).isEqualTo("Theirs");
+    }
+
+    @Test
+    void deletesAFieldAndASecondDeleteIsNotFound() {
+        FieldView created = service.create(owner, "North", "potato", BigDecimal.ONE, AreaUnit.HA, null, null);
+
+        service.delete(owner, created.id());
+
+        assertThat(service.list(owner)).isEmpty();
+        assertThatThrownBy(() -> service.delete(owner, created.id()))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getCode()).isEqualTo(FieldErrors.FIELD_NOT_FOUND));
+    }
+
     private void assertAreaRefused(BigDecimal area, AreaUnit unit) {
         assertThatThrownBy(() -> service.create(owner, "North", "potato", area, unit, null, null))
                 .isInstanceOfSatisfying(ApiException.class, e -> {

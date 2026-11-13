@@ -823,6 +823,37 @@
         "required" : [ "product", "type" ],
         "type" : "object"
       },
+      "UpdateFieldRequest" : {
+        "properties" : {
+          "area" : {
+            "description" : "The area in the unit of areaUnit; send it together with areaUnit",
+            "exclusiveMinimum" : 0,
+            "type" : "number"
+          },
+          "areaUnit" : {
+            "description" : "ha (hectares) or sotka (1 sotka = 0.01 ha); send it together with area",
+            "enum" : [ "ha", "sotka" ],
+            "pattern" : "ha|sotka",
+            "type" : "string"
+          },
+          "crop" : {
+            "pattern" : "(?s).*\\S.*",
+            "type" : "string"
+          },
+          "location" : {
+            "$ref" : "#/components/schemas/Point",
+            "description" : "A new point, or null to remove the point; leave the key out to keep it",
+            "type" : "null"
+          },
+          "name" : {
+            "maxLength" : 80,
+            "minLength" : 0,
+            "pattern" : "(?s).*\\S.*",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "UpdateMeRequest" : {
         "properties" : {
           "language" : {
@@ -2073,6 +2104,24 @@
       }
     },
     "/api/fields/{id}" : {
+      "delete" : {
+        "operationId" : "deleteField",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "field-controller" ]
+      },
       "get" : {
         "operationId" : "getField",
         "parameters" : [ {
@@ -2084,6 +2133,41 @@
             "type" : "string"
           }
         } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FieldResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "field-controller" ]
+      },
+      "patch" : {
+        "operationId" : "updateField",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateFieldRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
           "200" : {
             "content" : {
