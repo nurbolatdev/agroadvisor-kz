@@ -125,6 +125,38 @@
         "required" : [ "code", "kind", "names" ],
         "type" : "object"
       },
+      "CreateFieldRequest" : {
+        "properties" : {
+          "area" : {
+            "description" : "The area in the unit of areaUnit",
+            "example" : 250,
+            "exclusiveMinimum" : 0,
+            "type" : "number"
+          },
+          "areaUnit" : {
+            "description" : "ha (hectares) or sotka (1 sotka = 0.01 ha)",
+            "enum" : [ "ha", "sotka" ],
+            "pattern" : "ha|sotka",
+            "type" : "string"
+          },
+          "crop" : {
+            "description" : "Crop code from GET /api/crops",
+            "example" : "potato",
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "location" : {
+            "$ref" : "#/components/schemas/Point"
+          },
+          "name" : {
+            "maxLength" : 80,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "area", "areaUnit", "crop", "name" ],
+        "type" : "object"
+      },
       "CropBody" : {
         "properties" : {
           "names" : {
@@ -425,6 +457,70 @@
         "required" : [ "contentType", "id", "kind", "sizeBytes", "uploadedAt" ],
         "type" : "object"
       },
+      "FieldResponse" : {
+        "properties" : {
+          "area" : {
+            "description" : "The area in the unit the farmer chose (areaUnit)",
+            "type" : "number"
+          },
+          "areaHa" : {
+            "description" : "The same area in hectares",
+            "type" : "number"
+          },
+          "areaUnit" : {
+            "enum" : [ "ha", "sotka" ],
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "crop" : {
+            "description" : "Crop code",
+            "type" : "string"
+          },
+          "districtId" : {
+            "description" : "Set by the server when a district outline holds the point",
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "location" : {
+            "$ref" : "#/components/schemas/Location",
+            "description" : "Null when the field has no point",
+            "type" : "null"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "regionId" : {
+            "description" : "Set by the server from the point or the profile",
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "area", "areaHa", "areaUnit", "createdAt", "crop", "id", "name", "updatedAt" ],
+        "type" : "object"
+      },
+      "Location" : {
+        "properties" : {
+          "latitude" : {
+            "type" : "number"
+          },
+          "longitude" : {
+            "type" : "number"
+          }
+        },
+        "required" : [ "latitude", "longitude" ],
+        "type" : "object"
+      },
       "LoginRequest" : {
         "properties" : {
           "login" : {
@@ -489,6 +585,22 @@
           }
         },
         "required" : [ "classesVersion", "modelVersion" ],
+        "type" : "object"
+      },
+      "Point" : {
+        "properties" : {
+          "latitude" : {
+            "maximum" : 90,
+            "minimum" : -90,
+            "type" : "number"
+          },
+          "longitude" : {
+            "maximum" : 180,
+            "minimum" : -180,
+            "type" : "number"
+          }
+        },
+        "required" : [ "latitude", "longitude" ],
         "type" : "object"
       },
       "RefreshRequest" : {
@@ -1911,6 +2023,80 @@
           }
         },
         "tags" : [ "catalog-controller" ]
+      }
+    },
+    "/api/fields" : {
+      "get" : {
+        "operationId" : "listFields",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/FieldResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "field-controller" ]
+      },
+      "post" : {
+        "operationId" : "createField",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateFieldRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FieldResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "field-controller" ]
+      }
+    },
+    "/api/fields/{id}" : {
+      "get" : {
+        "operationId" : "getField",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FieldResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "field-controller" ]
       }
     },
     "/api/meta" : {

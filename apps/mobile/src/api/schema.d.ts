@@ -394,6 +394,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listFields"];
+        put?: never;
+        post: operations["createField"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fields/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getField"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/meta": {
         parameters: {
             query?: never;
@@ -499,6 +531,25 @@ export interface components {
             symptoms?: {
                 [key: string]: unknown;
             };
+        };
+        CreateFieldRequest: {
+            /**
+             * @description The area in the unit of areaUnit
+             * @example 250
+             */
+            area: number;
+            /**
+             * @description ha (hectares) or sotka (1 sotka = 0.01 ha)
+             * @enum {string}
+             */
+            areaUnit: "ha" | "sotka";
+            /**
+             * @description Crop code from GET /api/crops
+             * @example potato
+             */
+            crop: string;
+            location?: components["schemas"]["Point"];
+            name: string;
         };
         CropBody: {
             names: {
@@ -627,6 +678,39 @@ export interface components {
             /** Format: int32 */
             year?: number | null;
         };
+        FieldResponse: {
+            /** @description The area in the unit the farmer chose (areaUnit) */
+            area: number;
+            /** @description The same area in hectares */
+            areaHa: number;
+            /** @enum {string} */
+            areaUnit: "ha" | "sotka";
+            /** Format: date-time */
+            createdAt: string;
+            /** @description Crop code */
+            crop: string;
+            /**
+             * Format: int64
+             * @description Set by the server when a district outline holds the point
+             */
+            districtId?: number | null;
+            /** Format: uuid */
+            id: string;
+            /** @description Null when the field has no point */
+            location?: components["schemas"]["Location"];
+            name: string;
+            /**
+             * Format: int64
+             * @description Set by the server from the point or the profile
+             */
+            regionId?: number | null;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        Location: {
+            latitude: number;
+            longitude: number;
+        };
         LoginRequest: {
             login: string;
             password: string;
@@ -654,6 +738,10 @@ export interface components {
             classesVersion: number;
             /** @example effnet-b0-v1 */
             modelVersion: string;
+        };
+        Point: {
+            latitude: number;
+            longitude: number;
         };
         RefreshRequest: {
             refreshToken: string;
@@ -1607,6 +1695,72 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DiseaseDetail"];
+                };
+            };
+        };
+    };
+    listFields: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FieldResponse"][];
+                };
+            };
+        };
+    };
+    createField: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFieldRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FieldResponse"];
+                };
+            };
+        };
+    };
+    getField: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FieldResponse"];
                 };
             };
         };
