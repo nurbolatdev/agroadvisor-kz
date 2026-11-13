@@ -36,6 +36,10 @@ erDiagram
     crops ||--o{ diagnosis_requests : "chosen crop"
     crops ||--o{ diagnoses : "chosen crop"
     districts |o--o{ diagnoses : "made in"
+    users ||--o{ fields : owns
+    crops ||--o{ fields : grows
+    regions |o--o{ fields : "set by the server"
+    districts |o--o{ fields : "set by the server"
 
     regions {
         bigint id PK
@@ -165,6 +169,22 @@ erDiagram
         geometry location "Point, nullable"
     }
 
+    fields {
+        uuid id PK
+        uuid owner_id FK
+        varchar name "up to 80, trimmed, not empty"
+        varchar crop_code FK
+        numeric area_ha "above 0, up to 10000"
+        varchar area_unit "ha or sotka, what the farmer typed"
+        numeric latitude "with longitude, or both empty"
+        numeric longitude
+        geometry location "Point, computed from latitude and longitude"
+        bigint region_id FK "set by the server"
+        bigint district_id FK "set by the server, nullable"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
     diagnosis_reviews {
         uuid id PK
         uuid diagnosis_id FK "unique with reviewer_id"
@@ -186,7 +206,7 @@ erDiagram
     }
 ```
 
-Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` with features `diagnosis`, `community`, `consultations`, `disease_map`, `weather`, `calculator`, `shops`, `catalog` — all unlimited. `V8`–`V10` add the crops (tomato, potato, corn, wheat), the `unknown` class, the diseases of the model's classes and their treatments, with draft texts: the Kazakh texts are not checked by a native speaker and treatments must be confirmed by an agrochemist. `V16` adds 10 regions (the leading farming regions for the app's crops) in ru, kk and en; districts are still empty.
+Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` with features `diagnosis`, `community`, `consultations`, `disease_map`, `weather`, `calculator`, `shops`, `catalog`, `fields` (added by `V19`) — all unlimited. `V8`–`V10` add the crops (tomato, potato, corn, wheat), the `unknown` class, the diseases of the model's classes and their treatments, with draft texts: the Kazakh texts are not checked by a native speaker and treatments must be confirmed by an agrochemist. `V16` adds 10 regions (the leading farming regions for the app's crops) in ru, kk and en; districts are still empty.
 
 ### Notes
 
@@ -199,9 +219,10 @@ Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` wit
 - **Idempotency (`V11`, `V12`).** `POST /api/diagnoses` may carry an `Idempotency-Key`. A partial unique index on `(user_id, idempotency_key)` (rows without a key do not collide) makes a repeat return the first diagnosis. A check constraint requires `request_fingerprint` whenever there is a key, so a repeat can tell the same photo from another one.
 - **Claims (`V14`).** `diagnosis_requests` has a row only while a request with an `Idempotency-Key` is being processed, so a second request with the same key does not call the model again. The primary key `(user_id, idempotency_key)` is the claim (`INSERT … ON CONFLICT DO NOTHING`); no lock is held while the model runs. `claim_id` is a fencing token: a claim older than `app.diagnosis.claim-timeout` is taken over by writing a new `claim_id` (only for the same `request_fingerprint` and crop), and a request releases or finishes only the claim whose `claim_id` it holds. `started_at` is the database clock. The row is deleted in the same transaction that inserts the diagnosis; abandoned rows are removed after an hour. The result stays protected by the unique index of `V11`. Every attempt stores its photo under a new random name, so no attempt overwrites the object of another.
 - **Photo key index (`V15`).** A plain (not unique) index `diagnoses_photo_key_idx` on `diagnoses.photo_key`. The nightly cleanup of orphaned photo objects asks, for batches of keys, which of them a diagnosis still points to (issue #69, [ADR 0002](../adr/0002-orphan-photo-cleanup.md)). Any new table that refers to an object under `diagnoses/` must be added to that lookup, or the cleanup would delete its photo.
-- **Regions (`V16`).** Seed data only, no schema change: the regions a person can pick at registration. The list is a product decision (not all 17 regions); another region is added by a new migration (`V19` or later). The insert is idempotent — an existing region is left as it is.
+- **Regions (`V16`).** Seed data only, no schema change: the regions a person can pick at registration. The list is a product decision (not all 17 regions); another region is added by a new migration (`V20` or later). The insert is idempotent — an existing region is left as it is.
 - **One of farmer and agrochemist (`V17`).** A partial unique index `user_roles_one_of_farmer_agrochemist` on `user_roles (user_id) WHERE role_code IN ('farmer', 'agrochemist')` refuses the pair for one user (a farmer asks, an agrochemist advises); an administrator may hold another role next to either, and the only role of a user can still be changed. An index is enforced at every isolation level and for concurrent sessions, which a trigger check is not. The migration stops with the list of accounts if the data already holds the pair. The rule lives in the database because no API path adds a role after registration, so the pair could only appear by hand (issue #99).
 - **Diagnosis reviews (`V18`).** `diagnosis_reviews` holds a person's check of a diagnosis: `verdict` (`confirmed`, `corrected`, `unclear`), the class that is right (`correct_code`, empty exactly when the verdict is `unclear`, never blank) and a comment. One row per `(diagnosis, reviewer)`; a reviewer who changes their mind updates their own row (`updated_at`), and two people may disagree, so a diagnosis can have several rows; the service decides which verdict counts. Rules the table cannot check, because they compare with another table, belong to the service: for `confirmed` the `correct_code` is the diagnosis' `top1_code` (stored anyway, so a verdict reads on its own), for `corrected` it is another class. `correct_code` has no foreign key, like `diagnoses.top1_code`. Reviews are deleted with their diagnosis; a user who gave a verdict cannot be deleted, only blocked (audit trail, as for `agrochemist_profiles.reviewed_by`). Who may review is decided by the service, not by the table. The same migration adds the index `diagnoses (region_id, created_at)` for the outbreak map and the regional statistics. The table is not used by the API yet; an index on `correct_code` comes with the first query that needs it.
+- **Fields (`V19`).** `fields` holds a farmer's fields. The area is stored in hectares (`area_ha`, above 0 and up to 10 000); `area_unit` (`ha` or `sotka`, 1 sotka = 0.01 ha) is only what the farmer typed, so the app shows the area back in the same unit. The point is two columns, `latitude` and `longitude`, both set or both empty; `location` is a generated column computed from them (with a GiST index), so the two never disagree and the entity needs no spatial mapping. `region_id` and `district_id` are set by the server when the field is saved or its point changes, and copied at that moment, like in `diagnoses`: a point inside a district outline gives that district and its region, otherwise the region comes from the owner's profile and the district stays empty (the outlines in `districts.boundary` are filled in later, so for now the region of the profile is used). Fields are deleted with their owner; `crop_code` has no cascade, like `diagnoses`. The API limits a farmer to 100 fields (a service rule, checked under an advisory lock). `diagnoses.field_id` is not added yet: nothing links a diagnosis to a field, so the foreign key waits for the task that does. The same migration adds the feature `fields` to the `FREE` plan; the API needs the role `farmer` and that feature.
 - **`diseases.kind` (`V7`)** has `oomycete` for late blight (*Phytophthora*), which is neither a fungus nor a bacterium: the treatment and the advice differ.
 - **Feature access.** Code checks whether the user's plan includes a feature instead of checking roles, so paid plans can be added later as data. Today everyone is on `FREE` and nothing is limited; the per-minute diagnosis rate limit lives in Redis, not in the database.
 
@@ -211,8 +232,6 @@ Added by later migrations when the corresponding features are built; existing mi
 
 ```mermaid
 erDiagram
-    users ||--o{ fields : owns
-    crops ||--o{ fields : grows
     fields |o--o{ diagnoses : "optional field_id"
     diagnoses ||--o{ diagnosis_reviews : "confirmed by"
     users ||--o{ user_subscription : has
@@ -227,14 +246,6 @@ erDiagram
     users ||--o{ report : files
     users ||--o{ calculation : saves
 
-    fields {
-        uuid id PK
-        uuid owner_id FK
-        varchar crop_code FK
-        varchar name
-        numeric area_ha
-        geometry geom "Point"
-    }
     diagnosis_reviews {
         uuid id PK
         uuid diagnosis_id FK
