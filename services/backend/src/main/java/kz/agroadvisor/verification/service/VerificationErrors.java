@@ -28,6 +28,8 @@ public final class VerificationErrors {
     public static final String SELF_REVIEW = "self_review_forbidden";
     /** A crop code that is not in the catalog of crops (400). */
     public static final String UNKNOWN_CROP = "unknown_crop";
+    /** The region filter of the directory is not in the catalog of regions (400); same code as at registration. */
+    public static final String INVALID_REGION = "invalid_region";
     public static final String STORAGE_UNAVAILABLE = "storage_unavailable";
 
     private VerificationErrors() {
