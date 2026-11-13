@@ -132,6 +132,11 @@ class AgrochemistAdminControllerTest {
     void anUnknownStatusFilterIsRefused() throws Exception {
         mvc.perform(get("/api/admin/agrochemists").param("status", "banned").header("Authorization", admin))
                 .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/admin/agrochemists").param("status", "bogus").header("Authorization", admin))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("validation_failed"))
+                .andExpect(jsonPath("$.errors").isArray())
+                .andExpect(jsonPath("$.errors[0].field").value("status"));
     }
 
     @Test

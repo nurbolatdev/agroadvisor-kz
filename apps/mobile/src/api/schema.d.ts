@@ -167,6 +167,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/agrochemist/crops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The crops the agrochemist works with */
+        get: operations["getAgrochemistCrops"];
+        /** Replace the set of crops (codes from GET /api/crops, at least one, no repeats); open in any verification status */
+        put: operations["setAgrochemistCrops"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agrochemist/documents": {
         parameters: {
             query?: never;
@@ -210,6 +228,39 @@ export interface paths {
         };
         /** State of the check: status, the admin's reason and the documents sent */
         get: operations["verification"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agrochemists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Most experienced first. Unknown crop is 400 unknown_crop, unknown regionId is 400 invalid_region. */
+        get: operations["listAgrochemists"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agrochemists/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAgrochemist"];
         put?: never;
         post?: never;
         delete?: never;
@@ -499,6 +550,39 @@ export interface components {
             data?: components["schemas"]["TreatmentData"];
             /** Format: int64 */
             id?: number;
+        };
+        AgrochemistCardResponse: {
+            /** @description Crop codes, alphabetical */
+            crops: string[];
+            /** Format: int32 */
+            experienceYears?: number | null;
+            fullName: string;
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: int64
+             * @description Region of the agrochemist
+             */
+            regionId?: number | null;
+            /** @description Specialization codes */
+            specializations: string[];
+            /**
+             * Format: date-time
+             * @description When the profile was approved
+             */
+            verifiedAt?: string | null;
+        };
+        AgrochemistCropsRequest: {
+            /**
+             * @description Crop codes from GET /api/crops; at least one, no repeats
+             * @example [
+             *       "potato"
+             *     ]
+             */
+            crops: string[];
+        };
+        AgrochemistCropsResponse: {
+            crops?: string[];
         };
         ClassScore: {
             code: string;
@@ -1273,6 +1357,50 @@ export interface operations {
             };
         };
     };
+    getAgrochemistCrops: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AgrochemistCropsResponse"];
+                };
+            };
+        };
+    };
+    setAgrochemistCrops: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgrochemistCropsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AgrochemistCropsResponse"];
+                };
+            };
+        };
+    };
     list: {
         parameters: {
             query?: never;
@@ -1361,6 +1489,53 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["VerificationView"];
+                };
+            };
+        };
+    };
+    listAgrochemists: {
+        parameters: {
+            query?: {
+                crop?: string;
+                regionId?: number;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AgrochemistCardResponse"][];
+                };
+            };
+        };
+    };
+    getAgrochemist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AgrochemistCardResponse"];
                 };
             };
         };

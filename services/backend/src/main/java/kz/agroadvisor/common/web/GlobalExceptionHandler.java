@@ -2,9 +2,11 @@ package kz.agroadvisor.common.web;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.MessageSourceResolvable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 /**
@@ -74,6 +77,31 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setProperty("code", ErrorCodes.VALIDATION_FAILED);
         List<Map<String, String>> errors = ex.getBindingResult().getFieldErrors().stream()
                 .map(GlobalExceptionHandler::toFieldError)
+                .toList();
+        problem.setProperty("errors", errors);
+        return handleExceptionInternal(ex, problem, headers, status, request);
+    }
+
+    /** A bad query parameter ({@code @Min}/{@code @Max} on {@code page}, {@code size}) is a validation failure too. */
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(
+            HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        if (status.is5xxServerError()) {
+            // A failed return-value check is a server bug, not a bad request
+            return super.handleHandlerMethodValidationException(ex, headers, status, request);
+        }
+        ProblemDetail problem = ex.getBody();
+        problem.setDetail("Validation failed");
+        problem.setProperty("code", ErrorCodes.VALIDATION_FAILED);
+        List<Map<String, String>> errors = ex.getParameterValidationResults().stream()
+                .<Map<String, String>>map(result -> {
+                    String field = result.getMethodParameter().getParameterName();
+                    String message = result.getResolvableErrors().stream()
+                            .map(MessageSourceResolvable::getDefaultMessage)
+                            .filter(Objects::nonNull)
+                            .findFirst().orElse("is invalid");
+                    return Map.of("field", field == null ? "" : field, "message", message);
+                })
                 .toList();
         problem.setProperty("errors", errors);
         return handleExceptionInternal(ex, problem, headers, status, request);

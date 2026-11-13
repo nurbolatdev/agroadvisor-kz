@@ -46,6 +46,76 @@
         },
         "type" : "object"
       },
+      "AgrochemistCardResponse" : {
+        "properties" : {
+          "crops" : {
+            "description" : "Crop codes, alphabetical",
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "experienceYears" : {
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "regionId" : {
+            "description" : "Region of the agrochemist",
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "specializations" : {
+            "description" : "Specialization codes",
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "verifiedAt" : {
+            "description" : "When the profile was approved",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "crops", "fullName", "id", "specializations" ],
+        "type" : "object"
+      },
+      "AgrochemistCropsRequest" : {
+        "properties" : {
+          "crops" : {
+            "description" : "Crop codes from GET /api/crops; at least one, no repeats",
+            "example" : [ "potato" ],
+            "items" : {
+              "maxLength" : 40,
+              "minLength" : 0,
+              "type" : "string"
+            },
+            "maxItems" : 50,
+            "minItems" : 0,
+            "type" : "array"
+          }
+        },
+        "required" : [ "crops" ],
+        "type" : "object"
+      },
+      "AgrochemistCropsResponse" : {
+        "properties" : {
+          "crops" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "ClassScore" : {
         "properties" : {
           "code" : {
@@ -1439,6 +1509,52 @@
         "tags" : [ "catalog-admin-controller" ]
       }
     },
+    "/api/agrochemist/crops" : {
+      "get" : {
+        "operationId" : "getAgrochemistCrops",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AgrochemistCropsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "The crops the agrochemist works with",
+        "tags" : [ "agrochemist-verification-controller" ]
+      },
+      "put" : {
+        "operationId" : "setAgrochemistCrops",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AgrochemistCropsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AgrochemistCropsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Replace the set of crops (codes from GET /api/crops, at least one, no repeats); open in any verification status",
+        "tags" : [ "agrochemist-verification-controller" ]
+      }
+    },
     "/api/agrochemist/documents" : {
       "get" : {
         "operationId" : "list",
@@ -1561,6 +1677,93 @@
         },
         "summary" : "State of the check: status, the admin's reason and the documents sent",
         "tags" : [ "agrochemist-verification-controller" ]
+      }
+    },
+    "/api/agrochemists" : {
+      "get" : {
+        "description" : "Most experienced first. Unknown crop is 400 unknown_crop, unknown regionId is 400 invalid_region.",
+        "operationId" : "listAgrochemists",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "crop",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "regionId",
+          "required" : false,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "default" : 0,
+            "format" : "int32",
+            "maximum" : 10000,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 50,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/AgrochemistCardResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "agrochemist-directory-controller" ]
+      }
+    },
+    "/api/agrochemists/{id}" : {
+      "get" : {
+        "operationId" : "getAgrochemist",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AgrochemistCardResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "agrochemist-directory-controller" ]
       }
     },
     "/api/auth/login" : {
