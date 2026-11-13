@@ -1,6 +1,8 @@
 package kz.agroadvisor.consultations.service;
 
 import java.time.Duration;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.dao.DuplicateKeyException;
@@ -15,7 +17,9 @@ import kz.agroadvisor.common.ratelimit.RateLimitProperties;
 import kz.agroadvisor.common.ratelimit.RateLimiter;
 import kz.agroadvisor.common.web.ApiException;
 import kz.agroadvisor.common.web.ErrorCodes;
+import kz.agroadvisor.consultations.model.ConsultationStatus;
 import kz.agroadvisor.consultations.repository.ConsultationRepository;
+import kz.agroadvisor.consultations.repository.ConsultationRepository.Consultation;
 import kz.agroadvisor.consultations.repository.ConsultationRepository.Item;
 import kz.agroadvisor.diagnosis.service.DiagnosisService;
 import kz.agroadvisor.verification.service.AgrochemistDirectoryService;
@@ -88,6 +92,84 @@ public class ConsultationService {
         }
         consultations.insertMessage(created.id(), farmer, body);
         return consultations.findForParticipant(created.id(), farmer).orElseThrow();
+    }
+
+    /** The consultation of {@code me}; another user's and a missing one both answer 404. */
+    @Transactional(readOnly = true)
+    public Item get(UUID me, UUID id) {
+        return consultations.findForParticipant(id, me).orElseThrow(ConsultationService::notFound);
+    }
+
+    /** The consultations of {@code me}, the latest activity first; no statuses means all. */
+    @Transactional(readOnly = true)
+    public List<Item> list(UUID me, Collection<ConsultationStatus> statuses, int page, int size) {
+        return consultations.listFor(me, statuses, page, size);
+    }
+
+    /** The agrochemist takes a request; allowed only from {@code requested} and while still in the directory. */
+    @Transactional
+    public Item accept(UUID me, UUID id) {
+        Consultation row = lockForParticipant(me, id);
+        if (!row.agrochemistId().equals(me)) {
+            throw notFound();
+        }
+        requireStatus(row, ConsultationStatus.REQUESTED);
+        try {
+            directory.requireListed(me);
+        } catch (ApiException e) {
+            throw new ApiException(HttpStatus.CONFLICT, ConsultationErrors.AGROCHEMIST_NOT_LISTED,
+                    "You are not in the directory, so you cannot accept requests");
+        }
+        consultations.updateStatus(id, ConsultationStatus.ACTIVE, null);
+        return get(me, id);
+    }
+
+    /** The agrochemist turns a request down; allowed only from {@code requested}. */
+    @Transactional
+    public Item decline(UUID me, UUID id) {
+        Consultation row = lockForParticipant(me, id);
+        if (!row.agrochemistId().equals(me)) {
+            throw notFound();
+        }
+        requireStatus(row, ConsultationStatus.REQUESTED);
+        consultations.updateStatus(id, ConsultationStatus.DECLINED, me);
+        return get(me, id);
+    }
+
+    /**
+     * Either side ends an active consultation; the farmer may also withdraw a request that waits for an answer
+     * (the agrochemist declines instead).
+     */
+    @Transactional
+    public Item close(UUID me, UUID id) {
+        Consultation row = lockForParticipant(me, id);
+        boolean withdrawal = row.status() == ConsultationStatus.REQUESTED && row.farmerId().equals(me);
+        if (!withdrawal) {
+            requireStatus(row, ConsultationStatus.ACTIVE);
+        }
+        consultations.updateStatus(id, ConsultationStatus.CLOSED, me);
+        return get(me, id);
+    }
+
+    private Consultation lockForParticipant(UUID me, UUID id) {
+        Consultation row = consultations.lock(id).orElseThrow(ConsultationService::notFound);
+        if (!row.farmerId().equals(me) && !row.agrochemistId().equals(me)) {
+            throw notFound();
+        }
+        return row;
+    }
+
+    private static void requireStatus(Consultation row, ConsultationStatus expected) {
+        if (row.status() != expected) {
+            throw new ApiException(HttpStatus.CONFLICT, ConsultationErrors.INVALID_CONSULTATION_STATE,
+                    "This action does not fit a consultation that is " + row.status().code(),
+                    row.status().code());
+        }
+    }
+
+    private static ApiException notFound() {
+        return new ApiException(HttpStatus.NOT_FOUND, ConsultationErrors.CONSULTATION_NOT_FOUND,
+                "Consultation not found");
     }
 
     private static ApiException alreadyOpen(UUID id) {
