@@ -90,6 +90,31 @@ class ConsultationRepositoryTest {
     }
 
     @Test
+    void unreadCountIgnoresDeclinedAndClosedConsultations() {
+        UUID other = user("Other agrochemist");
+        UUID declined = repository.insert(farmer, agrochemist, null).id();
+        UUID withdrawn = repository.insert(farmer, other, null).id();
+        repository.insertMessage(declined, agrochemist, "unread in declined");
+        repository.insertMessage(withdrawn, other, "unread in withdrawn");
+        repository.updateStatus(declined, ConsultationStatus.DECLINED, agrochemist);
+        repository.updateStatus(withdrawn, ConsultationStatus.CLOSED, farmer);
+
+        assertThat(repository.findForParticipant(declined, farmer).orElseThrow().unreadCount()).isZero();
+        assertThat(repository.listFor(farmer, Set.of(), 0, 10)).extracting(Item::unreadCount)
+                .containsOnly(0);
+    }
+
+    @Test
+    void isParticipantIsTrueOnlyForTheTwoSides() {
+        UUID id = repository.insert(farmer, agrochemist, null).id();
+
+        assertThat(repository.isParticipant(id, farmer)).isTrue();
+        assertThat(repository.isParticipant(id, agrochemist)).isTrue();
+        assertThat(repository.isParticipant(id, stranger)).isFalse();
+        assertThat(repository.isParticipant(UUID.randomUUID(), farmer)).isFalse();
+    }
+
+    @Test
     void lastMessageIsTheNewestAndIsCutToThePreview() {
         UUID id = repository.insert(farmer, agrochemist, null).id();
         repository.insertMessage(id, farmer, "first");
@@ -140,7 +165,6 @@ class ConsultationRepositoryTest {
                 .containsExactly(a, c);
         assertThat(repository.listFor(farmer, Set.of(), 1, 2)).extracting(item -> item.consultation().id())
                 .containsExactly(b);
-        assertThat(repository.countFor(farmer, Set.of())).isEqualTo(3);
         assertThat(repository.listFor(stranger, Set.of(), 0, 10)).isEmpty();
     }
 
@@ -155,7 +179,7 @@ class ConsultationRepositoryTest {
                 .extracting(item -> item.consultation().id()).containsExactly(a);
         assertThat(repository.listFor(farmer, Set.of(ConsultationStatus.ACTIVE, ConsultationStatus.REQUESTED), 0, 10))
                 .hasSize(2);
-        assertThat(repository.countFor(farmer, Set.of(ConsultationStatus.REQUESTED))).isEqualTo(1);
+        assertThat(repository.listFor(farmer, Set.of(ConsultationStatus.REQUESTED), 0, 10)).hasSize(1);
         assertThat(repository.listFor(other, Set.of(ConsultationStatus.REQUESTED), 0, 10))
                 .extracting(item -> item.consultation().id()).containsExactly(b);
         assertThat(repository.listFor(other, Set.of(ConsultationStatus.ACTIVE), 0, 10)).isEmpty();

@@ -1038,7 +1038,7 @@ export interface components {
             createdAt: string;
             /** Format: uuid */
             id: string;
-            /** @description Relative path of the photo, if there is one */
+            /** @description Relative path of the photo; always null until chat photos arrive */
             photoUrl?: string | null;
             /** Format: date-time */
             readAt?: string | null;

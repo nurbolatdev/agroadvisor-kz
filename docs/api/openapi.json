@@ -828,7 +828,7 @@
             "type" : "string"
           },
           "photoUrl" : {
-            "description" : "Relative path of the photo, if there is one",
+            "description" : "Relative path of the photo; always null until chat photos arrive",
             "type" : [ "string", "null" ]
           },
           "readAt" : {

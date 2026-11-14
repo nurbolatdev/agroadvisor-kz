@@ -49,7 +49,8 @@ public class ConsultationRepository {
                    left(m.body, %d) AS message_text, (m.photo_key IS NOT NULL) AS message_has_photo,
                    m.created_at AS message_created_at,
                    (SELECT count(*) FROM consultation_messages u
-                     WHERE u.consultation_id = c.id AND u.sender_id <> ? AND u.read_at IS NULL) AS unread_count
+                     WHERE u.consultation_id = c.id AND c.status IN ('requested', 'active')
+                       AND u.sender_id <> ? AND u.read_at IS NULL) AS unread_count
             FROM consultations c
             JOIN users f ON f.id = c.farmer_id
             JOIN users a ON a.id = c.agrochemist_id
@@ -128,12 +129,11 @@ public class ConsultationRepository {
                 ITEM, args.toArray());
     }
 
-    public long countFor(UUID me, Collection<ConsultationStatus> statuses) {
-        List<Object> args = new ArrayList<>();
-        String where = participantFilter(me, statuses, args);
-        Long count = jdbc.queryForObject("SELECT count(*) FROM consultations c" + where, Long.class,
-                args.toArray());
-        return count == null ? 0 : count;
+    /** Whether {@code me} is the farmer or the agrochemist of the consultation. */
+    public boolean isParticipant(UUID id, UUID me) {
+        Boolean found = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM consultations WHERE id = ? "
+                + "AND (farmer_id = ? OR agrochemist_id = ?))", Boolean.class, id, me, me);
+        return Boolean.TRUE.equals(found);
     }
 
     /** Requests of the farmer that still wait for an answer. */

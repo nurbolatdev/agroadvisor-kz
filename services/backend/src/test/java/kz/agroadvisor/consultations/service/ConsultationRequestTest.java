@@ -135,6 +135,22 @@ class ConsultationRequestTest {
     }
 
     @Test
+    void textWithControlCharactersIsRejectedButLineBreaksAndTabsAreKept() {
+        UUID farmer = farmer();
+        UUID agrochemist = listedAgrochemist();
+
+        for (String bad : new String[] {"a\u0000b", "bell\u0007", "esc\u001b[0m", "del\u007f"}) {
+            assertThatThrownBy(() -> service.request(farmer, agrochemist, bad, null))
+                    .isInstanceOfSatisfying(ApiException.class, e -> {
+                        assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                        assertThat(e.getCode()).isEqualTo("validation_failed");
+                    });
+        }
+        assertThat(service.request(farmer, agrochemist, "line one\n\tline two", null).lastMessage().text())
+                .isEqualTo("line one\n\tline two");
+    }
+
+    @Test
     void secondOpenRequestToTheSameAgrochemistIsRefusedWithALocation() {
         UUID farmer = farmer();
         UUID agrochemist = listedAgrochemist();

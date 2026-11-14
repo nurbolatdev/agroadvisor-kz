@@ -16,7 +16,7 @@ All endpoints need an access token and the `consultations` feature of the user's
 
 | Who | Allowed |
 | --- | --- |
-| Farmer | every endpoint; `POST /api/consultations` only for farmers |
+| Farmer | every endpoint except `accept` and `decline`; `POST /api/consultations` only for farmers |
 | Agrochemist | every endpoint except `POST /api/consultations`; `accept` and `decline` only for agrochemists |
 | Admin (without the farmer or agrochemist role) | refused: 403 `forbidden` on every endpoint |
 | No or bad token | 401 `unauthorized` |
@@ -59,7 +59,7 @@ requested --close (farmer, withdrawal)--> closed
 | `createdAt`, `acceptedAt`, `closedAt` | timestamp | the last two are nullable |
 | `closedBy` | uuid or null | who declined or closed |
 | `lastMessage` | object or null | `id`, `senderId`, `text` (first 140 characters, null for a photo without text), `hasPhoto`, `createdAt` |
-| `unreadCount` | integer | incoming messages the caller has not read |
+| `unreadCount` | integer | incoming messages the caller has not read; always 0 for `declined` and `closed` consultations |
 
 ## Message object
 
@@ -79,7 +79,7 @@ requested --close (farmer, withdrawal)--> closed
 Request: `{ "agrochemistId": uuid, "text": string, "diagnosisId": uuid | null }`.
 Response: 201 with the consultation (status `requested`) and `Location: /api/consultations/{id}`.
 
-Errors: 400 `validation_failed`; 404 `agrochemist_not_found` (not a verified, listed agrochemist); 404 `diagnosis_not_found` (not the farmer's own diagnosis); 409 `consultation_already_open` (the `Location` header points to the open one); 409 `consultation_request_limit`; 429 `rate_limited`.
+Errors: 400 `validation_failed`; 404 `agrochemist_not_found` (not a verified, listed agrochemist); 404 `diagnosis_not_found` (not the farmer's own diagnosis); 409 `consultation_already_open` (the `Location` header, present when the open one is known, points to it); 409 `consultation_request_limit`; 429 `rate_limited`.
 
 ### `GET /api/consultations`
 
@@ -132,20 +132,20 @@ Errors: 404 `consultation_not_found`; 404 `message_not_found` (`upTo` is not a m
 
 ### `GET /api/consultations/unread-count`
 
-Response: `{ "count": integer }`, the incoming unread messages in all consultations of the caller.
+Response: `{ "count": integer }`, the incoming unread messages in the `requested` and `active` consultations of the caller; declined and closed ones are not counted, so the number matches the sum of `unreadCount` in the list.
 
 ## Error codes
 
 | HTTP | Code | When |
 | --- | --- | --- |
-| 400 | `validation_failed` | empty or too long text, unknown status, `limit`, `size` or `page` out of range, `before` with `after`, malformed body |
+| 400 | `validation_failed` | empty or too long text, text with control characters (a line break and a tab are allowed), unknown status, `limit`, `size` or `page` out of range, `before` with `after`, malformed body |
 | 401 | `unauthorized` | no or invalid token |
 | 403 | `forbidden` | the role or the plan does not allow the endpoint (an admin, an agrochemist creating a request, a farmer accepting) |
 | 404 | `consultation_not_found` | missing id or another user's consultation |
 | 404 | `agrochemist_not_found` | the agrochemist does not exist or is not verified |
 | 404 | `diagnosis_not_found` | the attached diagnosis is not the farmer's own or does not exist |
 | 404 | `message_not_found` | a `before`, `after` or `upTo` id is not a message of this consultation |
-| 409 | `consultation_already_open` | an open consultation with this agrochemist exists; `Location` points to it |
+| 409 | `consultation_already_open` | an open consultation with this agrochemist exists; `Location` points to it when known |
 | 409 | `consultation_request_limit` | 5 requests are already waiting for an answer |
 | 409 | `invalid_consultation_state` | the action does not fit the status; `reason` = current status |
 | 409 | `agrochemist_not_listed` | the agrochemist left the directory, so the request cannot be accepted |

@@ -83,12 +83,16 @@ public class ConsultationMessageRepository {
         return count == null ? 0 : count;
     }
 
-    /** Unread messages that others sent to {@code reader} in all of the reader's consultations. */
+    /**
+     * Unread messages that others sent to {@code reader} in the reader's requested and active consultations;
+     * closed and declined ones do not count.
+     */
     public long unreadTotal(UUID reader) {
         Long count = jdbc.queryForObject("""
                 SELECT count(*) FROM consultation_messages m
                 JOIN consultations c ON c.id = m.consultation_id
-                WHERE (c.farmer_id = ? OR c.agrochemist_id = ?) AND m.sender_id <> ? AND m.read_at IS NULL""",
+                WHERE (c.farmer_id = ? OR c.agrochemist_id = ?) AND c.status IN ('requested', 'active')
+                  AND m.sender_id <> ? AND m.read_at IS NULL""",
                 Long.class, reader, reader, reader);
         return count == null ? 0 : count;
     }

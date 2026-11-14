@@ -191,20 +191,55 @@ class ConsultationMessageServiceTest {
         UUID incoming3 = service.send(chat.agrochemist, chat.id, "three").id();
         assertThat(service.unreadTotal(chat.farmer)).isEqualTo(3);
 
-        assertThat(service.markRead(chat.farmer, chat.id, incoming2)).isEqualTo(1);
+        // upTo is the farmer's own message between incoming ones: earlier incoming are read, later stay unread
+        assertThat(service.markRead(chat.farmer, chat.id, mine)).isEqualTo(1);
         Instant firstReadAt = readAt(incoming1);
         assertThat(firstReadAt).isNotNull();
         assertThat(readAt(incoming2)).isNotNull();
+        assertThat(readAt(mine)).isNull();
         assertThat(readAt(incoming3)).isNull();
-        assertThat(readAt(mine)).isNull();
 
-        assertThat(service.markRead(chat.farmer, chat.id, incoming2)).isEqualTo(1);
+        assertThat(service.markRead(chat.farmer, chat.id, mine)).isEqualTo(1);
         assertThat(readAt(incoming1)).isEqualTo(firstReadAt);
-        // Marking up to one's own message reads the incoming ones before it, never the own
-        assertThat(service.markRead(chat.farmer, chat.id, incoming3)).isZero();
         assertThat(readAt(mine)).isNull();
+        assertThat(readAt(incoming3)).isNull();
         // The agrochemist's unread: the request text of the farmer and "mine"
         assertThat(service.unreadTotal(chat.agrochemist)).isEqualTo(2);
+
+        assertThat(service.markRead(chat.farmer, chat.id, incoming3)).isZero();
+        assertThat(readAt(mine)).isNull();
+    }
+
+    @Test
+    void aDeclinedOrWithdrawnConsultationDoesNotRaiseTheUnreadCount() {
+        UUID farmer = farmer();
+        UUID first = agrochemist();
+        UUID second = agrochemist();
+        UUID declined = consultationService.request(farmer, first, "Q1", null).consultation().id();
+        UUID withdrawn = consultationService.request(farmer, second, "Q2", null).consultation().id();
+        assertThat(service.unreadTotal(first)).isEqualTo(1);
+        assertThat(service.unreadTotal(second)).isEqualTo(1);
+
+        consultationService.decline(first, declined);
+        consultationService.close(farmer, withdrawn);
+
+        assertThat(service.unreadTotal(first)).isZero();
+        assertThat(service.unreadTotal(second)).isZero();
+    }
+
+    @Test
+    void textWithControlCharactersIsRejectedButLineBreaksAndTabsAreKept() {
+        Chat chat = activeChat();
+
+        for (String bad : new String[] { "a\u0000b", "bell\u0007", "esc\u001b[0m", "del\u007f", "next\u0085line" }) {
+            assertThatThrownBy(() -> service.send(chat.farmer, chat.id, bad)).isInstanceOfSatisfying(
+                    ApiException.class, e -> {
+                        assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                        assertThat(e.getCode()).isEqualTo("validation_failed");
+                    });
+        }
+        assertThat(service.send(chat.farmer, chat.id, "line one\n\tline two").text())
+                .isEqualTo("line one\n\tline two");
     }
 
     @Test

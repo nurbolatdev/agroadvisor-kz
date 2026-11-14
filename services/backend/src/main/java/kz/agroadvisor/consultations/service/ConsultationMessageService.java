@@ -45,7 +45,8 @@ public class ConsultationMessageService {
     @Transactional
     public Message send(UUID me, UUID consultationId, String text) {
         String body = text == null ? "" : text.strip();
-        if (body.isEmpty() || body.length() > ConsultationService.MAX_TEXT_LENGTH) {
+        if (body.isEmpty() || body.length() > ConsultationService.MAX_TEXT_LENGTH
+                || ConsultationService.hasControlChars(body)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,
                     "The text must have 1 to " + ConsultationService.MAX_TEXT_LENGTH + " characters");
         }
@@ -109,7 +110,9 @@ public class ConsultationMessageService {
     }
 
     private void requireParticipant(UUID me, UUID consultationId) {
-        consultations.findForParticipant(consultationId, me).orElseThrow(ConsultationMessageService::notFound);
+        if (!consultations.isParticipant(consultationId, me)) {
+            throw notFound();
+        }
     }
 
     private static ApiException notFound() {

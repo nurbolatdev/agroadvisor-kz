@@ -61,7 +61,7 @@ public class ConsultationService {
     @Transactional
     public Item request(UUID farmer, UUID agrochemistId, String text, UUID diagnosisId) {
         String body = text == null ? "" : text.strip();
-        if (body.isEmpty() || body.length() > MAX_TEXT_LENGTH) {
+        if (body.isEmpty() || body.length() > MAX_TEXT_LENGTH || hasControlChars(body)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,
                     "The text must have 1 to " + MAX_TEXT_LENGTH + " characters");
         }
@@ -92,6 +92,11 @@ public class ConsultationService {
         }
         consultations.insertMessage(created.id(), farmer, body);
         return consultations.findForParticipant(created.id(), farmer).orElseThrow();
+    }
+
+    /** Whether the text has a control character other than a line break or a tab (PostgreSQL rejects NUL). */
+    static boolean hasControlChars(String text) {
+        return text.chars().anyMatch(c -> Character.isISOControl(c) && c != '\n' && c != '\t');
     }
 
     /** The consultation of {@code me}; another user's and a missing one both answer 404. */

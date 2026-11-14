@@ -5,8 +5,6 @@ public final class ConsultationErrors {
 
     /** No consultation for the caller; the same answer for another user's and a missing id (404). */
     public static final String CONSULTATION_NOT_FOUND = "consultation_not_found";
-    /** The attached diagnosis is not the farmer's own or does not exist (404). */
-    public static final String DIAGNOSIS_NOT_FOUND = "diagnosis_not_found";
     /** The farmer already has an open consultation with this agrochemist; the Location header points to it (409). */
     public static final String CONSULTATION_ALREADY_OPEN = "consultation_already_open";
     /** The farmer has the most requests waiting for an answer allowed (409). */
