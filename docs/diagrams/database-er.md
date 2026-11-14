@@ -1,6 +1,6 @@
 # Database ER diagram
 
-PostgreSQL 16 + PostGIS. The schema is owned by Flyway migrations in [`services/backend/src/main/resources/db/migration`](../../services/backend/src/main/resources/db/migration); this page describes migrations `V1`–`V16`.
+PostgreSQL 16 + PostGIS. The schema is owned by Flyway migrations in [`services/backend/src/main/resources/db/migration`](../../services/backend/src/main/resources/db/migration); this page describes migrations `V1`–`V20`.
 
 Conventions:
 
@@ -36,6 +36,11 @@ erDiagram
     crops ||--o{ diagnosis_requests : "chosen crop"
     crops ||--o{ diagnoses : "chosen crop"
     districts |o--o{ diagnoses : "made in"
+    users ||--o{ consultations : "asks as farmer"
+    users ||--o{ consultations : "advises as agrochemist"
+    diagnoses |o--o{ consultations : "attached to"
+    consultations ||--o{ consultation_messages : contains
+    users ||--o{ consultation_messages : sends
     users ||--o{ fields : owns
     crops ||--o{ fields : grows
     regions |o--o{ fields : "set by the server"
@@ -204,6 +209,31 @@ erDiagram
         uuid claim_id "fencing token, changes on takeover"
         timestamptz started_at "database clock"
     }
+
+    consultations {
+        uuid id PK
+        uuid farmer_id FK
+        uuid agrochemist_id FK "differs from farmer_id"
+        uuid diagnosis_id FK "nullable, ON DELETE SET NULL"
+        varchar status "requested, active, declined, closed"
+        timestamptz created_at
+        timestamptz accepted_at "set exactly when the request was accepted; NULL for a declined or withdrawn one"
+        timestamptz closed_at "set exactly for declined and closed"
+        uuid closed_by FK "nullable, ON DELETE SET NULL"
+        timestamptz last_message_at "for the list order"
+    }
+
+    consultation_messages {
+        uuid id PK
+        uuid consultation_id FK
+        uuid sender_id FK
+        varchar body "up to 2000, trimmed, not empty, nullable"
+        varchar photo_key "S3 key, nullable"
+        varchar photo_content_type "image/jpeg, image/png"
+        int photo_size_bytes "greater than 0"
+        timestamptz created_at "clock_timestamp()"
+        timestamptz read_at "when the recipient read it"
+    }
 ```
 
 Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` with features `diagnosis`, `community`, `consultations`, `disease_map`, `weather`, `calculator`, `shops`, `catalog`, `fields` (added by `V19`) — all unlimited. `V8`–`V10` add the crops (tomato, potato, corn, wheat), the `unknown` class, the diseases of the model's classes and their treatments, with draft texts: the Kazakh texts are not checked by a native speaker and treatments must be confirmed by an agrochemist. `V16` adds 10 regions (the leading farming regions for the app's crops) in ru, kk and en; districts are still empty.
@@ -223,6 +253,7 @@ Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` wit
 - **One of farmer and agrochemist (`V17`).** A partial unique index `user_roles_one_of_farmer_agrochemist` on `user_roles (user_id) WHERE role_code IN ('farmer', 'agrochemist')` refuses the pair for one user (a farmer asks, an agrochemist advises); an administrator may hold another role next to either, and the only role of a user can still be changed. An index is enforced at every isolation level and for concurrent sessions, which a trigger check is not. The migration stops with the list of accounts if the data already holds the pair. The rule lives in the database because no API path adds a role after registration, so the pair could only appear by hand (issue #99).
 - **Diagnosis reviews (`V18`).** `diagnosis_reviews` holds a person's check of a diagnosis: `verdict` (`confirmed`, `corrected`, `unclear`), the class that is right (`correct_code`, empty exactly when the verdict is `unclear`, never blank) and a comment. One row per `(diagnosis, reviewer)`; a reviewer who changes their mind updates their own row (`updated_at`), and two people may disagree, so a diagnosis can have several rows; the service decides which verdict counts. Rules the table cannot check, because they compare with another table, belong to the service: for `confirmed` the `correct_code` is the diagnosis' `top1_code` (stored anyway, so a verdict reads on its own), for `corrected` it is another class. `correct_code` has no foreign key, like `diagnoses.top1_code`. Reviews are deleted with their diagnosis; a user who gave a verdict cannot be deleted, only blocked (audit trail, as for `agrochemist_profiles.reviewed_by`). Who may review is decided by the service, not by the table. The same migration adds the index `diagnoses (region_id, created_at)` for the outbreak map and the regional statistics. The table is not used by the API yet; an index on `correct_code` comes with the first query that needs it.
 - **Fields (`V19`).** `fields` holds a farmer's fields. The area is stored in hectares (`area_ha`, above 0 and up to 10 000); `area_unit` (`ha` or `sotka`, 1 sotka = 0.01 ha) is only what the farmer typed, so the app shows the area back in the same unit. The point is two columns, `latitude` and `longitude`, both set or both empty; `location` is a generated column computed from them (with a GiST index), so the two never disagree and the entity needs no spatial mapping. `region_id` and `district_id` are set by the server when the field is saved or its point changes, and copied at that moment, like in `diagnoses`: a point inside a district outline gives that district and its region, otherwise the region comes from the owner's profile and the district stays empty (the outlines in `districts.boundary` are filled in later, so for now the region of the profile is used). Fields are deleted with their owner; `crop_code` has no cascade, like `diagnoses`. The API limits a farmer to 100 fields (a service rule, checked under an advisory lock). `diagnoses.field_id` is not added yet: nothing links a diagnosis to a field, so the foreign key waits for the task that does. The same migration adds the feature `fields` to the `FREE` plan; the API needs the role `farmer` and that feature.
+- **Consultations (`V20`).** `consultations` is a request of a farmer to an agrochemist and the chat that follows; `consultation_messages` holds the chat. A partial unique index on `(farmer_id, agrochemist_id) WHERE status IN ('requested', 'active')` allows one open consultation per pair. Check constraints keep the status and the times together: `requested` has no `accepted_at` and no `closed_at`, `active` has `accepted_at` and no `closed_at`, `declined` and `closed` have `closed_at` (the check does not constrain `accepted_at` for them: it is set exactly when the consultation was accepted, so it is NULL for a declined or withdrawn request); the two participants differ. `closed_by` is the user who declined or closed (a withdrawal by the farmer is `closed`). A message has one recipient, the other participant, so `read_at` on the message is the read receipt (a partial index covers unread rows). The text of the request is stored as the first message, not in `consultations`. Messages and consultations are deleted with their users (`ON DELETE CASCADE`); `diagnosis_id` is `ON DELETE SET NULL`, so deleting a diagnosis keeps the consultation. `last_message_at` orders the list and is moved by the service on every message. A message has text, a photo or both; the photo columns exist for the follow-up that stores photos under the key prefix `consultations/`, apart from `diagnoses/`, and are always empty for now. Messages are paged by `(created_at, id)` through an index on `(consultation_id, created_at DESC, id DESC)`.
 - **`diseases.kind` (`V7`)** has `oomycete` for late blight (*Phytophthora*), which is neither a fungus nor a bacterium: the treatment and the advice differ.
 - **Feature access.** Code checks whether the user's plan includes a feature instead of checking roles, so paid plans can be added later as data. Today everyone is on `FREE` and nothing is limited; the per-minute diagnosis rate limit lives in Redis, not in the database.
 
@@ -236,8 +267,6 @@ erDiagram
     diagnoses ||--o{ diagnosis_reviews : "confirmed by"
     users ||--o{ user_subscription : has
     plan ||--o{ user_subscription : ""
-    users ||--o{ consultations : "farmer / agrochemist"
-    consultations ||--o{ messages : contains
     users ||--o{ post : writes
     post ||--o{ post_image : has
     post ||--o{ answer : has
@@ -262,4 +291,4 @@ erDiagram
     }
 ```
 
-Also planned: `consultations`, `messages`, `agro_shops`, community tables (`post`, `post_image`, `answer`, `vote`, `crop_subscription`, `report`, plus `users.reputation`), `calculation`, `disease_alert`.
+Also planned: `agro_shops`, community tables (`post`, `post_image`, `answer`, `vote`, `crop_subscription`, `report`, plus `users.reputation`), `calculation`, `disease_alert`.

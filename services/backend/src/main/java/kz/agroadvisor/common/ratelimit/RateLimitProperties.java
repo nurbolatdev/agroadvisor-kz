@@ -20,6 +20,10 @@ import org.springframework.validation.annotation.Validated;
  * protection, {@code registerPerIpPerHour} (20) stops scripted sign-ups, {@code refreshPerIpPerMinute} (60)
  * stops token-guessing and also sets the size of the separate logout bucket. Many farmers can share one public
  * address (mobile carrier NAT), so the per-address values are generous. Every attempt counts, and none is given back.
+ *
+ * <p>Two limits keep consultations from being used for spam, both per user: {@code
+ * consultationRequestsPerHour} (10) new requests to agrochemists, {@code consultationMessagesPerMinute} (30)
+ * chat messages. Every attempt counts, and none is given back.
  */
 @Validated
 @ConfigurationProperties("app.rate-limit")
@@ -29,5 +33,7 @@ public record RateLimitProperties(
         @Min(1) @DefaultValue("30") int loginPerIpPerMinute,
         @Min(1) @DefaultValue("10") int loginPerAccountPerMinute,
         @Min(1) @DefaultValue("20") int registerPerIpPerHour,
-        @Min(1) @DefaultValue("60") int refreshPerIpPerMinute) {
+        @Min(1) @DefaultValue("60") int refreshPerIpPerMinute,
+        @Min(1) @DefaultValue("10") int consultationRequestsPerHour,
+        @Min(1) @DefaultValue("30") int consultationMessagesPerMinute) {
 }

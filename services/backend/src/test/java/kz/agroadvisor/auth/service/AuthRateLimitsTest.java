@@ -37,7 +37,7 @@ class AuthRateLimitsTest {
     @BeforeEach
     void setUp() {
         limiter = mock(RateLimiter.class);
-        limits = new AuthRateLimits(limiter, new RateLimitProperties(5, 20, 30, 10, 20, 60));
+        limits = new AuthRateLimits(limiter, new RateLimitProperties(5, 20, 30, 10, 20, 60, 10, 30));
     }
 
     @Test
@@ -124,7 +124,7 @@ class AuthRateLimitsTest {
 
     private String accountSubject(String rawLogin) {
         RateLimiter spy = mock(RateLimiter.class);
-        AuthRateLimits subject = new AuthRateLimits(spy, new RateLimitProperties(5, 20, 30, 10, 20, 60));
+        AuthRateLimits subject = new AuthRateLimits(spy, new RateLimitProperties(5, 20, 30, 10, 20, 60, 10, 30));
         subject.login("203.0.113.1", rawLogin);
         ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
         verify(spy).check(eq("login-account"), key.capture(), anyInt(), eq(MINUTE));

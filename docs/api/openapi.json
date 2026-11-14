@@ -129,6 +129,154 @@
         "required" : [ "code", "confidence" ],
         "type" : "object"
       },
+      "ConsultationAgrochemist" : {
+        "properties" : {
+          "fullName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "fullName", "id" ],
+        "type" : "object"
+      },
+      "ConsultationFarmer" : {
+        "properties" : {
+          "fullName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "regionId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "required" : [ "fullName", "id" ],
+        "type" : "object"
+      },
+      "ConsultationLastMessage" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "hasPhoto" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "senderId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "text" : {
+            "description" : "Up to 140 characters; null for a photo without text",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "createdAt", "hasPhoto", "id", "senderId" ],
+        "type" : "object"
+      },
+      "ConsultationReadResult" : {
+        "properties" : {
+          "unreadCount" : {
+            "description" : "Incoming messages of this consultation that are still unread",
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "unreadCount" ],
+        "type" : "object"
+      },
+      "ConsultationResponse" : {
+        "properties" : {
+          "acceptedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "agrochemist" : {
+            "$ref" : "#/components/schemas/ConsultationAgrochemist"
+          },
+          "closedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "closedBy" : {
+            "description" : "Who declined or closed it",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "diagnosisId" : {
+            "description" : "The attached diagnosis of the farmer, if any",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "farmer" : {
+            "$ref" : "#/components/schemas/ConsultationFarmer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lastMessage" : {
+            "$ref" : "#/components/schemas/ConsultationLastMessage",
+            "description" : "Null only if the consultation has no messages",
+            "type" : "null"
+          },
+          "status" : {
+            "enum" : [ "requested", "active", "declined", "closed" ],
+            "type" : "string"
+          },
+          "unreadCount" : {
+            "description" : "Incoming messages the caller has not read",
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "agrochemist", "createdAt", "farmer", "id", "status", "unreadCount" ],
+        "type" : "object"
+      },
+      "ConsultationUnreadCount" : {
+        "properties" : {
+          "count" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "count" ],
+        "type" : "object"
+      },
+      "CreateConsultationRequest" : {
+        "properties" : {
+          "agrochemistId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "diagnosisId" : {
+            "description" : "One of the farmer's own diagnoses; the agrochemist does not see it yet",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "text" : {
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "agrochemistId", "text" ],
+        "type" : "object"
+      },
       "CreateCrop" : {
         "properties" : {
           "code" : {
@@ -624,6 +772,16 @@
         "required" : [ "login", "password" ],
         "type" : "object"
       },
+      "MarkReadRequest" : {
+        "properties" : {
+          "upTo" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "upTo" ],
+        "type" : "object"
+      },
       "MeResponse" : {
         "properties" : {
           "email" : {
@@ -657,6 +815,36 @@
           }
         },
         "required" : [ "fullName", "id", "language", "roles" ],
+        "type" : "object"
+      },
+      "MessageResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "photoUrl" : {
+            "description" : "Relative path of the photo; always null until chat photos arrive",
+            "type" : [ "string", "null" ]
+          },
+          "readAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "senderId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "text" : {
+            "description" : "Null for a photo without text",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "createdAt", "id", "senderId" ],
         "type" : "object"
       },
       "MetaView" : {
@@ -756,6 +944,18 @@
           }
         },
         "required" : [ "fullName", "login", "password" ],
+        "type" : "object"
+      },
+      "SendMessageRequest" : {
+        "properties" : {
+          "text" : {
+            "description" : "Trimmed; 1 to 2000 characters",
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "text" ],
         "type" : "object"
       },
       "SummaryView" : {
@@ -1936,6 +2136,350 @@
         },
         "security" : [ ],
         "tags" : [ "auth-controller" ]
+      }
+    },
+    "/api/consultations" : {
+      "get" : {
+        "operationId" : "listConsultations",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "enum" : [ "requested", "active", "declined", "closed" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "default" : 0,
+            "format" : "int32",
+            "maximum" : 10000,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 50,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ConsultationResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-controller" ]
+      },
+      "post" : {
+        "description" : "The farmer asks a verified agrochemist. 409 consultation_already_open (Location points to it) or consultation_request_limit; 404 agrochemist_not_found or diagnosis_not_found.",
+        "operationId" : "createConsultation",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateConsultationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsultationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-controller" ]
+      }
+    },
+    "/api/consultations/unread-count" : {
+      "get" : {
+        "description" : "Incoming unread messages in all consultations of the caller",
+        "operationId" : "getConsultationUnreadCount",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsultationUnreadCount"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-message-controller" ]
+      }
+    },
+    "/api/consultations/{id}" : {
+      "get" : {
+        "operationId" : "getConsultation",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsultationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-controller" ]
+      }
+    },
+    "/api/consultations/{id}/accept" : {
+      "post" : {
+        "description" : "Only from requested; 409 invalid_consultation_state (reason = current status) or agrochemist_not_listed.",
+        "operationId" : "acceptConsultation",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsultationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-controller" ]
+      }
+    },
+    "/api/consultations/{id}/close" : {
+      "post" : {
+        "description" : "Either side from active; the farmer also from requested (withdrawal). Otherwise 409 invalid_consultation_state (reason = current status).",
+        "operationId" : "closeConsultation",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsultationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-controller" ]
+      }
+    },
+    "/api/consultations/{id}/decline" : {
+      "post" : {
+        "description" : "Only from requested; 409 invalid_consultation_state (reason = current status).",
+        "operationId" : "declineConsultation",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsultationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-controller" ]
+      }
+    },
+    "/api/consultations/{id}/messages" : {
+      "get" : {
+        "description" : "Without a cursor or with before: the newest first, older than before. With after: the oldest first, newer than after. Not both. A cursor that is not a message of this consultation is 404 message_not_found.",
+        "operationId" : "listConsultationMessages",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "before",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "after",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 30,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/MessageResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-message-controller" ]
+      },
+      "post" : {
+        "description" : "Only in an active consultation: 409 invalid_consultation_state (reason = current status). 429 rate_limited after 30 messages a minute.",
+        "operationId" : "sendConsultationMessage",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SendMessageRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-message-controller" ]
+      }
+    },
+    "/api/consultations/{id}/read" : {
+      "post" : {
+        "description" : "Marks the incoming messages up to upTo (inclusive) as read; repeating it changes nothing. 404 message_not_found if upTo is not a message of this consultation.",
+        "operationId" : "markConsultationRead",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MarkReadRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsultationReadResult"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-message-controller" ]
       }
     },
     "/api/crops" : {

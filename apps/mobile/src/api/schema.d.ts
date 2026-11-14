@@ -349,6 +349,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/consultations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listConsultations"];
+        put?: never;
+        /** @description The farmer asks a verified agrochemist. 409 consultation_already_open (Location points to it) or consultation_request_limit; 404 agrochemist_not_found or diagnosis_not_found. */
+        post: operations["createConsultation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consultations/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Incoming unread messages in all consultations of the caller */
+        get: operations["getConsultationUnreadCount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consultations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getConsultation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consultations/{id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Only from requested; 409 invalid_consultation_state (reason = current status) or agrochemist_not_listed. */
+        post: operations["acceptConsultation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consultations/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Either side from active; the farmer also from requested (withdrawal). Otherwise 409 invalid_consultation_state (reason = current status). */
+        post: operations["closeConsultation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consultations/{id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Only from requested; 409 invalid_consultation_state (reason = current status). */
+        post: operations["declineConsultation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consultations/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Without a cursor or with before: the newest first, older than before. With after: the oldest first, newer than after. Not both. A cursor that is not a message of this consultation is 404 message_not_found. */
+        get: operations["listConsultationMessages"];
+        put?: never;
+        /** @description Only in an active consultation: 409 invalid_consultation_state (reason = current status). 429 rate_limited after 30 messages a minute. */
+        post: operations["sendConsultationMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consultations/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Marks the incoming messages up to upTo (inclusive) as read; repeating it changes nothing. 404 message_not_found if upTo is not a message of this consultation. */
+        post: operations["markConsultationRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/crops": {
         parameters: {
             query?: never;
@@ -589,6 +725,81 @@ export interface components {
             /** Format: double */
             confidence: number;
         };
+        ConsultationAgrochemist: {
+            fullName: string;
+            /** Format: uuid */
+            id: string;
+        };
+        ConsultationFarmer: {
+            fullName: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            regionId?: number | null;
+        };
+        ConsultationLastMessage: {
+            /** Format: date-time */
+            createdAt: string;
+            hasPhoto: boolean;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            senderId: string;
+            /** @description Up to 140 characters; null for a photo without text */
+            text?: string | null;
+        };
+        ConsultationReadResult: {
+            /**
+             * Format: int32
+             * @description Incoming messages of this consultation that are still unread
+             */
+            unreadCount: number;
+        };
+        ConsultationResponse: {
+            /** Format: date-time */
+            acceptedAt?: string | null;
+            agrochemist: components["schemas"]["ConsultationAgrochemist"];
+            /** Format: date-time */
+            closedAt?: string | null;
+            /**
+             * Format: uuid
+             * @description Who declined or closed it
+             */
+            closedBy?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: uuid
+             * @description The attached diagnosis of the farmer, if any
+             */
+            diagnosisId?: string | null;
+            farmer: components["schemas"]["ConsultationFarmer"];
+            /** Format: uuid */
+            id: string;
+            /** @description Null only if the consultation has no messages */
+            lastMessage?: components["schemas"]["ConsultationLastMessage"];
+            /** @enum {string} */
+            status: "requested" | "active" | "declined" | "closed";
+            /**
+             * Format: int32
+             * @description Incoming messages the caller has not read
+             */
+            unreadCount: number;
+        };
+        ConsultationUnreadCount: {
+            /** Format: int64 */
+            count: number;
+        };
+        CreateConsultationRequest: {
+            /** Format: uuid */
+            agrochemistId: string;
+            /**
+             * Format: uuid
+             * @description One of the farmer's own diagnoses; the agrochemist does not see it yet
+             */
+            diagnosisId?: string | null;
+            text: string;
+        };
         CreateCrop: {
             code: string;
             names: {
@@ -803,6 +1014,10 @@ export interface components {
             login: string;
             password: string;
         };
+        MarkReadRequest: {
+            /** Format: uuid */
+            upTo: string;
+        };
         MeResponse: {
             email?: string | null;
             fullName: string;
@@ -817,6 +1032,20 @@ export interface components {
              */
             regionId?: number | null;
             roles: ("farmer" | "agrochemist" | "admin")[];
+        };
+        MessageResponse: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** @description Relative path of the photo; always null until chat photos arrive */
+            photoUrl?: string | null;
+            /** Format: date-time */
+            readAt?: string | null;
+            /** Format: uuid */
+            senderId: string;
+            /** @description Null for a photo without text */
+            text?: string | null;
         };
         MetaView: {
             /**
@@ -859,6 +1088,10 @@ export interface components {
             role?: "farmer" | "agrochemist";
             /** @description Required for an agrochemist (at least one), not allowed for a farmer: fields of work, up to four different values. A missing or unknown value, a duplicate, or any value for a farmer is 400 invalid_profile_fields */
             specializations?: ("plant_protection" | "agrochemistry" | "phytopathology" | "soil_science")[];
+        };
+        SendMessageRequest: {
+            /** @description Trimmed; 1 to 2000 characters */
+            text: string;
         };
         SummaryView: {
             /** Format: int32 */
@@ -1685,6 +1918,240 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    listConsultations: {
+        parameters: {
+            query?: {
+                status?: ("requested" | "active" | "declined" | "closed")[];
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConsultationResponse"][];
+                };
+            };
+        };
+    };
+    createConsultation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateConsultationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConsultationResponse"];
+                };
+            };
+        };
+    };
+    getConsultationUnreadCount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConsultationUnreadCount"];
+                };
+            };
+        };
+    };
+    getConsultation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConsultationResponse"];
+                };
+            };
+        };
+    };
+    acceptConsultation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConsultationResponse"];
+                };
+            };
+        };
+    };
+    closeConsultation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConsultationResponse"];
+                };
+            };
+        };
+    };
+    declineConsultation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConsultationResponse"];
+                };
+            };
+        };
+    };
+    listConsultationMessages: {
+        parameters: {
+            query?: {
+                before?: string;
+                after?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MessageResponse"][];
+                };
+            };
+        };
+    };
+    sendConsultationMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    markConsultationRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkReadRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ConsultationReadResult"];
+                };
             };
         };
     };
