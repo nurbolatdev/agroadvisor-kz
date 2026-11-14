@@ -119,7 +119,8 @@ class ConsultationPhotoIntegrationTest {
                 .file(new MockMultipartFile("image", "leaf.jpg", "image/jpeg", bytes))
                 .header("Authorization", token);
         if (text != null) {
-            request.param("text", text);
+            // A form field without a content type, as a phone's FormData sends it
+            request.file(new MockMultipartFile("text", null, null, text.getBytes(StandardCharsets.UTF_8)));
         }
         return mvc.perform(request);
     }
@@ -151,6 +152,27 @@ class ConsultationPhotoIntegrationTest {
                 .andReturn().getResponse().getHeader("ETag");
         mvc.perform(get(photoUrl).header("Authorization", chat.farmerToken).header("If-None-Match", etag))
                 .andExpect(status().isNotModified());
+    }
+
+    @Test
+    void aCyrillicCaptionSurvivesAndCrlfBecomesALineBreak() throws Exception {
+        Chat chat = activeChat();
+        when(storage.store(eq(chat.id), any(), anyString())).thenReturn("consultations/" + chat.id + "/d.jpg");
+
+        sendPhoto(chat.farmerToken, chat.id, JPEG, "Пятна на листьях\r\nвторой день").andExpect(status().isCreated())
+                .andExpect(jsonPath("$.text").value("Пятна на листьях\nвторой день"));
+    }
+
+    @Test
+    void aCaptionWithControlCharactersOrTooLongIsRefusedBeforeStoring() throws Exception {
+        Chat chat = activeChat();
+
+        sendPhoto(chat.farmerToken, chat.id, JPEG, "bell\u0007").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("validation_failed"));
+        sendPhoto(chat.farmerToken, chat.id, JPEG, "x".repeat(2001)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("validation_failed"));
+
+        verify(storage, never()).store(any(), any(), anyString());
     }
 
     @Test

@@ -62,10 +62,12 @@ public class ConsultationMessageService {
      * removed again. Same rules as {@link #send}: active consultation, participants only, rate limit.
      */
     public Message sendPhoto(UUID me, UUID consultationId, String text, byte[] photo) {
-        String body = text == null || text.isBlank() ? null : text.strip();
-        if (body != null && body.length() > ConsultationService.MAX_TEXT_LENGTH) {
+        String body = text == null || text.isBlank() ? null : ConsultationService.normalize(text);
+        if (body != null && (body.length() > ConsultationService.MAX_TEXT_LENGTH
+                || ConsultationService.hasControlChars(body))) {
             throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,
-                    "The text must have at most " + ConsultationService.MAX_TEXT_LENGTH + " characters");
+                    "The text must have at most " + ConsultationService.MAX_TEXT_LENGTH
+                            + " characters, without control characters");
         }
         String contentType = contentType(photo);
         rateLimiter.check("consultation-messages", me.toString(), limits.consultationMessagesPerMinute(),
@@ -75,8 +77,9 @@ public class ConsultationMessageService {
                 .orElseThrow(ConsultationMessageService::notFound).consultation());
         byte[] stored = clean(photo);
         String key = photos.store(consultationId, stored, contentType);
+        UUID id;
         try {
-            UUID id = tx.execute(status -> {
+            id = tx.execute(status -> {
                 Consultation row = consultations.lock(consultationId).orElseThrow(ConsultationMessageService::notFound);
                 if (!row.farmerId().equals(me) && !row.agrochemistId().equals(me)) {
                     throw notFound();
@@ -84,11 +87,12 @@ public class ConsultationMessageService {
                 requireActive(row);
                 return consultations.insertPhotoMessage(consultationId, me, body, key, contentType, stored.length);
             });
-            return messages.find(id).orElseThrow();
         } catch (RuntimeException e) {
             discard(key, e);
             throw e;
         }
+        // After the commit: the object now belongs to a saved row and is never removed again
+        return messages.find(id).orElseThrow();
     }
 
     /** The object key of a photo message of a consultation the caller takes part in; otherwise 404. */
@@ -157,7 +161,7 @@ public class ConsultationMessageService {
     /** Sends a text message to the other side of an active consultation and moves its last activity. */
     @Transactional
     public Message send(UUID me, UUID consultationId, String text) {
-        String body = text == null ? "" : text.strip().replace("\r\n", "\n").replace('\r', '\n');
+        String body = text == null ? "" : ConsultationService.normalize(text);
         if (body.isEmpty() || body.length() > ConsultationService.MAX_TEXT_LENGTH
                 || ConsultationService.hasControlChars(body)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,

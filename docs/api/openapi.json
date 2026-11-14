@@ -2508,7 +2508,7 @@
     },
     "/api/consultations/{id}/messages/photo" : {
       "post" : {
-        "description" : "A JPEG or PNG photo of up to 10 MB with an optional text, in an active consultation. The type is taken from the first bytes, the metadata (GPS) is removed. 400 invalid_image; 409 invalid_consultation_state; 429 rate_limited; 503 storage_unavailable.",
+        "description" : "A JPEG or PNG photo of up to 10 MB with an optional text, in an active consultation. The type is taken from the first bytes, the metadata (GPS) is removed. 400 invalid_image (another type or a broken file); 413 payload_too_large (over 10 MB); 409 invalid_consultation_state; 429 rate_limited; 503 storage_unavailable.",
         "operationId" : "sendConsultationPhoto",
         "parameters" : [ {
           "in" : "path",
@@ -2516,13 +2516,6 @@
           "required" : true,
           "schema" : {
             "format" : "uuid",
-            "type" : "string"
-          }
-        }, {
-          "in" : "query",
-          "name" : "text",
-          "required" : false,
-          "schema" : {
             "type" : "string"
           }
         } ],
@@ -2534,6 +2527,9 @@
                   "image" : {
                     "format" : "binary",
                     "type" : "string"
+                  },
+                  "text" : {
+                    "type" : "string"
                   }
                 },
                 "required" : [ "image" ],
@@ -2543,7 +2539,7 @@
           }
         },
         "responses" : {
-          "200" : {
+          "201" : {
             "content" : {
               "*/*" : {
                 "schema" : {
@@ -2551,7 +2547,7 @@
                 }
               }
             },
-            "description" : "OK"
+            "description" : "The message with the photo"
           }
         },
         "tags" : [ "consultation-message-controller" ]

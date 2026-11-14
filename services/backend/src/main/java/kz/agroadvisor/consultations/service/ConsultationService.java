@@ -60,7 +60,7 @@ public class ConsultationService {
      */
     @Transactional
     public Item request(UUID farmer, UUID agrochemistId, String text, UUID diagnosisId) {
-        String body = text == null ? "" : text.strip().replace("\r\n", "\n").replace('\r', '\n');
+        String body = text == null ? "" : normalize(text);
         if (body.isEmpty() || body.length() > MAX_TEXT_LENGTH || hasControlChars(body)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,
                     "The text must have 1 to " + MAX_TEXT_LENGTH + " characters");
@@ -94,6 +94,11 @@ public class ConsultationService {
         return consultations.findForParticipant(created.id(), farmer).orElseThrow();
     }
 
+    /** The text without the spaces around it; a carriage return becomes a line break. */
+    static String normalize(String text) {
+        return text.strip().replace("\r\n", "\n").replace('\r', '\n');
+    }
+
     /** Whether the text has a control character other than a line break or a tab (PostgreSQL rejects NUL). */
     static boolean hasControlChars(String text) {
         return text.chars().anyMatch(c -> Character.isISOControl(c) && c != '\n' && c != '\t');
@@ -117,10 +122,8 @@ public class ConsultationService {
     @Transactional(readOnly = true)
     public DiagnosisService.DiagnosisView attachedDiagnosis(UUID me, UUID id) {
         Consultation row = get(me, id).consultation();
-        DiagnosisService.DiagnosisView v = diagnoses.get(row.farmerId(), attachedId(row));
-        return new DiagnosisService.DiagnosisView(v.id(), v.crop(), v.status(), v.top1(), v.top3(),
-                v.detectedCrop(), v.modelVersion(), v.classesVersion(), v.placeholder(), v.descriptionReady(),
-                "/api/consultations/" + id + "/diagnosis/photo", v.createdAt());
+        return diagnoses.get(row.farmerId(), attachedId(row))
+                .withPhotoUrl("/api/consultations/" + id + "/diagnosis/photo");
     }
 
     /** The object key of the attached diagnosis' photo; 404 as in {@link #attachedDiagnosis}. */

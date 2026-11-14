@@ -111,8 +111,8 @@ Errors: 400 `validation_failed`; 404 `consultation_not_found`; 409 `invalid_cons
 
 ### `POST /api/consultations/{id}/messages/photo`
 
-Multipart form: `image` (a JPEG or PNG of up to 10 MB; the type is read from the first bytes, the `Content-Type` of the part is not trusted) and an optional `text` (up to 2000 characters). Same rules as a text message: an active consultation, participants only, 30 messages a minute. The metadata (GPS, camera data) is removed before the photo is stored; the orientation is kept. Response: 201 with the message.
-Errors: 400 `invalid_image` (another type, too large, broken file); 400 `validation_failed` (text too long); 404 `consultation_not_found`; 409 `invalid_consultation_state`; 429 `rate_limited`; 503 `storage_unavailable`.
+Multipart form: the part `image` (a JPEG or PNG of up to 10 MB; the type is read from the first bytes, the `Content-Type` of the part is not trusted) and an optional part `text` (a caption of up to 2000 characters, same rules as a text message). The text is a form part, not a query parameter, so it stays out of the access logs. Same rules as a text message: an active consultation, participants only, 30 messages a minute. The metadata (GPS, camera data) is removed before the photo is stored; the orientation is kept. Response: 201 with the message.
+Errors: 400 `invalid_image` (another type, broken file); 413 `payload_too_large` (over 10 MB, answered by the upload limit before the service; the app should check the size itself); 400 `validation_failed` (caption too long or with control characters); 404 `consultation_not_found`; 409 `invalid_consultation_state`; 429 `rate_limited`; 503 `storage_unavailable`.
 
 ### `GET /api/consultations/{id}/messages/{messageId}/photo`
 

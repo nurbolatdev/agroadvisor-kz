@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MultipartFile;
@@ -72,10 +73,12 @@ public class ConsultationMessageController {
     @PostMapping(value = "/{id}/messages/photo", consumes = "multipart/form-data")
     @Operation(operationId = "sendConsultationPhoto",
             description = "A JPEG or PNG photo of up to 10 MB with an optional text, in an active consultation. "
-                    + "The type is taken from the first bytes, the metadata (GPS) is removed. 400 invalid_image; "
-                    + "409 invalid_consultation_state; 429 rate_limited; 503 storage_unavailable.")
+                    + "The type is taken from the first bytes, the metadata (GPS) is removed. 400 invalid_image "
+                    + "(another type or a broken file); 413 payload_too_large (over 10 MB); 409 "
+                    + "invalid_consultation_state; 429 rate_limited; 503 storage_unavailable.")
+    @ApiResponse(responseCode = "201", description = "The message with the photo")
     public ResponseEntity<MessageResponse> sendPhoto(@PathVariable UUID id,
-            @RequestParam("image") MultipartFile image, @RequestParam(required = false) String text,
+            @RequestParam("image") MultipartFile image, @RequestPart(value = "text", required = false) String text,
             Authentication authentication) throws IOException {
         MessageResponse sent = MessageResponse.of(messages.sendPhoto(me(authentication), id, text, image.getBytes()));
         return ResponseEntity.created(URI.create("/api/consultations/" + id + "/messages")).body(sent);

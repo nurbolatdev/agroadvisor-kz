@@ -510,7 +510,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description A JPEG or PNG photo of up to 10 MB with an optional text, in an active consultation. The type is taken from the first bytes, the metadata (GPS) is removed. 400 invalid_image; 409 invalid_consultation_state; 429 rate_limited; 503 storage_unavailable. */
+        /** @description A JPEG or PNG photo of up to 10 MB with an optional text, in an active consultation. The type is taken from the first bytes, the metadata (GPS) is removed. 400 invalid_image (another type or a broken file); 413 payload_too_large (over 10 MB); 409 invalid_consultation_state; 429 rate_limited; 503 storage_unavailable. */
         post: operations["sendConsultationPhoto"];
         delete?: never;
         options?: never;
@@ -2242,9 +2242,7 @@ export interface operations {
     };
     sendConsultationPhoto: {
         parameters: {
-            query?: {
-                text?: string;
-            };
+            query?: never;
             header?: never;
             path: {
                 id: string;
@@ -2256,12 +2254,13 @@ export interface operations {
                 "multipart/form-data": {
                     /** Format: binary */
                     image: string;
+                    text?: string;
                 };
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description The message with the photo */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
