@@ -1,6 +1,7 @@
 package kz.agroadvisor.consultations.web;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -8,12 +9,16 @@ import java.util.UUID;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -24,11 +29,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.WebRequest;
 
 import kz.agroadvisor.common.web.ApiException;
 import kz.agroadvisor.common.web.ErrorCodes;
 import kz.agroadvisor.consultations.model.ConsultationStatus;
 import kz.agroadvisor.consultations.service.ConsultationService;
+import kz.agroadvisor.consultations.service.ConsultationService.DiagnosisPhotoRef;
+import kz.agroadvisor.diagnosis.service.DiagnosisService;
+import kz.agroadvisor.diagnosis.service.DiagnosisService.DiagnosisView;
+import kz.agroadvisor.diagnosis.service.DiagnosisService.PhotoContent;
 
 /**
  * Consultations of the signed-in farmer or agrochemist. Another user's consultation and a missing one both
@@ -74,6 +84,36 @@ public class ConsultationController {
     @Operation(operationId = "getConsultation")
     public ConsultationResponse get(@PathVariable UUID id, Authentication authentication) {
         return ConsultationResponse.of(consultations.get(me(authentication), id));
+    }
+
+    @GetMapping("/{id}/diagnosis")
+    @Operation(operationId = "getConsultationDiagnosis",
+            description = "The diagnosis the farmer attached, for both participants; its photoUrl points to "
+                    + "/api/consultations/{id}/diagnosis/photo. 404 diagnosis_not_found without one.")
+    public DiagnosisView diagnosis(@PathVariable UUID id, Authentication authentication) {
+        return consultations.attachedDiagnosis(me(authentication), id);
+    }
+
+    @GetMapping("/{id}/diagnosis/photo")
+    @Operation(operationId = "getConsultationDiagnosisPhoto")
+    @ApiResponse(responseCode = "200", description = "A JPEG or PNG photo",
+            content = {@Content(mediaType = "image/jpeg", schema = @Schema(type = "string", format = "binary")),
+                    @Content(mediaType = "image/png", schema = @Schema(type = "string", format = "binary"))})
+    public ResponseEntity<byte[]> diagnosisPhoto(@PathVariable UUID id, Authentication authentication,
+            WebRequest request) {
+        DiagnosisPhotoRef ref = consultations.attachedDiagnosisPhoto(me(authentication), id);
+        String etag = DiagnosisService.photoEtag(ref.key());
+        CacheControl cache = CacheControl.maxAge(Duration.ofDays(365)).cachePrivate().immutable();
+        if (request.checkNotModified(etag)) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(etag).cacheControl(cache).build();
+        }
+        PhotoContent photo = consultations.loadAttachedDiagnosisPhoto(ref);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(photo.contentType()))
+                .cacheControl(cache)
+                .eTag(etag)
+                .header("X-Content-Type-Options", "nosniff")
+                .body(photo.bytes());
     }
 
     @PostMapping("/{id}/accept")

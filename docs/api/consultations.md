@@ -6,8 +6,6 @@ Errors are RFC 9457 problem documents with a `code` field (see [error codes](#er
 
 ## Not available yet
 
-- **Photos in messages.** The `photoUrl` field of a message is always `null`; a message has only text. Sending a photo and the photo endpoint come in a follow-up change.
-- **The attached diagnosis for the agrochemist.** A farmer may attach one of their own diagnoses to a request (`diagnosisId`), and the id is returned in the consultation. The agrochemist cannot open that diagnosis yet; `GET /api/diagnoses/{id}` still answers 404 to them.
 - Realtime delivery: the chat is read by polling with the `after` cursor.
 
 ## Access
@@ -68,7 +66,7 @@ requested --close (farmer, withdrawal)--> closed
 | `id` | uuid | |
 | `senderId` | uuid | |
 | `text` | string or null | |
-| `photoUrl` | null | always `null` for now |
+| `photoUrl` | string or null | relative path of the photo, `GET` it with the same token |
 | `createdAt` | timestamp | |
 | `readAt` | timestamp or null | when the other side read it |
 
@@ -110,6 +108,23 @@ Errors: 404 `consultation_not_found`; 409 `invalid_consultation_state`.
 Request: `{ "text": string }` (trimmed, 1 to 2000 characters). Only in an `active` consultation.
 Response: 201 with the message and `Location: /api/consultations/{id}/messages`.
 Errors: 400 `validation_failed`; 404 `consultation_not_found`; 409 `invalid_consultation_state`; 429 `rate_limited`.
+
+### `POST /api/consultations/{id}/messages/photo`
+
+Multipart form: the part `image` (a JPEG or PNG of up to 10 MB; the type is read from the first bytes, the `Content-Type` of the part is not trusted) and an optional part `text` (a caption of up to 2000 characters, same rules as a text message). The text is a form part, not a query parameter, so it stays out of the access logs. Same rules as a text message: an active consultation, participants only, 30 messages a minute. The metadata (GPS, camera data) is removed before the photo is stored; the orientation is kept. Response: 201 with the message.
+Errors: 400 `invalid_image` (another type, broken file); 413 `payload_too_large` (over 10 MB, answered by the upload limit before the service; the app should check the size itself); 400 `validation_failed` (caption too long or with control characters); 404 `consultation_not_found`; 409 `invalid_consultation_state`; 429 `rate_limited`; 503 `storage_unavailable`.
+
+### `GET /api/consultations/{id}/messages/{messageId}/photo`
+
+The photo bytes for the two participants. Cached for a year (`private, immutable`), with an `ETag`; `If-None-Match` gives 304. Errors: 404 `consultation_not_found`, `message_not_found` (no such message or it has no photo), `photo_not_found` (the object is missing from the storage).
+
+### `GET /api/consultations/{id}/diagnosis`
+
+The diagnosis the farmer attached to the request, in the shape of `GET /api/diagnoses/{id}`, for both participants. Its `photoUrl` is `/api/consultations/{id}/diagnosis/photo`: the diagnosis' own path (`/api/diagnoses/{id}`) still answers 404 to anyone but its owner. Errors: 404 `consultation_not_found`; 404 `diagnosis_not_found` (none attached, or it was deleted since).
+
+### `GET /api/consultations/{id}/diagnosis/photo`
+
+The photo of the attached diagnosis, with the same headers as the chat photo. Same errors as above.
 
 ### `GET /api/consultations/{id}/messages`
 

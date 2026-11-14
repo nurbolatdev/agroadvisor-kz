@@ -16,6 +16,13 @@ public final class ConsultationErrors {
     /** The message cursor does not belong to this consultation (404). */
     public static final String MESSAGE_NOT_FOUND = "message_not_found";
 
+    /** The photo is not a JPEG or PNG of up to 10 MB, or cannot be read (400). */
+    public static final String INVALID_IMAGE = "invalid_image";
+    /** The object storage did not answer (503). */
+    public static final String STORAGE_UNAVAILABLE = "storage_unavailable";
+    /** The message has no photo, or its object is missing from the storage (404). */
+    public static final String PHOTO_NOT_FOUND = "photo_not_found";
+
     private ConsultationErrors() {
     }
 }

@@ -450,6 +450,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/consultations/{id}/diagnosis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The diagnosis the farmer attached, for both participants; its photoUrl points to /api/consultations/{id}/diagnosis/photo. 404 diagnosis_not_found without one. */
+        get: operations["getConsultationDiagnosis"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consultations/{id}/diagnosis/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getConsultationDiagnosisPhoto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/consultations/{id}/messages": {
         parameters: {
             query?: never;
@@ -462,6 +495,39 @@ export interface paths {
         put?: never;
         /** @description Only in an active consultation: 409 invalid_consultation_state (reason = current status). 429 rate_limited after 30 messages a minute. */
         post: operations["sendConsultationMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consultations/{id}/messages/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description A JPEG or PNG photo of up to 10 MB with an optional text, in an active consultation. The type is taken from the first bytes, the metadata (GPS) is removed. 400 invalid_image (another type or a broken file); 413 payload_too_large (over 10 MB); 409 invalid_consultation_state; 429 rate_limited; 503 storage_unavailable. */
+        post: operations["sendConsultationPhoto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consultations/{id}/messages/{messageId}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getConsultationPhoto"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1038,7 +1104,7 @@ export interface components {
             createdAt: string;
             /** Format: uuid */
             id: string;
-            /** @description Relative path of the photo; always null until chat photos arrive */
+            /** @description Relative path of the photo, if there is one */
             photoUrl?: string | null;
             /** Format: date-time */
             readAt?: string | null;
@@ -2077,6 +2143,51 @@ export interface operations {
             };
         };
     };
+    getConsultationDiagnosis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DiagnosisView"];
+                };
+            };
+        };
+    };
+    getConsultationDiagnosisPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A JPEG or PNG photo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                };
+            };
+        };
+    };
     listConsultationMessages: {
         parameters: {
             query?: {
@@ -2125,6 +2236,60 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    sendConsultationPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    image: string;
+                    text?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The message with the photo */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    getConsultationPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A JPEG or PNG photo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
                 };
             };
         };

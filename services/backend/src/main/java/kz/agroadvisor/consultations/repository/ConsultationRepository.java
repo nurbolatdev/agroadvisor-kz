@@ -91,11 +91,27 @@ public class ConsultationRepository {
         UUID id = jdbc.queryForObject("""
                 INSERT INTO consultation_messages (consultation_id, sender_id, body)
                 VALUES (?, ?, ?) RETURNING id""", UUID.class, consultationId, senderId, body);
+        touch(consultationId, id);
+        return id;
+    }
+
+    /** Adds a photo message ({@code body} may be null) and moves {@code last_message_at} to it. */
+    public UUID insertPhotoMessage(UUID consultationId, UUID senderId, String body, String photoKey,
+            String contentType, int sizeBytes) {
+        UUID id = jdbc.queryForObject("""
+                INSERT INTO consultation_messages (consultation_id, sender_id, body, photo_key,
+                                                   photo_content_type, photo_size_bytes)
+                VALUES (?, ?, ?, ?, ?, ?) RETURNING id""", UUID.class, consultationId, senderId, body, photoKey,
+                contentType, sizeBytes);
+        touch(consultationId, id);
+        return id;
+    }
+
+    private void touch(UUID consultationId, UUID id) {
         jdbc.update("""
                 UPDATE consultations SET last_message_at = (SELECT created_at FROM consultation_messages
                                                              WHERE id = ?)
                 WHERE id = ?""", id, consultationId);
-        return id;
     }
 
     /** The consultation if {@code me} is its farmer or its agrochemist; anyone else gets nothing. */

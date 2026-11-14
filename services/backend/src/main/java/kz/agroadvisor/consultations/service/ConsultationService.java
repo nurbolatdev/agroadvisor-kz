@@ -60,7 +60,7 @@ public class ConsultationService {
      */
     @Transactional
     public Item request(UUID farmer, UUID agrochemistId, String text, UUID diagnosisId) {
-        String body = text == null ? "" : text.strip().replace("\r\n", "\n").replace('\r', '\n');
+        String body = text == null ? "" : normalize(text);
         if (body.isEmpty() || body.length() > MAX_TEXT_LENGTH || hasControlChars(body)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,
                     "The text must have 1 to " + MAX_TEXT_LENGTH + " characters");
@@ -94,6 +94,11 @@ public class ConsultationService {
         return consultations.findForParticipant(created.id(), farmer).orElseThrow();
     }
 
+    /** The text without the spaces around it; a carriage return becomes a line break. */
+    static String normalize(String text) {
+        return text.strip().replace("\r\n", "\n").replace('\r', '\n');
+    }
+
     /** Whether the text has a control character other than a line break or a tab (PostgreSQL rejects NUL). */
     static boolean hasControlChars(String text) {
         return text.chars().anyMatch(c -> Character.isISOControl(c) && c != '\n' && c != '\t');
@@ -103,6 +108,43 @@ public class ConsultationService {
     @Transactional(readOnly = true)
     public Item get(UUID me, UUID id) {
         return consultations.findForParticipant(id, me).orElseThrow(ConsultationService::notFound);
+    }
+
+    /** The photo of the attached diagnosis: the diagnosis id and the object key (for the ETag and the download). */
+    public record DiagnosisPhotoRef(UUID diagnosisId, String key) {
+    }
+
+    /**
+     * The diagnosis the farmer attached, as the farmer sees it, for either participant. The photo path points
+     * to the consultation, because the diagnosis' own path answers 404 to anyone but its owner. No diagnosis
+     * attached (or deleted since) and a consultation of someone else are both 404.
+     */
+    @Transactional(readOnly = true)
+    public DiagnosisService.DiagnosisView attachedDiagnosis(UUID me, UUID id) {
+        Consultation row = get(me, id).consultation();
+        return diagnoses.get(row.farmerId(), attachedId(row))
+                .withPhotoUrl("/api/consultations/" + id + "/diagnosis/photo");
+    }
+
+    /** The object key of the attached diagnosis' photo; 404 as in {@link #attachedDiagnosis}. */
+    @Transactional(readOnly = true)
+    public DiagnosisPhotoRef attachedDiagnosisPhoto(UUID me, UUID id) {
+        Consultation row = get(me, id).consultation();
+        UUID diagnosisId = attachedId(row);
+        return new DiagnosisPhotoRef(diagnosisId, diagnoses.photoKey(row.farmerId(), diagnosisId));
+    }
+
+    /** The photo bytes of {@link #attachedDiagnosisPhoto}. */
+    public DiagnosisService.PhotoContent loadAttachedDiagnosisPhoto(DiagnosisPhotoRef ref) {
+        return diagnoses.loadPhoto(ref.diagnosisId(), ref.key());
+    }
+
+    private static UUID attachedId(Consultation row) {
+        if (row.diagnosisId() == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "diagnosis_not_found",
+                    "No diagnosis is attached to this consultation");
+        }
+        return row.diagnosisId();
     }
 
     /** The consultations of {@code me}, the latest activity first; no statuses means all. */

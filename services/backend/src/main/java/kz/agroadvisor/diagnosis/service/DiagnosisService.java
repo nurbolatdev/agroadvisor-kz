@@ -117,6 +117,12 @@ public class DiagnosisService {
             @Schema(requiredMode = REQUIRED, description = "Relative path of the photo; GET it with the same token",
                     example = "/api/diagnoses/0b1f2c3d-0000-4000-8000-000000000000/photo") String photoUrl,
             @Schema(requiredMode = REQUIRED) Instant createdAt) {
+
+        /** The same result with another photo path (a consultation serves the photo to its other side). */
+        public DiagnosisView withPhotoUrl(String url) {
+            return new DiagnosisView(id, crop, status, top1, top3, detectedCrop, modelVersion, classesVersion,
+                    placeholder, descriptionReady, url, createdAt);
+        }
     }
 
     /** The photo bytes with their type (from the key's extension) and the key as a stable ETag source. */
