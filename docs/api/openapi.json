@@ -471,6 +471,86 @@
         "required" : [ "documents", "fullName", "status", "submittedAt", "userId" ],
         "type" : "object"
       },
+      "DiagnosisReviewCombined" : {
+        "description" : "Only confirmed and corrected decide. When they agree (same verdict and class) that is the status; when they differ, disputed. With only unclear marks, unclear; with no reviews, none. Who reviewed is not shown.",
+        "properties" : {
+          "correctCode" : {
+            "description" : "The class, for confirmed and corrected",
+            "type" : [ "string", "null" ]
+          },
+          "reviews" : {
+            "description" : "How many reviews there are",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "status" : {
+            "enum" : [ "none", "confirmed", "corrected", "unclear", "disputed" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "reviews", "status" ],
+        "type" : "object"
+      },
+      "DiagnosisReviewMine" : {
+        "properties" : {
+          "comment" : {
+            "type" : [ "string", "null" ]
+          },
+          "correctCode" : {
+            "type" : [ "string", "null" ]
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "verdict" : {
+            "enum" : [ "confirmed", "corrected", "unclear" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "updatedAt", "verdict" ],
+        "type" : "object"
+      },
+      "DiagnosisReviewRequest" : {
+        "properties" : {
+          "comment" : {
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "correctCode" : {
+            "description" : "The right class (e.g. potato__late_blight). Required for corrected; for confirmed it may be omitted (the model's class is taken); not allowed for unclear",
+            "maxLength" : 80,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "verdict" : {
+            "enum" : [ "confirmed", "corrected", "unclear" ],
+            "pattern" : "confirmed|corrected|unclear",
+            "type" : "string"
+          }
+        },
+        "required" : [ "verdict" ],
+        "type" : "object"
+      },
+      "DiagnosisReviewResponse" : {
+        "properties" : {
+          "combined" : {
+            "$ref" : "#/components/schemas/DiagnosisReviewCombined"
+          },
+          "mine" : {
+            "$ref" : "#/components/schemas/DiagnosisReviewMine",
+            "description" : "The caller's own review; null until they give one",
+            "type" : "null"
+          }
+        },
+        "required" : [ "combined" ],
+        "type" : "object"
+      },
       "DiagnosisView" : {
         "properties" : {
           "classesVersion" : {
@@ -1453,6 +1533,70 @@
         "tags" : [ "catalog-admin-controller" ]
       }
     },
+    "/api/admin/diagnoses/{id}/review" : {
+      "get" : {
+        "description" : "404 diagnosis_not_found.",
+        "operationId" : "getAdminDiagnosisReview",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DiagnosisReviewResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-diagnosis-review-controller" ]
+      },
+      "put" : {
+        "description" : "Gives or replaces the caller's verdict. 400 invalid_verdict (confirmed without an answer of the model, corrected to the model's own class, a class with unclear) or unknown_class; 404 diagnosis_not_found.",
+        "operationId" : "putAdminDiagnosisReview",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DiagnosisReviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DiagnosisReviewResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-diagnosis-review-controller" ]
+      }
+    },
     "/api/admin/diseases" : {
       "get" : {
         "operationId" : "diseases",
@@ -2410,6 +2554,70 @@
           }
         },
         "tags" : [ "consultation-controller" ]
+      }
+    },
+    "/api/consultations/{id}/diagnosis/review" : {
+      "get" : {
+        "description" : "404 consultation_not_found or diagnosis_not_found; 409 invalid_consultation_state before the consultation is accepted or after it was declined.",
+        "operationId" : "getConsultationDiagnosisReview",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DiagnosisReviewResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-diagnosis-review-controller" ]
+      },
+      "put" : {
+        "description" : "Gives or replaces the agrochemist's verdict on the attached diagnosis, in an active or closed consultation. 400 invalid_verdict or unknown_class; 404 consultation_not_found or diagnosis_not_found; 409 invalid_consultation_state.",
+        "operationId" : "putConsultationDiagnosisReview",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DiagnosisReviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DiagnosisReviewResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-diagnosis-review-controller" ]
       }
     },
     "/api/consultations/{id}/messages" : {

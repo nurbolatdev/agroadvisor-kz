@@ -138,6 +138,25 @@ public class ConsultationService {
         return new DiagnosisPhotoRef(diagnosisId, diagnoses.photoKey(row.farmerId(), diagnosisId));
     }
 
+    /**
+     * The id of the diagnosis the agrochemist of this consultation may review: it must be attached, and the
+     * consultation must have been accepted (active or closed). Not the agrochemist of it, or a missing
+     * consultation, is 404; a consultation that is still a request or was declined is 409.
+     */
+    @Transactional(readOnly = true)
+    public UUID reviewableDiagnosis(UUID me, UUID id) {
+        Consultation row = consultations.findRow(id, me).filter(c -> c.agrochemistId().equals(me))
+                .orElseThrow(ConsultationService::notFound);
+        UUID diagnosisId = attachedId(row);
+        if (row.status() != ConsultationStatus.ACTIVE && row.status() != ConsultationStatus.CLOSED
+                || row.acceptedAt() == null) {
+            throw new ApiException(HttpStatus.CONFLICT, ConsultationErrors.INVALID_CONSULTATION_STATE,
+                    "A diagnosis can be reviewed once the consultation is accepted, this one is "
+                            + row.status().code(), row.status().code());
+        }
+        return diagnosisId;
+    }
+
     /** The photo bytes of {@link #attachedDiagnosisPhoto}. */
     public DiagnosisService.PhotoContent loadAttachedDiagnosisPhoto(DiagnosisPhotoRef ref) {
         return diagnoses.loadPhoto(ref.diagnosisId(), ref.key());
