@@ -105,6 +105,45 @@ public class ConsultationService {
         return consultations.findForParticipant(id, me).orElseThrow(ConsultationService::notFound);
     }
 
+    /** The photo of the attached diagnosis: the diagnosis id and the object key (for the ETag and the download). */
+    public record DiagnosisPhotoRef(UUID diagnosisId, String key) {
+    }
+
+    /**
+     * The diagnosis the farmer attached, as the farmer sees it, for either participant. The photo path points
+     * to the consultation, because the diagnosis' own path answers 404 to anyone but its owner. No diagnosis
+     * attached (or deleted since) and a consultation of someone else are both 404.
+     */
+    @Transactional(readOnly = true)
+    public DiagnosisService.DiagnosisView attachedDiagnosis(UUID me, UUID id) {
+        Consultation row = get(me, id).consultation();
+        DiagnosisService.DiagnosisView v = diagnoses.get(row.farmerId(), attachedId(row));
+        return new DiagnosisService.DiagnosisView(v.id(), v.crop(), v.status(), v.top1(), v.top3(),
+                v.detectedCrop(), v.modelVersion(), v.classesVersion(), v.placeholder(), v.descriptionReady(),
+                "/api/consultations/" + id + "/diagnosis/photo", v.createdAt());
+    }
+
+    /** The object key of the attached diagnosis' photo; 404 as in {@link #attachedDiagnosis}. */
+    @Transactional(readOnly = true)
+    public DiagnosisPhotoRef attachedDiagnosisPhoto(UUID me, UUID id) {
+        Consultation row = get(me, id).consultation();
+        UUID diagnosisId = attachedId(row);
+        return new DiagnosisPhotoRef(diagnosisId, diagnoses.photoKey(row.farmerId(), diagnosisId));
+    }
+
+    /** The photo bytes of {@link #attachedDiagnosisPhoto}. */
+    public DiagnosisService.PhotoContent loadAttachedDiagnosisPhoto(DiagnosisPhotoRef ref) {
+        return diagnoses.loadPhoto(ref.diagnosisId(), ref.key());
+    }
+
+    private static UUID attachedId(Consultation row) {
+        if (row.diagnosisId() == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "diagnosis_not_found",
+                    "No diagnosis is attached to this consultation");
+        }
+        return row.diagnosisId();
+    }
+
     /** The consultations of {@code me}, the latest activity first; no statuses means all. */
     @Transactional(readOnly = true)
     public List<Item> list(UUID me, Collection<ConsultationStatus> statuses, int page, int size) {

@@ -40,6 +40,7 @@ import com.jayway.jsonpath.JsonPath;
 import kz.agroadvisor.TestcontainersConfiguration;
 import kz.agroadvisor.auth.service.JwtService;
 import kz.agroadvisor.consultations.service.ConsultationPhotoStorage;
+import kz.agroadvisor.diagnosis.service.PhotoStorage;
 import kz.agroadvisor.users.model.Login;
 import kz.agroadvisor.users.model.Role;
 import kz.agroadvisor.users.model.User;
@@ -67,6 +68,8 @@ class ConsultationPhotoIntegrationTest {
     private JdbcTemplate jdbc;
     @MockitoBean
     private ConsultationPhotoStorage storage;
+    @MockitoBean
+    private PhotoStorage diagnosisPhotos;
 
     private final List<UUID> created = new ArrayList<>();
 
@@ -193,6 +196,66 @@ class ConsultationPhotoIntegrationTest {
         sendPhoto(chat.farmerToken, chat.id, JPEG, null).andExpect(status().is5xxServerError());
 
         verify(storage).delete(tooLong);
+    }
+
+    private record DiagnosisChat(UUID id, UUID diagnosis, String farmerToken, String agrochemistToken) {
+    }
+
+    private DiagnosisChat chatWithDiagnosis() throws Exception {
+        UUID farmer = newUser(Role.FARMER, null);
+        UUID agrochemist = newUser(Role.AGROCHEMIST, "approved");
+        UUID diagnosis = jdbc.queryForObject("""
+                INSERT INTO diagnoses (user_id, crop_code, photo_key, status, top1_code, top1_confidence,
+                                       model_version, classes_version)
+                VALUES (?, 'potato', 'diagnoses/attached.jpg', 'ok', 'potato__late_blight', 0.9, 'effnet-b0-v1', 1)
+                RETURNING id""", UUID.class, farmer);
+        String farmerToken = token(farmer);
+        String location = mvc.perform(post("/api/consultations").header("Authorization", farmerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"agrochemistId\": \"" + agrochemist + "\", \"text\": \"Help\", \"diagnosisId\": \""
+                        + diagnosis + "\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getHeader("Location");
+        UUID id = UUID.fromString(location.substring(location.lastIndexOf('/') + 1));
+        return new DiagnosisChat(id, diagnosis, farmerToken, token(agrochemist));
+    }
+
+    @Test
+    void theAgrochemistSeesTheAttachedDiagnosisAndItsPhotoButNotThroughTheDiagnosisPath() throws Exception {
+        DiagnosisChat chat = chatWithDiagnosis();
+        when(diagnosisPhotos.load("diagnoses/attached.jpg")).thenReturn(java.util.Optional.of(JPEG));
+
+        mvc.perform(get("/api/consultations/" + chat.id + "/diagnosis").header("Authorization", chat.agrochemistToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(chat.diagnosis.toString()))
+                .andExpect(jsonPath("$.top1.code").value("potato__late_blight"))
+                .andExpect(jsonPath("$.photoUrl").value("/api/consultations/" + chat.id + "/diagnosis/photo"));
+        String etag = mvc.perform(get("/api/consultations/" + chat.id + "/diagnosis/photo")
+                .header("Authorization", chat.agrochemistToken))
+                .andExpect(status().isOk()).andExpect(header().string("Content-Type", "image/jpeg"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andReturn().getResponse().getHeader("ETag");
+        mvc.perform(get("/api/consultations/" + chat.id + "/diagnosis/photo")
+                .header("Authorization", chat.agrochemistToken).header("If-None-Match", etag))
+                .andExpect(status().isNotModified());
+        // The diagnosis' own path stays for its owner only
+        mvc.perform(get("/api/diagnoses/" + chat.diagnosis).header("Authorization", chat.agrochemistToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void withoutADiagnosisAndForAStrangerTheDiagnosisIsNotFound() throws Exception {
+        Chat plain = activeChat();
+        DiagnosisChat withDiagnosis = chatWithDiagnosis();
+        String stranger = token(newUser(Role.AGROCHEMIST, "approved"));
+
+        mvc.perform(get("/api/consultations/" + plain.id + "/diagnosis").header("Authorization", plain.farmerToken))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("diagnosis_not_found"));
+        mvc.perform(get("/api/consultations/" + plain.id + "/diagnosis/photo")
+                .header("Authorization", plain.agrochemistToken)).andExpect(status().isNotFound());
+        mvc.perform(get("/api/consultations/" + withDiagnosis.id + "/diagnosis").header("Authorization", stranger))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("consultation_not_found"));
+        mvc.perform(get("/api/consultations/" + withDiagnosis.id + "/diagnosis/photo")
+                .header("Authorization", stranger)).andExpect(status().isNotFound());
     }
 
     @Test

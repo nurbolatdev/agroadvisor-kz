@@ -2350,6 +2350,68 @@
         "tags" : [ "consultation-controller" ]
       }
     },
+    "/api/consultations/{id}/diagnosis" : {
+      "get" : {
+        "description" : "The diagnosis the farmer attached, for both participants; its photoUrl points to /api/consultations/{id}/diagnosis/photo. 404 diagnosis_not_found without one.",
+        "operationId" : "getConsultationDiagnosis",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DiagnosisView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-controller" ]
+      }
+    },
+    "/api/consultations/{id}/diagnosis/photo" : {
+      "get" : {
+        "operationId" : "getConsultationDiagnosisPhoto",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "image/jpeg" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              },
+              "image/png" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "A JPEG or PNG photo"
+          }
+        },
+        "tags" : [ "consultation-controller" ]
+      }
+    },
     "/api/consultations/{id}/messages" : {
       "get" : {
         "description" : "Without a cursor or with before: the newest first, older than before. With after: the oldest first, newer than after. Not both. A cursor that is not a message of this consultation is 404 message_not_found.",
