@@ -29,7 +29,6 @@ public class DiagnosisReviewService {
     public static final String CONFIRMED = "confirmed";
     public static final String CORRECTED = "corrected";
     public static final String UNCLEAR = "unclear";
-    public static final Set<String> VERDICTS = Set.of(CONFIRMED, CORRECTED, UNCLEAR);
 
     public static final int MAX_COMMENT_LENGTH = 2000;
 
@@ -62,6 +61,10 @@ public class DiagnosisReviewService {
     @Transactional
     public State review(UUID reviewer, UUID diagnosisId, String verdict, String correctCode, String comment) {
         Diagnosis diagnosis = diagnoses.findById(diagnosisId).orElseThrow(DiagnosisReviewService::notFound);
+        if (reviewer.equals(diagnosis.getUserId())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, DiagnosisErrors.SELF_REVIEW,
+                    "You cannot review your own diagnosis");
+        }
         String note = note(comment);
         String code = correctCode == null || correctCode.isBlank() ? null : correctCode.strip();
         String stored = switch (verdict == null ? "" : verdict) {
@@ -126,7 +129,8 @@ public class DiagnosisReviewService {
         if (code == null) {
             throw invalid("A corrected verdict names the right class");
         }
-        if (code.equals(diagnosis.getTop1Code())) {
+        boolean answered = "ok".equals(diagnosis.getStatus()) || "low_confidence".equals(diagnosis.getStatus());
+        if (answered && code.equals(diagnosis.getTop1Code())) {
             throw invalid("The class is the model's answer; use confirmed");
         }
         if (!diseases.existsById(code)) {

@@ -3,6 +3,7 @@
 - [ai-predict.md](ai-predict.md) — contract of the ai-service `/predict` endpoint.
 - [agrochemist-verification.md](agrochemist-verification.md) — sending documents, the states of the check and the admin's decision.
 - [consultations.md](consultations.md) — consultation requests, the status machine, chat messages, read receipts, limits and error codes.
+- [diagnosis-reviews.md](diagnosis-reviews.md) — expert checks of diagnoses by an agrochemist or an admin and the combined verdict.
 - `openapi.json` — snapshot of the backend OpenAPI schema. It is the single source of truth for the generated mobile types (`apps/mobile/src/api/schema.d.ts`).
 
 ## Updating the snapshot

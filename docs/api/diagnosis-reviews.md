@@ -20,7 +20,7 @@ The farmer is **not** a reviewer of their own diagnosis (a conflict of interest;
 | `verdict` | `correctCode` | Rule |
 | --- | --- | --- |
 | `confirmed` | omitted (or the model's class) | Possible only when the model gave an answer (`status` `ok` or `low_confidence`); the model's first class is stored. |
-| `corrected` | required | A class of the catalog (`unknown_class` otherwise) other than the model's first class (`invalid_verdict` otherwise). |
+| `corrected` | required | A class of the catalog (`unknown_class` otherwise). When the model gave an answer (`ok`, `low_confidence`) it must differ from the model's first class (`invalid_verdict` otherwise); for `unknown` and `crop_mismatch` any class is allowed, including the model's weak guess. |
 | `unclear` | not allowed | The reviewer cannot tell from the photo. |
 
 `comment` has at most 2000 characters; a line break and a tab are allowed, other control characters are not.
@@ -51,8 +51,10 @@ Only `confirmed` and `corrected` decide; an `unclear` mark does not contradict a
 | 400 | `invalid_verdict` | `confirmed` for an answer the model did not give or for another class, `corrected` without a class or with the model's own class, a class with `unclear` |
 | 400 | `unknown_class` | the corrected class is not in the catalog |
 | 401, 403 | `unauthorized`, `forbidden` | no token; another role |
+| 403 | `self_review_forbidden` | the reviewer is the owner of the diagnosis (an admin who is also a farmer) |
 | 404 | `consultation_not_found`, `diagnosis_not_found` | not the agrochemist of the consultation, no such consultation, no attached diagnosis, no such diagnosis |
 | 409 | `invalid_consultation_state` | the consultation is not accepted yet or was declined |
+| 409 | `agrochemist_not_listed` | the agrochemist is no longer in the directory (approval withdrawn) |
 
 ## Not available yet
 

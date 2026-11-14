@@ -21,6 +21,8 @@ public final class DiagnosisErrors {
     public static final String DIAGNOSIS_NOT_FOUND = "diagnosis_not_found";
     /** The verdict does not fit the diagnosis or its class (400). */
     public static final String INVALID_VERDICT = "invalid_verdict";
+    /** The reviewer is the owner of the diagnosis (403). */
+    public static final String SELF_REVIEW = "self_review_forbidden";
     /** The corrected class is not in the catalog (400). */
     public static final String UNKNOWN_CLASS = "unknown_class";
 

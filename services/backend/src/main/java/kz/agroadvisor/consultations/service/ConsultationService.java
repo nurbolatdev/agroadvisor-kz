@@ -154,6 +154,12 @@ public class ConsultationService {
                     "A diagnosis can be reviewed once the consultation is accepted, this one is "
                             + row.status().code(), row.status().code());
         }
+        try {
+            directory.requireListed(me);
+        } catch (ApiException e) {
+            throw new ApiException(HttpStatus.CONFLICT, ConsultationErrors.AGROCHEMIST_NOT_LISTED,
+                    "You are not in the directory, so you cannot review diagnoses");
+        }
         return diagnosisId;
     }
 

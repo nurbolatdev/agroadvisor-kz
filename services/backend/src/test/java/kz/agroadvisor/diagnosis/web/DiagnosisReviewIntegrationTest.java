@@ -184,6 +184,46 @@ class DiagnosisReviewIntegrationTest {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("invalid_verdict"));
         review("/api/admin/diagnoses/" + unknown + "/review", admin,
                 "{\"verdict\": \"corrected\", \"correctCode\": \"potato__healthy\"}").andExpect(status().isOk());
+        // The weak guess of the model may turn out to be right: it is then a correction to its own class
+        review("/api/admin/diagnoses/" + unknown + "/review", admin,
+                "{\"verdict\": \"corrected\", \"correctCode\": \"potato__late_blight\"}")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.mine.correctCode").value("potato__late_blight"));
+    }
+
+    @Test
+    void anAdministratorCannotReviewTheirOwnDiagnosis() throws Exception {
+        UUID adminFarmer = users.saveAndFlush(new User(Login.parse("+7728" + (1_000_000 + (int) (Math.random()
+                * 8_999_999))), "x", "Admin farmer", "ru", Set.of(Role.ADMIN, Role.FARMER))).getId();
+        created.add(adminFarmer);
+        UUID own = diagnosis(adminFarmer, "ok");
+
+        review("/api/admin/diagnoses/" + own + "/review", adminFarmer, "{\"verdict\": \"confirmed\"}")
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("self_review_forbidden"));
+    }
+
+    @Test
+    void anAgrochemistRemovedFromTheDirectoryCannotReviewAnyMore() throws Exception {
+        Chat chat = chat(true);
+        jdbc.update("UPDATE agrochemist_profiles SET verification_status = 'documents_requested' WHERE user_id = ?",
+                chat.agrochemist);
+
+        review(consultationPath(chat), chat.agrochemist, "{\"verdict\": \"confirmed\"}")
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("agrochemist_not_listed"));
+    }
+
+    @Test
+    void aDeclinedOrWithdrawnRequestCannotBeReviewed() throws Exception {
+        Chat declined = chat(false);
+        mvc.perform(post("/api/consultations/" + declined.id + "/decline").header("Authorization",
+                bearer(declined.agrochemist))).andExpect(status().isOk());
+        review(consultationPath(declined), declined.agrochemist, "{\"verdict\": \"confirmed\"}")
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("invalid_consultation_state"));
+
+        Chat withdrawn = chat(false);
+        mvc.perform(post("/api/consultations/" + withdrawn.id + "/close").header("Authorization",
+                bearer(withdrawn.farmer))).andExpect(status().isOk());
+        review(consultationPath(withdrawn), withdrawn.agrochemist, "{\"verdict\": \"confirmed\"}")
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("invalid_consultation_state"));
     }
 
     @Test
@@ -199,9 +239,8 @@ class DiagnosisReviewIntegrationTest {
         // The farmer is not a reviewer of their own diagnosis
         review(consultationPath(accepted), accepted.farmer, "{\"verdict\": \"confirmed\"}")
                 .andExpect(status().isForbidden());
-        mvc.perform(put("/api/diagnoses/" + accepted.diagnosis + "/review").header("Authorization",
-                bearer(accepted.farmer)).contentType(MediaType.APPLICATION_JSON).content("{\"verdict\": \"confirmed\"}"))
-                .andExpect(status().is4xxClientError());
+        mvc.perform(get(consultationPath(requested)).header("Authorization", bearer(requested.agrochemist)))
+                .andExpect(status().isConflict());
         // A closed consultation can still be reviewed
         mvc.perform(post("/api/consultations/" + accepted.id + "/close").header("Authorization",
                 bearer(accepted.agrochemist))).andExpect(status().isOk());
