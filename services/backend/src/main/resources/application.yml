@@ -77,8 +77,8 @@ app:
     login-per-account-per-minute: ${APP_RATE_LIMIT_LOGIN_PER_ACCOUNT_PER_MINUTE:10} # login attempts per account per minute
     register-per-ip-per-hour: ${APP_RATE_LIMIT_REGISTER_PER_IP_PER_HOUR:20} # sign-ups per client address per hour
     refresh-per-ip-per-minute: ${APP_RATE_LIMIT_REFRESH_PER_IP_PER_MINUTE:60} # token refreshes per client address per minute (logouts get their own bucket of the same size)
-    consultation-requests-per-hour: 10 # new consultation requests per farmer per hour
-    consultation-messages-per-minute: 30 # chat messages per user per minute
+    consultation-requests-per-hour: ${APP_RATE_LIMIT_CONSULTATION_REQUESTS_PER_HOUR:10} # new consultation requests per farmer per hour
+    consultation-messages-per-minute: ${APP_RATE_LIMIT_CONSULTATION_MESSAGES_PER_MINUTE:30} # chat messages per user per minute
   security:
     jwt:
       # Base64, at least 32 random bytes (openssl rand -base64 48). Kept outside git; startup fails without it.
