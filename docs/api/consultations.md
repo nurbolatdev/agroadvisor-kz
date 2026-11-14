@@ -4,9 +4,26 @@ A farmer asks a verified agrochemist for advice; once the agrochemist accepts, t
 
 Errors are RFC 9457 problem documents with a `code` field (see [error codes](#error-codes)).
 
+## Realtime events
+
+The server pushes short events over STOMP on a WebSocket (decision: [ADR 0009](../adr/0009-consultation-realtime.md)). They are hints: the client reads the data again over REST.
+
+1. Open `ws(s)://<host>/ws` (plain WebSocket, no SockJS).
+2. Send `CONNECT` with the header `Authorization: Bearer <access token>`; send nothing else first (a socket without `CONNECT` is closed after 10 s). The token goes in the frame, never in the URL. Roles `farmer` and `agrochemist` only; an admin or a bad token gets an `ERROR` frame and the socket closes.
+3. `SUBSCRIBE` to `/user/queue/consultations`. Any other destination, and any `SEND`, closes the session.
+4. Receive JSON frames `{ "type": ..., "consultationId": uuid, "messageId": uuid | null }`:
+
+| `type` | To whom | `messageId` | The client then |
+| --- | --- | --- | --- |
+| `message_created` | the other side of the message | the new message | loads `GET .../messages?after=<last known id>` |
+| `messages_read` | the author of the messages that were read | the read cursor (`upTo`) | updates the read marks of its messages |
+| `consultation_updated` | both sides | null | reloads `GET /api/consultations/{id}` (a new request, accepted, declined or closed) |
+
+Events are sent after the change is saved. The socket closes when the access token expires (15 minutes): refresh the token and reconnect. After a reconnect, call `GET /api/consultations/unread-count` and the history with `after`, because events sent while the client was offline are not kept.
+
 ## Not available yet
 
-- Realtime delivery: the chat is read by polling with the `after` cursor.
+- Push notifications when the app is closed (a later task).
 
 ## Access
 
