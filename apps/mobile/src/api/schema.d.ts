@@ -103,6 +103,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/diagnoses/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 404 diagnosis_not_found. */
+        get: operations["getAdminDiagnosisReview"];
+        /** @description Gives or replaces the caller's verdict. 400 invalid_verdict (confirmed without an answer of the model, corrected to the model's own class, a class with unclear) or unknown_class; 404 diagnosis_not_found. */
+        put: operations["putAdminDiagnosisReview"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/diseases": {
         parameters: {
             query?: never;
@@ -476,6 +494,24 @@ export interface paths {
         };
         get: operations["getConsultationDiagnosisPhoto"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/consultations/{id}/diagnosis/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 404 consultation_not_found or diagnosis_not_found; 409 invalid_consultation_state before the consultation is accepted or after it was declined. */
+        get: operations["getConsultationDiagnosisReview"];
+        /** @description Gives or replaces the agrochemist's verdict on the attached diagnosis, in an active or closed consultation. 400 invalid_verdict or unknown_class; 404 consultation_not_found or diagnosis_not_found; 409 invalid_consultation_state. */
+        put: operations["putConsultationDiagnosisReview"];
         post?: never;
         delete?: never;
         options?: never;
@@ -946,6 +982,40 @@ export interface components {
             submittedAt: string;
             /** Format: uuid */
             userId: string;
+        };
+        /** @description Only confirmed and corrected decide. When they agree (same verdict and class) that is the status; when they differ, disputed. With only unclear marks, unclear; with no reviews, none. Who reviewed is not shown. */
+        DiagnosisReviewCombined: {
+            /** @description The class, for confirmed and corrected */
+            correctCode?: string | null;
+            /**
+             * Format: int32
+             * @description How many reviews there are
+             */
+            reviews: number;
+            /** @enum {string} */
+            status: "none" | "confirmed" | "corrected" | "unclear" | "disputed";
+        };
+        DiagnosisReviewMine: {
+            comment?: string | null;
+            correctCode?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @enum {string} */
+            verdict: "confirmed" | "corrected" | "unclear";
+        };
+        DiagnosisReviewRequest: {
+            comment?: string | null;
+            /** @description The right class (e.g. potato__late_blight). Required for corrected; for confirmed it may be omitted (the model's class is taken); not allowed for unclear */
+            correctCode?: string | null;
+            /** @enum {string} */
+            verdict: "confirmed" | "corrected" | "unclear";
+        };
+        DiagnosisReviewResponse: {
+            combined: components["schemas"]["DiagnosisReviewCombined"];
+            /** @description The caller's own review; null until they give one */
+            mine?: components["schemas"]["DiagnosisReviewMine"];
         };
         DiagnosisView: {
             /** Format: int32 */
@@ -1445,6 +1515,54 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getAdminDiagnosisReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DiagnosisReviewResponse"];
+                };
+            };
+        };
+    };
+    putAdminDiagnosisReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiagnosisReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DiagnosisReviewResponse"];
+                };
             };
         };
     };
@@ -2184,6 +2302,54 @@ export interface operations {
                 content: {
                     "image/jpeg": string;
                     "image/png": string;
+                };
+            };
+        };
+    };
+    getConsultationDiagnosisReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DiagnosisReviewResponse"];
+                };
+            };
+        };
+    };
+    putConsultationDiagnosisReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiagnosisReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DiagnosisReviewResponse"];
                 };
             };
         };
