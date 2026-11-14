@@ -41,6 +41,9 @@ class SecurityConfig {
                     // the registration form lists the regions before there is an account
                     auth.requestMatchers(HttpMethod.GET, "/api/regions").permitAll();
                     auth.requestMatchers("/actuator/health/**", "/actuator/info").permitAll();
+                    // The WebSocket handshake carries no token (a browser cannot add a header to it); the access
+                    // token is checked in the STOMP CONNECT frame, and nothing is delivered before that
+                    auth.requestMatchers(HttpMethod.GET, "/ws").permitAll();
                     if (docsEnabled) {
                         // Development only: springdoc.api-docs.enabled is off unless a profile turns it on
                         auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();

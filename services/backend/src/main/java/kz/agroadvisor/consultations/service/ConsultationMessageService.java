@@ -39,10 +39,12 @@ public class ConsultationMessageService {
     private final ConsultationPhotoStorage photos;
     private final TransactionTemplate tx;
     private final ImageMetadataStripper stripper;
+    private final ConsultationEvents events;
 
     public ConsultationMessageService(ConsultationRepository consultations, ConsultationMessageRepository messages,
             RateLimiter rateLimiter, RateLimitProperties limits, ConsultationPhotoStorage photos,
-            TransactionTemplate tx, ImageMetadataStripper stripper) {
+            TransactionTemplate tx, ImageMetadataStripper stripper, ConsultationEvents events) {
+        this.events = events;
         this.consultations = consultations;
         this.messages = messages;
         this.rateLimiter = rateLimiter;
@@ -85,7 +87,10 @@ public class ConsultationMessageService {
                     throw notFound();
                 }
                 requireActive(row);
-                return consultations.insertPhotoMessage(consultationId, me, body, key, contentType, stored.length);
+                UUID inserted = consultations.insertPhotoMessage(consultationId, me, body, key, contentType,
+                        stored.length);
+                events.messageCreated(row, me, inserted);
+                return inserted;
             });
         } catch (RuntimeException e) {
             discard(key, e);
@@ -175,6 +180,7 @@ public class ConsultationMessageService {
         }
         requireActive(row);
         UUID id = consultations.insertMessage(consultationId, me, body);
+        events.messageCreated(row, me, id);
         return messages.find(id).orElseThrow();
     }
 
@@ -208,11 +214,13 @@ public class ConsultationMessageService {
      */
     @Transactional
     public int markRead(UUID me, UUID consultationId, UUID upTo) {
-        requireParticipant(me, consultationId);
+        Consultation row = consultations.findRow(consultationId, me).orElseThrow(ConsultationMessageService::notFound);
         if (!messages.exists(consultationId, upTo)) {
             throw messageNotFound();
         }
-        messages.markRead(consultationId, me, upTo);
+        if (messages.markRead(consultationId, me, upTo) > 0) {
+            events.messagesRead(row, me, upTo);
+        }
         return messages.unreadIn(consultationId, me);
     }
 
