@@ -19,6 +19,11 @@ public final class DiagnosisErrors {
 
     /** No diagnosis with this id for the caller; the same answer for another user's and a missing id (404). */
     public static final String DIAGNOSIS_NOT_FOUND = "diagnosis_not_found";
+    /** The verdict does not fit the diagnosis or its class (400). */
+    public static final String INVALID_VERDICT = "invalid_verdict";
+    /** The corrected class is not in the catalog (400). */
+    public static final String UNKNOWN_CLASS = "unknown_class";
+
     /** The diagnosis exists but its photo is gone from the storage (404, logged as an error). */
     public static final String PHOTO_NOT_FOUND = "photo_not_found";
 
