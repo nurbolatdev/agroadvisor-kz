@@ -12,13 +12,14 @@ public record MessageResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UUID id,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UUID senderId,
         @Schema(description = "Null for a photo without text", nullable = true) String text,
-        @Schema(description = "Relative path of the photo; always null until chat photos arrive", nullable = true)
+        @Schema(description = "Relative path of the photo, if there is one", nullable = true)
         String photoUrl,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Instant createdAt,
         @Schema(nullable = true) Instant readAt) {
 
     static MessageResponse of(Message m) {
-        // photoUrl is filled when chat photos arrive; there is no endpoint to serve them yet
-        return new MessageResponse(m.id(), m.senderId(), m.text(), null, m.createdAt(), m.readAt());
+        String photoUrl = m.photoKey() == null ? null
+                : "/api/consultations/" + m.consultationId() + "/messages/" + m.id() + "/photo";
+        return new MessageResponse(m.id(), m.senderId(), m.text(), photoUrl, m.createdAt(), m.readAt());
     }
 }

@@ -828,7 +828,7 @@
             "type" : "string"
           },
           "photoUrl" : {
-            "description" : "Relative path of the photo; always null until chat photos arrive",
+            "description" : "Relative path of the photo, if there is one",
             "type" : [ "string", "null" ]
           },
           "readAt" : {
@@ -2439,6 +2439,99 @@
               }
             },
             "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-message-controller" ]
+      }
+    },
+    "/api/consultations/{id}/messages/photo" : {
+      "post" : {
+        "description" : "A JPEG or PNG photo of up to 10 MB with an optional text, in an active consultation. The type is taken from the first bytes, the metadata (GPS) is removed. 400 invalid_image; 409 invalid_consultation_state; 429 rate_limited; 503 storage_unavailable.",
+        "operationId" : "sendConsultationPhoto",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "text",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "image" : {
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "required" : [ "image" ],
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "consultation-message-controller" ]
+      }
+    },
+    "/api/consultations/{id}/messages/{messageId}/photo" : {
+      "get" : {
+        "operationId" : "getConsultationPhoto",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "messageId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "image/jpeg" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              },
+              "image/png" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "A JPEG or PNG photo"
           }
         },
         "tags" : [ "consultation-message-controller" ]
