@@ -1,0 +1,213 @@
+package kz.agroadvisor.common.db;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.UUID;
+
+import kz.agroadvisor.TestcontainersConfiguration;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
+
+/** The push token and notification tables (V21); each test rolls back its data. */
+@SpringBootTest
+@ActiveProfiles("test")
+@Import(TestcontainersConfiguration.class)
+@Transactional
+class NotificationsMigrationTest {
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @Test
+    void pushTokenIsUniqueAcrossUsers() {
+        UUID first = insertUser("+77030000001");
+        UUID second = insertUser("+77030000002");
+        insertToken(first, "token-1", "android");
+
+        assertThatThrownBy(() -> {
+            jdbc.execute("SAVEPOINT dup");
+            try {
+                insertToken(second, "token-1", "ios");
+            } finally {
+                jdbc.execute("ROLLBACK TO SAVEPOINT dup");
+            }
+        }).isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("push_tokens_token_key");
+    }
+
+    @Test
+    void pushTokenPlatformAndShapeAreChecked() {
+        UUID user = insertUser("+77030000003");
+
+        assertRejected(() -> insertToken(user, "token-2", "web"));
+        assertRejected(() -> insertToken(user, "has space", "android"));
+        assertRejected(() -> insertToken(user, "", "android"));
+        insertToken(user, "ExponentPushToken[abc-123]", "expo");
+        insertToken(user, "token-3", "ios");
+    }
+
+    @Test
+    void unknownNotificationTypeIsRejected() {
+        UUID user = insertUser("+77030000004");
+        assertRejected(() -> insertNotification(user, "consultation_updated", null, null, null, null));
+    }
+
+    @Test
+    void referencesMustMatchTheType() {
+        UUID farmer = insertUser("+77030000005");
+        UUID agrochemist = insertUser("+77030000006");
+        UUID consultation = insertConsultation(farmer, agrochemist);
+        UUID message = insertMessage(consultation, farmer);
+        UUID diagnosis = insertDiagnosis(farmer);
+
+        assertRejected(() -> insertNotification(agrochemist, "consultation_message", consultation, null, null, null));
+        assertRejected(() -> insertNotification(agrochemist, "verification_approved", consultation, null, null, null));
+        assertRejected(() -> insertNotification(agrochemist, "consultation_requested", null, null, null, null));
+        assertRejected(() -> insertNotification(farmer, "diagnosis_reviewed", null, null, null, null));
+        assertRejected(() -> insertNotification(farmer, "diagnosis_reviewed", consultation, null, diagnosis, null));
+
+        insertNotification(agrochemist, "consultation_message", consultation, message, null, null);
+        insertNotification(agrochemist, "consultation_requested", consultation, null, null, null);
+        insertNotification(agrochemist, "verification_approved", null, null, null, null);
+        insertNotification(farmer, "diagnosis_reviewed", null, null, diagnosis, null);
+    }
+
+    @Test
+    void onlyOneUnreadNotificationPerCollapseKey() {
+        UUID user = insertUser("+77030000007");
+
+        insertNotification(user, "verification_approved", null, null, null, "key-1");
+        assertRejected(() -> insertNotification(user, "verification_approved", null, null, null, "key-1"));
+
+        jdbc.update("UPDATE notifications SET read_at = now() WHERE recipient_id = ?", user);
+        insertNotification(user, "verification_approved", null, null, null, "key-1");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM notifications WHERE recipient_id = ?",
+                Integer.class, user)).isEqualTo(2);
+    }
+
+    @Test
+    void rowsWithoutCollapseKeyNeverConflict() {
+        UUID user = insertUser("+77030000008");
+        insertNotification(user, "verification_approved", null, null, null, null);
+        insertNotification(user, "verification_approved", null, null, null, null);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM notifications WHERE recipient_id = ?",
+                Integer.class, user)).isEqualTo(2);
+    }
+
+    @Test
+    void eventCountMustBePositive() {
+        UUID user = insertUser("+77030000009");
+        assertRejected(() -> jdbc.update("""
+                INSERT INTO notifications (recipient_id, type, event_count)
+                VALUES (?, 'verification_approved', 0)
+                """, user));
+    }
+
+    @Test
+    void deletingTheUserDeletesTokensAndNotifications() {
+        UUID user = insertUser("+77030000010");
+        insertToken(user, "token-4", "android");
+        insertNotification(user, "verification_approved", null, null, null, null);
+
+        jdbc.update("DELETE FROM users WHERE id = ?", user);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM push_tokens WHERE user_id = ?",
+                Integer.class, user)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM notifications WHERE recipient_id = ?",
+                Integer.class, user)).isZero();
+    }
+
+    @Test
+    void deletingTheDiagnosisDeletesItsNotification() {
+        UUID farmer = insertUser("+77030000011");
+        UUID diagnosis = insertDiagnosis(farmer);
+        insertNotification(farmer, "diagnosis_reviewed", null, null, diagnosis, null);
+
+        jdbc.update("DELETE FROM diagnoses WHERE id = ?", diagnosis);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM notifications WHERE recipient_id = ?",
+                Integer.class, farmer)).isZero();
+    }
+
+    @Test
+    void deletingTheConsultationDeletesItsNotifications() {
+        UUID farmer = insertUser("+77030000012");
+        UUID agrochemist = insertUser("+77030000013");
+        UUID consultation = insertConsultation(farmer, agrochemist);
+        insertNotification(agrochemist, "consultation_requested", consultation, null, null, null);
+
+        jdbc.update("DELETE FROM consultations WHERE id = ?", consultation);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM notifications WHERE recipient_id = ?",
+                Integer.class, agrochemist)).isZero();
+    }
+
+    @Test
+    void notificationsAndTokensAreIndexed() {
+        assertThat(jdbc.queryForList("""
+                SELECT indexname FROM pg_indexes
+                WHERE tablename IN ('push_tokens', 'notifications') ORDER BY indexname
+                """, String.class)).contains(
+                "push_tokens_user_updated_idx",
+                "notifications_feed_idx",
+                "notifications_unread_idx",
+                "notifications_collapse_idx");
+    }
+
+    private UUID insertUser(String phone) {
+        return jdbc.queryForObject(
+                "INSERT INTO users (phone, password_hash, full_name) VALUES (?, 'x', 'Test') RETURNING id",
+                UUID.class, phone);
+    }
+
+    private void insertToken(UUID user, String token, String platform) {
+        jdbc.update("INSERT INTO push_tokens (user_id, token, platform) VALUES (?, ?, ?)", user, token, platform);
+    }
+
+    private void insertNotification(UUID recipient, String type, UUID consultation, UUID message, UUID diagnosis,
+                                    String collapseKey) {
+        jdbc.update("""
+                INSERT INTO notifications (recipient_id, type, consultation_id, message_id, diagnosis_id,
+                                           collapse_key)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """, recipient, type, consultation, message, diagnosis, collapseKey);
+    }
+
+    private UUID insertConsultation(UUID farmer, UUID agrochemist) {
+        return jdbc.queryForObject("""
+                INSERT INTO consultations (farmer_id, agrochemist_id, status) VALUES (?, ?, 'requested')
+                RETURNING id
+                """, UUID.class, farmer, agrochemist);
+    }
+
+    private UUID insertMessage(UUID consultation, UUID sender) {
+        return jdbc.queryForObject("""
+                INSERT INTO consultation_messages (consultation_id, sender_id, body) VALUES (?, ?, 'Hello')
+                RETURNING id
+                """, UUID.class, consultation, sender);
+    }
+
+    private UUID insertDiagnosis(UUID user) {
+        return jdbc.queryForObject("""
+                INSERT INTO diagnoses (user_id, crop_code, photo_key, status, top1_code, top1_confidence,
+                                       model_version, classes_version)
+                VALUES (?, 'potato', 'diagnoses/test.jpg', 'ok', 'potato__late_blight', 0.9, 'effnet-b0-v1', 1)
+                RETURNING id
+                """, UUID.class, user);
+    }
+
+    /** The test runs in one transaction, so a rejected statement is rolled back to a savepoint. */
+    private void assertRejected(Runnable statement) {
+        jdbc.execute("SAVEPOINT rejected");
+        assertThatThrownBy(statement::run).isInstanceOf(DataIntegrityViolationException.class);
+        jdbc.execute("ROLLBACK TO SAVEPOINT rejected");
+    }
+}
