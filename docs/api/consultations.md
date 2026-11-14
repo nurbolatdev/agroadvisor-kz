@@ -9,7 +9,7 @@ Errors are RFC 9457 problem documents with a `code` field (see [error codes](#er
 The server pushes short events over STOMP on a WebSocket (decision: [ADR 0009](../adr/0009-consultation-realtime.md)). They are hints: the client reads the data again over REST.
 
 1. Open `ws(s)://<host>/ws` (plain WebSocket, no SockJS).
-2. Send `CONNECT` with the header `Authorization: Bearer <access token>`; send nothing else first (a socket without `CONNECT` is closed after 10 s). The token goes in the frame, never in the URL. Roles `farmer` and `agrochemist` only; an admin or a bad token gets an `ERROR` frame and the socket closes.
+2. Send `CONNECT` with the header `Authorization: Bearer <access token>` and `heart-beat: 25000,25000` (without it the server sends no heartbeats, and a proxy with a 60 s read timeout cuts a quiet socket). Send nothing else first: a socket that has not connected within 10 s is closed. The token goes in the frame, never in the URL. Roles `farmer` and `agrochemist` only; an admin or a bad token gets an `ERROR` frame and the socket closes.
 3. `SUBSCRIBE` to `/user/queue/consultations`. Any other destination, and any `SEND`, closes the session.
 4. Receive JSON frames `{ "type": ..., "consultationId": uuid, "messageId": uuid | null }`:
 
@@ -19,7 +19,7 @@ The server pushes short events over STOMP on a WebSocket (decision: [ADR 0009](.
 | `messages_read` | the author of the messages that were read | the read cursor (`upTo`) | updates the read marks of its messages |
 | `consultation_updated` | both sides | null | reloads `GET /api/consultations/{id}` (a new request, accepted, declined or closed) |
 
-Events are sent after the change is saved. The socket closes when the access token expires (15 minutes): refresh the token and reconnect. After a reconnect, call `GET /api/consultations/unread-count` and the history with `after`, because events sent while the client was offline are not kept.
+Events are sent after the change is saved. The socket closes with code 1008 (`token expired`) when the access token expires (15 minutes): refresh the token and reconnect. Code 1002 is a protocol error (a refused `CONNECT`, `SUBSCRIBE` or `SEND`): fix the client, do not retry in a loop. After a reconnect, call `GET /api/consultations/unread-count` and the history with `after`, because events sent while the client was offline are not kept.
 
 ## Not available yet
 

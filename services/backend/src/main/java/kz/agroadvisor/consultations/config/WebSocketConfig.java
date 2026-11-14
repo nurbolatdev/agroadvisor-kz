@@ -1,11 +1,12 @@
 package kz.agroadvisor.consultations.config;
 
-import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
-import org.springframework.scheduling.TaskScheduler;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -37,15 +38,20 @@ class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final Converter<Jwt, AbstractAuthenticationToken> converter;
     private final FeatureAccessService access;
     private final StompSessionExpiry expiry;
-    private final ObjectProvider<TaskScheduler> scheduler;
+    private final TaskScheduler brokerScheduler;
 
+    /**
+     * The heartbeats run on the scheduler the WebSocket support registers itself ({@code messageBrokerTaskScheduler}),
+     * not on the one of {@code @Scheduled}; it is injected lazily because this configurer is part of its creation.
+     */
     WebSocketConfig(JwtDecoder decoder, Converter<Jwt, AbstractAuthenticationToken> converter,
-            FeatureAccessService access, StompSessionExpiry expiry, ObjectProvider<TaskScheduler> scheduler) {
+            FeatureAccessService access, StompSessionExpiry expiry,
+            @Lazy @Qualifier("messageBrokerTaskScheduler") TaskScheduler brokerScheduler) {
         this.decoder = decoder;
         this.converter = converter;
         this.access = access;
         this.expiry = expiry;
-        this.scheduler = scheduler;
+        this.brokerScheduler = brokerScheduler;
     }
 
     @Override
@@ -58,7 +64,7 @@ class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableSimpleBroker("/queue")
                 .setHeartbeatValue(new long[] {HEARTBEAT_MS, HEARTBEAT_MS})
-                .setTaskScheduler(scheduler.getObject());
+                .setTaskScheduler(brokerScheduler);
         registry.setUserDestinationPrefix("/user");
     }
 

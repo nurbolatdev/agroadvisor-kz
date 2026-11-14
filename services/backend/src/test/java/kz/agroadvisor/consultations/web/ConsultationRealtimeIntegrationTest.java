@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -38,6 +39,11 @@ import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.socket.WebSocketHttpHeaders;
@@ -55,6 +61,7 @@ import kz.agroadvisor.users.model.Role;
 import kz.agroadvisor.users.model.User;
 import kz.agroadvisor.users.repository.UserRepository;
 
+@TestPropertySource(properties = {"app.websocket.connect-deadline-ms=1500", "app.websocket.expiry-check-ms=300"})
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -261,6 +268,81 @@ class ConsultationRealtimeIntegrationTest {
     }
 
     @Test
+    void aSocketThatNeverCompletesAConnectFrameIsClosed() throws Exception {
+        CountDownLatch closed = new CountDownLatch(1);
+        WebSocketSession raw = new StandardWebSocketClient().execute(new TextWebSocketHandler() {
+            @Override
+            public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+                closed.countDown();
+            }
+        }, "ws://localhost:" + port + "/ws").get(5, TimeUnit.SECONDS);
+        raw.sendMessage(new TextMessage("CONN")); // half a frame keeps the transport's own timer quiet
+
+        assertThat(closed.await(10, TimeUnit.SECONDS)).as("closed by the connect deadline").isTrue();
+    }
+
+    @Test
+    void subscribingToAnotherUsersQueueClosesTheSession() throws Exception {
+        UUID other = newUser(Role.FARMER, null);
+        StompSession session = connect(newUser(Role.FARMER, null));
+
+        session.subscribe("/user/" + other + "/queue/consultations", new StompSessionHandlerAdapter() { });
+
+        assertThat(closesSoon(session)).isTrue();
+    }
+
+    @Test
+    void aBlockedUserCannotConnectWithAnIssuedToken() {
+        UUID farmer = newUser(Role.FARMER, null);
+        String token = token(farmer);
+        jdbc.update("UPDATE users SET status = 'blocked' WHERE id = ?", farmer);
+
+        assertThat(tryConnect(token)).isNull();
+    }
+
+    @Test
+    void aNewRequestAnAcceptanceAndADeclineAreAnnounced() throws Exception {
+        UUID farmer = newUser(Role.FARMER, null);
+        UUID agrochemist = newUser(Role.AGROCHEMIST, "approved");
+        BlockingQueue<String> forAgrochemist = listen(connect(agrochemist));
+        BlockingQueue<String> forFarmer = listen(connect(farmer));
+
+        UUID first = request(farmer, agrochemist);
+        assertUpdated(forAgrochemist, first);
+        mvc.perform(post("/api/consultations/" + first + "/accept").header("Authorization", bearer(agrochemist)))
+                .andExpect(status().isOk());
+        assertUpdated(forFarmer, first);
+        mvc.perform(post("/api/consultations/" + first + "/close").header("Authorization", bearer(farmer)))
+                .andExpect(status().isOk());
+
+        UUID second = request(farmer, agrochemist);
+        mvc.perform(post("/api/consultations/" + second + "/decline").header("Authorization", bearer(agrochemist)))
+                .andExpect(status().isOk());
+        // the farmer hears about the decline (the events before it are also in the queue)
+        String last = null;
+        for (String frame; (frame = forFarmer.poll(3, TimeUnit.SECONDS)) != null;) {
+            last = frame;
+        }
+        assertThat(last).isNotNull();
+        assertThat(JsonPath.<String>read(last, "$.consultationId")).isEqualTo(second.toString());
+    }
+
+    private UUID request(UUID farmer, UUID agrochemist) throws Exception {
+        String location = mvc.perform(post("/api/consultations").header("Authorization", bearer(farmer))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"agrochemistId\": \"" + agrochemist + "\", \"text\": \"Help\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getHeader("Location");
+        return UUID.fromString(location.substring(location.lastIndexOf('/') + 1));
+    }
+
+    private static void assertUpdated(BlockingQueue<String> frames, UUID consultation) throws Exception {
+        String event = frames.poll(5, TimeUnit.SECONDS);
+        assertThat(event).isNotNull();
+        assertThat(JsonPath.<String>read(event, "$.type")).isEqualTo("consultation_updated");
+        assertThat(JsonPath.<String>read(event, "$.consultationId")).isEqualTo(consultation.toString());
+    }
+
+    @Test
     void aClosedConsultationIsAnnouncedToBothSides() throws Exception {
         Chat chat = activeChat();
         BlockingQueue<String> farmer = listen(connect(chat.farmer));
@@ -286,8 +368,6 @@ class ConsultationRealtimeIntegrationTest {
 
         tx.executeWithoutResult(status -> {
             publisher.publishEvent(event);
-            // Inside the transaction nothing is delivered yet
-            assertThat(recipient.peek()).isNull();
             status.setRollbackOnly();
         });
         assertThat(recipient.poll(1, TimeUnit.SECONDS)).as("rolled back").isNull();

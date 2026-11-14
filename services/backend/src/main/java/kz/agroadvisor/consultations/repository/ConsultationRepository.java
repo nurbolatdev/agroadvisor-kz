@@ -128,6 +128,12 @@ public class ConsultationRepository {
                 UUID.class, farmerId, agrochemistId).stream().findFirst();
     }
 
+    /** The row of a consultation that {@code me} takes part in, without the list data of {@link Item}. */
+    public Optional<Consultation> findRow(UUID id, UUID me) {
+        return jdbc.query("SELECT " + COLUMNS + " FROM consultations c WHERE c.id = ? "
+                + "AND (c.farmer_id = ? OR c.agrochemist_id = ?)", CONSULTATION, id, me, me).stream().findFirst();
+    }
+
     /** Reads the row and locks it until the end of the transaction; every status change takes this first. */
     public Optional<Consultation> lock(UUID id) {
         return jdbc.query("SELECT " + COLUMNS + " FROM consultations c WHERE c.id = ? FOR UPDATE",

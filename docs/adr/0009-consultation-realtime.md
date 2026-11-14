@@ -1,6 +1,8 @@
 # ADR 0009: Realtime delivery for consultations
 
-- Status: accepted (team decision, 14 Nov 2026), for one backend instance
+- Status: accepted by the backend developer on 14 Nov 2026 (the lead asked the developers to decide such
+  questions themselves); the new dependency and this ADR are confirmed by the lead in the review of the PR
+- Applies to: one backend instance
 - Scope: `services/backend` (`consultations`), `apps/mobile` (M13, M14)
 
 ## Context
@@ -18,7 +20,8 @@ mobile plan already chose `@stomp/stompjs` for M14, and React Native has a built
   principal name (the user id), so nobody can subscribe to another person's queue.
 - **The token is checked in the STOMP `CONNECT` frame** (`Authorization: Bearer <access token>`), not in the
   URL, so it never reaches access logs. The handshake `GET /ws` is public because a browser cannot add a header
-  to it; a socket that sends no `CONNECT` within 10 s is dropped, and nothing is delivered before `CONNECT`.
+  to it; a socket that has not completed a `CONNECT` within 10 s is closed by our own check (the transport's
+  timer alone is not enough: half a frame resets it), and nothing is delivered before `CONNECT`.
   The user is built from the database exactly like for REST (blocked users and changed roles count), and must be
   a farmer or an agrochemist with the feature `consultations`.
 - **The socket ends with its token.** A scheduled check closes sockets whose access token has expired (15 min);
@@ -51,6 +54,8 @@ mobile plan already chose `@stomp/stompjs` for M14, and React Native has a built
   publish ordinary application events, so only the relay class would change.
 - **The reverse proxy must pass the upgrade** (nginx: `proxy_http_version 1.1`, `Upgrade` and `Connection`
   headers, `proxy_read_timeout` above 60 s or rely on the 25 s heartbeat). To be done in the staging task.
+- The WebSocket support registers its own scheduler for the heartbeats; `@Scheduled` jobs keep a separate
+  `taskScheduler` bean (`SchedulingConfig`), so they do not share that pool.
 - A user blocked while connected stays connected until the token expires (at most 15 minutes); REST calls
   are refused at once.
 - Events are not stored: a client that is offline gets nothing, and learns from REST on the next start.

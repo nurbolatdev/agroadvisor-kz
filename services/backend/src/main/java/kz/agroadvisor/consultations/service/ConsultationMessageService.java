@@ -214,8 +214,7 @@ public class ConsultationMessageService {
      */
     @Transactional
     public int markRead(UUID me, UUID consultationId, UUID upTo) {
-        Consultation row = consultations.findForParticipant(consultationId, me)
-                .orElseThrow(ConsultationMessageService::notFound).consultation();
+        Consultation row = consultations.findRow(consultationId, me).orElseThrow(ConsultationMessageService::notFound);
         if (!messages.exists(consultationId, upTo)) {
             throw messageNotFound();
         }
