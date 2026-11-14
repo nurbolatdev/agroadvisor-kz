@@ -42,9 +42,12 @@ public class ConsultationService {
     private final RateLimiter rateLimiter;
     private final RateLimitProperties limits;
     private final JdbcTemplate jdbc;
+    private final ConsultationEvents events;
 
     public ConsultationService(ConsultationRepository consultations, AgrochemistDirectoryService directory,
-            DiagnosisService diagnoses, RateLimiter rateLimiter, RateLimitProperties limits, JdbcTemplate jdbc) {
+            DiagnosisService diagnoses, RateLimiter rateLimiter, RateLimitProperties limits, JdbcTemplate jdbc,
+            ConsultationEvents events) {
+        this.events = events;
         this.consultations = consultations;
         this.directory = directory;
         this.diagnoses = diagnoses;
@@ -91,6 +94,7 @@ public class ConsultationService {
                     "There is already an open consultation with this agrochemist");
         }
         consultations.insertMessage(created.id(), farmer, body);
+        events.updated(created);
         return consultations.findForParticipant(created.id(), farmer).orElseThrow();
     }
 
@@ -168,6 +172,7 @@ public class ConsultationService {
                     "You are not in the directory, so you cannot accept requests");
         }
         consultations.updateStatus(id, ConsultationStatus.ACTIVE, null);
+        events.updated(row);
         return get(me, id);
     }
 
@@ -180,6 +185,7 @@ public class ConsultationService {
         }
         requireStatus(row, ConsultationStatus.REQUESTED);
         consultations.updateStatus(id, ConsultationStatus.DECLINED, me);
+        events.updated(row);
         return get(me, id);
     }
 
@@ -195,6 +201,7 @@ public class ConsultationService {
             requireStatus(row, ConsultationStatus.ACTIVE);
         }
         consultations.updateStatus(id, ConsultationStatus.CLOSED, me);
+        events.updated(row);
         return get(me, id);
     }
 
