@@ -264,7 +264,7 @@
             "type" : "string"
           },
           "diagnosisId" : {
-            "description" : "One of the farmer's own diagnoses; the agrochemist sees it through the consultation",
+            "description" : "One of the farmer's own diagnoses; the agrochemist does not see it yet",
             "format" : "uuid",
             "type" : [ "string", "null" ]
           },

@@ -795,7 +795,7 @@ export interface components {
             agrochemistId: string;
             /**
              * Format: uuid
-             * @description One of the farmer's own diagnoses; the agrochemist sees it through the consultation
+             * @description One of the farmer's own diagnoses; the agrochemist does not see it yet
              */
             diagnosisId?: string | null;
             text: string;

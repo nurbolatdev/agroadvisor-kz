@@ -65,8 +65,8 @@ public class ConsultationRepository {
         LastMessage last = messageId == null ? null : new LastMessage(messageId,
                 rs.getObject("message_sender_id", UUID.class), rs.getString("message_text"),
                 rs.getBoolean("message_has_photo"), instant(rs, "message_created_at"));
-        long region = rs.getLong("farmer_region_id");
-        return new Item(consultation(rs), rs.getString("farmer_name"), rs.wasNull() ? null : region,
+        Long region = rs.getObject("farmer_region_id", Long.class);
+        return new Item(consultation(rs), rs.getString("farmer_name"), region,
                 rs.getString("agrochemist_name"), last, rs.getInt("unread_count"));
     };
 

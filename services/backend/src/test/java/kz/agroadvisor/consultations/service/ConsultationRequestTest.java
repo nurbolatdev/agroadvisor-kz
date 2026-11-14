@@ -151,6 +151,27 @@ class ConsultationRequestTest {
     }
 
     @Test
+    void carriageReturnsAreTurnedIntoLineBreaks() {
+        UUID farmer = farmer();
+        UUID agrochemist = listedAgrochemist();
+
+        assertThat(service.request(farmer, agrochemist, "one\r\ntwo\rthree", null).lastMessage().text())
+                .isEqualTo("one\ntwo\nthree");
+    }
+
+    @Test
+    void farmerRegionIsNullWithoutOneAndTheIdWithOne() {
+        UUID withoutRegion = farmer();
+        UUID withRegion = farmer();
+        Long regionId = jdbc.queryForObject("SELECT min(id) FROM regions", Long.class);
+        jdbc.update("UPDATE users SET region_id = ? WHERE id = ?", regionId, withRegion);
+        UUID agrochemist = listedAgrochemist();
+
+        assertThat(service.request(withoutRegion, agrochemist, "Hello", null).farmerRegionId()).isNull();
+        assertThat(service.request(withRegion, agrochemist, "Hello", null).farmerRegionId()).isEqualTo(regionId);
+    }
+
+    @Test
     void secondOpenRequestToTheSameAgrochemistIsRefusedWithALocation() {
         UUID farmer = farmer();
         UUID agrochemist = listedAgrochemist();

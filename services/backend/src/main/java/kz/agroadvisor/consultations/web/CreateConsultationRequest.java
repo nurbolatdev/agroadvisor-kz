@@ -11,6 +11,6 @@ import jakarta.validation.constraints.Size;
 public record CreateConsultationRequest(
         @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UUID agrochemistId,
         @NotBlank @Size(max = 2000) @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String text,
-        @Schema(description = "One of the farmer's own diagnoses; the agrochemist sees it through the "
-                + "consultation", nullable = true) UUID diagnosisId) {
+        @Schema(description = "One of the farmer's own diagnoses; the agrochemist does not see it "
+                + "yet", nullable = true) UUID diagnosisId) {
 }

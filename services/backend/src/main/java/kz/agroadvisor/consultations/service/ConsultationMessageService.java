@@ -44,7 +44,7 @@ public class ConsultationMessageService {
     /** Sends a text message to the other side of an active consultation and moves its last activity. */
     @Transactional
     public Message send(UUID me, UUID consultationId, String text) {
-        String body = text == null ? "" : text.strip();
+        String body = text == null ? "" : text.strip().replace("\r\n", "\n").replace('\r', '\n');
         if (body.isEmpty() || body.length() > ConsultationService.MAX_TEXT_LENGTH
                 || ConsultationService.hasControlChars(body)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,

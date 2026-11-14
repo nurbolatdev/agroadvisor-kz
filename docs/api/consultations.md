@@ -138,7 +138,8 @@ Response: `{ "count": integer }`, the incoming unread messages in the `requested
 
 | HTTP | Code | When |
 | --- | --- | --- |
-| 400 | `validation_failed` | empty or too long text, text with control characters (a line break and a tab are allowed), unknown status, `limit`, `size` or `page` out of range, `before` with `after`, malformed body |
+| 400 | `validation_failed` | empty or too long text, text with control characters (a line break and a tab are allowed), unknown status, `limit`, `size` or `page` out of range, `before` with `after` (a carriage return is turned into a line break) |
+| 400 | `bad_request` | malformed JSON body, an id that is not a UUID |
 | 401 | `unauthorized` | no or invalid token |
 | 403 | `forbidden` | the role or the plan does not allow the endpoint (an admin, an agrochemist creating a request, a farmer accepting) |
 | 404 | `consultation_not_found` | missing id or another user's consultation |

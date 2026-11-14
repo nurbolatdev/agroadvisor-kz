@@ -60,7 +60,7 @@ public class ConsultationService {
      */
     @Transactional
     public Item request(UUID farmer, UUID agrochemistId, String text, UUID diagnosisId) {
-        String body = text == null ? "" : text.strip();
+        String body = text == null ? "" : text.strip().replace("\r\n", "\n").replace('\r', '\n');
         if (body.isEmpty() || body.length() > MAX_TEXT_LENGTH || hasControlChars(body)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,
                     "The text must have 1 to " + MAX_TEXT_LENGTH + " characters");
