@@ -14,6 +14,8 @@ import {
   GlassCard,
   Screen,
 } from '@/components/ui'
+import { isFeatureEnabled } from '@/features/access/featureAccess'
+import { agrochemistsRoute } from '@/features/agrochemists/route'
 import { isCrop } from '@/features/diagnosis/crops'
 import { hasTreatment, resolveResultScreen } from '@/features/diagnosis/resultScreen'
 import { UncertainBody } from '@/features/diagnosis/UncertainBody'
@@ -141,6 +143,22 @@ function OkBody({ view }: { view: DiagnosisResult }) {
         <Button
           label={t('diagnosis.treatment.open')}
           onPress={() => router.push(`/diagnosis/treatment/${view.id}`)}
+        />
+      ) : null}
+      {isFeatureEnabled('consultations') ? (
+        <Button
+          label={t('diagnosis.result.actions.askAgronomist')}
+          variant="secondary"
+          onPress={() =>
+            router.push(
+              agrochemistsRoute({
+                diagnosisId: view.id,
+                crop: view.crop,
+                // the code of the class is not a name for the farmer: only the name from the reference goes on
+                name: state.status === 'ready' ? name : undefined,
+              }),
+            )
+          }
         />
       ) : null}
     </View>
