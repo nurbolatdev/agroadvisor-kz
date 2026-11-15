@@ -1,6 +1,6 @@
 # Database ER diagram
 
-PostgreSQL 16 + PostGIS. The schema is owned by Flyway migrations in [`services/backend/src/main/resources/db/migration`](../../services/backend/src/main/resources/db/migration); this page describes migrations `V1`–`V20`.
+PostgreSQL 16 + PostGIS. The schema is owned by Flyway migrations in [`services/backend/src/main/resources/db/migration`](../../services/backend/src/main/resources/db/migration); this page describes migrations `V1`–`V21`.
 
 Conventions:
 
@@ -41,6 +41,11 @@ erDiagram
     diagnoses |o--o{ consultations : "attached to"
     consultations ||--o{ consultation_messages : contains
     users ||--o{ consultation_messages : sends
+    users ||--o{ push_tokens : "registers devices"
+    users ||--o{ notifications : receives
+    consultations |o--o{ notifications : "refers to"
+    consultation_messages |o--o{ notifications : "refers to"
+    diagnoses |o--o{ notifications : "refers to"
     users ||--o{ fields : owns
     crops ||--o{ fields : grows
     regions |o--o{ fields : "set by the server"
@@ -234,6 +239,29 @@ erDiagram
         timestamptz created_at "clock_timestamp()"
         timestamptz read_at "when the recipient read it"
     }
+
+    push_tokens {
+        uuid id PK
+        uuid user_id FK
+        varchar token "unique, printable ASCII, up to 512"
+        varchar platform "android, ios, expo"
+        timestamptz created_at
+        timestamptz updated_at "the last registration"
+    }
+
+    notifications {
+        uuid id PK
+        uuid recipient_id FK
+        varchar type "9 types, see docs/api/notifications.md"
+        uuid consultation_id FK "nullable, set by type"
+        uuid message_id FK "nullable, set by type"
+        uuid diagnosis_id FK "nullable, set by type"
+        varchar collapse_key "nullable, for unread rows"
+        int event_count "greater than 0"
+        timestamptz created_at
+        timestamptz updated_at "orders the feed"
+        timestamptz read_at "null while unread"
+    }
 ```
 
 Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` with features `diagnosis`, `community`, `consultations`, `disease_map`, `weather`, `calculator`, `shops`, `catalog`, `fields` (added by `V19`) — all unlimited. `V8`–`V10` add the crops (tomato, potato, corn, wheat), the `unknown` class, the diseases of the model's classes and their treatments, with draft texts: the Kazakh texts are not checked by a native speaker and treatments must be confirmed by an agrochemist. `V16` adds 10 regions (the leading farming regions for the app's crops) in ru, kk and en; districts are still empty.
@@ -254,6 +282,7 @@ Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` wit
 - **Diagnosis reviews (`V18`).** `diagnosis_reviews` holds a person's check of a diagnosis: `verdict` (`confirmed`, `corrected`, `unclear`), the class that is right (`correct_code`, empty exactly when the verdict is `unclear`, never blank) and a comment. One row per `(diagnosis, reviewer)`; a reviewer who changes their mind updates their own row (`updated_at`), and two people may disagree, so a diagnosis can have several rows; the service decides which verdict counts. Rules the table cannot check, because they compare with another table, belong to the service: for `confirmed` the `correct_code` is the diagnosis' `top1_code` (stored anyway, so a verdict reads on its own), for `corrected` it is another class. `correct_code` has no foreign key, like `diagnoses.top1_code`. Reviews are deleted with their diagnosis; a user who gave a verdict cannot be deleted, only blocked (audit trail, as for `agrochemist_profiles.reviewed_by`). Who may review is decided by the service, not by the table. The same migration adds the index `diagnoses (region_id, created_at)` for the outbreak map and the regional statistics. The API writes it since the diagnosis reviews change ([docs/api/diagnosis-reviews.md](../api/diagnosis-reviews.md)): the service decides who may review (an agrochemist of an accepted consultation with the diagnosis attached, or an administrator) and works out the combined verdict (`disputed` when deciding reviews differ). An index on `correct_code` comes with the first query that needs it.
 - **Fields (`V19`).** `fields` holds a farmer's fields. The area is stored in hectares (`area_ha`, above 0 and up to 10 000); `area_unit` (`ha` or `sotka`, 1 sotka = 0.01 ha) is only what the farmer typed, so the app shows the area back in the same unit. The point is two columns, `latitude` and `longitude`, both set or both empty; `location` is a generated column computed from them (with a GiST index), so the two never disagree and the entity needs no spatial mapping. `region_id` and `district_id` are set by the server when the field is saved or its point changes, and copied at that moment, like in `diagnoses`: a point inside a district outline gives that district and its region, otherwise the region comes from the owner's profile and the district stays empty (the outlines in `districts.boundary` are filled in later, so for now the region of the profile is used). Fields are deleted with their owner; `crop_code` has no cascade, like `diagnoses`. The API limits a farmer to 100 fields (a service rule, checked under an advisory lock). `diagnoses.field_id` is not added yet: nothing links a diagnosis to a field, so the foreign key waits for the task that does. The same migration adds the feature `fields` to the `FREE` plan; the API needs the role `farmer` and that feature.
 - **Consultations (`V20`).** `consultations` is a request of a farmer to an agrochemist and the chat that follows; `consultation_messages` holds the chat. A partial unique index on `(farmer_id, agrochemist_id) WHERE status IN ('requested', 'active')` allows one open consultation per pair. Check constraints keep the status and the times together: `requested` has no `accepted_at` and no `closed_at`, `active` has `accepted_at` and no `closed_at`, `declined` and `closed` have `closed_at` (the check does not constrain `accepted_at` for them: it is set exactly when the consultation was accepted, so it is NULL for a declined or withdrawn request); the two participants differ. `closed_by` is the user who declined or closed (a withdrawal by the farmer is `closed`). A message has one recipient, the other participant, so `read_at` on the message is the read receipt (a partial index covers unread rows). The text of the request is stored as the first message, not in `consultations`. Messages and consultations are deleted with their users (`ON DELETE CASCADE`); `diagnosis_id` is `ON DELETE SET NULL`, so deleting a diagnosis keeps the consultation. `last_message_at` orders the list and is moved by the service on every message. A message has text, a photo or both; a photo is stored under the key prefix `consultations/`, apart from `diagnoses/`, so the cleanup of orphaned diagnosis photos never sees it (objects of deleted users and of a crash between the upload and the insert are not cleaned yet; the partial index on `photo_key` is there for that). Messages are paged by `(created_at, id)` through an index on `(consultation_id, created_at DESC, id DESC)`.
+- **Notifications and push tokens (`V21`).** `notifications` is the in-app feed of a user and `push_tokens` holds the device tokens ([docs/api/notifications.md](../api/notifications.md)). A notification has a `type` and references only (`consultation_id`, `message_id`, `diagnosis_id`), never names or text; a check constraint ties the set references to the type (a message notification has the consultation and the message, a verification notification has none). All references and the recipient are `ON DELETE CASCADE`. Unread rows of one recipient with the same `collapse_key` collapse into one row with `event_count` (a partial unique index on `(recipient_id, collapse_key) WHERE read_at IS NULL`), so a chat or a diagnosis with many events is one row; a read row is never reused. The feed is ordered by `(updated_at DESC, id DESC)`; a partial index on unread rows serves the counter. `push_tokens.token` is unique across users, so a device that signs in under another account moves the token. The limit of 10 tokens per user is a service rule, checked under an advisory lock.
 - **`diseases.kind` (`V7`)** has `oomycete` for late blight (*Phytophthora*), which is neither a fungus nor a bacterium: the treatment and the advice differ.
 - **Feature access.** Code checks whether the user's plan includes a feature instead of checking roles, so paid plans can be added later as data. Today everyone is on `FREE` and nothing is limited; the per-minute diagnosis rate limit lives in Redis, not in the database.
 
