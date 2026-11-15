@@ -51,7 +51,7 @@ export function sendErrorKey(error: unknown): SendErrorKey {
 
 // One request to an agrochemist: the text and, when the farmer comes from a result, that diagnosis.
 export async function sendConsultation(
-  api: ConsultationsApi,
+  api: Pick<ConsultationsApi, 'create'>,
   input: { agrochemistId: string; text: string; diagnosisId?: string | null },
 ): Promise<SendResult> {
   const problem = checkMessage(input.text)
