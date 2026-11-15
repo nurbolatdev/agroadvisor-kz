@@ -6,7 +6,11 @@ import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
+import kz.agroadvisor.consultations.model.ConsultationStatus;
 import kz.agroadvisor.consultations.repository.ConsultationRepository.Consultation;
+import kz.agroadvisor.notifications.model.NotificationType;
+import kz.agroadvisor.notifications.service.NotificationService;
+import kz.agroadvisor.notifications.service.NotificationService.Refs;
 
 /**
  * What happened in a consultation, for the people who must hear about it. The services publish these inside
@@ -25,15 +29,21 @@ public class ConsultationEvents {
     }
 
     private final ApplicationEventPublisher publisher;
+    private final NotificationService notifications;
 
-    ConsultationEvents(ApplicationEventPublisher publisher) {
+    ConsultationEvents(ApplicationEventPublisher publisher, NotificationService notifications) {
         this.publisher = publisher;
+        this.notifications = notifications;
     }
 
-    /** A new message goes to the other side only; the sender already has it from the response. */
+    /**
+     * A new message goes to the other side only; the sender already has it from the response. The other side
+     * also gets a feed notification, written in the same transaction.
+     */
     void messageCreated(Consultation row, UUID sender, UUID messageId) {
-        publisher.publishEvent(new ConsultationEvent(MESSAGE_CREATED, row.id(), messageId,
-                List.of(other(row, sender))));
+        UUID recipient = other(row, sender);
+        publisher.publishEvent(new ConsultationEvent(MESSAGE_CREATED, row.id(), messageId, List.of(recipient)));
+        notifications.notify(recipient, NotificationType.CONSULTATION_MESSAGE, Refs.message(row.id(), messageId));
     }
 
     /** The reader's marks go to the people whose messages were read. */
@@ -41,10 +51,21 @@ public class ConsultationEvents {
         publisher.publishEvent(new ConsultationEvent(MESSAGES_READ, row.id(), upTo, List.of(other(row, reader))));
     }
 
-    /** A new request or a status change goes to both sides (the actor's other devices too). */
-    void updated(Consultation row) {
+    /**
+     * A new request or a status change goes to both sides (the actor's other devices too). {@code row} is the
+     * consultation before the change, {@code to} the status it moves to; the other side than {@code actor}
+     * also gets a feed notification, written in the same transaction.
+     */
+    void updated(Consultation row, ConsultationStatus to, UUID actor) {
         publisher.publishEvent(new ConsultationEvent(CONSULTATION_UPDATED, row.id(), null,
                 List.of(row.farmerId(), row.agrochemistId())));
+        NotificationType type = switch (to) {
+            case REQUESTED -> NotificationType.CONSULTATION_REQUESTED;
+            case ACTIVE -> NotificationType.CONSULTATION_ACCEPTED;
+            case DECLINED -> NotificationType.CONSULTATION_DECLINED;
+            case CLOSED -> NotificationType.CONSULTATION_CLOSED;
+        };
+        notifications.notify(other(row, actor), type, Refs.consultation(row.id()));
     }
 
     private static UUID other(Consultation row, UUID me) {

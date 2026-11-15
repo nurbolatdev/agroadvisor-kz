@@ -94,7 +94,7 @@ public class ConsultationService {
                     "There is already an open consultation with this agrochemist");
         }
         consultations.insertMessage(created.id(), farmer, body);
-        events.updated(created);
+        events.updated(created, ConsultationStatus.REQUESTED, farmer);
         return consultations.findForParticipant(created.id(), farmer).orElseThrow();
     }
 
@@ -197,7 +197,7 @@ public class ConsultationService {
                     "You are not in the directory, so you cannot accept requests");
         }
         consultations.updateStatus(id, ConsultationStatus.ACTIVE, null);
-        events.updated(row);
+        events.updated(row, ConsultationStatus.ACTIVE, me);
         return get(me, id);
     }
 
@@ -210,7 +210,7 @@ public class ConsultationService {
         }
         requireStatus(row, ConsultationStatus.REQUESTED);
         consultations.updateStatus(id, ConsultationStatus.DECLINED, me);
-        events.updated(row);
+        events.updated(row, ConsultationStatus.DECLINED, me);
         return get(me, id);
     }
 
@@ -226,7 +226,7 @@ public class ConsultationService {
             requireStatus(row, ConsultationStatus.ACTIVE);
         }
         consultations.updateStatus(id, ConsultationStatus.CLOSED, me);
-        events.updated(row);
+        events.updated(row, ConsultationStatus.CLOSED, me);
         return get(me, id);
     }
 
