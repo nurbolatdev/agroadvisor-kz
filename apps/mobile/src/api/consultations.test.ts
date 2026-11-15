@@ -37,6 +37,42 @@ describe('mock consultations', () => {
     })
   })
 
+  it('shows the text of the request as the first message', async () => {
+    const api = createMockConsultationsApi({ delayMs: 0 })
+
+    const made = await api.create({ agrochemistId, text: ' Spots after rain ' })
+
+    expect(made.lastMessage).toMatchObject({
+      text: 'Spots after rain',
+      senderId: made.farmer.id,
+      hasPhoto: false,
+    })
+  })
+
+  it('judges the raw text like the backend: its length and control characters', async () => {
+    const api = createMockConsultationsApi({ delayMs: 0 })
+    const padded = `${'x'.repeat(CONSULTATION_TEXT_MAX - 1)}  `
+
+    await expect(api.create({ agrochemistId, text: padded })).rejects.toMatchObject({
+      code: 'validation_failed',
+    })
+    await expect(api.create({ agrochemistId, text: 'bad\u0007text' })).rejects.toMatchObject({
+      code: 'validation_failed',
+    })
+    // a new line and a tab are fine
+    await expect(api.create({ agrochemistId, text: 'one\n\ttwo' })).resolves.toBeDefined()
+  })
+
+  it('stops a farmer who has too many waiting requests', async () => {
+    const api = createMockConsultationsApi({ delayMs: 0, maxWaiting: 1 })
+
+    await api.create({ agrochemistId: MOCK_AGROCHEMISTS[0].id, text: 'first' })
+
+    await expect(
+      api.create({ agrochemistId: MOCK_AGROCHEMISTS[1].id, text: 'second' }),
+    ).rejects.toMatchObject({ status: 409, code: 'consultation_request_limit' })
+  })
+
   it('refuses an empty or too long text with a field error', async () => {
     const api = createMockConsultationsApi({ delayMs: 0 })
 

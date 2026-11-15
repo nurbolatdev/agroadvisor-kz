@@ -22,11 +22,22 @@ export type AgrochemistDirectoryApi = {
 
 export function directoryPath(query: DirectoryQuery = {}): string {
   const parts: string[] = []
-  if (query.crop) parts.push(`crop=${encodeURIComponent(query.crop)}`)
+  const crop = query.crop?.trim()
+  if (crop) parts.push(`crop=${encodeURIComponent(crop)}`)
   if (query.regionId !== undefined) parts.push(`regionId=${Math.trunc(query.regionId)}`)
-  parts.push(`page=${Math.max(0, Math.trunc(query.page ?? 0))}`)
-  parts.push(`size=${Math.min(50, Math.max(1, Math.trunc(query.size ?? DIRECTORY_PAGE_SIZE)))}`)
+  const { page, size } = clampPaging(query.page, query.size)
+  parts.push(`page=${page}`, `size=${size}`)
   return `/api/agrochemists?${parts.join('&')}`
+}
+
+// The limits of the backend: page 0..10000, size 1..50 (outside them it answers 400 validation_failed).
+export function clampPaging(page = 0, size = DIRECTORY_PAGE_SIZE): { page: number; size: number } {
+  const whole = (value: number, fallback: number) =>
+    Number.isFinite(value) ? Math.trunc(value) : fallback
+  return {
+    page: Math.min(10_000, Math.max(0, whole(page, 0))),
+    size: Math.min(50, Math.max(1, whole(size, DIRECTORY_PAGE_SIZE))),
+  }
 }
 
 export function createAgrochemistDirectoryApi(client: ApiClient): AgrochemistDirectoryApi {

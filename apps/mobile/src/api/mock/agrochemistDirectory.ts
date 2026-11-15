@@ -1,5 +1,5 @@
 import type { AgrochemistCard, AgrochemistDirectoryApi } from '../agrochemistDirectory'
-import { DIRECTORY_PAGE_SIZE } from '../agrochemistDirectory'
+import { clampPaging } from '../agrochemistDirectory'
 import { ApiError } from '../errors'
 
 type Options = { delayMs?: number }
@@ -44,11 +44,12 @@ export function createMockAgrochemistDirectoryApi({
   return {
     list: async (query = {}) => {
       await wait()
-      const page = query.page ?? 0
-      const size = query.size ?? DIRECTORY_PAGE_SIZE
+      const { page, size } = clampPaging(query.page, query.size)
+      // a blank crop means no filter, like on the backend
+      const crop = query.crop?.trim()
       const matching = MOCK_AGROCHEMISTS.filter(
         (a) =>
-          (!query.crop || a.crops.includes(query.crop)) &&
+          (!crop || a.crops.includes(crop)) &&
           (query.regionId === undefined || a.regionId === query.regionId),
       )
       return matching.slice(page * size, page * size + size)
