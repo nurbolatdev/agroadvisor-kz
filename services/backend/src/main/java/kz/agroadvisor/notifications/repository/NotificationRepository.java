@@ -51,9 +51,10 @@ public class NotificationRepository {
      */
     public Notification insertOrCollapse(UUID recipientId, NotificationType type, Refs refs, String collapseKey) {
         return jdbc.queryForObject("""
+                WITH now_ts AS (SELECT clock_timestamp() AS ts)
                 INSERT INTO notifications (recipient_id, type, consultation_id, message_id, diagnosis_id,
-                                           collapse_key)
-                VALUES (?, ?, ?, ?, ?, ?)
+                                           collapse_key, created_at, updated_at)
+                SELECT ?::uuid, ?::varchar, ?::uuid, ?::uuid, ?::uuid, ?::varchar, ts, ts FROM now_ts
                 ON CONFLICT (recipient_id, collapse_key) WHERE read_at IS NULL DO UPDATE
                    SET event_count = notifications.event_count + 1,
                        message_id = EXCLUDED.message_id,

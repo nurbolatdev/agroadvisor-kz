@@ -45,10 +45,11 @@ public class PushTokenRepository {
     public int trimToNewest(UUID userId, int keep) {
         return jdbc.update("""
                 DELETE FROM push_tokens
-                 WHERE id IN (SELECT id FROM push_tokens
+                 WHERE user_id = ?
+                   AND id IN (SELECT id FROM push_tokens
                                WHERE user_id = ?
                                ORDER BY updated_at DESC, id DESC
-                               OFFSET ?)""", userId, keep);
+                               OFFSET ?)""", userId, userId, keep);
     }
 
     /** Deletes the user's token; 0 when the user has no such token. */

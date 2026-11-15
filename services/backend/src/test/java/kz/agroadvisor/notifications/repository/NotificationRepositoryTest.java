@@ -75,6 +75,14 @@ class NotificationRepositoryTest {
     }
 
     @Test
+    void newRowHasEqualCreatedAndUpdatedTime() {
+        Notification created = repository.insertOrCollapse(agrochemist, NotificationType.VERIFICATION_APPROVED,
+                Refs.NONE, null);
+
+        assertThat(created.createdAt()).isEqualTo(created.updatedAt());
+    }
+
+    @Test
     void readRowIsNotCollapsedInto() {
         String key = "consultation_message:" + consultation;
         Notification a = repository.insertOrCollapse(agrochemist, NotificationType.CONSULTATION_MESSAGE,

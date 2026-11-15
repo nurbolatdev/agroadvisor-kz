@@ -30,7 +30,7 @@ CREATE TABLE notifications (
     -- Unread rows with the same key of one recipient collapse into one row with a counter
     collapse_key    varchar(100),
     event_count     integer     NOT NULL DEFAULT 1 CHECK (event_count > 0),
-    created_at      timestamptz NOT NULL DEFAULT now(),
+    created_at      timestamptz NOT NULL DEFAULT clock_timestamp(),
     updated_at      timestamptz NOT NULL DEFAULT clock_timestamp(),
     read_at         timestamptz,
     CONSTRAINT notifications_refs_match_type CHECK (
@@ -48,5 +48,9 @@ CREATE TABLE notifications (
 
 CREATE INDEX notifications_feed_idx ON notifications (recipient_id, updated_at DESC, id DESC);
 CREATE INDEX notifications_unread_idx ON notifications (recipient_id) WHERE read_at IS NULL;
+-- Foreign keys with ON DELETE CASCADE: without an index each parent delete scans the table
+CREATE INDEX notifications_consultation_idx ON notifications (consultation_id) WHERE consultation_id IS NOT NULL;
+CREATE INDEX notifications_message_idx ON notifications (message_id) WHERE message_id IS NOT NULL;
+CREATE INDEX notifications_diagnosis_idx ON notifications (diagnosis_id) WHERE diagnosis_id IS NOT NULL;
 CREATE UNIQUE INDEX notifications_collapse_idx
     ON notifications (recipient_id, collapse_key) WHERE read_at IS NULL;

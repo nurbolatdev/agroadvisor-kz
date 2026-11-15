@@ -77,6 +77,21 @@ class PushTokenRepositoryTest {
     }
 
     @Test
+    void trimDeleteIsRestrictedToTheUserInTheOuterStatement() {
+        // A token that moved to another user after the subquery ran must survive: READ COMMITTED
+        // re-checks only the outer conditions, so the outer DELETE has to filter by user_id itself.
+        JdbcTemplate spy = org.mockito.Mockito.mock(JdbcTemplate.class);
+        org.mockito.ArgumentCaptor<String> sql = org.mockito.ArgumentCaptor.forClass(String.class);
+
+        new PushTokenRepository(spy).trimToNewest(alice, 10);
+
+        org.mockito.Mockito.verify(spy).update(sql.capture(), org.mockito.ArgumentMatchers.eq(alice),
+                org.mockito.ArgumentMatchers.eq(alice), org.mockito.ArgumentMatchers.eq(10));
+        assertThat(sql.getValue().replaceAll("\\s+", " "))
+                .contains("DELETE FROM push_tokens WHERE user_id = ? AND id IN (");
+    }
+
+    @Test
     void deleteRemovesOnlyTheOwnersToken() {
         PushToken token = repository.upsert(alice, "token-a", "android");
 

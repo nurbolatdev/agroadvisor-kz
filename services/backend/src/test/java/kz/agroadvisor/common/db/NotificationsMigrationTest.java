@@ -159,7 +159,18 @@ class NotificationsMigrationTest {
                 "push_tokens_user_updated_idx",
                 "notifications_feed_idx",
                 "notifications_unread_idx",
-                "notifications_collapse_idx");
+                "notifications_collapse_idx",
+                "notifications_consultation_idx",
+                "notifications_message_idx",
+                "notifications_diagnosis_idx");
+    }
+
+    @Test
+    void notificationTimestampsDefaultToTheClockTime() {
+        assertThat(jdbc.queryForList("""
+                SELECT column_default FROM information_schema.columns
+                WHERE table_name = 'notifications' AND column_name IN ('created_at', 'updated_at')
+                """, String.class)).hasSize(2).allSatisfy(d -> assertThat(d).contains("clock_timestamp()"));
     }
 
     private UUID insertUser(String phone) {
