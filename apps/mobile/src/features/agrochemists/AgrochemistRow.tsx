@@ -9,8 +9,6 @@ import { colors, radii, sizes, spacing } from '@/theme/tokens'
 import { initials } from './helpers'
 import { useAgrochemistLabels } from './useAgrochemistLabels'
 
-const AVATAR = 56
-
 type Props = { item: AgrochemistCard; onPress: () => void }
 
 // A line of the list of agrochemists (screen 15): the initials in a circle, the name with the mark of a
@@ -73,8 +71,8 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.7 },
   avatar: {
-    width: AVATAR,
-    height: AVATAR,
+    width: sizes.avatar,
+    height: sizes.avatar,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',

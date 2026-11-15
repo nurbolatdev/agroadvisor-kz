@@ -40,7 +40,7 @@ export const Input = forwardRef<ComponentRef<typeof TextInput>, Props>(function 
           setFocused(false)
           onBlur?.(e)
         }}
-        style={[styles.input, { borderColor }]}
+        style={[styles.input, rest.multiline && styles.multiline, { borderColor }]}
       />
       {error ? (
         <View style={styles.error} accessibilityRole="alert">
@@ -64,6 +64,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: colors.white,
     color: colors.text,
+  },
+  // a message of several lines: starts at the top and has room for about three lines
+  multiline: {
+    minHeight: sizes.control * 2,
+    paddingVertical: spacing.md,
+    textAlignVertical: 'top',
   },
   error: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
 })

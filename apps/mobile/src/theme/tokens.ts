@@ -67,6 +67,9 @@ export const sizes = {
   // the big round mark on the "application sent" screen (frame 03b), and the check in it
   successMark: 96,
   successIcon: 40,
+  // the grip on top of a sheet that slides over a screen
+  sheetHandleWidth: 40,
+  sheetHandleHeight: 4,
 } as const
 
 export const fonts = {
