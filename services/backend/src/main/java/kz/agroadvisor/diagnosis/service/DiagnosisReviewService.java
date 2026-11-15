@@ -17,6 +17,9 @@ import kz.agroadvisor.diagnosis.model.Diagnosis;
 import kz.agroadvisor.diagnosis.repository.DiagnosisRepository;
 import kz.agroadvisor.diagnosis.repository.DiagnosisReviewRepository;
 import kz.agroadvisor.diagnosis.repository.DiagnosisReviewRepository.Review;
+import kz.agroadvisor.notifications.model.NotificationType;
+import kz.agroadvisor.notifications.service.NotificationService;
+import kz.agroadvisor.notifications.service.NotificationService.Refs;
 
 /**
  * Expert checks of diagnoses. The caller decides <em>who</em> may review (an agrochemist of a consultation the
@@ -45,12 +48,14 @@ public class DiagnosisReviewService {
     private final DiagnosisRepository diagnoses;
     private final DiagnosisReviewRepository reviews;
     private final DiseaseRepository diseases;
+    private final NotificationService notifications;
 
     public DiagnosisReviewService(DiagnosisRepository diagnoses, DiagnosisReviewRepository reviews,
-            DiseaseRepository diseases) {
+            DiseaseRepository diseases, NotificationService notifications) {
         this.diagnoses = diagnoses;
         this.reviews = reviews;
         this.diseases = diseases;
+        this.notifications = notifications;
     }
 
     /**
@@ -80,6 +85,8 @@ public class DiagnosisReviewService {
                     "verdict must be confirmed, corrected or unclear");
         };
         Review saved = reviews.save(diagnosisId, reviewer, verdict, stored, note);
+        notifications.notify(diagnosis.getUserId(), NotificationType.DIAGNOSIS_REVIEWED,
+                Refs.diagnosis(diagnosisId));
         return new State(saved, effective(reviews.findAll(diagnosisId)));
     }
 

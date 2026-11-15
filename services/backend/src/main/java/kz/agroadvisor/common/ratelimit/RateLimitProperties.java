@@ -24,6 +24,9 @@ import org.springframework.validation.annotation.Validated;
  * <p>Two limits keep consultations from being used for spam, both per user: {@code
  * consultationRequestsPerHour} (10) new requests to agrochemists, {@code consultationMessagesPerMinute} (30)
  * chat messages. Every attempt counts, and none is given back.
+ *
+ * <p>{@code pushTokenRegistrationsPerHour} (20) caps device token registrations per user; every attempt
+ * counts, and none is given back.
  */
 @Validated
 @ConfigurationProperties("app.rate-limit")
@@ -35,5 +38,6 @@ public record RateLimitProperties(
         @Min(1) @DefaultValue("20") int registerPerIpPerHour,
         @Min(1) @DefaultValue("60") int refreshPerIpPerMinute,
         @Min(1) @DefaultValue("10") int consultationRequestsPerHour,
-        @Min(1) @DefaultValue("30") int consultationMessagesPerMinute) {
+        @Min(1) @DefaultValue("30") int consultationMessagesPerMinute,
+        @Min(1) @DefaultValue("20") int pushTokenRegistrationsPerHour) {
 }

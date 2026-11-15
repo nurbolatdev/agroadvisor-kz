@@ -14,6 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import kz.agroadvisor.common.web.ApiException;
 import kz.agroadvisor.common.web.ErrorCodes;
+import kz.agroadvisor.notifications.model.NotificationType;
+import kz.agroadvisor.notifications.service.NotificationService;
+import kz.agroadvisor.notifications.service.NotificationService.Refs;
 import kz.agroadvisor.verification.repository.AgrochemistDocumentRepository;
 import kz.agroadvisor.verification.repository.AgrochemistDocumentRepository.Document;
 import kz.agroadvisor.verification.repository.AgrochemistReviewRepository;
@@ -32,13 +35,20 @@ public class AgrochemistReviewService {
 
     private final AgrochemistReviewRepository reviews;
     private final AgrochemistDocumentRepository documents;
+    private static final Map<String, NotificationType> NOTIFICATION_BY_STATUS = Map.of(
+            "approved", NotificationType.VERIFICATION_APPROVED,
+            "rejected", NotificationType.VERIFICATION_REJECTED,
+            "documents_requested", NotificationType.VERIFICATION_DOCUMENTS_REQUESTED);
+
     private final DocumentStorage storage;
+    private final NotificationService notifications;
 
     public AgrochemistReviewService(AgrochemistReviewRepository reviews, AgrochemistDocumentRepository documents,
-            DocumentStorage storage) {
+            DocumentStorage storage, NotificationService notifications) {
         this.reviews = reviews;
         this.documents = documents;
         this.storage = storage;
+        this.notifications = notifications;
     }
 
     public record SummaryView(
@@ -115,6 +125,7 @@ public class AgrochemistReviewService {
                     "Nothing to approve: the agrochemist has sent no documents");
         }
         reviews.decide(userId, status, status.equals("approved") ? null : cleanReason, adminId);
+        notifications.notify(userId, NOTIFICATION_BY_STATUS.get(status), Refs.none());
         return details(userId);
     }
 
