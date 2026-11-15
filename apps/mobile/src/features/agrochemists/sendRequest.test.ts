@@ -24,7 +24,6 @@ describe('sendErrorKey', () => {
 
   it('names the answers of the backend', () => {
     expect(sendErrorKey(new NetworkError())).toBe('offline')
-    expect(sendErrorKey(api(400, 'validation_failed'))).toBe('tooLong')
     expect(sendErrorKey(api(404, 'agrochemist_not_found'))).toBe('agrochemistNotFound')
     expect(sendErrorKey(api(404, 'diagnosis_not_found'))).toBe('diagnosisNotFound')
     expect(sendErrorKey(api(409, 'consultation_already_open'))).toBe('alreadyOpen')
@@ -35,6 +34,8 @@ describe('sendErrorKey', () => {
   it('takes any 429 for the limit and everything else for a server problem', () => {
     expect(sendErrorKey(api(429, 'other'))).toBe('rateLimited')
     expect(sendErrorKey(api(500, 'internal'))).toBe('server')
+    // the text was checked before sending; a refusal of the fields is not "too long"
+    expect(sendErrorKey(api(400, 'validation_failed'))).toBe('server')
     expect(sendErrorKey(new Error('boom'))).toBe('server')
   })
 })

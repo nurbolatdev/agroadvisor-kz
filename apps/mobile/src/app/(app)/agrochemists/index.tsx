@@ -16,6 +16,7 @@ import { AgrochemistRow } from '@/features/agrochemists/AgrochemistRow'
 import { filterAgrochemists } from '@/features/agrochemists/helpers'
 import { useAgrochemistLabels } from '@/features/agrochemists/useAgrochemistLabels'
 import { useAgrochemistList } from '@/features/agrochemists/useAgrochemistList'
+import { useRegionName } from '@/features/agrochemists/useRegionName'
 import { CROPS, isCrop } from '@/features/diagnosis/crops'
 import { useProfile } from '@/services'
 import { colors, spacing } from '@/theme/tokens'
@@ -28,6 +29,7 @@ export default function AgrochemistsScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ diagnosisId?: string; crop?: string; name?: string }>()
   const labels = useAgrochemistLabels()
+  const regionName = useRegionName()
   const myRegion = useProfile((s) => s.me?.regionId ?? null)
 
   const [query, setQuery] = useState('')
@@ -103,7 +105,13 @@ export default function AgrochemistsScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         ItemSeparatorComponent={() => <View style={styles.gap} />}
-        renderItem={({ item }) => <AgrochemistRow item={item} onPress={() => open(item.id)} />}
+        renderItem={({ item }) => (
+          <AgrochemistRow
+            item={item}
+            regionName={regionName(item.regionId)}
+            onPress={() => open(item.id)}
+          />
+        )}
         ListEmptyComponent={
           state.status === 'loading' ? (
             <ActivityIndicator color={colors.primary} style={styles.loading} />

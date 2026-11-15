@@ -19,8 +19,12 @@ jest.mock(
   'react-native-safe-area-context',
   () => require('react-native-safe-area-context/jest/mock').default,
 )
+jest.mock('@/store/settings', () => ({
+  useSettings: (select: (s: { language: string }) => unknown) => select({ language: 'en' }),
+}))
 jest.mock('@/services', () => ({
   agrochemistDirectoryApi: { list: (...args: unknown[]) => mockList(...args) },
+  regionsApi: { list: () => Promise.resolve([{ id: 7, code: 'south', name: 'South Region' }]) },
   useProfile: (select: (s: { me: { regionId: number | null } }) => unknown) =>
     select({ me: { regionId: mockRegion } }),
 }))
@@ -64,6 +68,23 @@ describe('agrochemists screen', () => {
     expect(screen.getByText('Bauyrzhan Ospanov')).toBeTruthy()
     expect(screen.getByText('Plant protection · 12 years')).toBeTruthy()
     expect(screen.getByText('Soil science · 8 years')).toBeTruthy()
+  })
+
+  it('writes the region of every agrochemist once the regions are read', async () => {
+    await openScreen()
+
+    expect(await screen.findAllByText('South Region')).toHaveLength(2)
+  })
+
+  it('names the status and the facts of a card for a screen reader', async () => {
+    await openScreen()
+    await screen.findAllByText('South Region')
+
+    expect(
+      screen.getByLabelText(
+        'Aigul Sarsenova, Verified agrochemist, Plant protection · 12 years, South Region',
+      ),
+    ).toBeTruthy()
   })
 
   it('starts with the crop of the diagnosis and names the diagnosis under the title', async () => {

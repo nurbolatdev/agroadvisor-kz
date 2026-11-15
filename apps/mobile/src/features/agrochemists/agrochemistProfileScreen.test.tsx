@@ -18,9 +18,14 @@ jest.mock(
   'react-native-safe-area-context',
   () => require('react-native-safe-area-context/jest/mock').default,
 )
+jest.mock('@/store/settings', () => ({
+  useSettings: (select: (s: { language: string }) => unknown) => select({ language: 'en' }),
+}))
 jest.mock('@/services', () => ({
   agrochemistDirectoryApi: { get: (...args: unknown[]) => mockGet(...args) },
   consultationsApi: { create: (...args: unknown[]) => mockCreate(...args) },
+  regionsApi: { list: () => Promise.resolve([{ id: 7, code: 'south', name: 'South Region' }]) },
+  useSession: (select: (s: { accessToken: string }) => unknown) => select({ accessToken: 't' }),
   useDiagnosis: (select: (s: { results: Record<string, unknown> }) => unknown) =>
     select({ results: mockResults }),
 }))
@@ -49,7 +54,13 @@ beforeEach(() => {
   jest.clearAllMocks()
   mockParams = { id: 'a1', diagnosisId: 'd1' }
   mockResults = {
-    d1: { id: 'd1', crop: 'tomato', top1: { code: 'tomato__late_blight', confidence: 0.94 } },
+    d1: {
+      id: 'd1',
+      crop: 'tomato',
+      top1: { code: 'tomato__late_blight', confidence: 0.94 },
+      photoPath: 'file:///leaf.jpg',
+      photoUrl: '/api/diagnoses/d1/photo',
+    },
   }
   mockGet.mockResolvedValue(AGROCHEMIST)
   mockCreate.mockResolvedValue({ id: 'c1' })
@@ -70,11 +81,34 @@ describe('agrochemist profile screen', () => {
     expect(screen.getByText('Tomato, Corn')).toBeTruthy()
   })
 
-  it('says that an agrochemist who is gone does not take requests', async () => {
+  it('writes the region under the name once the regions are read', async () => {
+    await render(<AgrochemistProfileScreen />)
+
+    expect(await screen.findByText('South Region')).toBeTruthy()
+  })
+
+  it('says that an agrochemist who is gone does not take requests, with nothing to retry', async () => {
     mockGet.mockRejectedValueOnce(new ApiError(404, 'agrochemist_not_found', 'x'))
     await render(<AgrochemistProfileScreen />)
 
     expect(await screen.findByText('This agrochemist no longer takes requests')).toBeTruthy()
+    expect(screen.queryByText('Try again')).toBeNull()
+  })
+
+  it('promises the photo and the diagnosis only when a diagnosis goes along', async () => {
+    await openSheet()
+    expect(
+      screen.getByText(
+        'The agrochemist will see the photo and the diagnosis and answer in the chat',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('promises only an answer in the chat when no diagnosis goes along', async () => {
+    mockParams = { id: 'a1' }
+    await openSheet()
+
+    expect(screen.getByText('The agrochemist will answer you in the chat')).toBeTruthy()
   })
 
   it('shows the diagnosis in the sheet and sends it with the message', async () => {

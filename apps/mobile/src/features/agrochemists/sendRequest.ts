@@ -31,8 +31,8 @@ export function sendErrorKey(error: unknown): SendErrorKey {
   if (error instanceof NetworkError) return 'offline'
   if (error instanceof ApiError) {
     switch (error.code) {
-      case 'validation_failed':
-        return 'tooLong'
+      // the client has already checked the text (empty, too long); a refusal of the fields here is not
+      // something the farmer can fix by shortening it
       case 'agrochemist_not_found':
         return 'agrochemistNotFound'
       case 'diagnosis_not_found':

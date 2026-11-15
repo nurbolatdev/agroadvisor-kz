@@ -1,4 +1,4 @@
-import { BadgeCheck, Send } from 'lucide-react-native'
+import { BadgeCheck, MapPin, Send } from 'lucide-react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,6 +9,7 @@ import { initials } from '@/features/agrochemists/helpers'
 import { SendSheet } from '@/features/agrochemists/SendSheet'
 import { useAgrochemist } from '@/features/agrochemists/useAgrochemist'
 import { useAgrochemistLabels } from '@/features/agrochemists/useAgrochemistLabels'
+import { useRegionName } from '@/features/agrochemists/useRegionName'
 import { useDiagnosis } from '@/services'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
@@ -20,6 +21,7 @@ export default function AgrochemistProfileScreen() {
   const { id, diagnosisId } = useLocalSearchParams<{ id: string; diagnosisId?: string }>()
   const { state, reload } = useAgrochemist(id)
   const labels = useAgrochemistLabels()
+  const regionName = useRegionName()
   const diagnosis = useDiagnosis((s) => (diagnosisId ? s.results[diagnosisId] : undefined))
   const [sheet, setSheet] = useState(false)
 
@@ -29,7 +31,11 @@ export default function AgrochemistProfileScreen() {
 
       {state.status === 'loading' ? <ActivityIndicator color={colors.primary} /> : null}
       {state.status === 'error' ? (
-        <ErrorState message={t(`agrochemists.errors.${state.reason}`)} onRetry={reload} />
+        <ErrorState
+          message={t(`agrochemists.errors.${state.reason}`)}
+          // an agrochemist who is gone does not come back: there is nothing to try again
+          onRetry={state.reason === 'notFound' ? undefined : reload}
+        />
       ) : null}
 
       {state.status === 'ready' ? (
@@ -54,6 +60,14 @@ export default function AgrochemistProfileScreen() {
               <AppText color={colors.textMuted} style={styles.center}>
                 {labels.summary(state.item)}
               </AppText>
+            ) : null}
+            {regionName(state.item.regionId) ? (
+              <View style={styles.region}>
+                <MapPin size={sizes.iconSm} color={colors.textMuted} />
+                <AppText variant="small" color={colors.textMuted}>
+                  {regionName(state.item.regionId)}
+                </AppText>
+              </View>
             ) : null}
           </View>
 
@@ -97,8 +111,8 @@ const styles = StyleSheet.create({
   body: { gap: spacing.lg, paddingBottom: spacing.xl },
   head: { alignItems: 'center', gap: spacing.sm, paddingTop: spacing.md },
   avatar: {
-    width: sizes.successMark,
-    height: sizes.successMark,
+    width: sizes.avatarLg,
+    height: sizes.avatarLg,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -107,5 +121,6 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   name: { flexShrink: 1, textAlign: 'center' },
   center: { textAlign: 'center' },
+  region: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   section: { gap: spacing.xs },
 })

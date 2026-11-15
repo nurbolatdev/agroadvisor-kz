@@ -340,6 +340,7 @@ export const en: Translation = {
       open: 'Send results',
       title: 'Send results',
       hint: 'The agrochemist will see the photo and the diagnosis and answer in the chat',
+      hintNoDiagnosis: 'The agrochemist will answer you in the chat',
       message: 'Message',
       placeholder: 'Describe what worries you',
       submit: 'Send',

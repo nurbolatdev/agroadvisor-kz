@@ -1,15 +1,26 @@
+import { BlurView } from 'expo-blur'
 import { Check, Send } from 'lucide-react-native'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native'
+import {
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import type { DiagnosisResult } from '@/api/diagnosis'
+import { API_URL } from '@/api/config'
 import { CONSULTATION_TEXT_MAX } from '@/api/consultations'
 import { AppText, Button, Input } from '@/components/ui'
 import { isCrop } from '@/features/diagnosis/crops'
 import { useDiseaseDetail } from '@/features/diseases/useDiseaseDetail'
-import { consultationsApi } from '@/services'
+import { resultPhoto } from '@/features/history/photoSource'
+import { consultationsApi, useSession } from '@/services'
+import type { StoredResult } from '@/store/diagnosis'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
 import { sendConsultation, type SendErrorKey } from './sendRequest'
@@ -23,8 +34,11 @@ type Props = {
   // the diagnosis the farmer comes from; the backend checks that it is theirs
   diagnosisId?: string
   // what the app knows of that diagnosis, to show it in the sheet (answers live in memory only)
-  diagnosis?: DiagnosisResult
+  diagnosis?: StoredResult
 }
+
+// How strongly the screen behind the sheet is blurred
+const BLUR_INTENSITY = 30
 
 // "Send results" (screen 16): the diagnosis that goes with the request, a message, and the send button. After
 // the request went out the sheet says so, and "Done" leaves the screen.
@@ -41,6 +55,10 @@ export function SendSheet({
   const [text, setText] = useState('')
   const [phase, setPhase] = useState<'idle' | 'sending' | 'sent'>('idle')
   const [error, setError] = useState<SendErrorKey | null>(null)
+
+  // After the request went out, the way out of the sheet (back, a tap on the dimming) is the same as "Done":
+  // the farmer leaves the screen, and the sheet does not open again with "Request sent".
+  const leave = phase === 'sent' ? onSent : onClose
 
   const submit = async () => {
     if (phase === 'sending') return
@@ -60,20 +78,24 @@ export function SendSheet({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={phase === 'sending' ? undefined : onClose}
+      onRequestClose={phase === 'sending' ? undefined : leave}
       statusBarTranslucent
       navigationBarTranslucent
     >
       <KeyboardAvoidingView
         style={styles.fill}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
           style={styles.backdrop}
-          onPress={phase === 'sending' ? undefined : onClose}
-        />
+          onPress={phase === 'sending' ? undefined : leave}
+        >
+          {/* the screen behind the sheet is blurred, as in the design; Android without a blur target shows
+              only the dimming (the known gap of the glass cards, P12) */}
+          <BlurView intensity={BLUR_INTENSITY} tint="dark" style={StyleSheet.absoluteFill} />
+        </Pressable>
         <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
           <View style={styles.handle} />
           {phase === 'sent' ? (
@@ -92,7 +114,7 @@ export function SendSheet({
               <View>
                 <AppText variant="h2">{t('agrochemists.send.title')}</AppText>
                 <AppText variant="small" color={colors.textMuted}>
-                  {t('agrochemists.send.hint')}
+                  {t(diagnosis ? 'agrochemists.send.hint' : 'agrochemists.send.hintNoDiagnosis')}
                 </AppText>
               </View>
               {diagnosis ? <AttachedDiagnosis diagnosis={diagnosis} /> : null}
@@ -131,14 +153,20 @@ export function SendSheet({
 
 // The line with the diagnosis that goes along: its name, the confidence and the crop. The name comes from the
 // reference; until it loads (or if it does not) the code of the class stands in.
-function AttachedDiagnosis({ diagnosis }: { diagnosis: DiagnosisResult }) {
+function AttachedDiagnosis({ diagnosis }: { diagnosis: StoredResult }) {
   const { t } = useTranslation()
+  const accessToken = useSession((s) => s.accessToken)
   const { state } = useDiseaseDetail(diagnosis.top1.code)
   const name = state.status === 'ready' ? state.detail.disease.name : diagnosis.top1.code
   const crop = isCrop(diagnosis.crop) ? t(`diagnosis.crops.${diagnosis.crop}`) : diagnosis.crop
+  // the photo the diagnosis was made from, as on the result screen: the file the app sent, or the server's
+  const photo = resultPhoto(diagnosis, API_URL, accessToken)
 
   return (
     <View style={styles.attached}>
+      {photo ? (
+        <Image source={photo} style={styles.thumb} accessibilityIgnoresInvertColors />
+      ) : null}
       <View style={styles.attachedText}>
         <AppText variant="h2" numberOfLines={2}>
           {name}
@@ -180,6 +208,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   attachedText: { flex: 1 },
+  thumb: { width: sizes.thumb, height: sizes.thumb, borderRadius: radii.sm },
   center: { textAlign: 'center' },
   sent: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.lg },
   sentIcon: {
