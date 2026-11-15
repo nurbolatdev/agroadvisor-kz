@@ -996,6 +996,29 @@
         "required" : [ "count" ],
         "type" : "object"
       },
+      "PushTokenResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "platform" : {
+            "enum" : [ "android", "ios", "expo" ],
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "description" : "The last registration of this token",
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "id", "platform", "updatedAt" ],
+        "type" : "object"
+      },
       "RefreshRequest" : {
         "properties" : {
           "refreshToken" : {
@@ -1021,6 +1044,22 @@
           }
         },
         "required" : [ "code", "id", "name" ],
+        "type" : "object"
+      },
+      "RegisterPushTokenRequest" : {
+        "properties" : {
+          "platform" : {
+            "enum" : [ "android", "ios", "expo" ],
+            "pattern" : "android|ios|expo",
+            "type" : "string"
+          },
+          "token" : {
+            "maxLength" : 512,
+            "pattern" : "[\\x21-\\x7E]{1,512}",
+            "type" : "string"
+          }
+        },
+        "required" : [ "platform", "token" ],
         "type" : "object"
       },
       "RegisterRequest" : {
@@ -3483,6 +3522,55 @@
           }
         },
         "tags" : [ "notification-controller" ]
+      }
+    },
+    "/api/push-tokens" : {
+      "put" : {
+        "description" : "Idempotent upsert by token. A token of another account moves to the caller. At most 10 devices per user: the least recently registered one is dropped.",
+        "operationId" : "registerPushToken",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterPushTokenRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PushTokenResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "push-token-controller" ]
+      }
+    },
+    "/api/push-tokens/{id}" : {
+      "delete" : {
+        "operationId" : "deletePushToken",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "push-token-controller" ]
       }
     },
     "/api/regions" : {

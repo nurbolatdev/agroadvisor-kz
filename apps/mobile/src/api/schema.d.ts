@@ -798,6 +798,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/push-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Idempotent upsert by token. A token of another account moves to the caller. At most 10 devices per user: the least recently registered one is dropped. */
+        put: operations["registerPushToken"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/push-tokens/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deletePushToken"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/regions": {
         parameters: {
             query?: never;
@@ -1288,6 +1321,19 @@ export interface components {
             /** Format: int32 */
             count: number;
         };
+        PushTokenResponse: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            platform: "android" | "ios" | "expo";
+            /**
+             * Format: date-time
+             * @description The last registration of this token
+             */
+            updatedAt: string;
+        };
         RefreshRequest: {
             refreshToken: string;
         };
@@ -1296,6 +1342,11 @@ export interface components {
             /** Format: int64 */
             id: number;
             name: string;
+        };
+        RegisterPushTokenRequest: {
+            /** @enum {string} */
+            platform: "android" | "ios" | "expo";
+            token: string;
         };
         RegisterRequest: {
             /**
@@ -3003,6 +3054,50 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["NotificationUnreadCount"];
                 };
+            };
+        };
+    };
+    registerPushToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterPushTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PushTokenResponse"];
+                };
+            };
+        };
+    };
+    deletePushToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
