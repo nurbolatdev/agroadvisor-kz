@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -31,6 +33,54 @@ def test_threshold_defaults_match_contract():
     assert settings.low_threshold == 0.25
     assert settings.crop_mismatch_threshold == 0.70
     assert settings.unknown_threshold == 0.5
+
+
+ENV_EXAMPLE = SERVICE_DIR / ".env.example"
+
+
+def _example_names() -> list[str]:
+    # Commented-out lines are skipped on purpose: the example must list
+    # every setting uncommented.
+    names = []
+    for line in ENV_EXAMPLE.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            names.append(line.partition("=")[0].strip())
+    return names
+
+
+def _values(settings: Settings) -> dict:
+    # A path in the example is relative to the service folder, where the service is started
+    return {
+        name: SERVICE_DIR / value if isinstance(value, Path) and not value.is_absolute() else value
+        for name, value in settings.model_dump().items()
+    }
+
+
+def test_env_example_matches_settings_defaults(monkeypatch):
+    # The thresholds and the model version are what a copied .env most often gets wrong.
+    # Clear every setting, not only the names in the example, so the test depends on nothing else.
+    for field in Settings.model_fields:
+        monkeypatch.delenv("AI_" + field.upper(), raising=False)
+
+    from_example = Settings(_env_file=ENV_EXAMPLE)
+    defaults = Settings(_env_file=None)
+
+    assert _values(from_example) == _values(defaults)
+
+
+def test_env_example_has_no_repeated_names():
+    # With a repeat the last value wins silently, so an old line above a new one
+    # would hide a stale value.
+    names = _example_names()
+    assert len(names) == len(set(names)), sorted({n for n in names if names.count(n) > 1})
+
+
+def test_env_example_lists_exactly_the_settings():
+    # `extra="ignore"` hides a typo in a name (the default is used instead),
+    # so the names must match exactly.
+    expected = {"AI_" + field.upper() for field in Settings.model_fields}
+    assert set(_example_names()) == expected
 
 
 def test_rejects_low_threshold_not_below_ok(monkeypatch):
