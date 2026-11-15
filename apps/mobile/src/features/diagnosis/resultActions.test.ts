@@ -13,8 +13,8 @@ const mismatch = (detectedCrop: 'potato' | null): ResultScreen => ({
   detectedCrop,
 })
 
-describe('with the real flags (both off now)', () => {
-  it('no result has an "ask" button, whatever its kind or photo', () => {
+describe('with the real flags (consultations on, community off now)', () => {
+  it('no result has an "ask the community" button, whatever its kind or photo', () => {
     const screens: ResultScreen[] = [
       { kind: 'ok' },
       low,
@@ -27,10 +27,18 @@ describe('with the real flags (both off now)', () => {
         const types = resultActions(screen, { hasPhoto, features: FEATURE_FLAGS }).map(
           (action) => action.type,
         )
-        expect(types).not.toContain('askAgronomist')
         expect(types).not.toContain('askCommunity')
       }
     }
+  })
+
+  it('an uncertain result offers the agronomist, a sure one has no uncertain-result actions', () => {
+    const types = (screen: ResultScreen) =>
+      resultActions(screen, { hasPhoto: true, features: FEATURE_FLAGS }).map((a) => a.type)
+
+    expect(types(low)).toContain('askAgronomist')
+    expect(types(unknown)).toContain('askAgronomist')
+    expect(types({ kind: 'ok' })).toEqual([])
   })
 })
 

@@ -1,10 +1,10 @@
 import { FEATURE_FLAGS, isFeatureEnabled } from './featureAccess'
 
 describe('feature access', () => {
-  it('has consultations and community switched off for now', () => {
-    expect(isFeatureEnabled('consultations')).toBe(false)
+  it('has consultations on (the list and the request are built) and community off for now', () => {
+    expect(isFeatureEnabled('consultations')).toBe(true)
     expect(isFeatureEnabled('community')).toBe(false)
-    expect(FEATURE_FLAGS).toEqual({ consultations: false, community: false })
+    expect(FEATURE_FLAGS).toEqual({ consultations: true, community: false })
   })
 
   it('answers from the flags it is given', () => {
