@@ -39,6 +39,8 @@ ENV_EXAMPLE = SERVICE_DIR / ".env.example"
 
 
 def _example_names() -> list[str]:
+    # Commented-out lines are skipped on purpose: the example must list
+    # every setting uncommented.
     names = []
     for line in ENV_EXAMPLE.read_text().splitlines():
         line = line.strip()
