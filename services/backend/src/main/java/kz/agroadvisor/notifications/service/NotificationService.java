@@ -8,6 +8,7 @@ import kz.agroadvisor.notifications.model.NotificationType;
 import kz.agroadvisor.notifications.repository.NotificationRepository;
 import kz.agroadvisor.notifications.repository.NotificationRepository.Notification;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -47,10 +48,16 @@ public class NotificationService {
         }
     }
 
-    private final NotificationRepository notifications;
+    /** Published in the caller's transaction; {@link NotificationPushRelay} reacts after the commit. */
+    record NotificationCreated(PushMessage message) {
+    }
 
-    public NotificationService(NotificationRepository notifications) {
+    private final NotificationRepository notifications;
+    private final ApplicationEventPublisher events;
+
+    public NotificationService(NotificationRepository notifications, ApplicationEventPublisher events) {
         this.notifications = notifications;
+        this.events = events;
     }
 
     /**
@@ -62,9 +69,12 @@ public class NotificationService {
     @Transactional(propagation = Propagation.MANDATORY)
     public Notification notify(UUID recipientId, NotificationType type, Refs refs) {
         String collapseKey = checkAndKey(type, refs);
-        return notifications.insertOrCollapse(recipientId, type,
+        Notification row = notifications.insertOrCollapse(recipientId, type,
                 new NotificationRepository.Refs(refs.consultationId(), refs.messageId(), refs.diagnosisId()),
                 collapseKey);
+        events.publishEvent(new NotificationCreated(new PushMessage(row.id(), row.recipientId(),
+                row.type().code(), row.consultationId(), row.messageId(), row.diagnosisId(), row.count())));
+        return row;
     }
 
     @Transactional(readOnly = true)
