@@ -326,7 +326,6 @@ export const en: Translation = {
     search: 'Name or specialization',
     searchClear: 'Clear search',
     nearby: 'Near me',
-    experience: 'Experience: {{years}} years',
     verified: 'Verified agrochemist',
     cropsTitle: 'Crops',
     specializationsTitle: 'Specialization',

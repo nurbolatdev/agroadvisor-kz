@@ -338,7 +338,6 @@ export const ru = {
     search: 'Имя или специализация',
     searchClear: 'Очистить поиск',
     nearby: 'Рядом со мной',
-    experience: 'Стаж: {{years}} лет',
     verified: 'Подтверждённый агрохимик',
     cropsTitle: 'Культуры',
     specializationsTitle: 'Специализация',

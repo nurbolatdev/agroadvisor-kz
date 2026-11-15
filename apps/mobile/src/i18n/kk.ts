@@ -329,7 +329,6 @@ export const kk: Translation = {
     search: 'Аты немесе мамандығы',
     searchClear: 'Іздеуді тазалау',
     nearby: 'Маған жақын',
-    experience: 'Тәжірибесі: {{years}} жыл',
     verified: 'Расталған агрохимик',
     cropsTitle: 'Дақылдар',
     specializationsTitle: 'Мамандығы',
