@@ -5,10 +5,11 @@ export type Feature = 'consultations' | 'community'
 
 export type FeatureFlags = Record<Feature, boolean>
 
-// The consultations with an agronomist and the farmers' community are not built yet.
-// Switch a flag on only together with its route (/consultations, /community): the buttons lead there.
+// The consultations with an agrochemist: the farmer's list and the request are built (/agrochemists, M13);
+// the chat and the answers of the agrochemist come with M14. The farmers' community is not built yet.
+// Switch a flag on only together with its route (/agrochemists, /community): the buttons lead there.
 export const FEATURE_FLAGS: FeatureFlags = {
-  consultations: false,
+  consultations: true,
   community: false,
 }
 

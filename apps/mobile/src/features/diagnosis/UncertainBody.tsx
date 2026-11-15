@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native'
 import type { DiagnosisResult } from '@/api/diagnosis'
 import { AppText, Button, Chip } from '@/components/ui'
 import { FEATURE_FLAGS } from '@/features/access/featureAccess'
+import { agrochemistsRoute } from '@/features/agrochemists/route'
 import { useDiseaseDetail } from '@/features/diseases/useDiseaseDetail'
 import { shortSymptoms } from '@/features/diseases/symptoms'
 import { useDiagnosis } from '@/services'
@@ -69,9 +70,9 @@ export function UncertainBody({
       case 'chooseCrop':
         setChoosing(true)
         return
-      // The consultations and the community come later; these buttons appear only behind their flags.
+      // These buttons appear only behind their flags; the community comes later.
       case 'askAgronomist':
-        router.push('/consultations')
+        router.push(agrochemistsRoute({ diagnosisId: view.id, crop: view.crop }))
         return
       case 'askCommunity':
         router.push('/community')
