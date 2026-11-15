@@ -1,10 +1,14 @@
 import { createAgrochemistApi } from '@/api/agrochemist'
+import { createAgrochemistDirectoryApi } from '@/api/agrochemistDirectory'
+import { createConsultationsApi } from '@/api/consultations'
 import { createAuthApi } from '@/api/auth'
 import { createApiClient } from '@/api/client'
 import { API_MODE, API_URL } from '@/api/config'
 import { createDiagnosisApi } from '@/api/diagnosis'
 import { createDiseaseApi } from '@/api/diseases'
 import { createMockAgrochemistApi } from '@/api/mock/agrochemist'
+import { createMockAgrochemistDirectoryApi } from '@/api/mock/agrochemistDirectory'
+import { createMockConsultationsApi } from '@/api/mock/consultations'
 import { createMockAuthApi } from '@/api/mock/auth'
 import { createMockDiagnosisApi } from '@/api/mock/diagnosis'
 import { createMockDiseaseApi } from '@/api/mock/diseases'
@@ -73,6 +77,14 @@ export const diagnosisApi =
 const mockAgrochemist = API_MODE === 'mock' ? createMockAgrochemistApi() : null
 export const agrochemistApi = mockAgrochemist?.api ?? createAgrochemistApi(apiClient)
 export const agrochemistMockControls = mockAgrochemist?.controls ?? null
+
+// What a farmer sees: the list of approved agrochemists and the request for a consultation.
+export const agrochemistDirectoryApi =
+  API_MODE === 'mock'
+    ? createMockAgrochemistDirectoryApi()
+    : createAgrochemistDirectoryApi(apiClient)
+export const consultationsApi =
+  API_MODE === 'mock' ? createMockConsultationsApi() : createConsultationsApi(apiClient)
 
 // The state of that check, one for the whole app: the entry gate and the screens of an agrochemist read it
 // from here, so the server is asked once. Reset together with the profile (see onUserChange).
