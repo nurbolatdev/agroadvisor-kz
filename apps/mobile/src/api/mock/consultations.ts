@@ -1,6 +1,10 @@
 import type { DiagnosisResult } from '../diagnosis'
 import { ApiError } from '../errors'
-import { CONSULTATION_TEXT_MAX } from '../consultations'
+import {
+  CONSULTATION_TEXT_MAX,
+  CONSULTATIONS_PAGE_SIZE,
+  MESSAGES_PAGE_SIZE,
+} from '../consultations'
 import type {
   ChatMessage,
   Consultation,
@@ -89,9 +93,13 @@ export function createMockConsultationsApi({
     if (senderId !== viewerId) consultation.unreadCount += 1
     return message
   }
+  // the API hands out a fresh object on every call; the mock keeps its own and gives copies, so a store or a
+  // cache that holds an old answer does not change behind its back
+  const out = (c: Consultation): Consultation => ({ ...c })
   const finish = (consultation: Consultation, status: ConsultationStatus) => {
     consultation.status = status
-    consultation.closedBy = viewerId
+    // a decline is the agrochemist's act, whoever the mock answers for
+    consultation.closedBy = status === 'declined' ? consultation.agrochemist.id : viewerId
     consultation.closedAt = stamp()
     consultation.unreadCount = 0
     return consultation
@@ -130,12 +138,12 @@ export function createMockConsultationsApi({
       consultations.push(consultation)
       // the text of the request is the first message of the chat, like on the backend
       addMessage(consultation, MOCK_FARMER_ID, text, null)
-      return consultation
+      return out(consultation)
     },
     list: async (query = {}) => {
       await wait()
-      const page = query.page ?? 0
-      const size = query.size ?? 20
+      const page = Math.max(0, query.page ?? 0)
+      const size = Math.min(50, Math.max(1, query.size ?? CONSULTATIONS_PAGE_SIZE))
       const wanted = query.status ?? []
       return consultations
         .filter((c) => wanted.length === 0 || wanted.includes(c.status))
@@ -145,10 +153,11 @@ export function createMockConsultationsApi({
           ),
         )
         .slice(page * size, page * size + size)
+        .map(out)
     },
     get: async (id) => {
       await wait()
-      return find(id)
+      return out(find(id))
     },
     accept: async (id) => {
       await wait()
@@ -156,49 +165,55 @@ export function createMockConsultationsApi({
       if (c.status !== 'requested') throw invalidState(c.status)
       c.status = 'active'
       c.acceptedAt = stamp()
-      return c
+      return out(c)
     },
     decline: async (id) => {
       await wait()
       const c = find(id)
       if (c.status !== 'requested') throw invalidState(c.status)
-      return finish(c, 'declined')
+      return out(finish(c, 'declined'))
     },
     close: async (id) => {
       await wait()
       const c = find(id)
       if (c.status !== 'requested' && c.status !== 'active') throw invalidState(c.status)
-      return finish(c, 'closed')
+      return out(finish(c, 'closed'))
     },
     messages: async (id, query = {}) => {
       await wait()
       find(id)
+      if (query.before !== undefined && query.after !== undefined) {
+        throw new ApiError(400, 'validation_failed', 'Use before or after, not both')
+      }
       const all = chats.get(id) ?? []
-      const limit = query.limit ?? 30
+      const limit = Math.min(100, Math.max(1, query.limit ?? MESSAGES_PAGE_SIZE))
       const cursor = query.before ?? query.after
       const at = cursor === undefined ? -1 : all.findIndex((m) => m.id === cursor)
       if (cursor !== undefined && at === -1) {
         throw new ApiError(404, 'message_not_found', 'Message not found')
       }
       if (query.before === undefined && query.after !== undefined) {
-        return all.slice(at + 1, at + 1 + limit) // the oldest first
+        return all.slice(at + 1, at + 1 + limit).map((m) => ({ ...m })) // the oldest first
       }
       const older = query.before === undefined ? all : all.slice(0, at)
-      return older.slice(-limit).reverse() // the newest first
+      return older
+        .slice(-limit)
+        .reverse()
+        .map((m) => ({ ...m })) // the newest first
     },
     sendMessage: async (id, text) => {
       await wait()
       const c = find(id)
       const clean = checkText(text)
       if (c.status !== 'active') throw invalidState(c.status)
-      return addMessage(c, viewerId, clean, null)
+      return { ...addMessage(c, viewerId, clean, null) }
     },
     sendPhoto: async (id, _file, text) => {
       await wait()
       const c = find(id)
       const caption = text?.trim() ? checkText(text) : null
       if (c.status !== 'active') throw invalidState(c.status)
-      return addMessage(c, viewerId, caption, 'photo')
+      return { ...addMessage(c, viewerId, caption, 'photo') }
     },
     markRead: async (id, upTo) => {
       await wait()
@@ -209,7 +224,9 @@ export function createMockConsultationsApi({
       all.slice(0, last + 1).forEach((m) => {
         if (m.senderId !== viewerId && !m.readAt) m.readAt = stamp()
       })
-      c.unreadCount = all.filter((m) => m.senderId !== viewerId && !m.readAt).length
+      // a declined or closed consultation has nothing unread, as on the backend
+      const open = c.status === 'requested' || c.status === 'active'
+      c.unreadCount = open ? all.filter((m) => m.senderId !== viewerId && !m.readAt).length : 0
       return { unreadCount: c.unreadCount }
     },
     unreadCount: async () => {

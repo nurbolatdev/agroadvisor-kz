@@ -76,6 +76,8 @@ describe('createConsultationsApi', () => {
     const request = jest.fn().mockResolvedValue({})
     const api = createConsultationsApi({ request } as unknown as ApiClient)
 
+    await api.list({ status: ['active'] })
+    await api.messages('c1', { after: 'm1' })
     await api.get('c1')
     await api.accept('c1')
     await api.decline('c1')
@@ -86,6 +88,8 @@ describe('createConsultationsApi', () => {
     await api.diagnosis('c1')
 
     expect(request.mock.calls).toEqual([
+      ['/api/consultations?status=active&page=0&size=20'],
+      ['/api/consultations/c1/messages?after=m1&limit=30'],
       ['/api/consultations/c1'],
       ['/api/consultations/c1/accept', { method: 'POST' }],
       ['/api/consultations/c1/decline', { method: 'POST' }],
@@ -105,7 +109,11 @@ describe('createConsultationsApi', () => {
 
     expect(request).toHaveBeenCalledWith(
       '/api/consultations/c1/messages/photo',
-      expect.objectContaining({ method: 'POST', timeoutMs: 120_000 }),
+      expect.objectContaining({
+        method: 'POST',
+        timeoutMs: 120_000,
+        formData: expect.any(FormData),
+      }),
     )
   })
 })
@@ -143,6 +151,52 @@ describe('mock chat', () => {
     expect((await api.close(a.id)).status).toBe('closed')
     expect((await api.decline(b.id)).status).toBe('declined')
     await expect(api.decline(b.id)).rejects.toMatchObject({ reason: 'declined' })
+  })
+
+  it('records the agrochemist as the one who declined, and the caller as the one who closed', async () => {
+    const api = make()
+    const a = await api.create({ agrochemistId, text: 'a' })
+    const b = await api.create({ agrochemistId: MOCK_AGROCHEMISTS[1].id, text: 'b' })
+
+    expect((await api.decline(a.id)).closedBy).toBe(agrochemistId)
+    expect((await api.close(b.id)).closedBy).toBe(MOCK_FARMER_ID)
+  })
+
+  it('hands out copies: an old answer does not change when the consultation does', async () => {
+    const api = make()
+    const before = await api.create({ agrochemistId, text: 'first' })
+
+    await api.accept(before.id)
+
+    expect(before.status).toBe('requested')
+    expect((await api.get(before.id)).status).toBe('active')
+  })
+
+  it('refuses both cursors together, like the backend', async () => {
+    const api = make()
+    const c = await active(api)
+
+    await expect(api.messages(c.id, { before: 'a', after: 'b' })).rejects.toMatchObject({
+      status: 400,
+      code: 'validation_failed',
+    })
+  })
+
+  it('keeps the limit of a page inside 1..100', async () => {
+    const api = make()
+    const c = await active(api)
+
+    expect(await api.messages(c.id, { limit: 0 })).toHaveLength(1)
+  })
+
+  it('has nothing unread in a closed consultation', async () => {
+    const other = createMockConsultationsApi({ delayMs: 0, viewerId: 'someone-else' })
+    const c = await other.create({ agrochemistId, text: 'from the farmer' })
+    const [first] = await other.messages(c.id)
+    await other.close(c.id)
+
+    expect(await other.markRead(c.id, first.id)).toEqual({ unreadCount: 0 })
+    expect((await other.list())[0].unreadCount).toBe(0)
   })
 
   it('answers 404 for an unknown consultation', async () => {

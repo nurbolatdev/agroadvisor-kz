@@ -10,6 +10,8 @@ export type Consultation = Schemas['ConsultationResponse']
 export type CreateConsultation = Schemas['CreateConsultationRequest']
 export type ChatMessage = Schemas['MessageResponse']
 export type ConsultationStatus = Consultation['status']
+export type ReadResult = Schemas['ConsultationReadResult']
+export type UnreadCount = Schemas['ConsultationUnreadCount']
 
 export const CONSULTATION_TEXT_MAX = 2000
 export const CONSULTATIONS_PAGE_SIZE = 20
@@ -44,9 +46,9 @@ export type ConsultationsApi = {
   // a JPEG or PNG of up to 10 MB with an optional caption (a form part, so it stays out of the logs)
   sendPhoto: (id: string, file: UploadFile, text?: string) => Promise<ChatMessage>
   // marks the incoming messages up to `upTo` as read; answers what is still unread in this consultation
-  markRead: (id: string, upTo: string) => Promise<{ unreadCount: number }>
+  markRead: (id: string, upTo: string) => Promise<ReadResult>
   // the incoming unread messages of the requested and active consultations
-  unreadCount: () => Promise<{ count: number }>
+  unreadCount: () => Promise<UnreadCount>
   // the diagnosis the farmer attached; its photoUrl is /api/consultations/{id}/diagnosis/photo
   diagnosis: (id: string) => Promise<DiagnosisResult>
 }
@@ -98,20 +100,21 @@ export function createConsultationsApi(client: ApiClient): ConsultationsApi {
     decline: (id) => action(id, 'decline'),
     close: (id) => action(id, 'close'),
     messages: (id, query) => client.request<ChatMessage[]>(messagesPath(id, query)),
-    sendMessage: (id, text) =>
-      client.request<ChatMessage>(`${base(id)}/messages`, { method: 'POST', body: { text } }),
+    sendMessage: (id, text) => {
+      const body: Schemas['SendMessageRequest'] = { text }
+      return client.request<ChatMessage>(`${base(id)}/messages`, { method: 'POST', body })
+    },
     sendPhoto: (id, file, text) =>
       client.request<ChatMessage>(`${base(id)}/messages/photo`, {
         method: 'POST',
         formData: photoFormData(file, text),
         timeoutMs: CHAT_PHOTO_TIMEOUT_MS,
       }),
-    markRead: (id, upTo) =>
-      client.request<{ unreadCount: number }>(`${base(id)}/read`, {
-        method: 'POST',
-        body: { upTo },
-      }),
-    unreadCount: () => client.request<{ count: number }>('/api/consultations/unread-count'),
+    markRead: (id, upTo) => {
+      const body: Schemas['MarkReadRequest'] = { upTo }
+      return client.request<ReadResult>(`${base(id)}/read`, { method: 'POST', body })
+    },
+    unreadCount: () => client.request<UnreadCount>('/api/consultations/unread-count'),
     diagnosis: (id) => client.request<DiagnosisResult>(`${base(id)}/diagnosis`),
   }
 }
