@@ -942,6 +942,60 @@
         "required" : [ "classesVersion", "modelVersion" ],
         "type" : "object"
       },
+      "NotificationResponse" : {
+        "properties" : {
+          "consultationId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "count" : {
+            "description" : "How many events were collapsed into this row",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "diagnosisId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "messageId" : {
+            "description" : "The newest message for consultation_message",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "readAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "type" : {
+            "enum" : [ "consultation_requested", "consultation_accepted", "consultation_declined", "consultation_closed", "consultation_message", "verification_approved", "verification_rejected", "verification_documents_requested", "diagnosis_reviewed" ],
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "count", "createdAt", "id", "type", "updatedAt" ],
+        "type" : "object"
+      },
+      "NotificationUnreadCount" : {
+        "properties" : {
+          "count" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "count" ],
+        "type" : "object"
+      },
       "RefreshRequest" : {
         "properties" : {
           "refreshToken" : {
@@ -3312,6 +3366,123 @@
         },
         "summary" : "The version of the recognition model, as the AI service reports it (kept for about a minute)",
         "tags" : [ "meta-controller" ]
+      }
+    },
+    "/api/notifications" : {
+      "get" : {
+        "operationId" : "listNotifications",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "unread",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "default" : 0,
+            "format" : "int32",
+            "maximum" : 10000,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 50,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/NotificationResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "notification-controller" ]
+      }
+    },
+    "/api/notifications/read-all" : {
+      "post" : {
+        "description" : "Always returns count 0.",
+        "operationId" : "markAllNotificationsRead",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NotificationUnreadCount"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "notification-controller" ]
+      }
+    },
+    "/api/notifications/unread-count" : {
+      "get" : {
+        "operationId" : "getNotificationUnreadCount",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NotificationUnreadCount"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "notification-controller" ]
+      }
+    },
+    "/api/notifications/{id}/read" : {
+      "post" : {
+        "description" : "Idempotent. Returns how many notifications are still unread.",
+        "operationId" : "markNotificationRead",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NotificationUnreadCount"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "notification-controller" ]
       }
     },
     "/api/regions" : {
