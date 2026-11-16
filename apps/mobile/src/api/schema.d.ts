@@ -897,6 +897,22 @@ export interface paths {
         patch: operations["updateMe"];
         trace?: never;
     };
+    "/api/weather": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getWeather"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1341,6 +1357,28 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        HourView: {
+            /** Format: double */
+            precipitationMm: number;
+            /**
+             * Format: int32
+             * @description Percent; null when the source does not give it
+             */
+            precipitationProbability?: number | null;
+            /** @description This hour is good to start spraying */
+            sprayOk: boolean;
+            /** Format: double */
+            temperatureC: number;
+            /** Format: date-time */
+            time: string;
+            /**
+             * Format: int32
+             * @description WMO weather code; null when the source does not give it
+             */
+            weatherCode?: number | null;
+            /** Format: double */
+            windMs: number;
+        };
         LoginRequest: {
             login: string;
             password: string;
@@ -1417,6 +1455,30 @@ export interface components {
             /** Format: int32 */
             count: number;
         };
+        Now: {
+            /**
+             * Format: double
+             * @description Millimetres
+             */
+            precipitationMm: number;
+            /**
+             * Format: double
+             * @description Degrees Celsius
+             */
+            temperatureC: number;
+            /** Format: date-time */
+            time: string;
+            /**
+             * Format: int32
+             * @description WMO weather code
+             */
+            weatherCode: number;
+            /**
+             * Format: double
+             * @description Metres per second
+             */
+            windMs: number;
+        };
         PushTokenResponse: {
             /** Format: date-time */
             createdAt: string;
@@ -1471,6 +1533,15 @@ export interface components {
         SendMessageRequest: {
             /** @description Trimmed; 1 to 2000 characters */
             text: string;
+        };
+        SprayWindowView: {
+            /** Format: date-time */
+            from: string;
+            /**
+             * Format: date-time
+             * @description The end of the last good hour
+             */
+            to: string;
         };
         SummaryView: {
             /** Format: int32 */
@@ -1566,6 +1637,20 @@ export interface components {
              * @description When the profile entered the admins' queue: at registration, and again when a document is sent after a rejection or a request for documents
              */
             submittedAt: string;
+        };
+        WeatherView: {
+            current: components["schemas"]["Now"];
+            /** @description From the current hour on, up to the end of the fifth day, one per hour */
+            hours: components["schemas"]["HourView"][];
+            /** @description Stretches of good hours for spraying: wind up to 4 m/s, 10 to 25 degrees, no precipitation for 6 hours from the start */
+            sprayWindows: components["schemas"]["SprayWindowView"][];
+            /**
+             * @description IANA zone of the point; every time below is local to it
+             * @example Asia/Almaty
+             */
+            timezone: string;
+            /** Format: int32 */
+            utcOffsetSeconds: number;
         };
     };
     responses: never;
@@ -3347,6 +3432,37 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    getWeather: {
+        parameters: {
+            query: {
+                /**
+                 * @description Degrees north, -90 to 90
+                 * @example 43.25
+                 */
+                latitude: number;
+                /**
+                 * @description Degrees east, -180 to 180
+                 * @example 76.95
+                 */
+                longitude: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WeatherView"];
                 };
             };
         };

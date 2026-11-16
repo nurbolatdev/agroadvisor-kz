@@ -7,6 +7,8 @@ app:
   ai:
     client: stub
     allow-placeholder: true
+  weather:
+    client: stub # StubWeatherClient: no network and no extra Spring context
   photos:
     # Test-only keys: the client connects lazily and tests replace the storage with a fake
     access-key: test-access-key

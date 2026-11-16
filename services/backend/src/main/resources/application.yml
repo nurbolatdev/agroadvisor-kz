@@ -8,7 +8,7 @@ spring:
       connect-timeout: 1s
   cache:
     type: redis
-    cache-names: catalog,regions # every cache is listed here so that CacheReset knows it at start-up
+    cache-names: catalog,regions,weather # every cache is listed here so that CacheReset knows it at start-up
     redis:
       key-prefix: 'agroadvisor:'
       # Admin edits evict the cache and a restart clears it; the TTL only bounds a rare read/evict race
@@ -52,6 +52,13 @@ app:
     # An answer of the placeholder model (model_version "placeholder...") is refused as 503 ai_unavailable;
     # true only in the local and test profiles
     allow-placeholder: false
+  weather:
+    # Open-Meteo: no key, free for non-commercial use; the forecast is cached in Redis (cache "weather")
+    url: ${WEATHER_API_URL:https://api.open-meteo.com}
+    connect-timeout: 2s
+    read-timeout: 5s
+    requests-per-minute: ${APP_WEATHER_REQUESTS_PER_MINUTE:30} # per user, cached or not
+    upstream-per-hour: ${APP_WEATHER_UPSTREAM_PER_HOUR:300} # calls to the source for all users together (it allows ~10 000 a day)
   diagnosis:
     # How long a request with an Idempotency-Key holds its claim before another request may take it over.
     # It must exceed the longest time one request can take, counted from the claim to the end of the
