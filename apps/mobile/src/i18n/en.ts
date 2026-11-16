@@ -141,6 +141,8 @@ export const en: Translation = {
     unread: 'Unread: {{count}}',
     none: 'No chats yet',
     noneHint: 'A chat appears once an agrochemist accepts your request',
+    noneHintAgrochemist: 'A chat appears once you accept a request of a farmer',
+    refreshFailed: 'Could not refresh the list',
     noMatches: 'Nothing found',
     newChatHint: 'To start a new chat, send a diagnosis to an agrochemist',
     findAgrochemist: 'Find an agrochemist',

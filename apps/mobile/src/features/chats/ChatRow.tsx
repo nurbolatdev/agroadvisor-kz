@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, StyleSheet, View } from 'react-native'
 
 import type { Consultation } from '@/api/consultations'
-import { AppText } from '@/components/ui'
+import { AppText, Badge } from '@/components/ui'
 import { initials } from '@/features/agrochemists/helpers'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
@@ -10,18 +10,17 @@ import { chatTimeLabel, counterpartName } from './helpers'
 
 type Props = {
   item: Consultation
-  myId: string | undefined
-  // a farmer talks to an agrochemist, and the design marks that side with a "Agrochemist" label
-  showRoleLabel: boolean
+  asAgrochemist: boolean
   now?: Date
   onPress: () => void
 }
 
 // A line of the list of chats (screens 17b, 17c): the initials, the name, the time of the last message, the
-// start of it and the number of unread messages.
-export function ChatRow({ item, myId, showRoleLabel, now = new Date(), onPress }: Props) {
+// start of it and the number of unread messages. A farmer talks to an agrochemist, and the design marks
+// that side with an "Agrochemist" label.
+export function ChatRow({ item, asAgrochemist, now = new Date(), onPress }: Props) {
   const { t, i18n } = useTranslation()
-  const name = counterpartName(item, myId)
+  const name = counterpartName(item, asAgrochemist)
   const last = item.lastMessage
   const preview = last ? (last.text?.trim() ? last.text : t('chats.photo')) : ''
   const time = last ? chatTimeLabel(last.createdAt, now, i18n.language) : null
@@ -52,13 +51,7 @@ export function ChatRow({ item, myId, showRoleLabel, now = new Date(), onPress }
           <AppText variant="h2" numberOfLines={1} style={styles.name}>
             {name}
           </AppText>
-          {showRoleLabel ? (
-            <View style={styles.role}>
-              <AppText variant="caption" color={colors.primaryDark}>
-                {t('chats.agrochemist')}
-              </AppText>
-            </View>
-          ) : null}
+          {asAgrochemist ? null : <Badge label={t('chats.agrochemist')} tone="success" />}
           <AppText
             variant="caption"
             color={unread ? colors.primary : colors.textMuted}
@@ -68,7 +61,12 @@ export function ChatRow({ item, myId, showRoleLabel, now = new Date(), onPress }
           </AppText>
         </View>
         <View style={styles.bottom}>
-          <AppText variant="small" numberOfLines={1} style={styles.preview}>
+          <AppText
+            variant={unread ? 'body' : 'small'}
+            color={unread ? colors.text : colors.textMuted}
+            numberOfLines={1}
+            style={styles.preview}
+          >
             {preview}
           </AppText>
           {unread ? (
@@ -104,17 +102,12 @@ const styles = StyleSheet.create({
   text: { flex: 1, gap: spacing.xs },
   top: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   name: { flexShrink: 1 },
-  role: {
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.pill,
-    backgroundColor: colors.primarySoft,
-  },
   time: { marginLeft: 'auto' },
   bottom: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   preview: { flex: 1 },
   count: {
-    minWidth: 24,
-    height: 24,
+    minWidth: sizes.badge,
+    height: sizes.badge,
     paddingHorizontal: spacing.xs,
     borderRadius: radii.pill,
     alignItems: 'center',

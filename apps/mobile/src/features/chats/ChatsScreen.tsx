@@ -1,41 +1,44 @@
 import { useFocusEffect, useRouter } from 'expo-router'
 import { Users } from 'lucide-react-native'
-import { useCallback, useState } from 'react'
+import { Fragment, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native'
 
 import { AppText, Button, Chip, EmptyState, ErrorState, Screen, SearchField } from '@/components/ui'
+import { isFeatureEnabled } from '@/features/access/featureAccess'
 import { hasAgrochemistRole } from '@/features/access/roles'
 import { useProfile } from '@/services'
-import { colors, spacing } from '@/theme/tokens'
+import { colors, radii, spacing } from '@/theme/tokens'
 
 import { ChatRow } from './ChatRow'
 import { filterChats, type ChatFilter } from './helpers'
 import { useChats } from './useChats'
 
 // The chats tab (screens 17b for a farmer, 17c for an agrochemist): every conversation that was accepted, the
-// latest first, with a search by the name and the filter "unread". A farmer also gets the way to find a new
-// agrochemist, because a chat starts only from a sent diagnosis.
+// latest first, in one white card with a search by the name and the filter "unread". A farmer also gets the
+// way to find a new agrochemist, because a chat starts only from a sent diagnosis.
 export function ChatsScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  const me = useProfile((s) => s.me)
   const roles = useProfile((s) => s.roles)
   const agrochemist = roles ? hasAgrochemistRole(roles) : false
-  const { state, reload } = useChats()
+  const { state, load } = useChats()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<ChatFilter>('all')
 
-  // read again whenever the tab is shown: a new message comes while the person is on another tab
+  // read whenever the tab is shown: a new message comes while the person is on another tab
   useFocusEffect(
     useCallback(() => {
-      reload()
-    }, [reload]),
+      load()
+    }, [load]),
   )
 
   const items =
-    state.status === 'ready' ? filterChats(state.items, { query, filter, myId: me?.id }) : []
+    state.status === 'ready'
+      ? filterChats(state.items, { query, filter, asAgrochemist: agrochemist })
+      : []
   const nothingYet = state.status === 'ready' && state.items.length === 0
+  const canFind = !agrochemist && isFeatureEnabled('consultations')
 
   return (
     <Screen>
@@ -61,51 +64,57 @@ export function ChatsScreen() {
         />
       </View>
 
-      <FlatList
+      <ScrollView
         testID="chats-list"
         style={styles.list}
         contentContainerStyle={styles.listContent}
-        data={items}
-        keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        renderItem={({ item }) => (
-          <ChatRow
-            item={item}
-            myId={me?.id}
-            showRoleLabel={!agrochemist}
-            onPress={() => undefined}
+      >
+        {state.status === 'ready' && state.failed ? (
+          <AppText variant="small" color={colors.danger} style={styles.hint}>
+            {t('chats.refreshFailed')}
+          </AppText>
+        ) : null}
+
+        {items.length > 0 ? (
+          <View style={styles.card}>
+            {items.map((item, index) => (
+              <Fragment key={item.id}>
+                {index > 0 ? <View style={styles.separator} /> : null}
+                <ChatRow item={item} asAgrochemist={agrochemist} onPress={() => undefined} />
+              </Fragment>
+            ))}
+          </View>
+        ) : state.status === 'loading' ? (
+          <ActivityIndicator color={colors.primary} style={styles.loading} />
+        ) : state.status === 'error' ? (
+          <ErrorState message={t(`chats.errors.${state.reason}`)} onRetry={load} />
+        ) : (
+          <EmptyState
+            title={nothingYet ? t('chats.none') : t('chats.noMatches')}
+            message={
+              nothingYet
+                ? t(agrochemist ? 'chats.noneHintAgrochemist' : 'chats.noneHint')
+                : undefined
+            }
           />
         )}
-        ListEmptyComponent={
-          state.status === 'loading' ? (
-            <ActivityIndicator color={colors.primary} style={styles.loading} />
-          ) : state.status === 'error' ? (
-            <ErrorState message={t(`chats.errors.${state.reason}`)} onRetry={reload} />
-          ) : (
-            <EmptyState
-              title={nothingYet ? t('chats.none') : t('chats.noMatches')}
-              message={nothingYet ? t('chats.noneHint') : undefined}
+
+        {canFind && state.status !== 'error' ? (
+          <View style={styles.footer}>
+            <AppText variant="small" color={colors.textMuted} style={styles.hint}>
+              {t('chats.newChatHint')}
+            </AppText>
+            <Button
+              label={t('chats.findAgrochemist')}
+              variant="secondary"
+              icon={Users}
+              onPress={() => router.push('/agrochemists')}
             />
-          )
-        }
-        // the card of the list is the list itself: one white block, as in the design
-        ListFooterComponent={
-          !agrochemist && state.status !== 'error' ? (
-            <View style={styles.footer}>
-              <AppText variant="small" color={colors.textMuted} style={styles.hint}>
-                {t('chats.newChatHint')}
-              </AppText>
-              <Button
-                label={t('chats.findAgrochemist')}
-                variant="secondary"
-                icon={Users}
-                onPress={() => router.push('/agrochemists')}
-              />
-            </View>
-          ) : undefined
-        }
-      />
+          </View>
+        ) : null}
+      </ScrollView>
     </Screen>
   )
 }
@@ -116,6 +125,14 @@ const styles = StyleSheet.create({
   list: { flex: 1 },
   listContent: { flexGrow: 1, paddingBottom: spacing.xl },
   loading: { marginTop: spacing.xl },
+  card: {
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    overflow: 'hidden',
+  },
+  separator: { height: 1, marginLeft: spacing.md, backgroundColor: colors.border },
   footer: { gap: spacing.md, paddingTop: spacing.lg },
-  hint: { textAlign: 'center' },
+  hint: { textAlign: 'center', paddingBottom: spacing.sm },
 })
