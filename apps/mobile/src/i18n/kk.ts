@@ -129,6 +129,29 @@ export const kk: Translation = {
     chats: 'Чаттар',
     profile: 'Профиль',
   },
+  // the chats tab (screens 17b, 17c); the kk texts wait for the proofreading (#88)
+  chats: {
+    title: 'Чаттар',
+    search: 'Чаттар бойынша іздеу',
+    searchClear: 'Іздеуді тазалау',
+    filterAll: 'Барлығы',
+    filterUnread: 'Оқылмаған',
+    agrochemist: 'Агрохимик',
+    photo: 'Фото',
+    yesterday: 'Кеше',
+    unread: 'Оқылмаған: {{count}}',
+    none: 'Әзірге чат жоқ',
+    noneHint: 'Агрохимик өтінімді қабылдағанда чат пайда болады',
+    noneHintAgrochemist: 'Фермердің өтінімін қабылдағанда чат пайда болады',
+    refreshFailed: 'Тізімді жаңарту мүмкін болмады',
+    noMatches: 'Ештеңе табылмады',
+    newChatHint: 'Жаңа чат бастау үшін диагнозды агрохимикке жіберіңіз',
+    findAgrochemist: 'Агрохимик табу',
+    errors: {
+      offline: 'Серверге байланыс жоқ. Интернетті тексеріңіз',
+      server: 'Сервер жауап бермеді. Қайталап көріңіз',
+    },
+  },
   history: {
     title: 'Тарих',
     status: {

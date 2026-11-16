@@ -84,7 +84,12 @@ describe('the tabs by role', () => {
 
     await render(<TabsLayout />)
 
-    expect(mockCaptured.screens.map((s) => s.name)).toEqual(['home', 'profile', 'requests'])
+    expect(mockCaptured.screens.map((s) => s.name)).toEqual([
+      'home',
+      'chats',
+      'profile',
+      'requests',
+    ])
     expect(mockCaptured.screens.find((s) => s.name === 'requests')?.options).toEqual({ href: null })
     expect(mockCaptured.screens.find((s) => s.name === 'home')?.options).toBeUndefined()
   })
@@ -94,7 +99,12 @@ describe('the tabs by role', () => {
 
     await render(<TabsLayout />)
 
-    expect(mockCaptured.screens.map((s) => s.name)).toEqual(['requests', 'profile', 'home'])
+    expect(mockCaptured.screens.map((s) => s.name)).toEqual([
+      'requests',
+      'chats',
+      'profile',
+      'home',
+    ])
     expect(mockCaptured.screens.find((s) => s.name === 'home')?.options).toEqual({ href: null })
     expect(mockCaptured.screens.find((s) => s.name === 'requests')?.options).toBeUndefined()
   })
@@ -104,7 +114,12 @@ describe('the tabs by role', () => {
 
     await render(<TabsLayout />)
 
-    expect(mockCaptured.screens.map((s) => s.name)).toEqual(['requests', 'profile', 'home'])
+    expect(mockCaptured.screens.map((s) => s.name)).toEqual([
+      'requests',
+      'chats',
+      'profile',
+      'home',
+    ])
   })
 
   // The first tab declared is the first route of the router; the system "Back" goes to it and then out of the
@@ -132,7 +147,12 @@ describe('the tabs by role', () => {
     await view.rerender(<TabsLayout />)
 
     expect(mockCaptured.mounts).toBe(2)
-    expect(mockCaptured.screens.map((s) => s.name)).toEqual(['requests', 'profile', 'home'])
+    expect(mockCaptured.screens.map((s) => s.name)).toEqual([
+      'requests',
+      'chats',
+      'profile',
+      'home',
+    ])
   })
 
   it('the tabs are not built again while the role stays the same', async () => {

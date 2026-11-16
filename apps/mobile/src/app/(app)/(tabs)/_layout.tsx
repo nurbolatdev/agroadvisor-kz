@@ -2,6 +2,7 @@ import { Tabs, useRouter } from 'expo-router'
 
 import { BottomBar } from '@/components/nav/BottomBar'
 import { AGROCHEMIST_SLOTS, TAB_SLOTS } from '@/components/nav/tabSlots'
+import { isFeatureEnabled } from '@/features/access/featureAccess'
 import { RoleGate } from '@/features/access/RoleGate'
 import { hasAgrochemistRole } from '@/features/access/roles'
 import { useDiagnosis } from '@/services'
@@ -50,6 +51,11 @@ function RoleTabs({ agrochemist }: { agrochemist: boolean }) {
     >
       {/* direct children, not a fragment: the router reads only Screen elements, in this order */}
       {agrochemist ? <Tabs.Screen name="requests" /> : <Tabs.Screen name="home" />}
+      {/* with the flag off the route is closed too, not only its button in the bar */}
+      <Tabs.Screen
+        name="chats"
+        options={isFeatureEnabled('consultations') ? undefined : { href: null }}
+      />
       <Tabs.Screen name="profile" />
       {agrochemist ? (
         <Tabs.Screen name="home" options={{ href: null }} />

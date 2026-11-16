@@ -128,6 +128,29 @@ export const en: Translation = {
     chats: 'Chats',
     profile: 'Profile',
   },
+  // the chats tab (screens 17b, 17c)
+  chats: {
+    title: 'Chats',
+    search: 'Search chats',
+    searchClear: 'Clear search',
+    filterAll: 'All',
+    filterUnread: 'Unread',
+    agrochemist: 'Agrochemist',
+    photo: 'Photo',
+    yesterday: 'Yesterday',
+    unread: 'Unread: {{count}}',
+    none: 'No chats yet',
+    noneHint: 'A chat appears once an agrochemist accepts your request',
+    noneHintAgrochemist: 'A chat appears once you accept a request of a farmer',
+    refreshFailed: 'Could not refresh the list',
+    noMatches: 'Nothing found',
+    newChatHint: 'To start a new chat, send a diagnosis to an agrochemist',
+    findAgrochemist: 'Find an agrochemist',
+    errors: {
+      offline: 'No connection to the server. Check the internet',
+      server: 'The server did not answer. Try again',
+    },
+  },
   history: {
     title: 'History',
     status: {
