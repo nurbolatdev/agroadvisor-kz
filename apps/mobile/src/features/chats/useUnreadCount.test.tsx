@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native'
+import { AppState, type AppStateStatus } from 'react-native'
 
 import { UNREAD_POLL_MS, useUnreadCount } from './useUnreadCount'
 
@@ -15,6 +16,7 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers()
+  jest.restoreAllMocks()
 })
 
 describe('useUnreadCount', () => {
@@ -48,6 +50,22 @@ describe('useUnreadCount', () => {
 
     expect(mockUnread).toHaveBeenCalledTimes(2)
     expect(hook.result.current).toBe(3)
+  })
+
+  it('stops while the app is in the background and reads at once when it returns', async () => {
+    let change: (state: AppStateStatus) => void = () => undefined
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, listener) => {
+      change = listener
+      return { remove: jest.fn() }
+    })
+    const hook = await renderHook(() => useUnreadCount('home', true))
+    await waitFor(() => expect(hook.result.current).toBe(3))
+    const reads = mockUnread.mock.calls.length
+
+    await act(async () => change('background'))
+    await act(async () => change('active'))
+
+    await waitFor(() => expect(mockUnread.mock.calls.length).toBe(reads + 1))
   })
 
   it('asks for nothing while the feature is off', async () => {
