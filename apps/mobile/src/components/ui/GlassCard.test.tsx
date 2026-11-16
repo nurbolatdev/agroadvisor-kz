@@ -11,6 +11,23 @@ jest.mock(
   () => require('react-native-safe-area-context/jest/mock').default,
 )
 
+// Records the props every BlurView gets, so the test can see which blurTarget a card passes on.
+const mockBlurProps: { blurTarget?: unknown }[] = []
+jest.mock('expo-blur', () => {
+  const { View } = require('react-native')
+  return {
+    BlurView: (props: { blurTarget?: unknown }) => {
+      mockBlurProps.push(props)
+      return <View />
+    },
+    BlurTargetView: View,
+  }
+})
+
+beforeEach(() => {
+  mockBlurProps.length = 0
+})
+
 function Probe({ onTarget }: { onTarget: (target: unknown) => void }) {
   onTarget(useBlurTarget())
   return null
@@ -43,14 +60,30 @@ describe('GlassCard and Screen', () => {
     expect(onTarget).toHaveBeenCalledWith(ref)
   })
 
-  it('provides a blur target to the content of a Screen', async () => {
+  it('hands the Screen blur target to the BlurView of a card', async () => {
     const onTarget = jest.fn()
     await render(
       <Screen>
         <Probe onTarget={onTarget} />
+        <GlassCard>
+          <Text>Inside</Text>
+        </GlassCard>
       </Screen>,
     )
-    const target = onTarget.mock.calls[0][0]
-    expect(target).toHaveProperty('current')
+    const screenTarget = onTarget.mock.calls[0][0]
+    expect(mockBlurProps.at(-1)?.blurTarget).toBe(screenTarget)
+    expect(screenTarget.current).not.toBeNull()
+  })
+
+  it('prefers an explicit blurTarget over the Screen one', async () => {
+    const own = createRef<ComponentRef<typeof View>>()
+    await render(
+      <Screen>
+        <GlassCard blurTarget={own}>
+          <Text>Inside</Text>
+        </GlassCard>
+      </Screen>,
+    )
+    expect(mockBlurProps.at(-1)?.blurTarget).toBe(own)
   })
 })
