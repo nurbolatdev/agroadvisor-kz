@@ -183,6 +183,62 @@ export const kk: Translation = {
       },
     },
   },
+  // the notifications (screen 20); the kk texts wait for the proofreading (#88)
+  notifications: {
+    title: 'Хабарландырулар',
+    readAll: 'Барлығын оқу',
+    unread: 'оқылмаған',
+    unreadCount: 'оқылмаған: {{count}}',
+    none: 'Әзірге хабарландыру жоқ',
+    noneHint: 'Мұнда агрохимиктердің жауаптары мен маңызды оқиғалар шығады',
+    types: {
+      consultation_requested: {
+        title: 'Жаңа өтінім',
+        titleMany: 'Жаңа өтінімдер',
+        body: 'Фермер кеңеске өтінім жіберді',
+      },
+      consultation_accepted: {
+        title: 'Өтінім қабылданды',
+        titleMany: 'Өтінім қабылданды',
+        body: 'Агрохимик өтінімді қабылдады, чатқа жаза аласыз',
+      },
+      consultation_declined: {
+        title: 'Өтінім қабылданбады',
+        titleMany: 'Өтінім қабылданбады',
+        body: 'Агрохимик өтінімді қабылдай алмады. Басқасын таңдаңыз',
+      },
+      consultation_closed: {
+        title: 'Кеңес жабылды',
+        titleMany: 'Кеңес жабылды',
+        body: 'Әңгімелесуші кеңесті аяқтады',
+      },
+      consultation_message: {
+        title: 'Жаңа хабарлама',
+        titleMany: 'Жаңа хабарламалар: {{count}}',
+        body: 'Оқу үшін чатты ашыңыз',
+      },
+      verification_approved: {
+        title: 'Біліктілік расталды',
+        titleMany: 'Біліктілік расталды',
+        body: 'Фермерлер сізді агрохимиктер тізімінде көреді',
+      },
+      verification_rejected: {
+        title: 'Тексеруден өтпедіңіз',
+        titleMany: 'Тексеруден өтпедіңіз',
+        body: 'Себебін білу үшін кабинетті ашыңыз',
+      },
+      verification_documents_requested: {
+        title: 'Құжаттар қажет',
+        titleMany: 'Құжаттар қажет',
+        body: 'Әкімші құжатты қайта жіберуді сұрайды',
+      },
+      diagnosis_reviewed: {
+        title: 'Диагноз тексерілді',
+        titleMany: 'Диагноз тексерілді: үкім саны {{count}}',
+        body: 'Агрохимик немесе әкімші үкім қалдырды',
+      },
+    },
+  },
   // the requests of farmers to an agrochemist (screens 22b, 23a); the kk texts wait for the proofreading (#88)
   requests: {
     title: 'Өтінім',
