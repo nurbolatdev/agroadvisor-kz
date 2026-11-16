@@ -367,6 +367,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/calculations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listCalculations"];
+        put?: never;
+        post: operations["createCalculation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/calculations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCalculation"];
+        put?: never;
+        post?: never;
+        delete: operations["deleteCalculation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/consultations": {
         parameters: {
             query?: never;
@@ -921,6 +953,30 @@ export interface components {
         AgrochemistCropsResponse: {
             crops?: string[];
         };
+        CalculationResponse: {
+            /** @description Hectares */
+            areaHa: number;
+            /** @enum {string} */
+            areaUnit: "ha" | "sotka";
+            costs: {
+                [key: string]: number;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            /** @description Crop code */
+            crop: string;
+            /** Format: uuid */
+            id: string;
+            /** @description Price per tonne */
+            priceT: number;
+            results: {
+                [key: string]: number;
+            };
+            /** Format: int32 */
+            season: number;
+            /** @description Centners per hectare */
+            yieldCHa: number;
+        };
         ClassScore: {
             code: string;
             /** Format: double */
@@ -990,6 +1046,46 @@ export interface components {
         ConsultationUnreadCount: {
             /** Format: int64 */
             count: number;
+        };
+        CreateCalculationRequest: {
+            /**
+             * @description The area in hectares (0.0001-10000)
+             * @example 2.5
+             */
+            areaHa: number;
+            /**
+             * @description The unit the farmer typed the area in; for display only
+             * @enum {string}
+             */
+            areaUnit: "ha" | "sotka";
+            /** @description Cost items, name to amount (not negative); 1-30 entries, keys like seedCost */
+            costs: {
+                [key: string]: number;
+            };
+            /**
+             * @description Crop code from GET /api/crops
+             * @example potato
+             */
+            crop: string;
+            /**
+             * @description Selling price per tonne
+             * @example 90000
+             */
+            priceT: number;
+            /** @description What the app calculated, name to number; 1-30 entries */
+            results: {
+                [key: string]: number;
+            };
+            /**
+             * Format: int32
+             * @example 2026
+             */
+            season: number;
+            /**
+             * @description Yield, centners per hectare
+             * @example 250
+             */
+            yieldCHa: number;
         };
         CreateConsultationRequest: {
             /** Format: uuid */
@@ -2246,6 +2342,92 @@ export interface operations {
                 headers: {
                     /** @description Seconds until the window of the limit ends */
                     "Retry-After"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listCalculations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CalculationResponse"][];
+                };
+            };
+        };
+    };
+    createCalculation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCalculationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CalculationResponse"];
+                };
+            };
+        };
+    };
+    getCalculation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CalculationResponse"];
+                };
+            };
+        };
+    };
+    deleteCalculation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
