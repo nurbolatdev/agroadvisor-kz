@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import type { Consultation } from '@/api/consultations'
 import { AppText, Button, EmptyState, ErrorState } from '@/components/ui'
+import { RoleGate } from '@/features/access/RoleGate'
 import { hasAgrochemistRole } from '@/features/access/roles'
 import { chooseDocument, type DocumentSource } from '@/features/agrochemist/chooseDocument'
 import { initials } from '@/features/agrochemists/helpers'
@@ -34,7 +35,9 @@ import { useChat } from './useChat'
 export function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   // keyed by the id: another conversation on the same mounted screen (a link from a notification) starts clean
-  return <ChatView key={id} id={id} />
+  // behind the role gate: a chat opened from a link on a cold start must know the role before it decides
+  // which side is "mine" and what the read mark goes up to
+  return <RoleGate>{() => <ChatView key={id} id={id} />}</RoleGate>
 }
 
 function ChatView({ id }: { id: string }) {

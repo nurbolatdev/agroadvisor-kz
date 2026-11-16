@@ -38,8 +38,13 @@ jest.mock('@/services', () => ({
     markRead: (...a: unknown[]) => mockApi.markRead(...a),
     diagnosis: (...a: unknown[]) => mockApi.diagnosis(...a),
   },
-  useProfile: (select: (s: { roles: string[] }) => unknown) => select({ roles: mockRoles }),
-  useSession: (select: (s: { accessToken: string }) => unknown) => select({ accessToken: 't' }),
+  useProfile: Object.assign(
+    (select: (s: { roles: string[]; phase: string; error: null }) => unknown) =>
+      select({ roles: mockRoles, phase: 'ready', error: null }),
+    { getState: () => ({ load: () => Promise.resolve() }) },
+  ),
+  useSession: (select: (s: { accessToken: string; logout: () => void }) => unknown) =>
+    select({ accessToken: 't', logout: () => undefined }),
 }))
 jest.mock('@/features/diseases/useDiseaseDetail', () => ({
   useDiseaseDetail: () => ({ state: { status: 'loading' } }),

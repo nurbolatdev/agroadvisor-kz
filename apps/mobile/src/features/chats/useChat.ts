@@ -29,7 +29,10 @@ export function sendProblemOf(error: unknown): SendProblem {
     if (error.code === 'invalid_consultation_state') return 'closed'
     if (error.code === 'invalid_image' || error.status === 413) return 'badPhoto'
     if (error.code === 'storage_unavailable') return 'storage'
-    if (error.code === 'validation_failed') return 'tooLong'
+    // only a fault of the text is "too long"; any other field falls through to the general answer
+    if (error.code === 'validation_failed' && error.fieldErrors.some((f) => f.field === 'text')) {
+      return 'tooLong'
+    }
   }
   return 'server'
 }
@@ -140,7 +143,8 @@ export function useChat(id: string, myId: (c: Consultation) => string, active: b
 
   // new messages, and the status of the consultation (the other side may close it)
   useEffect(() => {
-    if (!active || load.status !== 'ready') return
+    // a closed or declined consultation does not change any more: no polling for it
+    if (!active || load.status !== 'ready' || consultation?.status !== 'active') return
     let cancelled = false
     let busy = false
     const timer = setInterval(() => {
@@ -178,7 +182,7 @@ export function useChat(id: string, myId: (c: Consultation) => string, active: b
       cancelled = true
       clearInterval(timer)
     }
-  }, [active, load.status, id, apply, markRead])
+  }, [active, load.status, consultation?.status, id, apply, markRead])
 
   const loadOlder = useCallback(async () => {
     const oldest = held.current[0]
