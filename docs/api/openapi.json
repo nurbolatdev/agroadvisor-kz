@@ -836,6 +836,41 @@
         "required" : [ "area", "areaHa", "areaUnit", "createdAt", "crop", "id", "name", "updatedAt" ],
         "type" : "object"
       },
+      "HourView" : {
+        "properties" : {
+          "precipitationMm" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "precipitationProbability" : {
+            "description" : "Percent",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sprayOk" : {
+            "description" : "This hour is good to start spraying",
+            "type" : "boolean"
+          },
+          "temperatureC" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "time" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "weatherCode" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "windMs" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        },
+        "required" : [ "precipitationMm", "precipitationProbability", "sprayOk", "temperatureC", "time", "weatherCode", "windMs" ],
+        "type" : "object"
+      },
       "LoginRequest" : {
         "properties" : {
           "login" : {
@@ -996,6 +1031,36 @@
         "required" : [ "count" ],
         "type" : "object"
       },
+      "Now" : {
+        "properties" : {
+          "precipitationMm" : {
+            "description" : "Millimetres",
+            "format" : "double",
+            "type" : "number"
+          },
+          "temperatureC" : {
+            "description" : "Degrees Celsius",
+            "format" : "double",
+            "type" : "number"
+          },
+          "time" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "weatherCode" : {
+            "description" : "WMO weather code",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "windMs" : {
+            "description" : "Metres per second",
+            "format" : "double",
+            "type" : "number"
+          }
+        },
+        "required" : [ "precipitationMm", "temperatureC", "time", "weatherCode", "windMs" ],
+        "type" : "object"
+      },
       "PushTokenResponse" : {
         "properties" : {
           "createdAt" : {
@@ -1129,6 +1194,21 @@
           }
         },
         "required" : [ "text" ],
+        "type" : "object"
+      },
+      "SprayWindowView" : {
+        "properties" : {
+          "from" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "to" : {
+            "description" : "The end of the last good hour",
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "from", "to" ],
         "type" : "object"
       },
       "SummaryView" : {
@@ -1352,6 +1432,38 @@
           }
         },
         "required" : [ "documents", "specializations", "status", "submittedAt" ],
+        "type" : "object"
+      },
+      "WeatherView" : {
+        "properties" : {
+          "current" : {
+            "$ref" : "#/components/schemas/Now"
+          },
+          "hours" : {
+            "description" : "From the current hour on, up to the end of the fifth day, one per hour",
+            "items" : {
+              "$ref" : "#/components/schemas/HourView"
+            },
+            "type" : "array"
+          },
+          "sprayWindows" : {
+            "description" : "Stretches of good hours for spraying: wind up to 4 m/s, 10 to 25 degrees, no precipitation for 6 hours from the start",
+            "items" : {
+              "$ref" : "#/components/schemas/SprayWindowView"
+            },
+            "type" : "array"
+          },
+          "timezone" : {
+            "description" : "IANA zone of the point; every time below is local to it",
+            "example" : "Asia/Almaty",
+            "type" : "string"
+          },
+          "utcOffsetSeconds" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "current", "hours", "sprayWindows", "timezone", "utcOffsetSeconds" ],
         "type" : "object"
       }
     },
@@ -3654,6 +3766,43 @@
         },
         "summary" : "Save the language of the interface and of the server's texts for this user; the last explicit choice wins, on the phone or here. Answers with the whole profile",
         "tags" : [ "user-controller" ]
+      }
+    },
+    "/api/weather" : {
+      "get" : {
+        "operationId" : "getWeather",
+        "parameters" : [ {
+          "description" : "Degrees north, -90 to 90",
+          "example" : 43.25,
+          "in" : "query",
+          "name" : "latitude",
+          "required" : true,
+          "schema" : {
+            "type" : "number"
+          }
+        }, {
+          "description" : "Degrees east, -180 to 180",
+          "example" : 76.95,
+          "in" : "query",
+          "name" : "longitude",
+          "required" : true,
+          "schema" : {
+            "type" : "number"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WeatherView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "weather-controller" ]
       }
     }
   },
