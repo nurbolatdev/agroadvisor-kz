@@ -103,6 +103,7 @@ export const en: Translation = {
     error: 'Something went wrong',
     retry: 'Try again',
     back: 'Back',
+    cancel: 'Cancel',
   },
   home: {
     title: 'Home',
@@ -149,6 +150,36 @@ export const en: Translation = {
     errors: {
       offline: 'No connection to the server. Check the internet',
       server: 'The server did not answer. Try again',
+    },
+    // one conversation (screens 17, 17a)
+    chat: {
+      farmer: 'Farmer',
+      photoAlt: 'Photo in the chat',
+      photoFailed: 'The photo did not load',
+      diagnosisLine: 'Diagnosis · {{percent}}%',
+      diagnosisLineAi: 'AI diagnosis · {{percent}}%',
+      attach: 'Attach a photo',
+      camera: 'Take a photo',
+      gallery: 'From the gallery',
+      placeholder: 'Message',
+      send: 'Send',
+      older: 'Load earlier messages',
+      notFound: 'This chat was not found',
+      closed: 'The consultation is closed, you cannot write',
+      problems: {
+        empty: 'Write a message',
+        tooLong: 'The message is too long',
+        offline: 'No connection to the server. The message was not sent',
+        rateLimited: 'Too many messages. Wait a minute',
+        closed: 'The consultation is closed, you cannot write',
+        badPhoto: 'The photo does not fit: a JPEG or PNG up to 10 MB is needed',
+        storage: 'The photo could not be saved. Try again',
+        server: 'Could not send. Try again',
+      },
+      attachProblems: {
+        badPhoto: 'The photo does not fit: a JPEG or PNG up to 10 MB is needed',
+        denied: 'No access to the camera. Allow it in the settings',
+      },
     },
   },
   history: {
