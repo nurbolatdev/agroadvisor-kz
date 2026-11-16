@@ -2,11 +2,10 @@ import type { Consultation } from '@/api/consultations'
 
 export type ChatFilter = 'all' | 'unread'
 
-// The other side of a consultation: a farmer sees the agrochemist, an agrochemist sees the farmer.
-export function counterpartName(consultation: Consultation, myId: string | undefined): string {
-  return consultation.farmer.id === myId
-    ? consultation.agrochemist.fullName
-    : consultation.farmer.fullName
+// The other side of a consultation, by the role of the caller (the profile `me` may not be loaded yet, the
+// roles are): a farmer sees the agrochemist, an agrochemist sees the farmer.
+export function counterpartName(consultation: Consultation, asAgrochemist: boolean): string {
+  return asAgrochemist ? consultation.farmer.fullName : consultation.agrochemist.fullName
 }
 
 // The chats tab lists the conversations that exist: a declined request has no chat to open.
@@ -16,13 +15,13 @@ export function isChat(consultation: Consultation): boolean {
 
 export function filterChats(
   items: Consultation[],
-  { query, filter, myId }: { query: string; filter: ChatFilter; myId: string | undefined },
+  { query, filter, asAgrochemist }: { query: string; filter: ChatFilter; asAgrochemist: boolean },
 ): Consultation[] {
   const needle = query.trim().toLocaleLowerCase()
   return items.filter((item) => {
     if (filter === 'unread' && item.unreadCount === 0) return false
     if (needle === '') return true
-    return counterpartName(item, myId).toLocaleLowerCase().includes(needle)
+    return counterpartName(item, asAgrochemist).toLocaleLowerCase().includes(needle)
   })
 }
 

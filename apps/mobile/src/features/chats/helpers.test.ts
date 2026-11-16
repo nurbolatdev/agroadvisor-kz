@@ -15,8 +15,8 @@ const make = (over: Partial<Consultation>): Consultation => ({ ...base, ...over 
 
 describe('counterpartName', () => {
   it('shows the agrochemist to the farmer and the farmer to the agrochemist', () => {
-    expect(counterpartName(base, 'f1')).toBe('Aigul Sarsenova')
-    expect(counterpartName(base, 'a1')).toBe('Farmer One')
+    expect(counterpartName(base, false)).toBe('Aigul Sarsenova')
+    expect(counterpartName(base, true)).toBe('Farmer One')
   })
 })
 
@@ -36,16 +36,16 @@ describe('filterChats', () => {
   ]
 
   it('returns everything for an empty query', () => {
-    expect(filterChats(items, { query: ' ', filter: 'all', myId: 'f1' })).toHaveLength(2)
+    expect(filterChats(items, { query: ' ', filter: 'all', asAgrochemist: false })).toHaveLength(2)
   })
 
   it('keeps only unread chats', () => {
-    const result = filterChats(items, { query: '', filter: 'unread', myId: 'f1' })
+    const result = filterChats(items, { query: '', filter: 'unread', asAgrochemist: false })
     expect(result.map((c) => c.id)).toEqual(['1'])
   })
 
   it('searches the name of the other side, ignoring case', () => {
-    const result = filterChats(items, { query: 'DINA', filter: 'all', myId: 'f1' })
+    const result = filterChats(items, { query: 'DINA', filter: 'all', asAgrochemist: false })
     expect(result.map((c) => c.id)).toEqual(['2'])
   })
 })
