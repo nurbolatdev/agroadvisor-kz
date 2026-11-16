@@ -111,11 +111,12 @@ const mockNotifications =
         seed: [
           {
             id: '00000000-0000-4000-c000-00000000a001',
-            type: 'consultation_message',
+            // only the types that need no reference (the backend checks the references of the others)
+            type: 'verification_documents_requested',
             consultationId: null,
             messageId: null,
             diagnosisId: null,
-            count: 2,
+            count: 1,
             createdAt: '2026-11-16T08:00:00Z',
             updatedAt: '2026-11-16T08:05:00Z',
             readAt: null,

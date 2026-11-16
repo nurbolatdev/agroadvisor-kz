@@ -62,6 +62,34 @@ describe('mock notifications', () => {
     expect((await api.list({ unread: true })).map((n) => n.type)).toEqual(['verification_rejected'])
   })
 
+  it('collapses unread messages of one chat and verdicts of one diagnosis, and no other type', async () => {
+    const { api, controls } = make()
+    controls.push('consultation_message', { consultationId: 'c1', messageId: 'm1' })
+    const row = controls.push('consultation_message', { consultationId: 'c1', messageId: 'm2' })
+    controls.push('consultation_message', { consultationId: 'c2', messageId: 'm3' })
+    controls.push('diagnosis_reviewed', { diagnosisId: 'd1' })
+    controls.push('diagnosis_reviewed', { diagnosisId: 'd1' })
+    controls.push('consultation_accepted', { consultationId: 'c1' })
+    controls.push('consultation_accepted', { consultationId: 'c1' })
+
+    expect(row.count).toBe(2)
+    expect(row.messageId).toBe('m2')
+    const list = await api.list()
+    expect(list).toHaveLength(5)
+    expect(list.find((n) => n.diagnosisId === 'd1')?.count).toBe(2)
+  })
+
+  it('starts a new row after the old one was read', async () => {
+    const { api, controls } = make()
+    const first = controls.push('consultation_message', { consultationId: 'c1', messageId: 'm1' })
+    await api.markRead(first.id)
+
+    const next = controls.push('consultation_message', { consultationId: 'c1', messageId: 'm2' })
+
+    expect(next.id).not.toBe(first.id)
+    expect(next.count).toBe(1)
+  })
+
   it('marks everything as read', async () => {
     const { api, controls } = make()
     controls.push('verification_approved')

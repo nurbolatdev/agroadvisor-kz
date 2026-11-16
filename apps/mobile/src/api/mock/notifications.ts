@@ -66,8 +66,27 @@ export function createMockNotificationsApi({
 
   const controls: MockNotificationsControls = {
     push: (type, refs = {}) => {
-      count += 1
       const at = stamp()
+      // like the backend: unread notifications of one chat (messages) or of one diagnosis (verdicts)
+      // collapse into one row that keeps the newest reference and counts the events
+      const collapsible = type === 'consultation_message' || type === 'diagnosis_reviewed'
+      const same = collapsible
+        ? items.find(
+            (n) =>
+              n.type === type &&
+              !n.readAt &&
+              (type === 'consultation_message'
+                ? n.consultationId === refs.consultationId
+                : n.diagnosisId === refs.diagnosisId),
+          )
+        : undefined
+      if (same) {
+        same.count += 1
+        same.updatedAt = at
+        if (refs.messageId) same.messageId = refs.messageId
+        return { ...same }
+      }
+      count += 1
       const created: AppNotification = {
         id: `00000000-0000-4000-c000-${String(count).padStart(12, '0')}`,
         type,
