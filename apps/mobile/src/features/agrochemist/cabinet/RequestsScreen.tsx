@@ -7,6 +7,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import type { VerificationView } from '@/api/agrochemist'
 import { AppText, Badge, Button, EmptyState, ErrorState, Screen } from '@/components/ui'
 import { hasAgrochemistRole } from '@/features/access/roles'
+import { NotificationsBell } from '@/features/notifications/NotificationsBell'
 import { RequestsList } from '@/features/requests/RequestsList'
 import { useProfile } from '@/services'
 import { colors, fonts, radii, sizes, spacing } from '@/theme/tokens'
@@ -70,9 +71,14 @@ function AgrochemistRequests() {
   return (
     <Screen scroll>
       <View style={styles.header}>
-        {name ? (
-          <AppText variant="h1">{t('agrochemist.cabinet.greeting', { name })}</AppText>
-        ) : null}
+        <View style={styles.greetingRow}>
+          <View style={styles.greeting}>
+            {name ? (
+              <AppText variant="h1">{t('agrochemist.cabinet.greeting', { name })}</AppText>
+            ) : null}
+          </View>
+          <NotificationsBell />
+        </View>
         {view.status === 'approved' ? (
           <View style={styles.badge}>
             <Badge label={t('agrochemist.cabinet.qualified')} tone="success" icon={ShieldCheck} />
@@ -272,6 +278,8 @@ function NeedsDocument({ view, onUpload }: { view: VerificationView; onUpload: (
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { gap: spacing.xs, marginBottom: spacing.lg },
+  greetingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  greeting: { flex: 1 },
   badge: { alignSelf: 'flex-start', marginTop: spacing.xs },
   section: { gap: spacing.md, marginTop: spacing.xl },
   notice: {

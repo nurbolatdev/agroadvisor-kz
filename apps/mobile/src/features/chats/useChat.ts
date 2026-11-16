@@ -11,6 +11,8 @@ import type { DiagnosisResult } from '@/api/diagnosis'
 import { ApiError, NetworkError } from '@/api/errors'
 import { consultationsApi } from '@/services'
 
+import { markChatNotificationsRead } from '@/features/notifications/syncWithChat'
+
 import { lastIncoming, mergeMessages, newestId } from './messages'
 
 export type ChatLoad =
@@ -93,9 +95,12 @@ export function useChat(id: string, myId: (c: Consultation) => string, active: b
       const last = lastIncoming(held.current, myIdRef.current(c))
       if (!last || last.readAt || marked.current === last.id) return
       marked.current = last.id
-      consultationsApi.markRead(id, last.id).catch(() => {
-        if (marked.current === last.id) marked.current = null
-      })
+      consultationsApi.markRead(id, last.id).then(
+        () => void markChatNotificationsRead(id),
+        () => {
+          if (marked.current === last.id) marked.current = null
+        },
+      )
     },
     [id],
   )

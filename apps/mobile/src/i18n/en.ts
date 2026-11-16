@@ -182,6 +182,69 @@ export const en: Translation = {
       },
     },
   },
+  // the notifications (screen 20). A notification has a type and ids, no text: a line says what happened.
+  notifications: {
+    title: 'Notifications',
+    readAll: 'Mark all as read',
+    unread: 'unread',
+    unreadCount: 'unread: {{count}}',
+    yesterday: 'Yesterday',
+    refreshFailed: 'Could not refresh the list',
+    resultFailed: 'Could not open the diagnosis. Try again',
+    errors: {
+      offline: 'No connection to the server. Check the internet',
+      server: 'The server did not answer. Try again',
+    },
+    none: 'No notifications yet',
+    noneHint: 'Answers of agrochemists and important events will appear here',
+    types: {
+      consultation_requested: {
+        title: 'New request',
+        titleMany: 'New requests',
+        body: 'A farmer sent a request for a consultation',
+      },
+      consultation_accepted: {
+        title: 'Request accepted',
+        titleMany: 'Request accepted',
+        body: 'The agrochemist accepted your request, you can write in the chat',
+      },
+      consultation_declined: {
+        title: 'Request declined',
+        titleMany: 'Request declined',
+        body: 'The agrochemist could not take the request. Choose another one',
+      },
+      consultation_closed: {
+        title: 'Consultation closed',
+        titleMany: 'Consultation closed',
+        body: 'The other side ended the consultation',
+      },
+      consultation_message: {
+        title: 'New message',
+        titleMany: 'New messages: {{count}}',
+        body: 'Open the chat to read',
+      },
+      verification_approved: {
+        title: 'Qualification confirmed',
+        titleMany: 'Qualification confirmed',
+        body: 'Farmers can see you in the list of agrochemists',
+      },
+      verification_rejected: {
+        title: 'Check not passed',
+        titleMany: 'Check not passed',
+        body: 'Open the cabinet to see the reason',
+      },
+      verification_documents_requested: {
+        title: 'Documents needed',
+        titleMany: 'Documents needed',
+        body: 'The administrator asks you to send a document again',
+      },
+      diagnosis_reviewed: {
+        title: 'Diagnosis reviewed',
+        titleMany: 'Diagnosis reviewed: {{count}} verdicts',
+        body: 'An agrochemist or an administrator left a verdict',
+      },
+    },
+  },
   // the requests of farmers to an agrochemist (screens 22b, 23a)
   requests: {
     title: 'Request',

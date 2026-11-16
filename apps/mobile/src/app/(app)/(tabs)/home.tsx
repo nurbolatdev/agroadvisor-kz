@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native'
 import { AppText, Button, Screen } from '@/components/ui'
 import { hasAgrochemistRole } from '@/features/access/roles'
 import { HeroCard } from '@/features/home/HeroCard'
+import { NotificationsBell } from '@/features/notifications/NotificationsBell'
 import { HistoryLine } from '@/features/history/HistoryLine'
 import { useDiseaseNames } from '@/features/history/useDiseaseNames'
 import { useDiagnosis, useHistory, useProfile } from '@/services'
@@ -43,6 +44,10 @@ function FarmerHome() {
 
   return (
     <Screen scroll>
+      {/* the frame has the greeting and the date here; until they are built the bell stands alone, right */}
+      <View style={styles.bellRow}>
+        <NotificationsBell />
+      </View>
       <HeroCard
         title={t('home.hero.title')}
         subtitle={t('home.hero.subtitle')}
@@ -111,6 +116,7 @@ function FarmerHome() {
 }
 
 const styles = StyleSheet.create({
+  bellRow: { alignItems: 'flex-end', marginBottom: spacing.md },
   section: { marginTop: spacing.xl, gap: spacing.md },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   card: {

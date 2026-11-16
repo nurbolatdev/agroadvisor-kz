@@ -19,6 +19,8 @@ jest.mock('@/features/agrochemist/cabinet/AgrochemistProfile', () => {
   const { Text } = require('react-native')
   return { AgrochemistProfile: () => <Text>profile of an agrochemist</Text> }
 })
+// the bell has its own tests (notifications.test.tsx)
+jest.mock('@/features/notifications/NotificationsBell', () => ({ NotificationsBell: () => null }))
 jest.mock('@/features/home/HeroCard', () => {
   const { Text } = require('react-native')
   return { HeroCard: () => <Text>the home of a farmer</Text> }

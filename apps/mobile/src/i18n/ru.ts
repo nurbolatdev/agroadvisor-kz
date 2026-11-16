@@ -183,6 +183,69 @@ export const ru = {
       },
     },
   },
+  // the notifications (screen 20). A notification has a type and ids, no text: a line says what happened.
+  notifications: {
+    title: 'Уведомления',
+    readAll: 'Прочитать все',
+    unread: 'не прочитано',
+    unreadCount: 'непрочитанных: {{count}}',
+    yesterday: 'Вчера',
+    refreshFailed: 'Не удалось обновить список',
+    resultFailed: 'Не удалось открыть диагноз. Попробуйте ещё раз',
+    errors: {
+      offline: 'Нет связи с сервером. Проверьте интернет',
+      server: 'Сервер не ответил. Попробуйте ещё раз',
+    },
+    none: 'Уведомлений пока нет',
+    noneHint: 'Здесь появятся ответы агрохимиков и важные события',
+    types: {
+      consultation_requested: {
+        title: 'Новая заявка',
+        titleMany: 'Новые заявки',
+        body: 'Фермер прислал заявку на консультацию',
+      },
+      consultation_accepted: {
+        title: 'Заявка принята',
+        titleMany: 'Заявка принята',
+        body: 'Агрохимик принял вашу заявку, можно писать в чат',
+      },
+      consultation_declined: {
+        title: 'Заявка отклонена',
+        titleMany: 'Заявка отклонена',
+        body: 'Агрохимик не смог принять заявку. Выберите другого',
+      },
+      consultation_closed: {
+        title: 'Консультация закрыта',
+        titleMany: 'Консультация закрыта',
+        body: 'Собеседник завершил консультацию',
+      },
+      consultation_message: {
+        title: 'Новое сообщение',
+        titleMany: 'Новые сообщения: {{count}}',
+        body: 'Откройте чат, чтобы прочитать',
+      },
+      verification_approved: {
+        title: 'Квалификация подтверждена',
+        titleMany: 'Квалификация подтверждена',
+        body: 'Фермеры видят вас в списке агрохимиков',
+      },
+      verification_rejected: {
+        title: 'Проверка не пройдена',
+        titleMany: 'Проверка не пройдена',
+        body: 'Откройте кабинет, чтобы узнать причину',
+      },
+      verification_documents_requested: {
+        title: 'Нужны документы',
+        titleMany: 'Нужны документы',
+        body: 'Администратор просит прислать документ ещё раз',
+      },
+      diagnosis_reviewed: {
+        title: 'Диагноз проверен',
+        titleMany: 'Диагноз проверен: вердиктов {{count}}',
+        body: 'Агрохимик или администратор оставил вердикт',
+      },
+    },
+  },
   // the requests of farmers to an agrochemist (screens 22b, 23a)
   requests: {
     title: 'Заявка',
