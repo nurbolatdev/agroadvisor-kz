@@ -11,6 +11,8 @@ const mockReset = jest.fn()
 const mockRemember = jest.fn()
 const mockDiagnosis = { unseenResultIds: [] as string[], queued: [] as unknown[] }
 
+// the bell has its own tests (features/notifications)
+jest.mock('@/features/notifications/NotificationsBell', () => ({ NotificationsBell: () => null }))
 jest.mock('expo-router', () => {
   const react = require('react')
   return {

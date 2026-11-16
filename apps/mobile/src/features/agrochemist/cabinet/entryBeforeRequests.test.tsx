@@ -9,6 +9,8 @@ import { RequestsScreen } from './RequestsScreen'
 const mockChoose = jest.fn()
 const mockMe = { fullName: 'Aigul Sarsenova', roles: ['agrochemist'], phone: '+77001112233' }
 
+// the bell has its own tests (features/notifications)
+jest.mock('@/features/notifications/NotificationsBell', () => ({ NotificationsBell: () => null }))
 jest.mock('expo-router', () => {
   const react = require('react')
   return {
