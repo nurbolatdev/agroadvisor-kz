@@ -217,7 +217,12 @@ export const kk: Translation = {
       invalid: 'Сервер егістік деректерін қабылдамады. Атауы мен көлемін тексеріңіз',
       rateLimited: 'Сұраныс тым көп. Бір минут күтіңіз',
       server: 'Егістікті сақтау мүмкін болмады. Қайталап көріңіз',
+      limit: 'Шекке жетті: сізде 100 егістік бар. Қажетсізін жойыңыз',
+      forbidden: 'Егістіктер тек фермерге қолжетімді',
+      deleteOffline: 'Серверге байланыс жоқ. Егістік жойылмады',
+      deleteServer: 'Егістікті жою мүмкін болмады. Қайталап көріңіз',
     },
+    currentCrop: 'Егістіктің дақылы: {{crop}}',
   },
   // the notifications (screen 20); the kk texts wait for the proofreading (#88)
   notifications: {

@@ -216,7 +216,12 @@ export const en: Translation = {
       invalid: 'The server did not accept the field. Check the name and the area',
       rateLimited: 'Too many requests. Wait a minute',
       server: 'Could not save the field. Try again',
+      limit: 'The limit is reached: you already have 100 fields. Delete one you do not need',
+      forbidden: 'Fields are for farmers only',
+      deleteOffline: 'No connection to the server. The field was not deleted',
+      deleteServer: 'Could not delete the field. Try again',
     },
+    currentCrop: 'Crop of the field: {{crop}}',
   },
   // the notifications (screen 20). A notification has a type and ids, no text: a line says what happened.
   notifications: {

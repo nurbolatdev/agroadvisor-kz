@@ -1,9 +1,16 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native'
 
-import { NetworkError } from '@/api/errors'
 import { FIELD_NAME_MAX, type AreaUnit, type Field } from '@/api/fields'
 import {
   AppText,
@@ -19,7 +26,7 @@ import { CROPS, isCrop } from '@/features/diagnosis/crops'
 import { fieldsApi } from '@/services'
 import { colors, spacing } from '@/theme/tokens'
 
-import { areaToText, fieldProblemOf, parseArea, type FieldProblem } from './helpers'
+import { areaToText, fieldProblemOf, formatArea, parseArea, type FieldProblem } from './helpers'
 
 const UNITS: AreaUnit[] = ['ha', 'sotka']
 
@@ -97,17 +104,32 @@ function FieldForm({ field }: { field?: Field }) {
   const [areaText, setAreaText] = useState(field ? areaToText(field.area, i18n.language) : '')
   const [unit, setUnit] = useState<AreaUnit>(field?.areaUnit ?? 'ha')
   const [busy, setBusy] = useState(false)
-  const [problem, setProblem] = useState<FieldProblem | 'noName' | 'noCrop' | 'noArea' | null>(null)
+  // set and read at once, not through a render: two quick presses send one request
+  const working = useRef(false)
+  const [problem, setProblem] = useState<
+    FieldProblem | 'noName' | 'noCrop' | 'noArea' | 'deleteOffline' | 'deleteServer' | null
+  >(null)
+
+  const start = () => {
+    if (working.current) return false
+    working.current = true
+    setBusy(true)
+    setProblem(null)
+    return true
+  }
+  const finish = () => {
+    working.current = false
+    setBusy(false)
+  }
 
   const save = async () => {
-    if (busy) return
+    if (working.current) return
     const clean = name.trim()
     const area = parseArea(areaText)
     if (clean === '' || clean.length > FIELD_NAME_MAX) return setProblem('noName')
     if (!crop) return setProblem('noCrop')
     if (area === null) return setProblem('noArea')
-    setBusy(true)
-    setProblem(null)
+    if (!start()) return
     try {
       if (field) {
         await fieldsApi.update(field.id, { name: clean, crop, area, areaUnit: unit })
@@ -116,8 +138,8 @@ function FieldForm({ field }: { field?: Field }) {
       }
       router.back()
     } catch (error) {
-      setProblem(error instanceof NetworkError ? 'offline' : fieldProblemOf(error))
-      setBusy(false)
+      setProblem(fieldProblemOf(error))
+      finish()
     }
   }
 
@@ -128,13 +150,16 @@ function FieldForm({ field }: { field?: Field }) {
         text: t('fields.delete'),
         style: 'destructive',
         onPress: async () => {
-          setBusy(true)
+          if (!start()) return
           try {
             await fieldsApi.remove(field.id)
             router.back()
           } catch (error) {
-            setProblem(fieldProblemOf(error))
-            setBusy(false)
+            const found = fieldProblemOf(error)
+            // the field is gone already: what the person wanted is done
+            if (found === 'notFound') return router.back()
+            setProblem(found === 'offline' ? 'deleteOffline' : 'deleteServer')
+            finish()
           }
         },
       },
@@ -143,98 +168,106 @@ function FieldForm({ field }: { field?: Field }) {
   }
 
   return (
-    <Screen>
-      <BackHeader
-        title={field ? t('fields.editTitle') : t('fields.newTitle')}
-        backLabel={t('common.back')}
-        onBack={() => router.back()}
-      />
-      <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
-        <Input
-          label={t('fields.name')}
-          value={name}
-          onChangeText={(text) => {
-            setName(text)
-            setProblem(null)
-          }}
-          maxLength={FIELD_NAME_MAX}
-          placeholder={t('fields.namePlaceholder')}
-          error={problem === 'noName' ? t('fields.problems.noName') : undefined}
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <Screen>
+        <BackHeader
+          title={field ? t('fields.editTitle') : t('fields.newTitle')}
+          backLabel={t('common.back')}
+          onBack={() => router.back()}
         />
-
-        <View style={styles.group}>
-          <AppText variant="caption" color={colors.textMuted}>
-            {t('fields.crop')}
-          </AppText>
-          <View style={styles.chips}>
-            {CROPS.map((code) => (
-              <Chip
-                key={code}
-                label={t(`diagnosis.crops.${code}`)}
-                selected={crop === code}
-                onPress={() => {
-                  setCrop(code)
-                  setProblem(null)
-                }}
-              />
-            ))}
-            {/* a crop of an old field that is not one of the four of the model is kept as it is */}
-            {crop && !isCrop(crop) ? (
-              <Chip label={crop} selected onPress={() => undefined} />
-            ) : null}
-          </View>
-          {problem === 'noCrop' ? (
-            <AppText variant="small" color={colors.danger}>
-              {t('fields.problems.noCrop')}
-            </AppText>
-          ) : null}
-        </View>
-
-        <View style={styles.group}>
+        <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
           <Input
-            label={t('fields.area')}
-            value={areaText}
+            label={t('fields.name')}
+            value={name}
             onChangeText={(text) => {
-              setAreaText(text)
+              setName(text)
               setProblem(null)
             }}
-            keyboardType="decimal-pad"
-            placeholder="2,5"
-            error={problem === 'noArea' ? t('fields.problems.noArea') : undefined}
+            maxLength={FIELD_NAME_MAX}
+            placeholder={t('fields.namePlaceholder')}
+            error={problem === 'noName' ? t('fields.problems.noName') : undefined}
           />
-          <View style={styles.chips}>
-            {UNITS.map((u) => (
-              <Chip
-                key={u}
-                label={t(`fields.units.${u}`)}
-                selected={unit === u}
-                onPress={() => setUnit(u)}
-              />
-            ))}
+
+          <View style={styles.group}>
+            <AppText variant="caption" color={colors.textMuted}>
+              {t('fields.crop')}
+            </AppText>
+            <View style={styles.chips}>
+              {CROPS.map((code) => (
+                <Chip
+                  key={code}
+                  label={t(`diagnosis.crops.${code}`)}
+                  selected={crop === code}
+                  onPress={() => {
+                    setCrop(code)
+                    setProblem(null)
+                  }}
+                />
+              ))}
+              {/* a crop of an old field that is not one of the four of the model is kept as it is */}
+            </View>
+            {crop && !isCrop(crop) ? (
+              <AppText variant="small" color={colors.textMuted}>
+                {t('fields.currentCrop', { crop })}
+              </AppText>
+            ) : null}
+            {problem === 'noCrop' ? (
+              <AppText variant="small" color={colors.danger}>
+                {t('fields.problems.noCrop')}
+              </AppText>
+            ) : null}
           </View>
-        </View>
 
-        {problem && !['noName', 'noCrop', 'noArea'].includes(problem) ? (
-          <AppText variant="small" color={colors.danger} accessibilityRole="alert">
-            {t(`fields.problems.${problem}`)}
-          </AppText>
-        ) : null}
+          <View style={styles.group}>
+            <Input
+              label={t('fields.area')}
+              value={areaText}
+              onChangeText={(text) => {
+                setAreaText(text)
+                setProblem(null)
+              }}
+              keyboardType="decimal-pad"
+              placeholder={formatArea(2.5, i18n.language)}
+              error={problem === 'noArea' ? t('fields.problems.noArea') : undefined}
+            />
+            <View style={styles.chips}>
+              {UNITS.map((u) => (
+                <Chip
+                  key={u}
+                  label={t(`fields.units.${u}`)}
+                  selected={unit === u}
+                  onPress={() => setUnit(u)}
+                />
+              ))}
+            </View>
+          </View>
 
-        <Button
-          label={field ? t('fields.saveChanges') : t('fields.save')}
-          loading={busy}
-          disabled={busy}
-          onPress={() => void save()}
-        />
-        {field ? (
-          <Button label={t('fields.delete')} variant="danger" disabled={busy} onPress={remove} />
-        ) : null}
-      </ScrollView>
-    </Screen>
+          {problem && !['noName', 'noCrop', 'noArea'].includes(problem) ? (
+            <AppText variant="small" color={colors.danger} accessibilityRole="alert">
+              {t(`fields.problems.${problem}`)}
+            </AppText>
+          ) : null}
+
+          <Button
+            label={field ? t('fields.saveChanges') : t('fields.save')}
+            loading={busy}
+            disabled={busy}
+            onPress={() => void save()}
+          />
+          {field ? (
+            <Button label={t('fields.delete')} variant="danger" disabled={busy} onPress={remove} />
+          ) : null}
+        </ScrollView>
+      </Screen>
+    </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   loading: { marginTop: spacing.xl },
   form: { gap: spacing.lg, paddingBottom: spacing.xl },
   group: { gap: spacing.sm },

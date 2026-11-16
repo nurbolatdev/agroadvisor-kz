@@ -80,6 +80,13 @@ describe('helpers', () => {
     expect(parseArea('')).toBeNull()
   })
 
+  it('refuses what the backend would answer with 400: more than 7 digits or 2 after the point', () => {
+    expect(parseArea('9999999')).toBe(9999999)
+    expect(parseArea('12345678')).toBeNull()
+    expect(parseArea('0,125')).toBeNull()
+    expect(parseArea('0,12')).toBe(0.12)
+  })
+
   it('writes an area for the list and for the field of the form', () => {
     expect(formatArea(2.5, 'en')).toBe('2.5')
     expect(areaToText(1200.5, 'en')).toBe('1200.5')
@@ -90,6 +97,8 @@ describe('helpers', () => {
     expect(fieldProblemOf(new ApiError(404, 'field_not_found', 'x'))).toBe('notFound')
     expect(fieldProblemOf(new ApiError(400, 'validation_failed', 'x'))).toBe('invalid')
     expect(fieldProblemOf(new ApiError(429, 'rate_limited', 'x'))).toBe('rateLimited')
+    expect(fieldProblemOf(new ApiError(409, 'field_limit_reached', 'x'))).toBe('limit')
+    expect(fieldProblemOf(new ApiError(403, 'forbidden', 'x'))).toBe('forbidden')
     expect(fieldProblemOf(new ApiError(500, 'x', 'x'))).toBe('server')
   })
 })
@@ -215,6 +224,62 @@ describe('edit field screen', () => {
     await waitFor(() => expect(mockApi.remove).toHaveBeenCalledWith('f1'))
     expect(mockBack).toHaveBeenCalled()
     alert.mockRestore()
+  })
+
+  async function confirmDelete() {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
+    await render(<EditFieldScreen />)
+    await fireEvent.press(await screen.findByText('Delete the field'))
+    const buttons = alert.mock.calls[0][2] ?? []
+    await buttons.find((b) => b.style === 'destructive')?.onPress?.()
+    alert.mockRestore()
+  }
+
+  it('goes back when the field is already gone: what the person wanted is done', async () => {
+    mockApi.remove.mockRejectedValue(new ApiError(404, 'field_not_found', 'none'))
+
+    await confirmDelete()
+
+    await waitFor(() => expect(mockBack).toHaveBeenCalled())
+  })
+
+  it('tells about the delete, not about saving, when it did not work', async () => {
+    mockApi.remove.mockRejectedValue(new NetworkError())
+
+    await confirmDelete()
+
+    expect(
+      await screen.findByText('No connection to the server. The field was not deleted'),
+    ).toBeTruthy()
+    expect(mockBack).not.toHaveBeenCalled()
+  })
+
+  it('tells that the limit of fields is reached, without a retry', async () => {
+    mockApi.create.mockRejectedValue(new ApiError(409, 'field_limit_reached', 'limit'))
+    await render(<NewFieldScreen />)
+    await fireEvent.changeText(screen.getByLabelText('Name'), 'Tomatoes')
+    await fireEvent.press(screen.getByText('Tomato'))
+    await fireEvent.changeText(screen.getByLabelText('Area'), '2')
+    await fireEvent.press(screen.getByText('Save the field'))
+
+    expect(await screen.findByText(/you already have 100 fields/)).toBeTruthy()
+  })
+
+  it('sends one request when the button is pressed twice before the first one returns', async () => {
+    let finish: (value: Field) => void = () => undefined
+    mockApi.create.mockReturnValue(new Promise<Field>((resolve) => (finish = resolve)))
+    await render(<NewFieldScreen />)
+    await fireEvent.changeText(screen.getByLabelText('Name'), 'Tomatoes')
+    await fireEvent.press(screen.getByText('Tomato'))
+    await fireEvent.changeText(screen.getByLabelText('Area'), '2')
+    const save = screen.getByText('Save the field')
+
+    await fireEvent.press(save)
+    await fireEvent.press(save)
+    finish(field())
+
+    await waitFor(() => expect(mockBack).toHaveBeenCalled())
+    expect(mockApi.create).toHaveBeenCalledTimes(1)
   })
 
   it('says so when the field does not exist', async () => {

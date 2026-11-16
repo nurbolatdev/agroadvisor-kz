@@ -217,7 +217,12 @@ export const ru = {
       invalid: 'Сервер не принял данные поля. Проверьте название и площадь',
       rateLimited: 'Слишком много запросов. Подождите минуту',
       server: 'Не удалось сохранить поле. Попробуйте ещё раз',
+      limit: 'Достигнут предел: у вас уже 100 полей. Удалите ненужное',
+      forbidden: 'Поля доступны только фермеру',
+      deleteOffline: 'Нет связи с сервером. Поле не удалено',
+      deleteServer: 'Не удалось удалить поле. Попробуйте ещё раз',
     },
+    currentCrop: 'Культура поля: {{crop}}',
   },
   // the notifications (screen 20). A notification has a type and ids, no text: a line says what happened.
   notifications: {
