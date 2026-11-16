@@ -843,9 +843,9 @@
             "type" : "number"
           },
           "precipitationProbability" : {
-            "description" : "Percent",
+            "description" : "Percent; null when the source does not give it",
             "format" : "int32",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "sprayOk" : {
             "description" : "This hour is good to start spraying",
@@ -860,15 +860,16 @@
             "type" : "string"
           },
           "weatherCode" : {
+            "description" : "WMO weather code; null when the source does not give it",
             "format" : "int32",
-            "type" : "integer"
+            "type" : [ "integer", "null" ]
           },
           "windMs" : {
             "format" : "double",
             "type" : "number"
           }
         },
-        "required" : [ "precipitationMm", "precipitationProbability", "sprayOk", "temperatureC", "time", "weatherCode", "windMs" ],
+        "required" : [ "precipitationMm", "sprayOk", "temperatureC", "time", "windMs" ],
         "type" : "object"
       },
       "LoginRequest" : {

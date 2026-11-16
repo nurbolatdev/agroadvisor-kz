@@ -1266,17 +1266,20 @@ export interface components {
             precipitationMm: number;
             /**
              * Format: int32
-             * @description Percent
+             * @description Percent; null when the source does not give it
              */
-            precipitationProbability: number;
+            precipitationProbability?: number | null;
             /** @description This hour is good to start spraying */
             sprayOk: boolean;
             /** Format: double */
             temperatureC: number;
             /** Format: date-time */
             time: string;
-            /** Format: int32 */
-            weatherCode: number;
+            /**
+             * Format: int32
+             * @description WMO weather code; null when the source does not give it
+             */
+            weatherCode?: number | null;
             /** Format: double */
             windMs: number;
         };
