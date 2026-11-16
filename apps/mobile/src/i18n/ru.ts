@@ -129,6 +129,27 @@ export const ru = {
     chats: 'Чаты',
     profile: 'Профиль',
   },
+  // the chats tab (screens 17b, 17c)
+  chats: {
+    title: 'Чаты',
+    search: 'Поиск по чатам',
+    searchClear: 'Очистить поиск',
+    filterAll: 'Все',
+    filterUnread: 'Непрочитанные',
+    agrochemist: 'Агрохимик',
+    photo: 'Фото',
+    yesterday: 'Вчера',
+    unread: 'Непрочитанных: {{count}}',
+    none: 'Чатов пока нет',
+    noneHint: 'Чат появится, когда агрохимик примет вашу заявку',
+    noMatches: 'Ничего не найдено',
+    newChatHint: 'Чтобы начать новый чат, отправьте диагноз агрохимику',
+    findAgrochemist: 'Найти агрохимика',
+    errors: {
+      offline: 'Нет связи с сервером. Проверьте интернет',
+      server: 'Сервер не ответил. Попробуйте ещё раз',
+    },
+  },
   history: {
     title: 'История',
     // short words for the badge of a line; the long explanations are on the result screen
