@@ -82,7 +82,11 @@ export function ChatsScreen() {
             {items.map((item, index) => (
               <Fragment key={item.id}>
                 {index > 0 ? <View style={styles.separator} /> : null}
-                <ChatRow item={item} asAgrochemist={agrochemist} onPress={() => undefined} />
+                <ChatRow
+                  item={item}
+                  asAgrochemist={agrochemist}
+                  onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.id } })}
+                />
               </Fragment>
             ))}
           </View>
