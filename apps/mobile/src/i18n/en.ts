@@ -197,6 +197,7 @@ export const en: Translation = {
     problems: {
       offline: 'No connection to the server. Try again',
       gone: 'The request is already closed or withdrawn by the farmer',
+      notListed: 'You are not in the list of agrochemists, so you cannot take the request',
       rateLimited: 'Too many requests. Wait a minute',
       server: 'Could not answer the request. Try again',
     },

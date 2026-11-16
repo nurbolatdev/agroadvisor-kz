@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { MessageCircle } from 'lucide-react-native'
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native'
 
@@ -51,9 +52,16 @@ function RequestView({ id }: { id: string }) {
     if (await request.decline()) router.back()
   }
 
+  // an accepted request is a chat: a stale link or list item lands in the conversation, not on a dead screen
+  const accepted = state.status === 'ready' && state.consultation.status === 'active'
+  useEffect(() => {
+    if (accepted) router.replace({ pathname: '/chat/[id]', params: { id } })
+  }, [accepted, router, id])
+
   if (state.status === 'loading') {
     return (
       <Screen>
+        <BackHeader backLabel={t('common.back')} onBack={() => router.back()} />
         <ActivityIndicator color={colors.primary} style={styles.loading} />
       </Screen>
     )

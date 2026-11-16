@@ -157,6 +157,74 @@ describe('request screen', () => {
     expect(mockReplace).not.toHaveBeenCalled()
   })
 
+  it('reads the answered state again after a 409 on decline, and drops the buttons', async () => {
+    mockApi.decline.mockRejectedValue(new ApiError(409, 'invalid_consultation_state', 'state'))
+    await render(<RequestScreen />)
+    mockApi.get.mockResolvedValue(request({ status: 'closed' }))
+    await fireEvent.press(await screen.findByText('Decline'))
+
+    expect(await screen.findByText('This request has already been answered')).toBeTruthy()
+    expect(screen.queryByText('Decline')).toBeNull()
+    expect(mockBack).not.toHaveBeenCalled()
+  })
+
+  it('tells an agrochemist who left the directory apart from a withdrawn request', async () => {
+    mockApi.accept.mockRejectedValue(new ApiError(409, 'agrochemist_not_listed', 'not listed'))
+    await render(<RequestScreen />)
+    await fireEvent.press(await screen.findByText('Accept and reply'))
+
+    expect(
+      await screen.findByText(
+        'You are not in the list of agrochemists, so you cannot take the request',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('sends one answer when both buttons are pressed before the first one returns', async () => {
+    let finish: (value: Consultation) => void = () => undefined
+    mockApi.accept.mockReturnValue(new Promise<Consultation>((resolve) => (finish = resolve)))
+    await render(<RequestScreen />)
+    const accept = await screen.findByText('Accept and reply')
+    const decline = screen.getByText('Decline')
+
+    await fireEvent.press(accept)
+    await fireEvent.press(decline)
+    finish(request({ status: 'active' }))
+
+    expect(mockApi.accept).toHaveBeenCalledTimes(1)
+    expect(mockApi.decline).not.toHaveBeenCalled()
+  })
+
+  it('shows the attached diagnosis card', async () => {
+    mockApi.get.mockResolvedValue(request({ diagnosisId: 'd1' }))
+    mockApi.diagnosis.mockResolvedValue({
+      id: 'd1',
+      crop: 'tomato',
+      top1: { code: 'tomato__late_blight', confidence: 0.94 },
+    })
+    await render(<RequestScreen />)
+
+    expect(await screen.findByText('AI diagnosis · 94%')).toBeTruthy()
+  })
+
+  it('does not take the reply of the agrochemist for the message of the farmer', async () => {
+    mockApi.messages.mockResolvedValue([
+      { id: 'm9', senderId: 'a1', text: 'my own reply', createdAt: '2026-11-16T10:00:00Z' },
+    ])
+    await render(<RequestScreen />)
+
+    expect(await screen.findByText('No message')).toBeTruthy()
+    expect(screen.queryByText('my own reply')).toBeNull()
+  })
+
+  it('leaves for the chat when the request is already accepted', async () => {
+    mockApi.get.mockResolvedValue(request({ status: 'active' }))
+    await render(<RequestScreen />)
+
+    await screen.findByText('Request')
+    expect(mockReplace).toHaveBeenCalledWith({ pathname: '/chat/[id]', params: { id: 'c1' } })
+  })
+
   it('does not open for a farmer', async () => {
     mockRoles = ['farmer']
     await render(<RequestScreen />)
