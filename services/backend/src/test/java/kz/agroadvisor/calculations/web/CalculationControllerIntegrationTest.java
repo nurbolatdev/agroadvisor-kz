@@ -144,6 +144,29 @@ class CalculationControllerIntegrationTest {
     }
 
     @Test
+    void aHugeScaleIsRefusedAtOnceEverywhere() throws Exception {
+        // 1e-100000000 is a short number but a huge scale: rounding or comparing it must not tie up a core
+        long started = System.nanoTime();
+        String[] bodies = {
+            body(2026).replace("\"areaHa\": 2.5", "\"areaHa\": 1e-100000000"),
+            body(2026).replace("\"yieldCHa\": 250", "\"yieldCHa\": 1e-100000000"),
+            body(2026).replace("\"priceT\": 90000", "\"priceT\": 1e-100000000"),
+            body(2026).replace("\"seed\": 120000", "\"seed\": 1e-100000000"),
+            body(2026).replace("\"profit\": -5000.5", "\"profit\": -1e-999999999"),
+            body(2026).replace("\"seed\": 120000", "\"seed\": 1e100000000"),
+        };
+
+        for (String bad : bodies) {
+            mvc.perform(post("/api/calculations").header("Authorization", farmer)
+                    .contentType(MediaType.APPLICATION_JSON).content(bad))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("validation_failed"));
+        }
+
+        org.assertj.core.api.Assertions.assertThat(java.time.Duration.ofNanos(System.nanoTime() - started))
+                .isLessThan(java.time.Duration.ofSeconds(10));
+    }
+
+    @Test
     void keepsDecimalsExactlyAndAtTheBounds() throws Exception {
         String location = mvc.perform(post("/api/calculations").header("Authorization", farmer)
                 .contentType(MediaType.APPLICATION_JSON)
