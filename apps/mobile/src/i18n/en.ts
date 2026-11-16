@@ -188,6 +188,13 @@ export const en: Translation = {
     readAll: 'Mark all as read',
     unread: 'unread',
     unreadCount: 'unread: {{count}}',
+    yesterday: 'Yesterday',
+    refreshFailed: 'Could not refresh the list',
+    resultFailed: 'Could not open the diagnosis. Try again',
+    errors: {
+      offline: 'No connection to the server. Check the internet',
+      server: 'The server did not answer. Try again',
+    },
     none: 'No notifications yet',
     noneHint: 'Answers of agrochemists and important events will appear here',
     types: {

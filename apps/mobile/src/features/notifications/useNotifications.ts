@@ -56,7 +56,10 @@ export function useNotifications(): {
             }
           : current,
       )
-      call().catch(() => load())
+      // A read of the list that is on its way started before this mark: its answer would turn the row unread
+      // again, so it is dropped. Whether the server agreed or not, the list is then read again.
+      latest.current += 1
+      call().then(load, load)
     },
     [load],
   )

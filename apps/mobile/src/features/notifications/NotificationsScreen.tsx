@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
@@ -7,7 +7,7 @@ import type { AppNotification } from '@/api/notifications'
 import { AppText, BackHeader, EmptyState, ErrorState, Screen } from '@/components/ui'
 import { hasAgrochemistRole } from '@/features/access/roles'
 import { chatTimeLabel } from '@/features/chats/helpers'
-import { useProfile } from '@/services'
+import { diagnosisApi, useDiagnosis, useProfile } from '@/services'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
 import { isMany, lookOf, targetOf, type NotificationTarget } from './helpers'
@@ -29,6 +29,22 @@ export function NotificationsScreen() {
     }, [load]),
   )
 
+  const [resultProblem, setResultProblem] = useState(false)
+
+  // The result screen shows only what the diagnosis store holds (this session's diagnoses and the ones
+  // opened from the history), and a verdict comes hours later, usually after a restart: so the diagnosis is
+  // read by id and remembered before the screen opens.
+  const openResult = async (id: string) => {
+    setResultProblem(false)
+    try {
+      if (!useDiagnosis.getState().results[id]) {
+        useDiagnosis.getState().rememberResult(await diagnosisApi.get(id))
+      }
+      router.push({ pathname: '/diagnosis/result/[id]', params: { id } })
+    } catch {
+      setResultProblem(true)
+    }
+  }
   const open = (target: NotificationTarget) => {
     switch (target.kind) {
       case 'chat':
@@ -36,9 +52,10 @@ export function NotificationsScreen() {
       case 'request':
         return router.push({ pathname: '/request/[id]', params: { id: target.id } })
       case 'result':
-        return router.push({ pathname: '/diagnosis/result/[id]', params: { id: target.id } })
+        return void openResult(target.id)
       case 'requests':
-        return router.push('/requests')
+        // a tab: go back to the tabs instead of stacking a second set of them over this screen
+        return router.dismissTo('/requests')
       case 'documents':
         return router.push('/documents')
       case 'none':
@@ -81,14 +98,19 @@ export function NotificationsScreen() {
       {state.status === 'loading' ? (
         <ActivityIndicator color={colors.primary} style={styles.loading} />
       ) : state.status === 'error' ? (
-        <ErrorState message={t(`chats.errors.${state.reason}`)} onRetry={load} />
+        <ErrorState message={t(`notifications.errors.${state.reason}`)} onRetry={load} />
       ) : items.length === 0 ? (
         <EmptyState title={t('notifications.none')} message={t('notifications.noneHint')} />
       ) : (
         <ScrollView testID="notifications-list" contentContainerStyle={styles.content}>
           {state.failed ? (
             <AppText variant="small" color={colors.danger}>
-              {t('chats.refreshFailed')}
+              {t('notifications.refreshFailed')}
+            </AppText>
+          ) : null}
+          {resultProblem ? (
+            <AppText variant="small" color={colors.danger} accessibilityRole="alert">
+              {t('notifications.resultFailed')}
             </AppText>
           ) : null}
           <View style={styles.card}>
@@ -97,7 +119,7 @@ export function NotificationsScreen() {
               const Icon = look.icon
               const unread = !item.readAt
               const time = chatTimeLabel(item.updatedAt, now, i18n.language)
-              const when = time.kind === 'yesterday' ? t('chats.yesterday') : time.value
+              const when = time.kind === 'yesterday' ? t('notifications.yesterday') : time.value
               const title = isMany(item)
                 ? t(`notifications.types.${item.type}.titleMany`, { count: item.count })
                 : t(`notifications.types.${item.type}.title`)
@@ -158,8 +180,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, padding: spacing.md },
   unreadRow: { backgroundColor: colors.primarySoft },
   icon: {
-    width: sizes.avatar - 8,
-    height: sizes.avatar - 8,
+    width: sizes.touch,
+    height: sizes.touch,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
