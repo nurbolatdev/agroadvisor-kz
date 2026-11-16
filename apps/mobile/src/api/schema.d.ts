@@ -1058,7 +1058,7 @@ export interface components {
              * @enum {string}
              */
             areaUnit: "ha" | "sotka";
-            /** @description Cost items, name to amount (not negative); 1-30 entries, keys like seedCost */
+            /** @description Cost items, name to amount (not negative, up to 4 decimal places); 1-30 entries, keys like seedCost. The order of the keys is not kept: the app orders the items itself */
             costs: {
                 [key: string]: number;
             };
@@ -1072,7 +1072,7 @@ export interface components {
              * @example 90000
              */
             priceT: number;
-            /** @description What the app calculated, name to number; 1-30 entries */
+            /** @description What the app calculated, name to number (up to 4 decimal places); 1-30 entries. Stored as sent: the server does not recalculate it */
             results: {
                 [key: string]: number;
             };
