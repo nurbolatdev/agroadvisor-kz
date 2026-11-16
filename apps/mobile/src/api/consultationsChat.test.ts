@@ -118,6 +118,137 @@ describe('createConsultationsApi', () => {
   })
 })
 
+describe('mock chat with a simulated agrochemist', () => {
+  const agrochemistId = MOCK_AGROCHEMISTS[0].id
+  const make = () =>
+    createMockConsultationsApi({
+      delayMs: 0,
+      now: () => 1_700_000_000_000,
+      simulate: { acceptAfterMs: 5_000, replyAfterMs: 3_000 },
+    })
+
+  beforeEach(() => jest.useFakeTimers())
+  afterEach(() => jest.useRealTimers())
+
+  it('accepts a request after a while and greets the farmer', async () => {
+    const api = make()
+    const c = await api.create({ agrochemistId, text: 'first' })
+    expect((await api.get(c.id)).status).toBe('requested')
+
+    await jest.advanceTimersByTimeAsync(5_000)
+
+    const accepted = await api.get(c.id)
+    expect(accepted.status).toBe('active')
+    expect(accepted.unreadCount).toBe(1)
+    const newest = (await api.messages(c.id))[0]
+    expect(newest.senderId).toBe(agrochemistId)
+  })
+
+  it('answers every message of the farmer after a pause', async () => {
+    const api = make()
+    const c = await api.create({ agrochemistId, text: 'first' })
+    await jest.advanceTimersByTimeAsync(5_000)
+    const before = (await api.messages(c.id)).length
+
+    await api.sendMessage(c.id, 'And the neighbours?')
+    expect((await api.messages(c.id)).length).toBe(before + 1)
+    await jest.advanceTimersByTimeAsync(3_000)
+
+    const after = await api.messages(c.id)
+    expect(after.length).toBe(before + 2)
+    expect(after[0].senderId).toBe(agrochemistId)
+  })
+
+  it('greets in every chat, and a plain greeting when there is no diagnosis', async () => {
+    const api = make()
+    const first = await api.create({ agrochemistId, text: 'first' })
+    const second = await api.create({ agrochemistId: MOCK_AGROCHEMISTS[1].id, text: 'second' })
+
+    await jest.advanceTimersByTimeAsync(5_000)
+
+    const a = (await api.messages(first.id))[0].text
+    const b = (await api.messages(second.id))[0].text
+    expect(a).toBe(b)
+    expect(a).toMatch(/Расскажите подробнее/)
+  })
+
+  it('looks at the diagnosis in the greeting when one is attached', async () => {
+    const api = createMockConsultationsApi({
+      delayMs: 0,
+      now: () => 1_700_000_000_000,
+      simulate: { acceptAfterMs: 5_000, replyAfterMs: 3_000 },
+    })
+    const c = await api.create({ agrochemistId, text: 'first', diagnosisId: 'd1' })
+
+    await jest.advanceTimersByTimeAsync(5_000)
+
+    expect((await api.messages(c.id))[0].text).toMatch(/Посмотрел ваше фото/)
+  })
+
+  it('answers a photo like a message', async () => {
+    const api = make()
+    const c = await api.create({ agrochemistId, text: 'first' })
+    await jest.advanceTimersByTimeAsync(5_000)
+    const before = (await api.messages(c.id)).length
+
+    await api.sendPhoto(c.id, { uri: 'file:///a.jpg', name: 'a.jpg', type: 'image/jpeg' })
+    await jest.advanceTimersByTimeAsync(3_000)
+
+    expect((await api.messages(c.id)).length).toBe(before + 2)
+  })
+
+  it('does not answer a chat the farmer closed after writing', async () => {
+    const api = make()
+    const c = await api.create({ agrochemistId, text: 'first' })
+    await jest.advanceTimersByTimeAsync(5_000)
+    await api.sendMessage(c.id, 'thanks')
+    const before = (await api.messages(c.id)).length
+    await api.close(c.id)
+
+    await jest.advanceTimersByTimeAsync(3_000)
+
+    expect((await api.messages(c.id)).length).toBe(before)
+  })
+
+  it('steps aside while `enabled` says a person answers the requests', async () => {
+    let person = true
+    const api = createMockConsultationsApi({
+      delayMs: 0,
+      now: () => 1_700_000_000_000,
+      simulate: { acceptAfterMs: 5_000, replyAfterMs: 3_000, enabled: () => !person },
+    })
+    const c = await api.create({ agrochemistId, text: 'first' })
+
+    await jest.advanceTimersByTimeAsync(5_000)
+    expect((await api.get(c.id)).status).toBe('requested')
+
+    // the person accepts by hand and writes; the simulation does not talk over them
+    person = false
+    await api.accept(c.id)
+    await api.sendMessage(c.id, 'hello')
+    await jest.advanceTimersByTimeAsync(3_000)
+    expect((await api.messages(c.id))[0].senderId).toBe(agrochemistId)
+  })
+
+  it('does not accept a request the farmer withdrew, nor answer a closed chat', async () => {
+    const api = make()
+    const withdrawn = await api.create({ agrochemistId, text: 'first' })
+    await api.close(withdrawn.id)
+    await jest.advanceTimersByTimeAsync(5_000)
+    expect((await api.get(withdrawn.id)).status).toBe('closed')
+    expect(await api.messages(withdrawn.id)).toHaveLength(1)
+  })
+
+  it('stays silent when it is not asked to simulate', async () => {
+    const api = createMockConsultationsApi({ delayMs: 0, now: () => 1_700_000_000_000 })
+    const c = await api.create({ agrochemistId, text: 'first' })
+
+    await jest.advanceTimersByTimeAsync(60_000)
+
+    expect((await api.get(c.id)).status).toBe('requested')
+  })
+})
+
 describe('mock chat', () => {
   const agrochemistId = MOCK_AGROCHEMISTS[0].id
   const make = () => createMockConsultationsApi({ delayMs: 0, now: () => 1_700_000_000_000 })

@@ -24,7 +24,23 @@ type Options = {
   maxWaiting?: number
   // the user the mock answers for; incoming messages are the ones of anybody else
   viewerId?: string
+  // An agrochemist who answers, to try the chat without a second person: accepts a request after the first
+  // delay and writes a greeting, then answers every message of the farmer after the second. Off by default
+  // (the tests drive the mock by hand); the mock mode of the app switches it on. `enabled` is asked when a
+  // timer fires: the simulation steps aside while a person is signed in as the agrochemist, who answers the
+  // requests by hand (screens 22b, 23a).
+  simulate?: { acceptAfterMs: number; replyAfterMs: number; enabled?: () => boolean }
 }
+
+// What the simulated agrochemist says, one after another in each chat. The greeting looks at the attached
+// diagnosis only when there is one.
+const GREETING_WITH_DIAGNOSIS =
+  'Здравствуйте! Посмотрел ваше фото. Уберите поражённые листья и обработайте посадки фунгицидом.'
+const GREETING_PLAIN = 'Здравствуйте! Расскажите подробнее, что вас беспокоит.'
+const SIMULATED_FOLLOW_UPS = [
+  'Повторите обработку через 10 дней и пришлите новое фото.',
+  'Если пятна появятся на соседних кустах, обработайте и их.',
+]
 
 export const MOCK_FARMER_ID = '00000000-0000-4000-8000-0000000000f1'
 
@@ -44,10 +60,13 @@ export function createMockConsultationsApi({
   diagnosisOf = () => undefined,
   maxWaiting = 5,
   viewerId = MOCK_FARMER_ID,
+  simulate,
 }: Options = {}): ConsultationsApi {
   const consultations: Consultation[] = []
   const chats = new Map<string, ChatMessage[]>() // oldest first
-  const wait = () => new Promise((resolve) => setTimeout(resolve, delayMs))
+  // no delay means no timer: the tests that fake the timers do not hang on every call
+  const wait = () =>
+    delayMs > 0 ? new Promise((resolve) => setTimeout(resolve, delayMs)) : Promise.resolve()
   let messageCount = 0
   let tick = 0
 
@@ -105,6 +124,25 @@ export function createMockConsultationsApi({
     return consultation
   }
 
+  // the simulated agrochemist writes the next line of its answers in a chat, if the chat is still open
+  const replies = new Map<string, number>() // by consultation id
+  const simulating = () => simulate !== undefined && (simulate.enabled?.() ?? true)
+  const reply = (consultation: Consultation) => {
+    if (!simulating() || consultation.status !== 'active') return
+    const index = replies.get(consultation.id) ?? 0
+    replies.set(consultation.id, index + 1)
+    const text =
+      index === 0
+        ? consultation.diagnosisId
+          ? GREETING_WITH_DIAGNOSIS
+          : GREETING_PLAIN
+        : SIMULATED_FOLLOW_UPS[(index - 1) % SIMULATED_FOLLOW_UPS.length]
+    addMessage(consultation, consultation.agrochemist.id, text, null)
+  }
+  const answerLater = (consultation: Consultation) => {
+    if (simulate) setTimeout(() => reply(consultation), simulate.replyAfterMs)
+  }
+
   return {
     create: async (body) => {
       await wait()
@@ -138,6 +176,14 @@ export function createMockConsultationsApi({
       consultations.push(consultation)
       // the text of the request is the first message of the chat, like on the backend
       addMessage(consultation, MOCK_FARMER_ID, text, null)
+      if (simulate) {
+        setTimeout(() => {
+          if (!simulating() || consultation.status !== 'requested') return
+          consultation.status = 'active'
+          consultation.acceptedAt = stamp()
+          reply(consultation)
+        }, simulate.acceptAfterMs)
+      }
       return out(consultation)
     },
     list: async (query = {}) => {
@@ -206,14 +252,18 @@ export function createMockConsultationsApi({
       const c = find(id)
       const clean = checkText(text)
       if (c.status !== 'active') throw invalidState(c.status)
-      return { ...addMessage(c, viewerId, clean, null) }
+      const sent = { ...addMessage(c, viewerId, clean, null) }
+      answerLater(c)
+      return sent
     },
     sendPhoto: async (id, _file, text) => {
       await wait()
       const c = find(id)
       const caption = text?.trim() ? checkText(text) : null
       if (c.status !== 'active') throw invalidState(c.status)
-      return { ...addMessage(c, viewerId, caption, 'photo') }
+      const sent = { ...addMessage(c, viewerId, caption, 'photo') }
+      answerLater(c)
+      return sent
     },
     markRead: async (id, upTo) => {
       await wait()
