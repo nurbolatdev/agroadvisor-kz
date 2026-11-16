@@ -71,6 +71,16 @@ describe('chats screen', () => {
     expect(mockList).toHaveBeenCalledTimes(1)
   })
 
+  it('draws a chat once when a page shift brings it twice', async () => {
+    const full = Array.from({ length: 50 }, (_, i) => chat(`c${i}`, `Agro ${i}`))
+    // the last chat of page 0 comes again at the head of page 1
+    mockList.mockResolvedValueOnce(full).mockResolvedValueOnce([full[49]])
+    await render(<ChatsScreen />)
+
+    expect(await screen.findByText('Agro 49')).toBeTruthy()
+    expect(mockList).toHaveBeenCalledTimes(2)
+  })
+
   it('shows 99+ for a large number of unread messages', async () => {
     await render(<ChatsScreen />)
     await screen.findByText('Aigul Sarsenova')

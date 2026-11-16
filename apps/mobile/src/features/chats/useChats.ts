@@ -17,17 +17,19 @@ const PAGE_SIZE = 50
 const MAX_PAGES = 10
 
 async function readAll(): Promise<Consultation[]> {
-  const all: Consultation[] = []
+  // by id: the server pages by offset, so a message that arrives between two reads moves a chat onto the
+  // next page and it comes twice; the first copy (the fresher page) stays
+  const byId = new Map<string, Consultation>()
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const items = await consultationsApi.list({
       status: ['active', 'closed'],
       page,
       size: PAGE_SIZE,
     })
-    all.push(...items)
+    for (const item of items) if (!byId.has(item.id)) byId.set(item.id, item)
     if (items.length < PAGE_SIZE) break
   }
-  return all.filter(isChat)
+  return [...byId.values()].filter(isChat)
 }
 
 // The conversations of the caller, the latest activity first (the order of the server). Nothing is read
