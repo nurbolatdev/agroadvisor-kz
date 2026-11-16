@@ -8,18 +8,23 @@ type Options = {
   now?: () => number
 }
 
+// What only the mock can do: look a diagnosis it made up by id, at once (the mock of the consultations shows
+// the diagnosis a farmer attached to a request).
+export type MockDiagnosisLookup = { lookup: (id: string) => DiagnosisResult | undefined }
+
 // Works without the backend. Like the real one it answers the same key with the same diagnosis, and it
 // keeps what it made so that the history and a diagnosis by id work in the same session.
 export function createMockDiagnosisApi({
   delayMs = 1200,
   now = Date.now,
-}: Options = {}): DiagnosisApi & DiagnosisHistoryApi {
+}: Options = {}): DiagnosisApi & DiagnosisHistoryApi & MockDiagnosisLookup {
   const made = new Map<string, DiagnosisResult>()
   const history: DiagnosisResult[] = [] // oldest first
   let count = 0
   const wait = () => new Promise((resolve) => setTimeout(resolve, delayMs))
 
   return {
+    lookup: (id) => history.find((d) => d.id === id),
     create: async (pending: PendingDiagnosis) => {
       await wait()
       const existing = made.get(pending.key)

@@ -39,6 +39,13 @@ describe('mock diagnosis history', () => {
       code: 'diagnosis_not_found',
     })
   })
+
+  it('looks a made diagnosis up at once, and knows nothing of other ids', async () => {
+    const { api, made } = await madeThree()
+
+    expect(api.lookup(made[0].id)).toBe(made[0])
+    expect(api.lookup('nope')).toBeUndefined()
+  })
 })
 
 describe('mock diagnosis api', () => {
