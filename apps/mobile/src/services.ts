@@ -15,6 +15,8 @@ import { createMockDiseaseApi } from '@/api/mock/diseases'
 import { createMockRegionsApi } from '@/api/mock/regions'
 import { createRegionsApi } from '@/api/regions'
 import { mockAccount } from '@/api/mock/account'
+import { createFieldsApi } from '@/api/fields'
+import { createMockFieldsApi } from '@/api/mock/fields'
 import { createMockNotificationsApi } from '@/api/mock/notifications'
 import { createNotificationsApi } from '@/api/notifications'
 import { createMockUsersApi } from '@/api/mock/users'
@@ -102,6 +104,9 @@ export const consultationsApi =
         },
       })
     : createConsultationsApi(apiClient)
+
+// The fields of a farmer (screens 06, 07).
+export const fieldsApi = API_MODE === 'mock' ? createMockFieldsApi() : createFieldsApi(apiClient)
 
 // The inbox of notifications (docs/api/notifications.md). In the mock mode it starts with a few, to try the
 // screen: an answer in a chat, a decision on the profile.
