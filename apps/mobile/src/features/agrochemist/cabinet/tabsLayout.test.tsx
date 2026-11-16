@@ -50,6 +50,7 @@ jest.mock('@/services', () => {
   return {
     useProfile,
     useDiagnosis: { getState: () => ({ reset: jest.fn() }) },
+    consultationsApi: { unreadCount: () => Promise.resolve({ count: 0 }) },
     useSession: (select: (s: object) => unknown) => select({ logout: jest.fn() }),
   }
 })

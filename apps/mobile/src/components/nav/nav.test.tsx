@@ -91,6 +91,27 @@ describe('BottomBar', () => {
     expect(screen.queryByText(/soon/i)).toBeNull()
   })
 
+  it('draws the number of unread messages on the Chats tab and says it to a screen reader', async () => {
+    await render(
+      <BottomBar activeRoute="home" onNavigate={noop} onCamera={noop} badges={{ chats: 2 }} />,
+    )
+
+    expect(screen.getByRole('tab', { name: 'Chats, Unread: 2' })).toBeTruthy()
+    expect(screen.getByText('2', { includeHiddenElements: true })).toBeTruthy()
+  })
+
+  it('draws no number for zero and 99+ for a large one', async () => {
+    const { rerender } = await render(
+      <BottomBar activeRoute="home" onNavigate={noop} onCamera={noop} badges={{ chats: 0 }} />,
+    )
+    expect(screen.getByRole('tab', { name: 'Chats' })).toBeTruthy()
+
+    await rerender(
+      <BottomBar activeRoute="home" onNavigate={noop} onCamera={noop} badges={{ chats: 150 }} />,
+    )
+    expect(screen.getByText('99+', { includeHiddenElements: true })).toBeTruthy()
+  })
+
   it('marks the open tab', async () => {
     await render(<BottomBar activeRoute="home" onNavigate={noop} onCamera={noop} />)
 
