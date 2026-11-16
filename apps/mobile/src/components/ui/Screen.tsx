@@ -26,7 +26,11 @@ export function Screen({ children, scroll = false }: Props) {
   return (
     <BlurTargetProvider value={targetRef}>
       <View style={styles.screen}>
-        <BlurTargetView ref={targetRef} style={[StyleSheet.absoluteFill, styles.background]} />
+        <BlurTargetView
+          ref={targetRef}
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, styles.background]}
+        />
         {scroll ? (
           <ScrollView
             style={styles.layer}
