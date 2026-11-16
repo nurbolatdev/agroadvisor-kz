@@ -31,6 +31,8 @@ public class WeatherService {
 
     private static final BigDecimal MAX_LATITUDE = new BigDecimal("90");
     private static final BigDecimal MAX_LONGITUDE = new BigDecimal("180");
+    private static final int MAX_SCALE = 10;
+    private static final int MAX_PRECISION = 20;
 
     private final ForecastCache forecasts;
     private final RateLimiter limiter;
@@ -69,9 +71,11 @@ public class WeatherService {
             @Schema(requiredMode = REQUIRED) LocalDateTime time,
             @Schema(requiredMode = REQUIRED) double temperatureC,
             @Schema(requiredMode = REQUIRED) double precipitationMm,
-            @Schema(description = "Percent", requiredMode = REQUIRED) int precipitationProbability,
+            @Schema(description = "Percent; null when the source does not give it", nullable = true)
+            Integer precipitationProbability,
             @Schema(requiredMode = REQUIRED) double windMs,
-            @Schema(requiredMode = REQUIRED) int weatherCode,
+            @Schema(description = "WMO weather code; null when the source does not give it", nullable = true)
+            Integer weatherCode,
             @Schema(description = "This hour is good to start spraying", requiredMode = REQUIRED)
             boolean sprayOk) {
     }
@@ -86,7 +90,7 @@ public class WeatherService {
      * Each user may ask {@code requestsPerMinute} times a minute; every ask counts, cached or not.
      */
     public WeatherView weather(UUID user, BigDecimal latitude, BigDecimal longitude) {
-        if (latitude == null || longitude == null || latitude.abs().compareTo(MAX_LATITUDE) > 0
+        if (!plausible(latitude) || !plausible(longitude) || latitude.abs().compareTo(MAX_LATITUDE) > 0
                 || longitude.abs().compareTo(MAX_LONGITUDE) > 0) {
             throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,
                     "Latitude must be from -90 to 90 and longitude from -180 to 180");
@@ -96,6 +100,14 @@ public class WeatherService {
         Forecast forecast = forecasts.forecast(latitude.setScale(2, RoundingMode.HALF_UP),
                 longitude.setScale(2, RoundingMode.HALF_UP));
         return view(forecast);
+    }
+
+    /**
+     * A number like 1e-100000000 is a short query but a huge scale: rounding it would compute a power of ten of
+     * that size and tie up a core for many seconds. So the size of the number is checked before any arithmetic.
+     */
+    private static boolean plausible(BigDecimal value) {
+        return value != null && value.scale() <= MAX_SCALE && value.precision() <= MAX_PRECISION;
     }
 
     private WeatherView view(Forecast forecast) {

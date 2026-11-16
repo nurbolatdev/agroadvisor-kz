@@ -64,14 +64,16 @@ class OpenMeteoClient implements WeatherClient {
                     .retrieve()
                     .body(Wire.class);
         } catch (ResourceAccessException e) {
-            log.warn("Open-Meteo did not answer: {}", e.getMessage());
+            // Not e.getMessage(): it holds the whole address, and so the point the farmer asked about
+            log.warn("Open-Meteo did not answer: {}", e.getCause() == null ? e.getClass().getSimpleName()
+                    : e.getCause().toString());
             throw unavailable();
         } catch (RestClientResponseException e) {
             // 429 and 5xx: the source is busy or down; a 4xx of ours (a bad point) cannot be fixed by waiting
             log.warn("Open-Meteo answered {}", e.getStatusCode().value());
             throw e.getStatusCode().is4xxClientError() && e.getStatusCode().value() != 429 ? error() : unavailable();
         } catch (RuntimeException e) {
-            log.error("Unreadable answer of Open-Meteo: {}", e.toString());
+            log.error("Unreadable answer of Open-Meteo: {}", e.getClass().getSimpleName());
             throw error();
         }
         try {
@@ -103,7 +105,8 @@ class OpenMeteoClient implements WeatherClient {
         }
         List<Forecast.Hour> hours = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
-            // A hole in the series would make a spray window false, so one null spoils the whole forecast
+            // A hole in the temperature, the wind or the precipitation would make a spray window false, so one
+            // null there (the unboxing below) spoils the whole forecast; the probability and the code may be empty
             hours.add(new Forecast.Hour(LocalDateTime.parse(h.time().get(i)), h.temperature().get(i),
                     h.precipitation().get(i), h.probability().get(i), h.wind().get(i), h.weatherCode().get(i)));
         }

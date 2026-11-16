@@ -16,8 +16,12 @@ public record Forecast(String timezone, int utcOffsetSeconds, Current current, L
             int weatherCode) implements Serializable {
     }
 
-    /** One hour of the forecast; {@code precipitationMm} is the sum over the hour. */
-    public record Hour(LocalDateTime time, double temperatureC, double precipitationMm, int precipitationProbability,
-            double windMs, int weatherCode) implements Serializable {
+    /**
+     * One hour of the forecast. {@code precipitationMm} is the sum over the <em>preceding</em> hour (the way the
+     * source reports it). The probability and the weather code are only shown, so the source may leave them
+     * empty (null) without spoiling the forecast.
+     */
+    public record Hour(LocalDateTime time, double temperatureC, double precipitationMm,
+            Integer precipitationProbability, double windMs, Integer weatherCode) implements Serializable {
     }
 }
