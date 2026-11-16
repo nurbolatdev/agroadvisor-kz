@@ -11,18 +11,22 @@ type Props = {
   sending: boolean
   onSend: (text: string) => Promise<boolean>
   onAttach: () => void
+  // the person changed the text: an old error about the last send is no longer true
+  onEdit: () => void
 }
 
 // The line at the bottom of the chat (screens 17, 17a): the attach button, the field and the send button.
 // The text is cleared only when the message went, so a failed send does not lose what was typed.
-export function Composer({ disabled, sending, onSend, onAttach }: Props) {
+export function Composer({ disabled, sending, onSend, onAttach, onEdit }: Props) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
   const blocked = disabled || sending
 
   const send = async () => {
     if (blocked || text.trim() === '') return
-    if (await onSend(text)) setText('')
+    const sent = text
+    // only what was sent is removed: what the person typed while the message was on its way stays
+    if (await onSend(sent)) setText((now) => (now.startsWith(sent) ? now.slice(sent.length) : now))
   }
 
   return (
@@ -40,7 +44,10 @@ export function Composer({ disabled, sending, onSend, onAttach }: Props) {
       <TextInput
         accessibilityLabel={t('chats.chat.placeholder')}
         value={text}
-        onChangeText={setText}
+        onChangeText={(next) => {
+          setText(next)
+          onEdit()
+        }}
         editable={!disabled}
         multiline
         maxLength={CONSULTATION_TEXT_MAX}

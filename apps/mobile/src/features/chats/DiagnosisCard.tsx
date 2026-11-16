@@ -13,7 +13,7 @@ import { chatPhotoSource } from './messages'
 // The diagnosis the farmer attached to the request, at the top of the chat (screens 17, 17a): the photo, the
 // name of the disease and the confidence. The name comes from the reference; until it loads the code of the
 // class stands in.
-export function DiagnosisCard({ consultationId, diagnosis }: Props) {
+export function DiagnosisCard({ consultationId, diagnosis, asAgrochemist }: Props) {
   const { t } = useTranslation()
   const accessToken = useSession((s) => s.accessToken)
   const { state } = useDiseaseDetail(diagnosis.top1.code)
@@ -37,14 +37,17 @@ export function DiagnosisCard({ consultationId, diagnosis }: Props) {
           {name}
         </AppText>
         <AppText variant="small" color={colors.textMuted}>
-          {t('chats.chat.diagnosisLine', { percent: Math.round(diagnosis.top1.confidence * 100) })}
+          {t(asAgrochemist ? 'chats.chat.diagnosisLineAi' : 'chats.chat.diagnosisLine', {
+            percent: Math.round(diagnosis.top1.confidence * 100),
+          })}
         </AppText>
       </View>
     </View>
   )
 }
 
-type Props = { consultationId: string; diagnosis: DiagnosisResult }
+// the farmer's screen says "Diagnosis", the agrochemist's says "AI diagnosis" (screens 17, 17a)
+type Props = { consultationId: string; diagnosis: DiagnosisResult; asAgrochemist: boolean }
 
 const styles = StyleSheet.create({
   card: {

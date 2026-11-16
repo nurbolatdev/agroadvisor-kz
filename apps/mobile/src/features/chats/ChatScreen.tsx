@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
@@ -32,10 +32,15 @@ import { useChat } from './useChat'
 // attached diagnosis, the messages and the line to write. Newest messages are at the bottom, older ones are
 // loaded with the button at the top. A closed consultation can be read, not written to.
 export function ChatScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>()
+  // keyed by the id: another conversation on the same mounted screen (a link from a notification) starts clean
+  return <ChatView key={id} id={id} />
+}
+
+function ChatView({ id }: { id: string }) {
   const { t } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { id } = useLocalSearchParams<{ id: string }>()
   const roles = useProfile((s) => s.roles)
   const agrochemist = roles ? hasAgrochemistRole(roles) : false
   const [shown, setShown] = useState(false)
@@ -56,6 +61,7 @@ export function ChatScreen() {
   const attach = () => {
     const pick = async (source: DocumentSource) => {
       setAttachProblem(null)
+      chat.clearProblem()
       const result = await chooseDocument(source)
       if (result.status === 'chosen') await chat.sendPhoto(result.document.file)
       else if (result.status === 'refused') {
@@ -70,6 +76,8 @@ export function ChatScreen() {
   }
 
   const c = chat.consultation
+  // the list is inverted: newest first; the same array while nothing changed, so the bubbles stay as they are
+  const newestFirst = useMemo(() => [...chat.messages].reverse(), [chat.messages])
   const name = c ? counterpartName(c, agrochemist) : ''
   const meId = c ? myId(c) : ''
   const closed = c ? c.status !== 'active' : false
@@ -79,7 +87,7 @@ export function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <Pressable
@@ -127,7 +135,7 @@ export function ChatScreen() {
           contentContainerStyle={styles.listContent}
           // newest first and inverted: the list starts at the bottom and keeps its place when messages come
           inverted
-          data={[...chat.messages].reverse()}
+          data={newestFirst}
           keyExtractor={(m) => m.id}
           keyboardShouldPersistTaps="handled"
           ItemSeparatorComponent={() => <View style={styles.gap} />}
@@ -143,7 +151,11 @@ export function ChatScreen() {
                 />
               ) : null}
               {c && chat.diagnosis ? (
-                <DiagnosisCard consultationId={c.id} diagnosis={chat.diagnosis} />
+                <DiagnosisCard
+                  consultationId={c.id}
+                  diagnosis={chat.diagnosis}
+                  asAgrochemist={agrochemist}
+                />
               ) : null}
             </View>
           }
@@ -169,7 +181,14 @@ export function ChatScreen() {
         <Composer
           disabled={closed || chat.load.status !== 'ready'}
           sending={chat.sending}
-          onSend={chat.sendText}
+          onSend={(text) => {
+            setAttachProblem(null)
+            return chat.sendText(text)
+          }}
+          onEdit={() => {
+            setAttachProblem(null)
+            chat.clearProblem()
+          }}
           onAttach={attach}
         />
       </View>

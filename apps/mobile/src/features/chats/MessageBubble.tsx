@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Image, StyleSheet, View } from 'react-native'
 
@@ -17,10 +17,13 @@ const PHOTO_SIZE = 220
 // A message of the chat (screens 17, 17a): mine on the right in green, the other side's on the left in
 // white; the time sits in the corner. A photo is fetched with the token; if it cannot be loaded the bubble
 // says so instead of staying empty.
-export function MessageBubble({ message, mine }: Props) {
+export const MessageBubble = memo(function MessageBubble({ message, mine }: Props) {
   const { t, i18n } = useTranslation()
   const accessToken = useSession((s) => s.accessToken)
-  const [failed, setFailed] = useState(false)
+  // a failure belongs to the token it happened with: the token lives 15 minutes, a photo that got a 401 is
+  // asked for again once the token is renewed
+  const [failedFor, setFailedFor] = useState<string | null>(null)
+  const failed = failedFor !== null && failedFor === accessToken
   const photo = chatPhotoSource(message.photoUrl, API_URL, accessToken)
   const text = message.text?.trim() ? message.text : null
   const fg = mine ? colors.white : colors.text
@@ -30,8 +33,9 @@ export function MessageBubble({ message, mine }: Props) {
       {message.photoUrl ? (
         photo && !failed ? (
           <Image
+            key={accessToken}
             source={photo}
-            onError={() => setFailed(true)}
+            onError={() => setFailedFor(accessToken)}
             accessibilityIgnoresInvertColors
             accessibilityLabel={t('chats.chat.photoAlt')}
             style={styles.photo}
@@ -52,7 +56,7 @@ export function MessageBubble({ message, mine }: Props) {
       </AppText>
     </View>
   )
-}
+})
 
 const styles = StyleSheet.create({
   bubble: {
