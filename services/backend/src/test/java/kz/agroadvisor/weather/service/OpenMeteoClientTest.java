@@ -71,7 +71,7 @@ class OpenMeteoClientTest {
     }
 
     private static OpenMeteoClient client(String url) {
-        return new OpenMeteoClient(new WeatherProperties(url, Duration.ofSeconds(1), Duration.ofMillis(300), 30));
+        return new OpenMeteoClient(new WeatherProperties(url, Duration.ofSeconds(1), Duration.ofMillis(300), 30, 300));
     }
 
     /** An answer shaped like the real one (with fields we ignore); {@code hole} replaces one wind value. */
@@ -104,6 +104,18 @@ class OpenMeteoClientTest {
         assertThat(forecast.hours()).hasSize(24);
         assertThat(forecast.hours().getFirst().windMs()).isEqualTo(1.5);
         assertThat(forecast.hours().getFirst().precipitationProbability()).isEqualTo(3);
+    }
+
+    @Test
+    void anEmptyProbabilityOrCodeDoesNotSpoilTheForecast() {
+        body = answer(24, "").replace("\"precipitation_probability\": [3", "\"precipitation_probability\": [null")
+                .replace("\"weather_code\": [3", "\"weather_code\": [null");
+
+        Forecast forecast = client().fetch(LAT, LON);
+
+        assertThat(forecast.hours().getFirst().precipitationProbability()).isNull();
+        assertThat(forecast.hours().getFirst().weatherCode()).isNull();
+        assertThat(forecast.hours().get(1).precipitationProbability()).isEqualTo(3);
     }
 
     @Test

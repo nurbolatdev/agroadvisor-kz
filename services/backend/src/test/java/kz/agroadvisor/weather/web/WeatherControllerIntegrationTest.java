@@ -87,10 +87,11 @@ class WeatherControllerIntegrationTest {
                 .andExpect(jsonPath("$.timezone").value("Asia/Almaty"))
                 .andExpect(jsonPath("$.current.temperatureC").value(18.5))
                 .andExpect(jsonPath("$.current.windMs").value(2.5))
-                // Two of the 120 hours are in the past; the rest start with the current hour
-                .andExpect(jsonPath("$.hours.length()").value(118))
+                // The stub starts two hours ago, so two of the 120 hours are in the past (one more when the
+                // clock passes the hour between the stub and the request): the rest start with the current hour
+                .andExpect(jsonPath("$.hours.length()").value(org.hamcrest.Matchers.anyOf(
+                        org.hamcrest.Matchers.is(118), org.hamcrest.Matchers.is(117))))
                 .andExpect(jsonPath("$.hours[0].sprayOk").value(true))
-                .andExpect(jsonPath("$.hours[117].sprayOk").value(false))
                 .andExpect(jsonPath("$.sprayWindows.length()").value(1));
     }
 
@@ -122,6 +123,21 @@ class WeatherControllerIntegrationTest {
     }
 
     @Test
+    void aHugeScaleIsRefusedAtOnce() throws Exception {
+        // 1e-100000000 is a short query, but rounding it would take about 40 s of a core
+        long started = System.nanoTime();
+
+        for (String bad : new String[] {"1e-100000000", "1e-999999999", "0.1234567890123456789012"}) {
+            mvc.perform(get("/api/weather").header("Authorization", farmer)
+                    .param("latitude", bad).param("longitude", "76.95"))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("validation_failed"));
+        }
+
+        assertThat(java.time.Duration.ofNanos(System.nanoTime() - started)).isLessThan(java.time.Duration.ofSeconds(5));
+        assertThat(stub.points()).isEmpty();
+    }
+
+    @Test
     void rejectsAPointOffTheGlobeOrMissing() throws Exception {
         mvc.perform(get("/api/weather").header("Authorization", farmer)
                 .param("latitude", "91").param("longitude", "76.95"))
@@ -137,6 +153,11 @@ class WeatherControllerIntegrationTest {
 
     @Test
     void limitsTheRequestsOfOneUserPerMinute() throws Exception {
+        // The limit counts per clock minute: do not let the 31 requests straddle a minute boundary
+        long second = java.time.Instant.now().getEpochSecond() % 60;
+        if (second > 45) {
+            Thread.sleep((61 - second) * 1000);
+        }
         for (int i = 0; i < 30; i++) {
             mvc.perform(get("/api/weather").header("Authorization", farmer)
                     .param("latitude", "43.25").param("longitude", "76.95")).andExpect(status().isOk());
