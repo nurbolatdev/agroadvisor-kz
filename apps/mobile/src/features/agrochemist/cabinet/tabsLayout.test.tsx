@@ -15,6 +15,9 @@ type Captured = {
 
 const mockCaptured: Captured = { props: null, screens: [], mounts: 0 }
 let mockRoles: string[] | null = ['farmer']
+let mockUnread = 0
+let mockFocused = true
+const mockUnreadRead = jest.fn()
 
 jest.mock('expo-router', () => {
   const react = require('react')
@@ -35,7 +38,7 @@ jest.mock('expo-router', () => {
     return null
   }
   Tabs.Screen = Screen
-  return { Tabs, useRouter: () => ({ push: jest.fn() }) }
+  return { Tabs, useRouter: () => ({ push: jest.fn() }), useIsFocused: () => mockFocused }
 })
 jest.mock(
   'react-native-safe-area-context',
@@ -50,6 +53,12 @@ jest.mock('@/services', () => {
   return {
     useProfile,
     useDiagnosis: { getState: () => ({ reset: jest.fn() }) },
+    consultationsApi: {
+      unreadCount: () => {
+        mockUnreadRead()
+        return Promise.resolve({ count: mockUnread })
+      },
+    },
     useSession: (select: (s: object) => unknown) => select({ logout: jest.fn() }),
   }
 })
@@ -69,6 +78,8 @@ beforeEach(() => {
   mockCaptured.screens = []
   mockCaptured.mounts = 0
   mockRoles = ['farmer']
+  mockUnread = 0
+  mockFocused = true
 })
 
 function bar(activeRoute: string, navigateToTab = jest.fn()) {
@@ -196,6 +207,27 @@ describe('the bottom bar by role', () => {
     expect(screen.getByRole('tab', { name: 'Profile' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Diagnose by photo' })).toBeNull()
     expect(screen.queryByRole('tab', { name: 'Home' })).toBeNull()
+  })
+
+  it('shows the unread number of the server on the Chats tab', async () => {
+    mockRoles = ['farmer']
+    mockUnread = 2
+    await render(<TabsLayout />)
+
+    await render(bar('home', jest.fn()))
+
+    expect(await screen.findByRole('tab', { name: 'Chats, Unread: 2' })).toBeTruthy()
+  })
+
+  it('does not read the number while a chat or a request is open over the tabs', async () => {
+    mockRoles = ['farmer']
+    mockFocused = false
+    mockUnreadRead.mockClear()
+    await render(<TabsLayout />)
+
+    await render(bar('home', jest.fn()))
+
+    expect(mockUnreadRead).not.toHaveBeenCalled()
   })
 
   it('a tab of the bar opens the tab of the router with that name', async () => {

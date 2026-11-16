@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AppText } from '@/components/ui'
-import { colors, radii, sizes, spacing } from '@/theme/tokens'
+import { colors, radii, sizes, spacing, typography } from '@/theme/tokens'
 
 import { type TabSlot, visibleSlots } from './tabSlots'
 
@@ -12,13 +12,15 @@ type Props = {
   activeRoute: string
   onNavigate: (route: string) => void
   onCamera: () => void
+  // the number on a place, for example the unread messages on the Chats tab; nothing is drawn for 0
+  badges?: Partial<Record<TabSlot['id'], number>>
   // for tests; the bar of the app uses the real configuration
   slots?: readonly TabSlot[]
 }
 
 // The bottom bar of the design (screens 04 and 19): the places come from the configuration in tabSlots.ts,
 // only the ready ones are drawn, and the camera button is a round button raised above the bar.
-export function BottomBar({ activeRoute, onNavigate, onCamera, slots }: Props) {
+export function BottomBar({ activeRoute, onNavigate, onCamera, badges, slots }: Props) {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
 
@@ -43,16 +45,29 @@ export function BottomBar({ activeRoute, onNavigate, onCamera, slots }: Props) {
         }
         const active = slot.route === activeRoute
         const color = active ? colors.primary : colors.textMuted
+        const badge = badges?.[slot.id] ?? 0
         return (
           <Pressable
             key={slot.id}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
-            accessibilityLabel={label}
+            // the number is part of the word of the tab: a screen reader says "Chats, unread: 2"
+            accessibilityLabel={
+              badge > 0 ? `${label}, ${t('chats.unread', { count: badge })}` : label
+            }
             onPress={() => slot.route && onNavigate(slot.route)}
             style={styles.slot}
           >
-            <Icon size={sizes.icon} color={color} />
+            <View>
+              <Icon size={sizes.icon} color={color} />
+              {badge > 0 ? (
+                <View style={styles.badge} importantForAccessibility="no-hide-descendants">
+                  <AppText variant="caption" color={colors.white} style={styles.badgeText}>
+                    {badge > 99 ? '99+' : String(badge)}
+                  </AppText>
+                </View>
+              ) : null}
+            </View>
             <AppText variant="caption" color={color}>
               {label}
             </AppText>
@@ -92,4 +107,19 @@ const styles = StyleSheet.create({
     borderColor: colors.white,
   },
   pressed: { opacity: 0.85 },
+  // the red circle at the top right of the icon (screen 17b)
+  badge: {
+    position: 'absolute',
+    // anchored by the left edge: a wide number ("99+") grows to the right, away from the icon
+    top: -spacing.sm,
+    left: sizes.icon - spacing.sm,
+    minWidth: sizes.badgeSm,
+    height: sizes.badgeSm,
+    paddingHorizontal: spacing.xs,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.danger,
+  },
+  badgeText: typography.badge,
 })
