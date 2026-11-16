@@ -50,6 +50,7 @@ function RoleTabs({ agrochemist }: { agrochemist: boolean }) {
     >
       {/* direct children, not a fragment: the router reads only Screen elements, in this order */}
       {agrochemist ? <Tabs.Screen name="requests" /> : <Tabs.Screen name="home" />}
+      <Tabs.Screen name="chats" />
       <Tabs.Screen name="profile" />
       {agrochemist ? (
         <Tabs.Screen name="home" options={{ href: null }} />

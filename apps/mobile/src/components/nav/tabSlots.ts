@@ -46,7 +46,7 @@ export const TAB_SLOTS: readonly TabSlot[] = [
     route: 'chats',
     icon: MessageCircle,
     label: 'tabs.chats',
-    implemented: false, // M14
+    implemented: true,
   },
   {
     id: 'profile',
@@ -83,7 +83,7 @@ export const AGROCHEMIST_SLOTS: readonly TabSlot[] = [
     route: 'chats',
     icon: MessageCircle,
     label: 'tabs.chats',
-    implemented: false, // M14
+    implemented: true,
   },
   {
     id: 'profile',
