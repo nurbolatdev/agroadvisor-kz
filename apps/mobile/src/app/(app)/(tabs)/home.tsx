@@ -84,6 +84,11 @@ function FarmerHome() {
           variant="secondary"
           onPress={() => router.push('/catalog')}
         />
+        <Button
+          label={t('home.fields')}
+          variant="secondary"
+          onPress={() => router.push('/fields')}
+        />
       </View>
 
       {/* Only when there is something to show: with no diagnoses the home screen is the card alone */}
