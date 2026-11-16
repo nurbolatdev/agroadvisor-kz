@@ -26,13 +26,18 @@ type Options = {
   viewerId?: string
   // An agrochemist who answers, to try the chat without a second person: accepts a request after the first
   // delay and writes a greeting, then answers every message of the farmer after the second. Off by default
-  // (the tests drive the mock by hand); the mock mode of the app switches it on.
-  simulate?: { acceptAfterMs: number; replyAfterMs: number }
+  // (the tests drive the mock by hand); the mock mode of the app switches it on. `enabled` is asked when a
+  // timer fires: the simulation steps aside while a person is signed in as the agrochemist, who answers the
+  // requests by hand (screens 22b, 23a).
+  simulate?: { acceptAfterMs: number; replyAfterMs: number; enabled?: () => boolean }
 }
 
-// what the simulated agrochemist says, one after another
-const SIMULATED_REPLIES = [
-  'Здравствуйте! Посмотрел ваше фото. Уберите поражённые листья и обработайте посадки фунгицидом.',
+// What the simulated agrochemist says, one after another in each chat. The greeting looks at the attached
+// diagnosis only when there is one.
+const GREETING_WITH_DIAGNOSIS =
+  'Здравствуйте! Посмотрел ваше фото. Уберите поражённые листья и обработайте посадки фунгицидом.'
+const GREETING_PLAIN = 'Здравствуйте! Расскажите подробнее, что вас беспокоит.'
+const SIMULATED_FOLLOW_UPS = [
   'Повторите обработку через 10 дней и пришлите новое фото.',
   'Если пятна появятся на соседних кустах, обработайте и их.',
 ]
@@ -119,12 +124,19 @@ export function createMockConsultationsApi({
     return consultation
   }
 
-  // the simulated agrochemist writes the next line of its answers, if the chat is still open
-  let replyCount = 0
+  // the simulated agrochemist writes the next line of its answers in a chat, if the chat is still open
+  const replies = new Map<string, number>() // by consultation id
+  const simulating = () => simulate !== undefined && (simulate.enabled?.() ?? true)
   const reply = (consultation: Consultation) => {
-    if (consultation.status !== 'active') return
-    const text = SIMULATED_REPLIES[replyCount % SIMULATED_REPLIES.length]
-    replyCount += 1
+    if (!simulating() || consultation.status !== 'active') return
+    const index = replies.get(consultation.id) ?? 0
+    replies.set(consultation.id, index + 1)
+    const text =
+      index === 0
+        ? consultation.diagnosisId
+          ? GREETING_WITH_DIAGNOSIS
+          : GREETING_PLAIN
+        : SIMULATED_FOLLOW_UPS[(index - 1) % SIMULATED_FOLLOW_UPS.length]
     addMessage(consultation, consultation.agrochemist.id, text, null)
   }
   const answerLater = (consultation: Consultation) => {
@@ -166,7 +178,7 @@ export function createMockConsultationsApi({
       addMessage(consultation, MOCK_FARMER_ID, text, null)
       if (simulate) {
         setTimeout(() => {
-          if (consultation.status !== 'requested') return
+          if (!simulating() || consultation.status !== 'requested') return
           consultation.status = 'active'
           consultation.acceptedAt = stamp()
           reply(consultation)

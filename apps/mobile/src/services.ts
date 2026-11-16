@@ -14,6 +14,7 @@ import { createMockDiagnosisApi } from '@/api/mock/diagnosis'
 import { createMockDiseaseApi } from '@/api/mock/diseases'
 import { createMockRegionsApi } from '@/api/mock/regions'
 import { createRegionsApi } from '@/api/regions'
+import { mockAccount } from '@/api/mock/account'
 import { createMockUsersApi } from '@/api/mock/users'
 import { createUsersApi } from '@/api/users'
 import { createApplicationStore } from '@/features/agrochemist/application'
@@ -89,7 +90,14 @@ export const consultationsApi =
   API_MODE === 'mock'
     ? createMockConsultationsApi({
         diagnosisOf: (id) => mockDiagnosis?.lookup(id),
-        simulate: { acceptAfterMs: 5_000, replyAfterMs: 3_000 },
+        // like the backend: a diagnosis the farmer does not have is 404 on the request
+        knownDiagnosis: (id) => mockDiagnosis?.lookup(id) !== undefined,
+        simulate: {
+          acceptAfterMs: 5_000,
+          replyAfterMs: 3_000,
+          // signed in as the agrochemist, a person answers the requests
+          enabled: () => !mockAccount.current().roles.includes('agrochemist'),
+        },
       })
     : createConsultationsApi(apiClient)
 
