@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, StyleSheet, View } from 'react-native'
 
 import { AppText, Button, Screen } from '@/components/ui'
+import { isFeatureEnabled } from '@/features/access/featureAccess'
 import { hasAgrochemistRole } from '@/features/access/roles'
 import { HeroCard } from '@/features/home/HeroCard'
 import { NotificationsBell } from '@/features/notifications/NotificationsBell'
@@ -84,11 +85,13 @@ function FarmerHome() {
           variant="secondary"
           onPress={() => router.push('/catalog')}
         />
-        <Button
-          label={t('home.fields')}
-          variant="secondary"
-          onPress={() => router.push('/fields')}
-        />
+        {isFeatureEnabled('fields') ? (
+          <Button
+            label={t('home.fields')}
+            variant="secondary"
+            onPress={() => router.push('/fields')}
+          />
+        ) : null}
       </View>
 
       {/* Only when there is something to show: with no diagnoses the home screen is the card alone */}
