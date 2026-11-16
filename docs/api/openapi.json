@@ -116,6 +116,56 @@
         },
         "type" : "object"
       },
+      "CalculationResponse" : {
+        "properties" : {
+          "areaHa" : {
+            "description" : "Hectares",
+            "type" : "number"
+          },
+          "areaUnit" : {
+            "enum" : [ "ha", "sotka" ],
+            "type" : "string"
+          },
+          "costs" : {
+            "additionalProperties" : {
+              "type" : "number"
+            },
+            "type" : "object"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "crop" : {
+            "description" : "Crop code",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "priceT" : {
+            "description" : "Price per tonne",
+            "type" : "number"
+          },
+          "results" : {
+            "additionalProperties" : {
+              "type" : "number"
+            },
+            "type" : "object"
+          },
+          "season" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "yieldCHa" : {
+            "description" : "Centners per hectare",
+            "type" : "number"
+          }
+        },
+        "required" : [ "areaHa", "areaUnit", "costs", "createdAt", "crop", "id", "priceT", "results", "season", "yieldCHa" ],
+        "type" : "object"
+      },
       "ClassScore" : {
         "properties" : {
           "code" : {
@@ -255,6 +305,68 @@
           }
         },
         "required" : [ "count" ],
+        "type" : "object"
+      },
+      "CreateCalculationRequest" : {
+        "properties" : {
+          "areaHa" : {
+            "description" : "The area in hectares (0.0001-10000)",
+            "example" : 2.5,
+            "maximum" : 10000,
+            "minimum" : 1.0E-4,
+            "type" : "number"
+          },
+          "areaUnit" : {
+            "description" : "The unit the farmer typed the area in; for display only",
+            "enum" : [ "ha", "sotka" ],
+            "pattern" : "ha|sotka",
+            "type" : "string"
+          },
+          "costs" : {
+            "additionalProperties" : {
+              "type" : "number"
+            },
+            "description" : "Cost items, name to amount (not negative, up to 4 decimal places); 1-30 entries, keys like seedCost. The order of the keys is not kept: the app orders the items itself",
+            "minProperties" : 1,
+            "type" : "object"
+          },
+          "crop" : {
+            "description" : "Crop code from GET /api/crops",
+            "example" : "potato",
+            "maxLength" : 40,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "priceT" : {
+            "description" : "Selling price per tonne",
+            "example" : 90000,
+            "minimum" : 0,
+            "type" : "number"
+          },
+          "results" : {
+            "additionalProperties" : {
+              "type" : "number"
+            },
+            "description" : "What the app calculated, name to number (up to 4 decimal places); 1-30 entries. Stored as sent: the server does not recalculate it",
+            "minProperties" : 1,
+            "type" : "object"
+          },
+          "season" : {
+            "example" : 2026,
+            "format" : "int32",
+            "maximum" : 2100,
+            "minimum" : 2000,
+            "type" : "integer"
+          },
+          "yieldCHa" : {
+            "description" : "Yield, centners per hectare",
+            "example" : 250,
+            "exclusiveMinimum" : 0,
+            "maximum" : 10000,
+            "type" : "number"
+          }
+        },
+        "required" : [ "areaHa", "areaUnit", "costs", "crop", "priceT", "results", "season", "yieldCHa" ],
         "type" : "object"
       },
       "CreateConsultationRequest" : {
@@ -2373,6 +2485,98 @@
         },
         "security" : [ ],
         "tags" : [ "auth-controller" ]
+      }
+    },
+    "/api/calculations" : {
+      "get" : {
+        "operationId" : "listCalculations",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/CalculationResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "calculation-controller" ]
+      },
+      "post" : {
+        "operationId" : "createCalculation",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateCalculationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CalculationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "calculation-controller" ]
+      }
+    },
+    "/api/calculations/{id}" : {
+      "delete" : {
+        "operationId" : "deleteCalculation",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "calculation-controller" ]
+      },
+      "get" : {
+        "operationId" : "getCalculation",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CalculationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "calculation-controller" ]
       }
     },
     "/api/consultations" : {

@@ -1,6 +1,6 @@
 # Database ER diagram
 
-PostgreSQL 16 + PostGIS. The schema is owned by Flyway migrations in [`services/backend/src/main/resources/db/migration`](../../services/backend/src/main/resources/db/migration); this page describes migrations `V1`–`V21`.
+PostgreSQL 16 + PostGIS. The schema is owned by Flyway migrations in [`services/backend/src/main/resources/db/migration`](../../services/backend/src/main/resources/db/migration); this page describes migrations `V1`–`V22`.
 
 Conventions:
 
@@ -48,6 +48,8 @@ erDiagram
     diagnoses |o--o{ notifications : "refers to"
     users ||--o{ fields : owns
     crops ||--o{ fields : grows
+    users ||--o{ calculations : saves
+    crops ||--o{ calculations : "calculated for"
     regions |o--o{ fields : "set by the server"
     districts |o--o{ fields : "set by the server"
 
@@ -195,6 +197,20 @@ erDiagram
         timestamptz updated_at
     }
 
+    calculations {
+        uuid id PK
+        uuid owner_id FK
+        varchar crop_code FK
+        smallint season "2000 to 2100"
+        numeric area_ha "above 0, up to 10000"
+        varchar area_unit "ha or sotka, what the farmer typed"
+        numeric yield_c_ha "centners per hectare"
+        numeric price_t "price per tonne"
+        jsonb costs "name to amount, made by the app"
+        jsonb results "name to number, calculated by the app"
+        timestamptz created_at
+    }
+
     diagnosis_reviews {
         uuid id PK
         uuid diagnosis_id FK "unique with reviewer_id"
@@ -283,6 +299,7 @@ Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` wit
 - **Fields (`V19`).** `fields` holds a farmer's fields. The area is stored in hectares (`area_ha`, above 0 and up to 10 000); `area_unit` (`ha` or `sotka`, 1 sotka = 0.01 ha) is only what the farmer typed, so the app shows the area back in the same unit. The point is two columns, `latitude` and `longitude`, both set or both empty; `location` is a generated column computed from them (with a GiST index), so the two never disagree and the entity needs no spatial mapping. `region_id` and `district_id` are set by the server when the field is saved or its point changes, and copied at that moment, like in `diagnoses`: a point inside a district outline gives that district and its region, otherwise the region comes from the owner's profile and the district stays empty (the outlines in `districts.boundary` are filled in later, so for now the region of the profile is used). Fields are deleted with their owner; `crop_code` has no cascade, like `diagnoses`. The API limits a farmer to 100 fields (a service rule, checked under an advisory lock). `diagnoses.field_id` is not added yet: nothing links a diagnosis to a field, so the foreign key waits for the task that does. The same migration adds the feature `fields` to the `FREE` plan; the API needs the role `farmer` and that feature.
 - **Consultations (`V20`).** `consultations` is a request of a farmer to an agrochemist and the chat that follows; `consultation_messages` holds the chat. A partial unique index on `(farmer_id, agrochemist_id) WHERE status IN ('requested', 'active')` allows one open consultation per pair. Check constraints keep the status and the times together: `requested` has no `accepted_at` and no `closed_at`, `active` has `accepted_at` and no `closed_at`, `declined` and `closed` have `closed_at` (the check does not constrain `accepted_at` for them: it is set exactly when the consultation was accepted, so it is NULL for a declined or withdrawn request); the two participants differ. `closed_by` is the user who declined or closed (a withdrawal by the farmer is `closed`). A message has one recipient, the other participant, so `read_at` on the message is the read receipt (a partial index covers unread rows). The text of the request is stored as the first message, not in `consultations`. Messages and consultations are deleted with their users (`ON DELETE CASCADE`); `diagnosis_id` is `ON DELETE SET NULL`, so deleting a diagnosis keeps the consultation. `last_message_at` orders the list and is moved by the service on every message. A message has text, a photo or both; a photo is stored under the key prefix `consultations/`, apart from `diagnoses/`, so the cleanup of orphaned diagnosis photos never sees it (objects of deleted users and of a crash between the upload and the insert are not cleaned yet; the partial index on `photo_key` is there for that). Messages are paged by `(created_at, id)` through an index on `(consultation_id, created_at DESC, id DESC)`.
 - **Notifications and push tokens (`V21`).** `notifications` is the in-app feed of a user and `push_tokens` holds the device tokens ([docs/api/notifications.md](../api/notifications.md)). A notification has a `type` and references only (`consultation_id`, `message_id`, `diagnosis_id`), never names or text; a check constraint ties the set references to the type (a message notification has the consultation and the message, a verification notification has none). All references and the recipient are `ON DELETE CASCADE`. Unread rows of one recipient with the same `collapse_key` collapse into one row with `event_count` (a partial unique index on `(recipient_id, collapse_key) WHERE read_at IS NULL`), so a chat or a diagnosis with many events is one row; a read row is never reused. The feed is ordered by `(updated_at DESC, id DESC)`; a partial index on unread rows serves the counter. `push_tokens.token` is unique across users, so a device that signs in under another account moves the token. The limit of 10 tokens per user is a service rule, checked under an advisory lock.
+- **Calculations (`V22`).** `calculations` holds the saved seasons of the farm economics calculator. The formulas run on the device, so the server stores what the farmer entered (`area_ha`, `yield_c_ha` in centners per hectare, `price_t` per tonne, `costs`) and what the app calculated from it (`results`) as sent; it never recalculates, so `results` must not be trusted for analytics. `costs` and `results` are jsonb objects of name to number; their keys belong to the app and change without a migration, the service checks only the number of entries (up to 30), simple keys, the range (±10^12) and at most 4 decimal places. As in `fields`, `area_unit` is only what the farmer typed. The ER model of the documentation planned `calculation (user_id, crop_id)`; the table is plural, uses `owner_id` and `crop_code` like `fields`, and has `area_unit`. A saved season is not edited: the app saves a new one and deletes the old. The API limits a farmer to 100 seasons (a service rule, checked under an advisory lock). The feature `calculator` exists since `V4`; the API needs the role `farmer` and that feature.
 - **`diseases.kind` (`V7`)** has `oomycete` for late blight (*Phytophthora*), which is neither a fungus nor a bacterium: the treatment and the advice differ.
 - **Feature access.** Code checks whether the user's plan includes a feature instead of checking roles, so paid plans can be added later as data. Today everyone is on `FREE` and nothing is limited; the per-minute diagnosis rate limit lives in Redis, not in the database.
 
@@ -302,7 +319,6 @@ erDiagram
     answer ||--o{ vote : receives
     users ||--o{ crop_subscription : follows
     users ||--o{ report : files
-    users ||--o{ calculation : saves
 
     diagnosis_reviews {
         uuid id PK
@@ -320,4 +336,4 @@ erDiagram
     }
 ```
 
-Also planned: `agro_shops`, community tables (`post`, `post_image`, `answer`, `vote`, `crop_subscription`, `report`, plus `users.reputation`), `calculation`, `disease_alert`.
+Also planned: `agro_shops`, community tables (`post`, `post_image`, `answer`, `vote`, `crop_subscription`, `report`, plus `users.reputation`), `disease_alert`.
