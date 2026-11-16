@@ -60,6 +60,8 @@ jest.mock('@/services', () => {
     __api: api,
     __store: store,
     agrochemistApi: api,
+    // the list of requests under the confirmed badge: none yet
+    consultationsApi: { list: () => Promise.resolve([]) },
     useVerificationStore: store,
     useProfile,
     useSession: (select: (s: object) => unknown) => select({ logout: mockLogout }),

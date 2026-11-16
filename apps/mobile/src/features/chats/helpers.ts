@@ -8,11 +8,6 @@ export function counterpartName(consultation: Consultation, asAgrochemist: boole
   return asAgrochemist ? consultation.farmer.fullName : consultation.agrochemist.fullName
 }
 
-// The chats tab lists the conversations that exist: a declined request has no chat to open.
-export function isChat(consultation: Consultation): boolean {
-  return consultation.status === 'active' || consultation.status === 'closed'
-}
-
 export function filterChats(
   items: Consultation[],
   { query, filter, asAgrochemist }: { query: string; filter: ChatFilter; asAgrochemist: boolean },

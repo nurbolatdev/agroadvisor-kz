@@ -1,6 +1,6 @@
 import type { Consultation } from '@/api/consultations'
 
-import { chatTimeLabel, counterpartName, filterChats, isChat } from './helpers'
+import { chatTimeLabel, counterpartName, filterChats } from './helpers'
 
 const base: Consultation = {
   id: 'c1',
@@ -17,15 +17,6 @@ describe('counterpartName', () => {
   it('shows the agrochemist to the farmer and the farmer to the agrochemist', () => {
     expect(counterpartName(base, false)).toBe('Aigul Sarsenova')
     expect(counterpartName(base, true)).toBe('Farmer One')
-  })
-})
-
-describe('isChat', () => {
-  it('keeps active and closed, drops requested and declined', () => {
-    expect(isChat(make({ status: 'active' }))).toBe(true)
-    expect(isChat(make({ status: 'closed' }))).toBe(true)
-    expect(isChat(make({ status: 'requested' }))).toBe(false)
-    expect(isChat(make({ status: 'declined' }))).toBe(false)
   })
 })
 
