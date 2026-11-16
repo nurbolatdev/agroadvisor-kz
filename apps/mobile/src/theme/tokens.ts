@@ -47,6 +47,8 @@ export const sizes = {
   controlCompact: 40,
   chip: 36,
   badge: 24,
+  // the small number circle on an icon of the bottom bar
+  badgeSm: 20,
   progress: 8,
   icon: 24,
   iconXs: 14,
@@ -88,6 +90,8 @@ export const typography = {
   body: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 24 },
   small: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20 },
   caption: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
+  // the number in a small circle on an icon
+  badge: { fontFamily: fonts.medium, fontSize: 11, lineHeight: 14 },
 } as const
 
 export const theme = { colors, spacing, radii, sizes, fonts, typography } as const

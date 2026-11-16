@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AppText } from '@/components/ui'
-import { colors, radii, sizes, spacing } from '@/theme/tokens'
+import { colors, radii, sizes, spacing, typography } from '@/theme/tokens'
 
 import { type TabSlot, visibleSlots } from './tabSlots'
 
@@ -110,15 +110,16 @@ const styles = StyleSheet.create({
   // the red circle at the top right of the icon (screen 17b)
   badge: {
     position: 'absolute',
+    // anchored by the left edge: a wide number ("99+") grows to the right, away from the icon
     top: -spacing.sm,
-    right: -spacing.md,
-    minWidth: sizes.iconMd,
-    height: sizes.iconMd,
+    left: sizes.icon - spacing.sm,
+    minWidth: sizes.badgeSm,
+    height: sizes.badgeSm,
     paddingHorizontal: spacing.xs,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.danger,
   },
-  badgeText: { fontSize: 11, lineHeight: 14 },
+  badgeText: typography.badge,
 })

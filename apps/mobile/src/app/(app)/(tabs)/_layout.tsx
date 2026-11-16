@@ -1,4 +1,4 @@
-import { Tabs, useRouter } from 'expo-router'
+import { Tabs, useIsFocused, useRouter } from 'expo-router'
 import type { ComponentProps } from 'react'
 
 import { BottomBar } from '@/components/nav/BottomBar'
@@ -27,9 +27,15 @@ export default function TabsLayout() {
   return <RoleGate>{(roles) => <RoleTabs agrochemist={hasAgrochemistRole(roles)} />}</RoleGate>
 }
 
-// The bar with the number of unread messages on the Chats tab. It is read again when another tab opens.
+// The bar with the number of unread messages on the Chats tab. It is read again when another tab opens and
+// when the tabs come back to the front after a chat or a request (stack screens above them), and it is not
+// read while such a screen is open: a chat polls by itself.
 function TabsBar(props: ComponentProps<typeof BottomBar>) {
-  const unread = useUnreadCount(props.activeRoute, isFeatureEnabled('consultations'))
+  const focused = useIsFocused()
+  const unread = useUnreadCount(
+    `${props.activeRoute}:${focused}`,
+    isFeatureEnabled('consultations') && focused,
+  )
   return <BottomBar {...props} badges={{ chats: unread }} />
 }
 
