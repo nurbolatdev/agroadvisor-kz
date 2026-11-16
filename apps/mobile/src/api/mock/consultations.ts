@@ -24,7 +24,18 @@ type Options = {
   maxWaiting?: number
   // the user the mock answers for; incoming messages are the ones of anybody else
   viewerId?: string
+  // An agrochemist who answers, to try the chat without a second person: accepts a request after the first
+  // delay and writes a greeting, then answers every message of the farmer after the second. Off by default
+  // (the tests drive the mock by hand); the mock mode of the app switches it on.
+  simulate?: { acceptAfterMs: number; replyAfterMs: number }
 }
+
+// what the simulated agrochemist says, one after another
+const SIMULATED_REPLIES = [
+  'Здравствуйте! Посмотрел ваше фото. Уберите поражённые листья и обработайте посадки фунгицидом.',
+  'Повторите обработку через 10 дней и пришлите новое фото.',
+  'Если пятна появятся на соседних кустах, обработайте и их.',
+]
 
 export const MOCK_FARMER_ID = '00000000-0000-4000-8000-0000000000f1'
 
@@ -44,10 +55,13 @@ export function createMockConsultationsApi({
   diagnosisOf = () => undefined,
   maxWaiting = 5,
   viewerId = MOCK_FARMER_ID,
+  simulate,
 }: Options = {}): ConsultationsApi {
   const consultations: Consultation[] = []
   const chats = new Map<string, ChatMessage[]>() // oldest first
-  const wait = () => new Promise((resolve) => setTimeout(resolve, delayMs))
+  // no delay means no timer: the tests that fake the timers do not hang on every call
+  const wait = () =>
+    delayMs > 0 ? new Promise((resolve) => setTimeout(resolve, delayMs)) : Promise.resolve()
   let messageCount = 0
   let tick = 0
 
@@ -105,6 +119,18 @@ export function createMockConsultationsApi({
     return consultation
   }
 
+  // the simulated agrochemist writes the next line of its answers, if the chat is still open
+  let replyCount = 0
+  const reply = (consultation: Consultation) => {
+    if (consultation.status !== 'active') return
+    const text = SIMULATED_REPLIES[replyCount % SIMULATED_REPLIES.length]
+    replyCount += 1
+    addMessage(consultation, consultation.agrochemist.id, text, null)
+  }
+  const answerLater = (consultation: Consultation) => {
+    if (simulate) setTimeout(() => reply(consultation), simulate.replyAfterMs)
+  }
+
   return {
     create: async (body) => {
       await wait()
@@ -138,6 +164,14 @@ export function createMockConsultationsApi({
       consultations.push(consultation)
       // the text of the request is the first message of the chat, like on the backend
       addMessage(consultation, MOCK_FARMER_ID, text, null)
+      if (simulate) {
+        setTimeout(() => {
+          if (consultation.status !== 'requested') return
+          consultation.status = 'active'
+          consultation.acceptedAt = stamp()
+          reply(consultation)
+        }, simulate.acceptAfterMs)
+      }
       return out(consultation)
     },
     list: async (query = {}) => {
@@ -206,14 +240,18 @@ export function createMockConsultationsApi({
       const c = find(id)
       const clean = checkText(text)
       if (c.status !== 'active') throw invalidState(c.status)
-      return { ...addMessage(c, viewerId, clean, null) }
+      const sent = { ...addMessage(c, viewerId, clean, null) }
+      answerLater(c)
+      return sent
     },
     sendPhoto: async (id, _file, text) => {
       await wait()
       const c = find(id)
       const caption = text?.trim() ? checkText(text) : null
       if (c.status !== 'active') throw invalidState(c.status)
-      return { ...addMessage(c, viewerId, caption, 'photo') }
+      const sent = { ...addMessage(c, viewerId, caption, 'photo') }
+      answerLater(c)
+      return sent
     },
     markRead: async (id, upTo) => {
       await wait()

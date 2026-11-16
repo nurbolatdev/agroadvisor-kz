@@ -69,8 +69,8 @@ export const apiClient = createApiClient({
   getLanguage: () => useSettings.getState().language,
 })
 
-export const diagnosisApi =
-  API_MODE === 'mock' ? createMockDiagnosisApi() : createDiagnosisApi(apiClient)
+const mockDiagnosis = API_MODE === 'mock' ? createMockDiagnosisApi() : null
+export const diagnosisApi = mockDiagnosis ?? createDiagnosisApi(apiClient)
 
 // The check of an agrochemist and the documents sent for it. In the mock mode the controls put the check
 // in any of the four states and make the next upload fail, to try the screens without the backend.
@@ -83,8 +83,15 @@ export const agrochemistDirectoryApi =
   API_MODE === 'mock'
     ? createMockAgrochemistDirectoryApi()
     : createAgrochemistDirectoryApi(apiClient)
+// In the mock mode an agrochemist answers by itself (accepts after 5 s, replies after 3 s), and the diagnosis
+// a farmer attaches is the one the mock diagnosis made, so the whole chat can be tried without a backend.
 export const consultationsApi =
-  API_MODE === 'mock' ? createMockConsultationsApi() : createConsultationsApi(apiClient)
+  API_MODE === 'mock'
+    ? createMockConsultationsApi({
+        diagnosisOf: (id) => mockDiagnosis?.lookup(id),
+        simulate: { acceptAfterMs: 5_000, replyAfterMs: 3_000 },
+      })
+    : createConsultationsApi(apiClient)
 
 // The state of that check, one for the whole app: the entry gate and the screens of an agrochemist read it
 // from here, so the server is asked once. Reset together with the profile (see onUserChange).
