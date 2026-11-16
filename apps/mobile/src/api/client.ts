@@ -13,7 +13,7 @@ export type ApiClientOptions = {
 }
 
 export type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   // multipart upload instead of a JSON body; the content type with its boundary is set by fetch
   formData?: FormData
