@@ -131,6 +131,51 @@ class CalculationControllerIntegrationTest {
     }
 
     @Test
+    void refusesAnAmountWithTooManyDecimalsAndKeepsTheListReadable() throws Exception {
+        // 1e-1500 passes a range check, but jsonb would give it back as a 1500-digit string
+        assertCode(post("/api/calculations").header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content(body(2026).replace("\"seed\": 120000", "\"seed\": 1e-1500")), 400, "validation_failed");
+        assertCode(post("/api/calculations").header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content(body(2026).replace("\"profit\": -5000.5", "\"profit\": 0.00001")), 400,
+                "validation_failed");
+
+        mvc.perform(get("/api/calculations").header("Authorization", farmer)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void keepsDecimalsExactlyAndAtTheBounds() throws Exception {
+        String location = mvc.perform(post("/api/calculations").header("Authorization", farmer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(2026).replace("\"profit\": -5000.5, \"revenue\": 5625000",
+                        "\"small\": 0.0001, \"big\": 1000000000000, \"low\": -1000000000000, \"cents\": 0.1")))
+                .andExpect(status().isCreated()).andReturn().getResponse().getHeader("Location");
+
+        mvc.perform(get(location).header("Authorization", farmer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results.small").value(0.0001))
+                .andExpect(jsonPath("$.results.big").value(1000000000000L))
+                .andExpect(jsonPath("$.results.low").value(-1000000000000L))
+                .andExpect(jsonPath("$.results.cents").value(0.1));
+        assertCode(post("/api/calculations").header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
+                .content(body(2026).replace("\"profit\": -5000.5", "\"profit\": 1000000000000.01")), 400,
+                "validation_failed");
+    }
+
+    @Test
+    void theAnswerToThePostReadsTheSameAsALaterGet() throws Exception {
+        String created = mvc.perform(post("/api/calculations").header("Authorization", farmer)
+                .contentType(MediaType.APPLICATION_JSON).content(body(2026)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String location = mvc.perform(get("/api/calculations").header("Authorization", farmer)).andReturn()
+                .getResponse().getContentAsString();
+
+        // areaHa 2.5 is stored as 2.5000, yieldCHa 250 as 250.00: both answers carry the column scale
+        org.assertj.core.api.Assertions.assertThat(created).contains("\"areaHa\":2.5000", "\"yieldCHa\":250.00");
+        org.assertj.core.api.Assertions.assertThat(location).contains("\"areaHa\":2.5000", "\"yieldCHa\":250.00");
+    }
+
+    @Test
     void rejectsAnUnknownCrop() throws Exception {
         assertCode(post("/api/calculations").header("Authorization", farmer).contentType(MediaType.APPLICATION_JSON)
                 .content(body(2026).replace("potato", "no_such_crop")), 400, "unknown_crop");

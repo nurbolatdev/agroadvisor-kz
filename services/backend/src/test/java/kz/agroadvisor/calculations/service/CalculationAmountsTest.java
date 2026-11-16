@@ -29,6 +29,17 @@ class CalculationAmountsTest {
     }
 
     @Test
+    void refusesMoreThanFourDecimalPlacesButNotTrailingZeros() {
+        assertThatCode(() -> CalculationService.requireAmounts("results",
+                Map.of("a", new BigDecimal("0.1000000000"), "b", new BigDecimal("0.0001")), true))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> CalculationService.requireAmounts("results",
+                Map.of("a", new BigDecimal("0.00001")), true)).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> CalculationService.requireAmounts("results",
+                Map.of("a", new BigDecimal("1e-1500")), true)).isInstanceOf(ApiException.class);
+    }
+
+    @Test
     void refusesBadKeysHugeAmountsAndTooManyEntries() {
         assertThatThrownBy(() -> CalculationService.requireAmounts("costs", Map.of("1st", BigDecimal.ONE), false))
                 .isInstanceOf(ApiException.class);
