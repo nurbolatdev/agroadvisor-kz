@@ -4,7 +4,7 @@ import type { Consultation, ConsultationStatus } from '@/api/consultations'
 import { NetworkError } from '@/api/errors'
 import { consultationsApi } from '@/services'
 
-export type ChatsState =
+export type ConsultationListState =
   | { status: 'loading' }
   // `failed`: the last refresh did not work, the list of the earlier read stays on screen
   | { status: 'ready'; items: Consultation[]; failed: boolean }
@@ -34,19 +34,20 @@ async function readAll(statuses: readonly ConsultationStatus[]): Promise<Consult
 }
 
 // The chats of the caller: the accepted and the closed conversations.
-export function useChats(): { state: ChatsState; load: () => void } {
+export function useChats(): { state: ConsultationListState; load: () => void } {
   return useConsultationList(CHAT_STATUSES)
 }
 
 // The consultations of the caller in the given statuses, the latest activity first (the order of the
 // server). Nothing is read until `load` is called: the screen calls it whenever it is shown, so the unread
 // marks stay fresh and the first show makes one request. A failed refresh keeps the list that is already on
-// screen. `statuses` must be a stable value (a module constant).
+// screen. The statuses count by value, so an inline array does not make `load` a new function every render.
 export function useConsultationList(statuses: readonly ConsultationStatus[]): {
-  state: ChatsState
+  state: ConsultationListState
   load: () => void
 } {
-  const [state, setState] = useState<ChatsState>({ status: 'loading' })
+  const [state, setState] = useState<ConsultationListState>({ status: 'loading' })
+  const key = statuses.join(',')
   // only the latest request may answer, an older one that comes late is dropped
   const latest = useRef(0)
 
@@ -54,7 +55,7 @@ export function useConsultationList(statuses: readonly ConsultationStatus[]): {
     const id = (latest.current += 1)
     // a retry after an error shows the spinner again, a refresh of a list does not
     setState((current) => (current.status === 'error' ? { status: 'loading' } : current))
-    readAll(statuses).then(
+    readAll(key.split(',') as ConsultationStatus[]).then(
       (items) => {
         if (latest.current === id) setState({ status: 'ready', items, failed: false })
       },
@@ -66,7 +67,7 @@ export function useConsultationList(statuses: readonly ConsultationStatus[]): {
         )
       },
     )
-  }, [statuses])
+  }, [key])
 
   return { state, load }
 }
