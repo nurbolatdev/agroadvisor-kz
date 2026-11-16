@@ -7,6 +7,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import type { VerificationView } from '@/api/agrochemist'
 import { AppText, Badge, Button, EmptyState, ErrorState, Screen } from '@/components/ui'
 import { hasAgrochemistRole } from '@/features/access/roles'
+import { RequestsList } from '@/features/requests/RequestsList'
 import { useProfile } from '@/services'
 import { colors, fonts, radii, sizes, spacing } from '@/theme/tokens'
 
@@ -90,10 +91,7 @@ function AgrochemistRequests() {
       {view.status === 'approved' ? (
         <View style={styles.section}>
           <AppText variant="h2">{t('agrochemist.cabinet.newRequests')}</AppText>
-          <EmptyState
-            title={t('agrochemist.cabinet.noRequests.title')}
-            message={t('agrochemist.cabinet.noRequests.hint')}
-          />
+          <RequestsList />
         </View>
       ) : null}
 
