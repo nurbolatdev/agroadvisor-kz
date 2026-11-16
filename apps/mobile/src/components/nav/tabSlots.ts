@@ -8,6 +8,8 @@ import {
   type LucideIcon,
 } from 'lucide-react-native'
 
+import { isFeatureEnabled } from '@/features/access/featureAccess'
+
 export type SlotId = 'home' | 'requests' | 'community' | 'camera' | 'chats' | 'profile'
 
 // The text of a slot: a key of the i18n files (src/i18n)
@@ -46,7 +48,7 @@ export const TAB_SLOTS: readonly TabSlot[] = [
     route: 'chats',
     icon: MessageCircle,
     label: 'tabs.chats',
-    implemented: true,
+    implemented: isFeatureEnabled('consultations'),
   },
   {
     id: 'profile',
@@ -83,7 +85,7 @@ export const AGROCHEMIST_SLOTS: readonly TabSlot[] = [
     route: 'chats',
     icon: MessageCircle,
     label: 'tabs.chats',
-    implemented: true,
+    implemented: isFeatureEnabled('consultations'),
   },
   {
     id: 'profile',
