@@ -29,6 +29,7 @@ public class CalculationService {
 
     private static final Pattern KEY = Pattern.compile("[a-zA-Z][a-zA-Z0-9_]{0,39}");
     private static final BigDecimal MAX_AMOUNT = new BigDecimal("1000000000000");
+    private static final int MAX_AMOUNT_SCALE = 4;
 
     /** A saved season as the API shows it. */
     public record CalculationView(UUID id, String cropCode, short season, BigDecimal areaHa, String areaUnit,
@@ -67,9 +68,10 @@ public class CalculationService {
                     "You can keep at most " + MAX_PER_OWNER + " saved seasons");
         }
 
+        // The scale of the columns, so the answer to the POST reads the same as a later GET
         Calculation saved = calculations.saveAndFlush(new Calculation(owner, input.cropCode(), input.season(),
-                input.areaHa(), input.areaUnit(), input.yieldCHa(), input.priceT(), Map.copyOf(input.costs()),
-                Map.copyOf(input.results())));
+                input.areaHa().setScale(4), input.areaUnit(), input.yieldCHa().setScale(2),
+                input.priceT().setScale(2), Map.copyOf(input.costs()), Map.copyOf(input.results())));
         return CalculationView.of(saved);
     }
 
@@ -87,13 +89,19 @@ public class CalculationService {
 
     @Transactional
     public void delete(UUID owner, UUID id) {
-        calculations.delete(find(owner, id));
+        // One statement, so two deletes of the same season cannot both pass: the second one deletes 0 rows
+        if (calculations.deleteOwned(id, owner) == 0) {
+            throw notFound();
+        }
     }
 
     private Calculation find(UUID owner, UUID id) {
-        return calculations.findByIdAndOwnerId(id, owner)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, CalculationErrors.CALCULATION_NOT_FOUND,
-                        "Saved season not found"));
+        return calculations.findByIdAndOwnerId(id, owner).orElseThrow(CalculationService::notFound);
+    }
+
+    private static ApiException notFound() {
+        return new ApiException(HttpStatus.NOT_FOUND, CalculationErrors.CALCULATION_NOT_FOUND,
+                "Saved season not found");
     }
 
     private void requireKnownCrop(String cropCode) {
@@ -116,6 +124,11 @@ public class CalculationService {
             }
             if (value == null || value.abs().compareTo(MAX_AMOUNT) > 0 || (!allowNegative && value.signum() < 0)) {
                 throw invalid(name + "." + key + " is out of range");
+            }
+            // A number like 1e-1500 is small enough, but jsonb gives it back as a 1500-digit string that
+            // Jackson refuses to read, which would break every later read of the farmer's list
+            if (value.stripTrailingZeros().scale() > MAX_AMOUNT_SCALE) {
+                throw invalid(name + "." + key + " has more than " + MAX_AMOUNT_SCALE + " decimal places");
             }
         });
     }

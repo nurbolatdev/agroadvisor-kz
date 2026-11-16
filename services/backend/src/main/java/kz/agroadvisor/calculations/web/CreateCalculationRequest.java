@@ -32,8 +32,10 @@ public record CreateCalculationRequest(
         @NotNull @Positive @DecimalMax("10000") @Digits(integer = 5, fraction = 2) BigDecimal yieldCHa,
         @Schema(description = "Selling price per tonne", example = "90000")
         @NotNull @DecimalMin("0") @Digits(integer = 10, fraction = 2) BigDecimal priceT,
-        @Schema(description = "Cost items, name to amount (not negative); 1-30 entries, keys like seedCost")
+        @Schema(description = "Cost items, name to amount (not negative, up to 4 decimal places); 1-30 entries, "
+                + "keys like seedCost. The order of the keys is not kept: the app orders the items itself")
         @NotEmpty Map<String, @NotNull BigDecimal> costs,
-        @Schema(description = "What the app calculated, name to number; 1-30 entries")
+        @Schema(description = "What the app calculated, name to number (up to 4 decimal places); 1-30 entries. "
+                + "Stored as sent: the server does not recalculate it")
         @NotEmpty Map<String, @NotNull BigDecimal> results) {
 }
