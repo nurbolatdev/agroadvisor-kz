@@ -104,6 +104,7 @@ export const kk: Translation = {
     error: 'Бірдеңе дұрыс болмады',
     retry: 'Қайталау',
     back: 'Артқа',
+    cancel: 'Бас тарту',
   },
   home: {
     title: 'Басты бет',
@@ -150,6 +151,35 @@ export const kk: Translation = {
     errors: {
       offline: 'Серверге байланыс жоқ. Интернетті тексеріңіз',
       server: 'Сервер жауап бермеді. Қайталап көріңіз',
+    },
+    // one conversation (screens 17, 17a); the kk texts wait for the proofreading (#88)
+    chat: {
+      farmer: 'Фермер',
+      photoAlt: 'Чаттағы фото',
+      photoFailed: 'Фото жүктелмеді',
+      diagnosisLine: 'ЖИ диагнозы · {{percent}}%',
+      attach: 'Фото тіркеу',
+      camera: 'Түсіру',
+      gallery: 'Галереядан',
+      placeholder: 'Хабарлама',
+      send: 'Жіберу',
+      older: 'Бұрынғы хабарларды жүктеу',
+      notFound: 'Бұл чат табылмады',
+      closed: 'Кеңес жабылды, жазуға болмайды',
+      problems: {
+        empty: 'Хабарлама жазыңыз',
+        tooLong: 'Хабарлама тым ұзын',
+        offline: 'Серверге байланыс жоқ. Хабарлама жіберілмеді',
+        rateLimited: 'Хабарлама тым көп. Бір минут күтіңіз',
+        closed: 'Кеңес жабылды, жазуға болмайды',
+        badPhoto: 'Фото жарамайды: 10 МБ дейінгі JPEG немесе PNG керек',
+        storage: 'Фотоны сақтау мүмкін болмады. Қайталап көріңіз',
+        server: 'Жіберу мүмкін болмады. Қайталап көріңіз',
+      },
+      attachProblems: {
+        badPhoto: 'Фото жарамайды: 10 МБ дейінгі JPEG немесе PNG керек',
+        denied: 'Камераға рұқсат жоқ. Баптауларда рұқсат беріңіз',
+      },
     },
   },
   history: {
