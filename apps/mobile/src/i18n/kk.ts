@@ -183,6 +183,25 @@ export const kk: Translation = {
       },
     },
   },
+  // the requests of farmers to an agrochemist (screens 22b, 23a); the kk texts wait for the proofreading (#88)
+  requests: {
+    title: 'Өтінім',
+    from: '{{name}} жіберген',
+    new: 'Жаңа',
+    sent: 'Жіберілді',
+    farmerMessage: 'Фермердің хабарламасы',
+    noMessage: 'Хабарламасыз',
+    accept: 'Қабылдап, жауап беру',
+    decline: 'Қабылдамау',
+    answered: 'Бұл өтінімге бұрын жауап берілген',
+    notFound: 'Өтінім табылмады',
+    problems: {
+      offline: 'Серверге байланыс жоқ. Қайталап көріңіз',
+      gone: 'Өтінім жабылған немесе фермер қайтарып алған',
+      rateLimited: 'Сұраныс тым көп. Бір минут күтіңіз',
+      server: 'Өтінімге жауап беру мүмкін болмады. Қайталап көріңіз',
+    },
+  },
   history: {
     title: 'Тарих',
     status: {

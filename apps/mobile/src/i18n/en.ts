@@ -182,6 +182,25 @@ export const en: Translation = {
       },
     },
   },
+  // the requests of farmers to an agrochemist (screens 22b, 23a)
+  requests: {
+    title: 'Request',
+    from: 'from {{name}}',
+    new: 'New',
+    sent: 'Sent',
+    farmerMessage: "Farmer's message",
+    noMessage: 'No message',
+    accept: 'Accept and reply',
+    decline: 'Decline',
+    answered: 'This request has already been answered',
+    notFound: 'Request not found',
+    problems: {
+      offline: 'No connection to the server. Try again',
+      gone: 'The request is already closed or withdrawn by the farmer',
+      rateLimited: 'Too many requests. Wait a minute',
+      server: 'Could not answer the request. Try again',
+    },
+  },
   history: {
     title: 'History',
     status: {

@@ -183,6 +183,25 @@ export const ru = {
       },
     },
   },
+  // the requests of farmers to an agrochemist (screens 22b, 23a)
+  requests: {
+    title: 'Заявка',
+    from: 'от {{name}}',
+    new: 'Новая',
+    sent: 'Отправлено',
+    farmerMessage: 'Сообщение фермера',
+    noMessage: 'Без сообщения',
+    accept: 'Принять и ответить',
+    decline: 'Отклонить',
+    answered: 'На эту заявку уже ответили',
+    notFound: 'Заявка не найдена',
+    problems: {
+      offline: 'Нет связи с сервером. Попробуйте ещё раз',
+      gone: 'Заявка уже закрыта или отозвана фермером',
+      rateLimited: 'Слишком много запросов. Подождите минуту',
+      server: 'Не удалось ответить на заявку. Попробуйте ещё раз',
+    },
+  },
   history: {
     title: 'История',
     // short words for the badge of a line; the long explanations are on the result screen
