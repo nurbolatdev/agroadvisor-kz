@@ -3,6 +3,8 @@ import { StyleSheet, View, type ViewProps } from 'react-native'
 
 import { colors, radii, spacing } from '@/theme/tokens'
 
+import { useBlurTarget } from './blurTarget'
+
 type Props = ViewProps & {
   intensity?: number
   // Android only: ref of the BlurTargetView that wraps the background to blur. Without it
@@ -13,12 +15,14 @@ type Props = ViewProps & {
 // Glassmorphism surface (blur + translucent fill + thin border). Put it over a colored or
 // image background; on a plain light background the effect is barely visible.
 export function GlassCard({ intensity = 40, blurTarget, style, children, ...rest }: Props) {
+  const screenTarget = useBlurTarget()
+  const target = blurTarget ?? screenTarget
   return (
     <View {...rest} style={[styles.card, style]}>
       <BlurView
         intensity={intensity}
         tint="light"
-        blurTarget={blurTarget}
+        blurTarget={target}
         blurMethod="dimezisBlurViewSdk31Plus"
         style={StyleSheet.absoluteFill}
       />
