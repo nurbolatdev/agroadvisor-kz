@@ -15,6 +15,8 @@ import { createMockDiseaseApi } from '@/api/mock/diseases'
 import { createMockRegionsApi } from '@/api/mock/regions'
 import { createRegionsApi } from '@/api/regions'
 import { mockAccount } from '@/api/mock/account'
+import { createMockNotificationsApi } from '@/api/mock/notifications'
+import { createNotificationsApi } from '@/api/notifications'
 import { createMockUsersApi } from '@/api/mock/users'
 import { createUsersApi } from '@/api/users'
 import { createApplicationStore } from '@/features/agrochemist/application'
@@ -100,6 +102,40 @@ export const consultationsApi =
         },
       })
     : createConsultationsApi(apiClient)
+
+// The inbox of notifications (docs/api/notifications.md). In the mock mode it starts with a few, to try the
+// screen: an answer in a chat, a decision on the profile.
+const mockNotifications =
+  API_MODE === 'mock'
+    ? createMockNotificationsApi({
+        seed: [
+          {
+            id: '00000000-0000-4000-c000-00000000a001',
+            type: 'consultation_message',
+            consultationId: null,
+            messageId: null,
+            diagnosisId: null,
+            count: 2,
+            createdAt: '2026-11-16T08:00:00Z',
+            updatedAt: '2026-11-16T08:05:00Z',
+            readAt: null,
+          },
+          {
+            id: '00000000-0000-4000-c000-00000000a002',
+            type: 'verification_approved',
+            consultationId: null,
+            messageId: null,
+            diagnosisId: null,
+            count: 1,
+            createdAt: '2026-11-15T09:00:00Z',
+            updatedAt: '2026-11-15T09:00:00Z',
+            readAt: '2026-11-15T10:00:00Z',
+          },
+        ],
+      })
+    : null
+export const notificationsApi = mockNotifications?.api ?? createNotificationsApi(apiClient)
+export const notificationsMockControls = mockNotifications?.controls ?? null
 
 // The state of that check, one for the whole app: the entry gate and the screens of an agrochemist read it
 // from here, so the server is asked once. Reset together with the profile (see onUserChange).
