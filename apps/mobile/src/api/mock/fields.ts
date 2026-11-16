@@ -41,6 +41,10 @@ export function createMockFieldsApi({ delayMs = 400, now = Date.now }: Options =
   }
   const checkArea = (area: number) => {
     if (!Number.isFinite(area) || area <= 0) throw invalid('area', 'must be greater than 0')
+    // like @Digits(integer = 7, fraction = 2) on the backend
+    if (area >= 10_000_000 || Math.round(area * 100) / 100 !== area) {
+      throw invalid('area', 'numeric value out of bounds (<7 digits>.<2 digits> expected)')
+    }
   }
 
   return {

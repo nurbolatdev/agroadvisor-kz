@@ -58,6 +58,14 @@ describe('mock fields', () => {
     await expect(api.create({ ...potato, area: 0 })).rejects.toMatchObject({ status: 400 })
   })
 
+  it('refuses an area the backend would refuse: 7 digits and 2 after the point', async () => {
+    const api = make()
+
+    await expect(api.create({ ...potato, area: 10_000_000 })).rejects.toMatchObject({ status: 400 })
+    await expect(api.create({ ...potato, area: 0.125 })).rejects.toMatchObject({ status: 400 })
+    expect((await api.create({ ...potato, area: 0.12 })).area).toBe(0.12)
+  })
+
   it('changes only the keys that are sent; the area goes with its unit', async () => {
     const api = make()
     const field = await api.create({ ...potato, location: { latitude: 43, longitude: 76 } })
