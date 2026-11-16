@@ -47,6 +47,7 @@ type Result = {
   hasOlder: boolean
   sending: boolean
   problem: SendProblem | null
+  clearProblem: () => void
   reload: () => void
   loadOlder: () => Promise<void>
   sendText: (text: string) => Promise<boolean>
@@ -67,6 +68,9 @@ export function useChat(id: string, myId: (c: Consultation) => string, active: b
   const [attempt, setAttempt] = useState(0)
 
   const held = useRef<ChatMessage[]>([])
+  // The id after which the polls ask for news. Only the first read and the polls move it, never a send: a
+  // message of the other side written before my own would otherwise fall behind the cursor and be lost.
+  const pollCursor = useRef<string | undefined>(undefined)
   const marked = useRef<string | null>(null)
   const sendingRef = useRef(false)
   const myIdRef = useRef(myId)
@@ -96,6 +100,7 @@ export function useChat(id: string, myId: (c: Consultation) => string, active: b
   useEffect(() => {
     let cancelled = false
     held.current = []
+    pollCursor.current = undefined
     marked.current = null
     Promise.all([
       consultationsApi.get(id),
@@ -105,6 +110,7 @@ export function useChat(id: string, myId: (c: Consultation) => string, active: b
         if (cancelled) return
         setConsultation(c)
         apply(page)
+        pollCursor.current = newestId(held.current)
         setHasOlder(page.length >= MESSAGES_PAGE_SIZE)
         setLoad({ status: 'ready' })
         markRead(c)
@@ -140,15 +146,26 @@ export function useChat(id: string, myId: (c: Consultation) => string, active: b
     const timer = setInterval(() => {
       if (busy) return
       busy = true
-      const cursor = newestId(held.current)
+      const cursor = pollCursor.current
       Promise.all([
         consultationsApi.get(id),
         consultationsApi.messages(id, cursor ? { after: cursor } : { limit: MESSAGES_PAGE_SIZE }),
       ])
         .then(([c, fresh]) => {
           if (cancelled) return
-          setConsultation(c)
-          if (fresh.length > 0) apply(fresh)
+          // a new object every poll would redraw the whole chat: keep the old one while nothing changed
+          setConsultation((old) =>
+            old &&
+            old.status === c.status &&
+            old.closedAt === c.closedAt &&
+            old.unreadCount === c.unreadCount
+              ? old
+              : c,
+          )
+          if (fresh.length > 0) {
+            apply(fresh)
+            pollCursor.current = newestId(mergeMessages([], fresh))
+          }
           markRead(c)
         })
         // a missed poll is not an error to show: the next one comes in a moment
@@ -220,6 +237,8 @@ export function useChat(id: string, myId: (c: Consultation) => string, active: b
     [id, run],
   )
 
+  const clearProblem = useCallback(() => setProblem(null), [])
+
   const reload = useCallback(() => {
     setLoad({ status: 'loading' })
     setAttempt((n) => n + 1)
@@ -233,6 +252,7 @@ export function useChat(id: string, myId: (c: Consultation) => string, active: b
     hasOlder,
     sending,
     problem,
+    clearProblem,
     reload,
     loadOlder,
     sendText,

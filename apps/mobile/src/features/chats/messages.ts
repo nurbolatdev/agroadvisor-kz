@@ -5,7 +5,7 @@ import type { ChatMessage } from '@/api/consultations'
 // held), the order by time, ties by the order they came in.
 export function mergeMessages(held: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
   const byId = new Map<string, ChatMessage>()
-  // a later copy wins: the read mark (`readAt`) of a held message arrives with a fresher copy
+  // a later copy wins (a page read again, a send that came back before the poll that also brings it)
   for (const message of [...held, ...incoming]) byId.set(message.id, message)
   return [...byId.values()].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
