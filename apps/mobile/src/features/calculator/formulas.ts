@@ -70,17 +70,6 @@ export function scenarioProfit(inputs: Inputs, yieldPercent: number, pricePercen
   }).profit
 }
 
-// The shares of the cost items for the chart, biggest first; the items that are zero are left out
-export type CostShare = { key: CostKey; share: number }
-
-export function costShares(costs: Costs): CostShare[] {
-  const total = totalOf(costs)
-  if (total <= 0) return []
-  return COST_KEYS.filter((key) => costs[key] > 0)
-    .map((key) => ({ key, share: costs[key] / total }))
-    .sort((a, b) => b.share - a.share)
-}
-
 // The sotka is a hundredth of a hectare
 export const HA_PER_SOTKA = 0.01
 

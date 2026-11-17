@@ -1,7 +1,6 @@
 import {
   type Inputs,
   calculate,
-  costShares,
   resultsToSend,
   scenarioProfit,
   toHectares,
@@ -65,37 +64,6 @@ describe('scenarioProfit', () => {
 
   it('moves with the price', () => {
     expect(scenarioProfit(frame, 0, 10)).toBeCloseTo(855_000 + 1_550_000, 0)
-  })
-})
-
-describe('costShares', () => {
-  it('orders the items by share and sums to one', () => {
-    const shares = costShares(frame.costs)
-    expect(shares[0]).toEqual({ key: 'fertilizerCost', share: 0.25 })
-    expect(shares.map((s) => s.key)).toEqual([
-      'fertilizerCost',
-      'fuelCost',
-      'seedCost',
-      'protectionCost',
-      'rentCost',
-      'laborCost',
-    ])
-    expect(shares.reduce((sum, s) => sum + s.share, 0)).toBeCloseTo(1)
-  })
-
-  it('leaves out zero items and has nothing without costs', () => {
-    const zero = { ...frame.costs, seedCost: 0 }
-    expect(costShares(zero).map((s) => s.key)).not.toContain('seedCost')
-    expect(
-      costShares({
-        seedCost: 0,
-        fertilizerCost: 0,
-        protectionCost: 0,
-        fuelCost: 0,
-        rentCost: 0,
-        laborCost: 0,
-      }),
-    ).toEqual([])
   })
 })
 
