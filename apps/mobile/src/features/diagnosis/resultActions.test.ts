@@ -3,8 +3,13 @@ import { FEATURE_FLAGS, type FeatureFlags } from '@/features/access/featureAcces
 import { resultActions } from './resultActions'
 import type { ResultScreen } from './resultScreen'
 
-const off: FeatureFlags = { consultations: false, community: false, fields: false }
-const on: FeatureFlags = { consultations: true, community: true, fields: true }
+const off: FeatureFlags = {
+  consultations: false,
+  community: false,
+  fields: false,
+  weather: false,
+}
+const on: FeatureFlags = { consultations: true, community: true, fields: true, weather: true }
 
 const low: ResultScreen = { kind: 'lowConfidence', candidates: [] }
 const unknown: ResultScreen = { kind: 'unknown' }
@@ -83,7 +88,7 @@ describe('what to do next', () => {
       expect(
         resultActions(unknown, {
           hasPhoto: true,
-          features: { consultations: true, community: false, fields: true },
+          features: { consultations: true, community: false, fields: true, weather: true },
         }),
       ).toEqual([{ type: 'retake' }, { type: 'askAgronomist' }, { type: 'offlineHint' }])
     })
