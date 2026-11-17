@@ -10,11 +10,18 @@ describe('feature access', () => {
       community: false,
       fields: true,
       weather: true,
+      calculator: true,
     })
   })
 
   it('answers from the flags it is given', () => {
-    const flags = { consultations: true, community: false, fields: false, weather: false }
+    const flags = {
+      consultations: true,
+      community: false,
+      fields: false,
+      weather: false,
+      calculator: false,
+    }
     expect(isFeatureEnabled('fields', flags)).toBe(false)
     expect(isFeatureEnabled('consultations', flags)).toBe(true)
     expect(isFeatureEnabled('community', flags)).toBe(false)

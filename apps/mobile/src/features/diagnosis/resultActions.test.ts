@@ -8,8 +8,15 @@ const off: FeatureFlags = {
   community: false,
   fields: false,
   weather: false,
+  calculator: false,
 }
-const on: FeatureFlags = { consultations: true, community: true, fields: true, weather: true }
+const on: FeatureFlags = {
+  consultations: true,
+  community: true,
+  fields: true,
+  weather: true,
+  calculator: true,
+}
 
 const low: ResultScreen = { kind: 'lowConfidence', candidates: [] }
 const unknown: ResultScreen = { kind: 'unknown' }
@@ -88,7 +95,13 @@ describe('what to do next', () => {
       expect(
         resultActions(unknown, {
           hasPhoto: true,
-          features: { consultations: true, community: false, fields: true, weather: true },
+          features: {
+            consultations: true,
+            community: false,
+            fields: true,
+            weather: true,
+            calculator: true,
+          },
         }),
       ).toEqual([{ type: 'retake' }, { type: 'askAgronomist' }, { type: 'offlineHint' }])
     })
