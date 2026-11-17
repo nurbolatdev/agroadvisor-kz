@@ -21,6 +21,8 @@ import { createMockNotificationsApi } from '@/api/mock/notifications'
 import { createNotificationsApi } from '@/api/notifications'
 import { createMockUsersApi } from '@/api/mock/users'
 import { createUsersApi } from '@/api/users'
+import { createCalculationsApi } from '@/api/calculations'
+import { createMockCalculationsApi } from '@/api/mock/calculations'
 import { createMockWeatherApi } from '@/api/mock/weather'
 import { createWeatherApi } from '@/api/weather'
 import { createApplicationStore } from '@/features/agrochemist/application'
@@ -122,6 +124,10 @@ if (API_MODE === 'mock') {
 
 // The weather and the spraying hours for the point of a field (screen 28, docs/api/weather.md).
 export const weatherApi = API_MODE === 'mock' ? createMockWeatherApi() : createWeatherApi(apiClient)
+
+// The saved seasons of the farm calculator (screens 30, 31); the formulas run on the phone.
+export const calculationsApi =
+  API_MODE === 'mock' ? createMockCalculationsApi() : createCalculationsApi(apiClient)
 
 // The inbox of notifications (docs/api/notifications.md). In the mock mode it starts with a few, to try the
 // screen: an answer in a chat, a decision on the profile.
