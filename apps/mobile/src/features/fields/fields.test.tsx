@@ -113,6 +113,20 @@ describe('fields screen', () => {
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/fields/[id]', params: { id: 'f1' } })
   })
 
+  it('opens the weather only for a field that has a point', async () => {
+    mockApi.list.mockResolvedValue([
+      field({ id: 'with', name: 'With a point', location: { latitude: 43.25, longitude: 76.95 } }),
+      field({ id: 'without', name: 'Without a point', location: null }),
+    ])
+    await render(<FieldsScreen />)
+    await screen.findByText('With a point')
+
+    expect(screen.getAllByLabelText(/^Field weather:/)).toHaveLength(1)
+    await fireEvent.press(screen.getByLabelText('Field weather: With a point'))
+
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/weather', params: { fieldId: 'with' } })
+  })
+
   it('adds a field from the plus button', async () => {
     await render(<FieldsScreen />)
     await screen.findByText('Tomatoes by the river')
