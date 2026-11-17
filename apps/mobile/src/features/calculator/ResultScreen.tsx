@@ -77,8 +77,9 @@ export function ResultScreen() {
         costs: inputs.costs,
         results: resultsToSend(result),
       })
-      await Promise.all(same.map((c) => calculationsApi.remove(c.id).catch(() => {})))
-      setSave('saved')
+      // the new season is saved; an old one that could not be deleted is told, not hidden
+      const removed = await Promise.allSettled(same.map((c) => calculationsApi.remove(c.id)))
+      setSave(removed.some((r) => r.status === 'rejected') ? 'server' : 'saved')
     } catch (error) {
       setSave(calculatorProblemOf(error))
     }

@@ -32,6 +32,8 @@ export function PercentSlider({ value, min, max, onChange, label, valueText }: P
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
+      // the list around must not take the drag away
+      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: (e) => onChange(at(e.nativeEvent.locationX)),
       onPanResponderMove: (e) => onChange(at(e.nativeEvent.locationX)),
     })
