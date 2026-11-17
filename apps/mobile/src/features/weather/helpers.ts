@@ -20,10 +20,12 @@ export function clock(time: string): string {
 // "Fri" for a date of the point, in the language of the app
 export function weekday(date: string, language: string): string {
   const [y, m, d] = date.split('-').map(Number)
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(language, {
+  const name = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(language, {
     weekday: 'short',
     timeZone: 'UTC',
   })
+  // ru and kk give "пт"; the frame has "Пт"
+  return name.charAt(0).toLocaleUpperCase(language) + name.slice(1)
 }
 
 export const degrees = (value: number) => `${Math.round(value)}°`
@@ -49,6 +51,8 @@ export function skyOf(code: number | null | undefined): Sky {
 // has the three colours; the first one is the rule of the server, the other two are only for the eye.
 export type HourTone = 'good' | 'warn' | 'bad'
 
+// (the rain of an entry is that of the hour before its time, as the source reports it, so the tile after a
+// shower is the red one)
 export function toneOf(hour: WeatherHour): HourTone {
   if (hour.sprayOk) return 'good'
   const rough =

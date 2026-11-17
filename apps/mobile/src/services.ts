@@ -109,6 +109,16 @@ export const consultationsApi =
 
 // The fields of a farmer (screens 06, 07).
 export const fieldsApi = API_MODE === 'mock' ? createMockFieldsApi() : createFieldsApi(apiClient)
+// In the mock mode one field has a point (Almaty), so the weather screen can be opened without a map.
+if (API_MODE === 'mock') {
+  void fieldsApi.create({
+    name: 'Demo field',
+    crop: 'wheat',
+    area: 10,
+    areaUnit: 'ha',
+    location: { latitude: 43.25, longitude: 76.95 },
+  })
+}
 
 // The weather and the spraying hours for the point of a field (screen 28, docs/api/weather.md).
 export const weatherApi = API_MODE === 'mock' ? createMockWeatherApi() : createWeatherApi(apiClient)

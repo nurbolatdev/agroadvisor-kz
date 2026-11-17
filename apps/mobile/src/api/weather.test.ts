@@ -25,7 +25,9 @@ describe('mock weather', () => {
   it('answers five days of hours that start at the current hour, local to the point', async () => {
     const weather = await make().get({ latitude: 43.25, longitude: 76.95 })
 
-    expect(weather.hours).toHaveLength(120)
+    // from 08:00 to the end of the fifth local day: 16 + 4 * 24 hours
+    expect(weather.hours).toHaveLength(112)
+    expect(weather.hours.at(-1)?.time).toBe('2026-11-21T23:00:00')
     expect(weather.hours[0].time).toBe('2026-11-17T08:00:00')
     expect(weather.current.time).toBe(weather.hours[0].time)
     expect(weather.utcOffsetSeconds).toBe(18000)

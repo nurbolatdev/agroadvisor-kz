@@ -9,7 +9,6 @@ const MAX_WIND = 4
 const MIN_TEMP = 10
 const MAX_TEMP = 25
 const DRY_HOURS = 6
-const HOURS = 5 * 24
 const OFFSET_SECONDS = 5 * 3600
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -31,7 +30,10 @@ export function createMockWeatherApi({ delayMs = 400, now = Date.now }: Options 
         ])
       }
       const start = Math.floor(now() / 3_600_000) * 3_600_000
-      const raw = Array.from({ length: HOURS }, (_, i) => {
+      // to the end of the fifth local day, like the server
+      const startHour = new Date(start + OFFSET_SECONDS * 1000).getUTCHours()
+      const total = 24 - startHour + 4 * 24
+      const raw = Array.from({ length: total }, (_, i) => {
         const time = start + i * 3_600_000
         const hour = new Date(time + OFFSET_SECONDS * 1000).getUTCHours()
         const day = Math.floor((i + 12) / 24)

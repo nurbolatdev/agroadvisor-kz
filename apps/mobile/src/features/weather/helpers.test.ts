@@ -34,6 +34,9 @@ describe('times of the point', () => {
   it('names the weekday of a date in the language, whatever the zone of the phone', () => {
     expect(weekday('2026-11-17', 'en')).toBe('Tue')
     expect(weekday('2026-11-20', 'en')).toBe('Fri')
+    // ru and kk write the short name in lower case; the frame has a capital
+    expect(weekday('2026-11-20', 'ru')).toBe('Пт')
+    expect(weekday('2026-11-20', 'kk')).toMatch(/^\p{Lu}/u)
   })
 
   it('rounds degrees', () => {

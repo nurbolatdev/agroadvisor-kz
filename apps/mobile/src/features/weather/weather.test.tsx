@@ -119,6 +119,14 @@ describe('WeatherScreen', () => {
     )
   })
 
+  it('says when there are too many requests', async () => {
+    mockWeather.get.mockRejectedValue(new ApiError(429, 'rate_limited', 'x'))
+
+    await render(<WeatherScreen />)
+
+    expect(await screen.findByText('Too many requests. Wait a minute')).toBeTruthy()
+  })
+
   it('goes back', async () => {
     await render(<WeatherScreen />)
     await screen.findByText('Northern · Wheat')

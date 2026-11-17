@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 
 import type { Field } from '@/api/fields'
 import { AppText, BackHeader, EmptyState, ErrorState, Screen } from '@/components/ui'
+import { isFeatureEnabled } from '@/features/access/featureAccess'
 import { isCrop } from '@/features/diagnosis/crops'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
@@ -90,7 +91,7 @@ export function FieldsScreen() {
                 </View>
                 <ChevronRight size={sizes.icon} color={colors.textMuted} />
               </Pressable>
-              {field.location ? (
+              {field.location && isFeatureEnabled('weather') ? (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`${t('fields.weather')}: ${field.name}`}

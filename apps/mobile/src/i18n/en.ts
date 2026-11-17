@@ -260,8 +260,7 @@ export const en: Translation = {
     noPoint: 'This field has no point on the map',
     noPointHint:
       'The weather is shown for the point of the field. A point cannot be set yet: it comes with the map',
-    noField: 'Add a field to see the weather',
-    pickField: 'Choose a field',
+    precipitation: '{{value}} mm',
     errors: {
       offline: 'No connection to the server. Check the internet',
       unavailable: 'The weather source is not available now. Try again later',

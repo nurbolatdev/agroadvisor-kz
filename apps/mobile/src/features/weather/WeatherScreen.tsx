@@ -97,7 +97,7 @@ export function WeatherScreen() {
           </AppText>
           {state.failed ? (
             <AppText variant="small" color={colors.danger}>
-              {t('weather.errors.server')}
+              {t(`weather.errors.${state.failed}`)}
             </AppText>
           ) : null}
           <Now weather={state.weather} />
@@ -135,7 +135,9 @@ function Now({ weather }: { weather: Weather }) {
           <View style={styles.fact}>
             <Droplets size={sizes.iconSm} color={colors.textMuted} />
             <AppText variant="small" color={colors.textMuted}>
-              {`${current.precipitationMm} mm`}
+              {t('weather.precipitation', {
+                value: Math.round(current.precipitationMm * 10) / 10,
+              })}
             </AppText>
           </View>
         ) : null}
