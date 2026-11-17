@@ -21,6 +21,8 @@ import { createMockNotificationsApi } from '@/api/mock/notifications'
 import { createNotificationsApi } from '@/api/notifications'
 import { createMockUsersApi } from '@/api/mock/users'
 import { createUsersApi } from '@/api/users'
+import { createMockWeatherApi } from '@/api/mock/weather'
+import { createWeatherApi } from '@/api/weather'
 import { createApplicationStore } from '@/features/agrochemist/application'
 import { shouldResetApplication } from '@/features/agrochemist/applicationLifecycle'
 import { createDiseaseCatalog } from '@/features/diseases/catalog'
@@ -107,6 +109,19 @@ export const consultationsApi =
 
 // The fields of a farmer (screens 06, 07).
 export const fieldsApi = API_MODE === 'mock' ? createMockFieldsApi() : createFieldsApi(apiClient)
+// In the mock mode one field has a point (Almaty), so the weather screen can be opened without a map.
+if (API_MODE === 'mock') {
+  void fieldsApi.create({
+    name: 'Demo field',
+    crop: 'wheat',
+    area: 10,
+    areaUnit: 'ha',
+    location: { latitude: 43.25, longitude: 76.95 },
+  })
+}
+
+// The weather and the spraying hours for the point of a field (screen 28, docs/api/weather.md).
+export const weatherApi = API_MODE === 'mock' ? createMockWeatherApi() : createWeatherApi(apiClient)
 
 // The inbox of notifications (docs/api/notifications.md). In the mock mode it starts with a few, to try the
 // screen: an answer in a chat, a decision on the profile.

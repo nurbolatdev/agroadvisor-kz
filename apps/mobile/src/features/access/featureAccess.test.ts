@@ -5,11 +5,16 @@ describe('feature access', () => {
     expect(isFeatureEnabled('consultations')).toBe(true)
     expect(isFeatureEnabled('fields')).toBe(true)
     expect(isFeatureEnabled('community')).toBe(false)
-    expect(FEATURE_FLAGS).toEqual({ consultations: true, community: false, fields: true })
+    expect(FEATURE_FLAGS).toEqual({
+      consultations: true,
+      community: false,
+      fields: true,
+      weather: true,
+    })
   })
 
   it('answers from the flags it is given', () => {
-    const flags = { consultations: true, community: false, fields: false }
+    const flags = { consultations: true, community: false, fields: false, weather: false }
     expect(isFeatureEnabled('fields', flags)).toBe(false)
     expect(isFeatureEnabled('consultations', flags)).toBe(true)
     expect(isFeatureEnabled('community', flags)).toBe(false)

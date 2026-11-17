@@ -1,11 +1,12 @@
 import { useFocusEffect, useRouter } from 'expo-router'
-import { ChevronRight, Plus, Sprout } from 'lucide-react-native'
+import { ChevronRight, CloudSun, Plus, Sprout } from 'lucide-react-native'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
 import type { Field } from '@/api/fields'
 import { AppText, BackHeader, EmptyState, ErrorState, Screen } from '@/components/ui'
+import { isFeatureEnabled } from '@/features/access/featureAccess'
 import { isCrop } from '@/features/diagnosis/crops'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
@@ -70,26 +71,40 @@ export function FieldsScreen() {
             </AppText>
           ) : null}
           {state.items.map((field) => (
-            <Pressable
-              key={field.id}
-              accessibilityRole="button"
-              accessibilityLabel={`${field.name}, ${line(field)}`}
-              onPress={() => router.push({ pathname: '/fields/[id]', params: { id: field.id } })}
-              style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-            >
-              <View style={styles.icon}>
-                <Sprout size={sizes.icon} color={colors.primary} />
-              </View>
-              <View style={styles.text}>
-                <AppText variant="h2" numberOfLines={1}>
-                  {field.name}
-                </AppText>
-                <AppText variant="small" color={colors.textMuted} numberOfLines={1}>
-                  {line(field)}
-                </AppText>
-              </View>
-              <ChevronRight size={sizes.icon} color={colors.textMuted} />
-            </Pressable>
+            <View key={field.id} style={styles.card}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${field.name}, ${line(field)}`}
+                onPress={() => router.push({ pathname: '/fields/[id]', params: { id: field.id } })}
+                style={({ pressed }) => [styles.open, pressed && styles.pressed]}
+              >
+                <View style={styles.icon}>
+                  <Sprout size={sizes.icon} color={colors.primary} />
+                </View>
+                <View style={styles.text}>
+                  <AppText variant="h2" numberOfLines={1}>
+                    {field.name}
+                  </AppText>
+                  <AppText variant="small" color={colors.textMuted} numberOfLines={1}>
+                    {line(field)}
+                  </AppText>
+                </View>
+                <ChevronRight size={sizes.icon} color={colors.textMuted} />
+              </Pressable>
+              {field.location && isFeatureEnabled('weather') ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t('fields.weather')}: ${field.name}`}
+                  hitSlop={spacing.sm}
+                  onPress={() =>
+                    router.push({ pathname: '/weather', params: { fieldId: field.id } })
+                  }
+                  style={({ pressed }) => [styles.weather, pressed && styles.pressed]}
+                >
+                  <CloudSun size={sizes.icon} color={colors.primary} />
+                </Pressable>
+              ) : null}
+            </View>
           ))}
         </ScrollView>
       )}
@@ -112,6 +127,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
+  },
+  open: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  weather: {
+    width: sizes.touch,
+    height: sizes.touch,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pressed: { opacity: 0.7 },
   icon: {
