@@ -92,6 +92,13 @@ function FarmerHome() {
             onPress={() => router.push('/fields')}
           />
         ) : null}
+        {isFeatureEnabled('calculator') ? (
+          <Button
+            label={t('home.calculator')}
+            variant="secondary"
+            onPress={() => router.push('/calculator')}
+          />
+        ) : null}
       </View>
 
       {/* Only when there is something to show: with no diagnoses the home screen is the card alone */}
