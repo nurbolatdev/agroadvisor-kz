@@ -41,6 +41,16 @@ export function createMockCalculationsApi({
       if (!(body.areaHa >= 0.0001 && body.areaHa <= 10_000)) {
         throw invalid('areaHa', 'must be between 0.0001 and 10000')
       }
+      // like @Digits(fraction = 4) on areaHa and @Digits(fraction = 2) on the yield and the price
+      if (Math.round(body.areaHa * 10_000) / 10_000 !== body.areaHa) {
+        throw invalid('areaHa', 'numeric value out of bounds (<5 digits>.<4 digits> expected)')
+      }
+      if (Math.round(body.yieldCHa * 100) / 100 !== body.yieldCHa) {
+        throw invalid('yieldCHa', 'numeric value out of bounds (<5 digits>.<2 digits> expected)')
+      }
+      if (Math.round(body.priceT * 100) / 100 !== body.priceT) {
+        throw invalid('priceT', 'numeric value out of bounds (<10 digits>.<2 digits> expected)')
+      }
       const costs = Object.keys(body.costs).length
       if (costs < 1 || costs > 30) throw invalid('costs', 'size must be between 1 and 30')
       if (saved.length >= CALCULATION_LIMIT) {

@@ -38,7 +38,7 @@ export function costsFromPerHa(perHa: Record<CostKey, number>, areaHa: number): 
 export function costsToPerHa(costs: Partial<Record<string, number>>, areaHa: number): string[] {
   return COST_KEYS.map((key) => {
     const total = costs[key] ?? 0
-    return total > 0 && areaHa > 0 ? String(Math.round(total / areaHa)) : ''
+    return total > 0 && areaHa > 0 ? String(Math.round((total / areaHa) * 100) / 100) : ''
   })
 }
 

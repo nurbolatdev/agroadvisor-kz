@@ -32,7 +32,15 @@ export function CalculatorScreen() {
       let current = true
       calculationsApi
         .list()
-        .then((list) => current && setSaved(list))
+        .then((list) => {
+          if (!current) return
+          setSaved(list)
+          // an untouched form shows the saved season it names, not an empty one
+          const { form: now, replace: fill } = useCalculator.getState()
+          const untouched = !now.area && !now.yieldCHa && !now.priceT && now.perHa.every((v) => !v)
+          const found = list.find((c) => c.season === now.season)
+          if (untouched && found) fill(formOf(found, isCrop(found.crop) ? found.crop : 'wheat'))
+        })
         .catch(() => {})
       return () => {
         current = false

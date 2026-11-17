@@ -5,7 +5,32 @@ import { initI18n } from '@/i18n'
 
 import { CalculatorScreen } from './CalculatorScreen'
 import { ResultScreen } from './ResultScreen'
-import { type CalculatorForm, emptyForm, useCalculator } from './store'
+import { type CalculatorForm, emptyForm, inputsOf, useCalculator } from './store'
+
+describe('inputsOf', () => {
+  const base: CalculatorForm = {
+    season: 2026,
+    crop: 'wheat',
+    area: '57',
+    areaUnit: 'sotka',
+    yieldCHa: '18',
+    priceT: '95000',
+    perHa: ['', '', '', '', '', ''],
+  }
+
+  it('rounds the area to the 4 decimals the server takes (57 sotki are 0.57 ha)', () => {
+    expect(inputsOf(base)?.areaHa).toBe(0.57)
+    expect(inputsOf({ ...base, area: '113' })?.areaHa).toBe(1.13)
+  })
+
+  it('refuses what the server would answer 400 to', () => {
+    expect(inputsOf({ ...base, area: '10001', areaUnit: 'ha' })).toBeNull()
+    expect(inputsOf({ ...base, area: '0.00001', areaUnit: 'ha' })).toBeNull()
+    expect(inputsOf({ ...base, yieldCHa: '18.123' })).toBeNull()
+    expect(inputsOf({ ...base, priceT: '95000.555' })).toBeNull()
+    expect(inputsOf({ ...base, yieldCHa: '10001' })).toBeNull()
+  })
+})
 
 const mockCalculations = { list: jest.fn(), create: jest.fn(), remove: jest.fn() }
 const mockBack = jest.fn()
@@ -220,10 +245,7 @@ describe('ResultScreen', () => {
 
   it.each([
     [new NetworkError(), 'No connection to the server. Your calculation is kept, try again.'],
-    [
-      new ApiError(409, 'calculation_limit_reached', 'x'),
-      'You can keep at most 100 seasons. Delete the ones you do not need.',
-    ],
+    [new ApiError(409, 'calculation_limit_reached', 'x'), 'You can keep at most 100 seasons.'],
   ])('says why saving failed and keeps the old season untouched', async (error, text) => {
     mockCalculations.create.mockRejectedValue(error)
     await render(<ResultScreen />)
