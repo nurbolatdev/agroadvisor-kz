@@ -52,6 +52,10 @@ erDiagram
     crops ||--o{ calculations : "calculated for"
     regions |o--o{ fields : "set by the server"
     districts |o--o{ fields : "set by the server"
+    regions |o--o{ shops : "set by an admin"
+    districts |o--o{ shops : "set by an admin"
+    users ||--o{ shop_requests : writes
+    shops |o--o{ shop_requests : "is about"
 
     regions {
         bigint id PK
@@ -211,6 +215,35 @@ erDiagram
         timestamptz created_at
     }
 
+    shops {
+        uuid id PK
+        varchar name
+        varchar address
+        varchar phone
+        varchar hours
+        text_array categories "free codes"
+        numeric latitude
+        numeric longitude
+        geometry location "generated, GiST index"
+        bigint region_id FK
+        bigint district_id FK
+        varchar status "active or hidden"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    shop_requests {
+        uuid id PK
+        uuid author_id FK
+        varchar type "new_shop, wrong_info or closed"
+        uuid shop_id FK "null for new_shop"
+        varchar comment
+        numeric latitude "only for new_shop"
+        numeric longitude "only for new_shop"
+        varchar status "new, done or rejected"
+        timestamptz created_at
+    }
+
     diagnosis_reviews {
         uuid id PK
         uuid diagnosis_id FK "unique with reviewer_id"
@@ -336,4 +369,6 @@ erDiagram
     }
 ```
 
-Also planned: `agro_shops`, community tables (`post`, `post_image`, `answer`, `vote`, `crop_subscription`, `report`, plus `users.reputation`), `disease_alert`.
+- **Shops (`V23`).** `shops` is the directory of agro shops for the map (screen 18); it replaces the `agro_shops` of the documentation. The point is two numbers (`latitude`, `longitude`) and `location` is a generated geometry with a GiST index, so the nearby search needs no spatial mapping in the entity. `region_id` and `district_id` are optional, `categories` is a `text[]` of free codes, and a `hidden` shop is not shown to farmers. Shops are written by an admin (the admin API comes with B12); a farmer only reads them and sends `shop_requests`: `new_shop` (a point and no `shop_id`), `wrong_info` or `closed` (a `shop_id` and no point); the constraints enforce this. Requests go with their shop (`ON DELETE CASCADE`). The API limits a farmer to 10 requests per hour. The phone is shown as text only. The feature `shops` exists since `V4`; the API needs the role `farmer` and that feature.
+
+Also planned: community tables (`post`, `post_image`, `answer`, `vote`, `crop_subscription`, `report`, plus `users.reputation`), `disease_alert`.
