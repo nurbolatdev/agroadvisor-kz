@@ -488,6 +488,42 @@
         "required" : [ "area", "areaUnit", "crop", "name" ],
         "type" : "object"
       },
+      "CreateShopRequest" : {
+        "properties" : {
+          "comment" : {
+            "description" : "What the farmer writes: the name and the address of a new shop, or what is wrong",
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "latitude" : {
+            "description" : "Degrees north of a new shop",
+            "example" : 43.25,
+            "maximum" : 90,
+            "minimum" : -90,
+            "type" : "number"
+          },
+          "longitude" : {
+            "description" : "Degrees east of a new shop",
+            "example" : 76.95,
+            "maximum" : 180,
+            "minimum" : -180,
+            "type" : "number"
+          },
+          "shopId" : {
+            "description" : "The shop the report is about; not for a new shop",
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "type" : {
+            "enum" : [ "new_shop", "wrong_info", "closed" ],
+            "pattern" : "new_shop|wrong_info|closed",
+            "type" : "string"
+          }
+        },
+        "required" : [ "comment", "type" ],
+        "type" : "object"
+      },
       "CropBody" : {
         "properties" : {
           "names" : {
@@ -1307,6 +1343,66 @@
           }
         },
         "required" : [ "text" ],
+        "type" : "object"
+      },
+      "ShopRequestView" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "shopId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ShopView" : {
+        "properties" : {
+          "address" : {
+            "type" : "string"
+          },
+          "categories" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "distanceM" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "hours" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "latitude" : {
+            "type" : "number"
+          },
+          "longitude" : {
+            "type" : "number"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "phone" : {
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "SprayWindowView" : {
@@ -3926,6 +4022,121 @@
         "security" : [ ],
         "summary" : "The regions a person can pick at registration, sorted by name in the requested language",
         "tags" : [ "region-controller" ]
+      }
+    },
+    "/api/shops/nearby" : {
+      "get" : {
+        "operationId" : "listNearbyShops",
+        "parameters" : [ {
+          "description" : "Degrees north, -90 to 90",
+          "example" : 43.25,
+          "in" : "query",
+          "name" : "latitude",
+          "required" : true,
+          "schema" : {
+            "type" : "number"
+          }
+        }, {
+          "description" : "Degrees east, -180 to 180",
+          "example" : 76.95,
+          "in" : "query",
+          "name" : "longitude",
+          "required" : true,
+          "schema" : {
+            "type" : "number"
+          }
+        }, {
+          "description" : "Search radius in kilometres, 1 to 100",
+          "in" : "query",
+          "name" : "radiusKm",
+          "required" : false,
+          "schema" : {
+            "default" : 10,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Most shops to return, 1 to 100",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 50,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ShopView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "shop-controller" ]
+      }
+    },
+    "/api/shops/requests" : {
+      "post" : {
+        "operationId" : "createShopRequest",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateShopRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ShopRequestView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "shop-controller" ]
+      }
+    },
+    "/api/shops/{id}" : {
+      "get" : {
+        "operationId" : "getShop",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ShopView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "shop-controller" ]
       }
     },
     "/api/users/me" : {
