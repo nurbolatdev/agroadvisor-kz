@@ -1,10 +1,10 @@
 package kz.agroadvisor.shops.web;
 
 import java.math.BigDecimal;
-import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -64,6 +64,6 @@ public class ShopController {
         ShopRequestView created = shops.request(UUID.fromString(authentication.getName()),
                 new NewShopRequest(request.type(), request.shopId(), request.comment(), request.latitude(),
                         request.longitude()));
-        return ResponseEntity.created(URI.create("/api/shops/requests/" + created.id())).body(created);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 }

@@ -75,7 +75,7 @@ public class ShopService {
         double lon = longitude.doubleValue();
         // A box in degrees uses the index, then the exact distance in metres cuts the corners. The box is
         // wider in longitude the further north the point is, so the cosine is kept away from zero.
-        double boxDegrees = radiusKm / (111.0 * Math.max(Math.cos(Math.toRadians(lat)), 0.05));
+        double boxDegrees = radiusKm / (110.0 *Math.max(Math.cos(Math.toRadians(lat)), 0.05));
         return jdbc.query("""
                 SELECT %s, dist.metres
                 FROM shops
