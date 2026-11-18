@@ -33,7 +33,65 @@ class MigrationsTest {
                 "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class);
         assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13",
-                "14", "15", "16", "17", "18", "19", "20", "21", "22");
+                "14", "15", "16", "17", "18", "19", "20", "21", "22", "23");
+    }
+
+    @Test
+    void shopPointBecomesGeometryAndStatusIsChecked() {
+        UUID shop = insertShop("Agro Almaty", 43.25, 76.95);
+
+        assertThat(jdbc.queryForObject(
+                "SELECT ST_X(location)::float8 || ',' || ST_Y(location)::float8 FROM shops WHERE id = ?",
+                String.class, shop)).isEqualTo("76.95,43.25");
+        assertThatThrownBy(() -> jdbc.update("UPDATE shops SET status = 'deleted' WHERE id = ?", shop))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void shopRequestPointsAtAShopExceptForANewShop() {
+        UUID user = insertUser("+77010000031", null);
+        UUID shop = insertShop("Agro Astana", 51.16, 71.43);
+
+        jdbc.update("INSERT INTO shop_requests (author_id, type, comment, latitude, longitude) "
+                + "VALUES (?, 'new_shop', 'Seeds on Abay 1', 51.1, 71.4)", user);
+        jdbc.update("INSERT INTO shop_requests (author_id, type, shop_id, comment) VALUES (?, 'closed', ?, 'Closed')",
+                user, shop);
+
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO shop_requests (author_id, type, comment) VALUES (?, 'closed', 'Closed')", user))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void aNewShopRequestHasNoShop() {
+        UUID user = insertUser("+77010000034", null);
+        UUID shop = insertShop("Agro Karaganda", 49.8, 73.1);
+
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO shop_requests (author_id, type, shop_id, comment) VALUES (?, 'new_shop', ?, 'x')",
+                user, shop)).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void shopRequestPointNeedsBothCoordinates() {
+        UUID user = insertUser("+77010000032", null);
+
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO shop_requests (author_id, type, comment, latitude) VALUES (?, 'new_shop', 'x', 43.2)",
+                user)).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void requestsOfADeletedShopGoWithIt() {
+        UUID user = insertUser("+77010000033", null);
+        UUID shop = insertShop("Agro Shymkent", 42.3, 69.6);
+        jdbc.update("INSERT INTO shop_requests (author_id, type, shop_id, comment) VALUES (?, 'wrong_info', ?, 'Address')",
+                user, shop);
+
+        jdbc.update("DELETE FROM shops WHERE id = ?", shop);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM shop_requests WHERE shop_id = ?", Integer.class, shop))
+                .isZero();
     }
 
     @Test
@@ -441,6 +499,12 @@ class MigrationsTest {
                 INSERT INTO refresh_tokens (user_id, family_id, token_hash, expires_at)
                 VALUES (?, gen_random_uuid(), ?, now() + interval '7 days')
                 """, user, hash);
+    }
+
+    private UUID insertShop(String name, double latitude, double longitude) {
+        return jdbc.queryForObject(
+                "INSERT INTO shops (name, address, latitude, longitude) VALUES (?, 'Main street 1', ?, ?) RETURNING id",
+                UUID.class, name, latitude, longitude);
     }
 
     private UUID insertUser(String phone, String email) {
