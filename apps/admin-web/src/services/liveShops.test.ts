@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import i18n from '@/i18n'
+
 import { ApiError, type HttpClient } from './http'
 import { createLiveShops } from './liveShops'
 
@@ -113,6 +115,50 @@ describe('live shops', () => {
     await live.getShopAreas()
 
     expect(calls.filter((c) => c.path === '/api/regions')).toHaveLength(1)
+  })
+
+  it('asks the regions again after a language switch', async () => {
+    const { live, calls } = setup()
+
+    await live.getShopAreas()
+    const before = i18n.language
+    await i18n.changeLanguage(before === 'en' ? 'ru' : 'en')
+    try {
+      await live.getShopAreas()
+    } finally {
+      await i18n.changeLanguage(before)
+    }
+
+    expect(calls.filter((c) => c.path === '/api/regions')).toHaveLength(2)
+  })
+
+  it('does not keep a failed regions request', async () => {
+    let attempts = 0
+    const client = {
+      request: vi.fn(async () => {
+        attempts += 1
+        if (attempts === 1) throw new ApiError(503, 'unavailable', 'down')
+        return REGIONS
+      }),
+    } as unknown as HttpClient
+    const live = createLiveShops(client, { getSidebarCounters: async () => ({} as never) })
+
+    await expect(live.getShopAreas()).rejects.toMatchObject({ status: 503 })
+
+    expect(await live.getShopAreas()).toEqual(['Алматинская область', 'Акмолинская область'])
+  })
+
+  it('refuses to save a shop in an area it does not know instead of clearing the region', async () => {
+    const { live, calls } = setup({ 'PUT /api/admin/shops/a': row('a') })
+
+    await expect(
+      live.saveShop(
+        { name: 'x', district: 'Кегенский', address: 'y', lat: 43, lng: 76, hours: '', phone: '', categories: [] },
+        'a',
+      ),
+    ).rejects.toThrow('Unknown area')
+
+    expect(calls.some((c) => c.opts.method === 'PUT')).toBe(false)
   })
 
   it('creates a shop with the region id and null for blank texts', async () => {

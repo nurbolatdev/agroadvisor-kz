@@ -134,6 +134,14 @@ export function createLiveShops(
     return rows
   }
 
+  /** An empty area or "—" means no region; a name that matches none (a stale form) must not wipe the region. */
+  const regionIdOf = async (area: string) => {
+    if (!area || area === NO_AREA) return null
+    const id = await regionIdByName(area)
+    if (id === undefined) throw new Error(`Unknown area: ${area}`)
+    return id
+  }
+
   const body = async (input: Parameters<AdminApi['saveShop']>[0]) => ({
     name: input.name,
     address: input.address,
@@ -142,7 +150,7 @@ export function createLiveShops(
     categories: input.categories,
     latitude: input.lat,
     longitude: input.lng,
-    regionId: (await regionIdByName(input.district)) ?? null,
+    regionId: await regionIdOf(input.district),
   })
 
   const getShops: AdminApi['getShops'] = async (filters = {}) => {

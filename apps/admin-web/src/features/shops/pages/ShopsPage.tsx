@@ -34,6 +34,9 @@ export function ShopsPage() {
   const [formTarget, setFormTarget] = useState<ShopFormTarget>()
   const [busyRequestId, setBusyRequestId] = useState<string>()
   const [requestError, setRequestError] = useState<string>()
+  // An area filter holds a name in the language it was chosen in: after a language switch it counts as cleared.
+  const [filterLang, setFilterLang] = useState(lang)
+  const activeFilters = filterLang === lang ? filters : { ...filters, district: '' }
   const areas = useApiQuery(() => api.getShopAreas(), [lang])
   const stats = useApiQuery(() => api.getShopStats(), [lang])
   // Unfiltered list for the coverage card, independent of the table filters.
@@ -41,11 +44,11 @@ export function ShopsPage() {
   const shops = useApiQuery(
     () =>
       api.getShops({
-        search: filters.search,
-        district: filters.district || undefined,
-        status: filters.status,
+        search: activeFilters.search,
+        district: activeFilters.district || undefined,
+        status: activeFilters.status,
       }),
-    [filters.search, filters.district, filters.status, lang],
+    [activeFilters.search, activeFilters.district, activeFilters.status, lang],
   )
   const requests = useApiQuery(() => api.getShopRequests(), [lang])
   // One `?page=` for the active tab: the shops table or the requests list.
@@ -165,9 +168,10 @@ export function ShopsPage() {
             <section aria-label={t('tabs.directory')} className="flex min-w-0 flex-col gap-3">
               <ShopFilters
                 areas={areas.data ?? []}
-                value={filters}
+                value={activeFilters}
                 onChange={(next) => {
                   setFilters(next)
+                  setFilterLang(lang)
                   requestPages.resetPage()
                 }}
               />
