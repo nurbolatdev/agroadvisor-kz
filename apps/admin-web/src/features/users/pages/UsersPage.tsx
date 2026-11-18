@@ -64,7 +64,9 @@ export function UsersPage() {
         <span className="text-text-muted">
           {user.role === 'farmer'
             ? t('diagnoses', { count: user.diagnosesCount })
-            : t('answers', { count: user.postsCount })}
+            : user.postsCount === undefined
+              ? '—'
+              : t('answers', { count: user.postsCount })}
         </span>
       ),
     },
@@ -90,9 +92,11 @@ export function UsersPage() {
       render: (user) => (
         <span>
           <span className="block">{formatShortDate(user.registeredAt)}</span>
-          <span className="block text-caption font-normal text-text-muted">
-            {t('lastActive', { time: formatRelativeTime(user.lastActiveAt) })}
-          </span>
+          {user.lastActiveAt && (
+            <span className="block text-caption font-normal text-text-muted">
+              {t('lastActive', { time: formatRelativeTime(user.lastActiveAt) })}
+            </span>
+          )}
         </span>
       ),
     },

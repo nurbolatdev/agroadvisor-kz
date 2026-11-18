@@ -62,7 +62,7 @@ export function ComplaintDetailsPanel({ complaint, onResolved }: ComplaintDetail
           <h3 className="mb-2 text-small text-text-muted">{t('details.history')}</h3>
           <ul className="flex flex-col gap-1 text-body text-text">
             <li>{t('details.onPlatform', { since: formatSince(author.registeredAt) })}</li>
-            <li>{t('details.posts', { count: author.postsCount })}</li>
+            <li>{t('details.posts', { count: author.postsCount ?? 0 })}</li>
             <li className={author.warningsCount > 0 ? 'text-danger' : undefined}>
               {author.warningsCount > 0
                 ? t('details.warnings', { count: author.warningsCount })
