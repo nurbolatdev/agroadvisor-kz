@@ -880,6 +880,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/shops/nearby": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listNearbyShops"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/shops/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createShopRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/shops/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getShop"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/me": {
         parameters: {
             query?: never;
@@ -1158,6 +1206,27 @@ export interface components {
             crop: string;
             location?: components["schemas"]["FieldPoint"];
             name: string;
+        };
+        CreateShopRequest: {
+            /** @description What the farmer writes: the name and the address of a new shop, or what is wrong */
+            comment: string;
+            /**
+             * @description Degrees north of a new shop
+             * @example 43.25
+             */
+            latitude?: number;
+            /**
+             * @description Degrees east of a new shop
+             * @example 76.95
+             */
+            longitude?: number;
+            /**
+             * Format: uuid
+             * @description The shop the report is about; not for a new shop
+             */
+            shopId?: string;
+            /** @enum {string} */
+            type: "new_shop" | "wrong_info" | "closed";
         };
         CropBody: {
             names: {
@@ -1533,6 +1602,29 @@ export interface components {
         SendMessageRequest: {
             /** @description Trimmed; 1 to 2000 characters */
             text: string;
+        };
+        ShopRequestView: {
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            shopId?: string;
+            status?: string;
+            type?: string;
+        };
+        ShopView: {
+            address?: string;
+            categories?: string[];
+            /** Format: int64 */
+            distanceM?: number;
+            hours?: string;
+            /** Format: uuid */
+            id?: string;
+            latitude?: number;
+            longitude?: number;
+            name?: string;
+            phone?: string;
         };
         SprayWindowView: {
             /** Format: date-time */
@@ -3388,6 +3480,87 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["RegionView"][];
+                };
+            };
+        };
+    };
+    listNearbyShops: {
+        parameters: {
+            query: {
+                /**
+                 * @description Degrees north, -90 to 90
+                 * @example 43.25
+                 */
+                latitude: number;
+                /**
+                 * @description Degrees east, -180 to 180
+                 * @example 76.95
+                 */
+                longitude: number;
+                /** @description Search radius in kilometres, 1 to 100 */
+                radiusKm?: number;
+                /** @description Most shops to return, 1 to 100 */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ShopView"][];
+                };
+            };
+        };
+    };
+    createShopRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateShopRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ShopRequestView"];
+                };
+            };
+        };
+    };
+    getShop: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ShopView"];
                 };
             };
         };
