@@ -185,6 +185,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Farmers and agrochemists, newest first. search matches part of the name, the login (e-mail) or the phone digits. Administrators are not listed; phone and e-mail are not returned. */
+        get: operations["listUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Blocks or unblocks a farmer or an agrochemist. A block takes effect at once: the access token is refused and every refresh token of the user is revoked; unblocking does not restore sessions, the user signs in again. The status of an administrator cannot be changed (403 admin_status_locked), nor can the caller's own. Repeating the current status is not an error. */
+        patch: operations["changeUserStatus"];
+        trace?: never;
+    };
     "/api/agrochemist/crops": {
         parameters: {
             query?: never;
@@ -984,6 +1018,21 @@ export interface components {
             /** Format: int64 */
             id?: number;
         };
+        AdminUserView: {
+            /** Format: int32 */
+            diagnosesCount: number;
+            district: string | null;
+            fullName: string;
+            /** Format: uuid */
+            id: string;
+            region: string | null;
+            /** Format: date-time */
+            registeredAt: string;
+            /** @enum {string} */
+            role: "farmer" | "agrochemist";
+            /** @enum {string} */
+            status: "active" | "blocked";
+        };
         AgrochemistCardResponse: {
             /** @description Crop codes, alphabetical */
             crops: string[];
@@ -1635,6 +1684,10 @@ export interface components {
              */
             to: string;
         };
+        StatusRequest: {
+            /** @enum {string} */
+            status: "active" | "blocked";
+        };
         SummaryView: {
             /** Format: int32 */
             documentCount: number;
@@ -2191,6 +2244,64 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    listUsers: {
+        parameters: {
+            query?: {
+                role?: string;
+                search?: string;
+                page?: number;
+                size?: number;
+                lang?: string;
+            };
+            header?: {
+                "Accept-Language"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminUserView"][];
+                };
+            };
+        };
+    };
+    changeUserStatus: {
+        parameters: {
+            query?: {
+                lang?: string;
+            };
+            header?: {
+                "Accept-Language"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminUserView"];
+                };
             };
         };
     };

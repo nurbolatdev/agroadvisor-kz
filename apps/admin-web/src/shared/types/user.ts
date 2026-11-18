@@ -12,9 +12,11 @@ export interface User {
   crops: CropId[]
   status: UserStatus
   registeredAt: IsoDateTime
-  lastActiveAt: IsoDateTime
+  /** Not on the backend: absent in `live` mode. */
+  lastActiveAt?: IsoDateTime
   diagnosesCount: number
-  postsCount: number
+  /** Not on the backend: absent in `live` mode. */
+  postsCount?: number
   /** Moderation warnings received by the user. */
   warningsCount: number
 }
