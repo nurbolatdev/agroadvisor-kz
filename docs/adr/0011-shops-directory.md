@@ -35,6 +35,10 @@ and changes shops. Farmers can only tell about a new shop, wrong information, or
 - Free category codes can drift (`seeds` and `seed`); the admin form should offer a fixed list.
 - The search is by distance in a straight line, not by road.
 
+## Update (B12.3)
+
+The admin API now exists (`/api/admin/shops`, see `docs/api/admin-shops.md`): list with hidden shops, add, change, hide and show, and the list and the decision of reports. The category codes are limited to a fixed list there. A shop is tied to a region; the district is optional because the table of districts is empty. Deciding a report changes only its status; the shop is added or edited with separate calls.
+
 ## Rejected
 
 - **PostGIS columns mapped in JPA:** needs a spatial library in the stack for no gain; plain `JdbcTemplate` is enough.
