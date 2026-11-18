@@ -90,6 +90,21 @@ public class UserAdminRepository {
         return jdbc.query(SELECT + " AND u.id = ?", ROW, lang, lang, id).stream().findFirst();
     }
 
+    /**
+     * Locks the row of the user until the end of the transaction. Empty when there is no such user, otherwise
+     * whether the user is an administrator.
+     */
+    public Optional<Boolean> lockForStatusChange(UUID id) {
+        return jdbc.query("""
+                SELECT EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = u.id AND ur.role_code = 'admin')
+                FROM users u WHERE u.id = ? FOR UPDATE OF u
+                """, (rs, i) -> rs.getBoolean(1), id).stream().findFirst();
+    }
+
+    public void updateStatus(UUID id, String status) {
+        jdbc.update("UPDATE users SET status = ?, updated_at = now() WHERE id = ?", status, id);
+    }
+
     private static String escape(String text) {
         return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
