@@ -36,7 +36,7 @@ export function UsersPage() {
           <span>
             <span className="block font-semibold">{user.name}</span>
             <span className="block text-caption font-normal text-text-muted">
-              {user.district}, {user.region}
+              {[user.district, user.region].filter((part) => part !== '—').join(', ') || '—'}
             </span>
           </span>
         </span>
