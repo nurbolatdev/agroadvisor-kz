@@ -34,6 +34,133 @@
         },
         "type" : "object"
       },
+      "AdminShopRequestView" : {
+        "properties" : {
+          "author" : {
+            "$ref" : "#/components/schemas/RequestAuthor"
+          },
+          "comment" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "latitude" : {
+            "type" : [ "number", "null" ]
+          },
+          "longitude" : {
+            "type" : [ "number", "null" ]
+          },
+          "shopId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "shopName" : {
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "enum" : [ "new", "done", "rejected" ],
+            "type" : "string"
+          },
+          "type" : {
+            "enum" : [ "new_shop", "wrong_info", "closed" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "author", "comment", "createdAt", "id", "latitude", "longitude", "shopId", "shopName", "status", "type" ],
+        "type" : "object"
+      },
+      "AdminShopStats" : {
+        "properties" : {
+          "active" : {
+            "description" : "Of them, shown to farmers",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "addedThisMonth" : {
+            "description" : "Added since the start of this month (UTC)",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pendingRequests" : {
+            "description" : "Reports waiting for a decision",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "description" : "Shops in the directory, hidden ones included",
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "active", "addedThisMonth", "pendingRequests", "total" ],
+        "type" : "object"
+      },
+      "AdminShopView" : {
+        "properties" : {
+          "address" : {
+            "type" : "string"
+          },
+          "categories" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "district" : {
+            "type" : [ "string", "null" ]
+          },
+          "districtId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "hours" : {
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "latitude" : {
+            "type" : "number"
+          },
+          "longitude" : {
+            "type" : "number"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "phone" : {
+            "type" : [ "string", "null" ]
+          },
+          "region" : {
+            "type" : [ "string", "null" ]
+          },
+          "regionId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "status" : {
+            "enum" : [ "active", "hidden" ],
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "address", "categories", "createdAt", "district", "districtId", "hours", "id", "latitude", "longitude", "name", "phone", "region", "regionId", "status", "updatedAt" ],
+        "type" : "object"
+      },
       "AdminTreatment" : {
         "properties" : {
           "data" : {
@@ -1448,6 +1575,34 @@
         "required" : [ "fullName", "login", "password" ],
         "type" : "object"
       },
+      "RequestAuthor" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "region" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "id", "name", "region" ],
+        "type" : "object"
+      },
+      "RequestDecision" : {
+        "properties" : {
+          "status" : {
+            "enum" : [ "done", "rejected" ],
+            "minLength" : 1,
+            "pattern" : "done|rejected",
+            "type" : "string"
+          }
+        },
+        "required" : [ "status" ],
+        "type" : "object"
+      },
       "SendMessageRequest" : {
         "properties" : {
           "text" : {
@@ -1458,6 +1613,56 @@
           }
         },
         "required" : [ "text" ],
+        "type" : "object"
+      },
+      "ShopBody" : {
+        "properties" : {
+          "address" : {
+            "maxLength" : 255,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "categories" : {
+            "description" : "fungicides, insecticides, herbicides, fertilizers, seeds, equipment",
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "districtId" : {
+            "description" : "Needs regionId; the district must be in that region",
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "hours" : {
+            "maxLength" : 120,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "latitude" : {
+            "description" : "40 to 56",
+            "type" : "number"
+          },
+          "longitude" : {
+            "description" : "46 to 88",
+            "type" : "number"
+          },
+          "name" : {
+            "maxLength" : 120,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "phone" : {
+            "maxLength" : 40,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "regionId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "required" : [ "address", "latitude", "longitude", "name" ],
         "type" : "object"
       },
       "ShopRequestView" : {
@@ -1533,6 +1738,18 @@
           }
         },
         "required" : [ "from", "to" ],
+        "type" : "object"
+      },
+      "StatusBody" : {
+        "properties" : {
+          "status" : {
+            "enum" : [ "active", "hidden" ],
+            "minLength" : 1,
+            "pattern" : "active|hidden",
+            "type" : "string"
+          }
+        },
+        "required" : [ "status" ],
         "type" : "object"
       },
       "StatusRequest" : {
@@ -2456,6 +2673,414 @@
           }
         },
         "tags" : [ "catalog-admin-controller" ]
+      }
+    },
+    "/api/admin/shops" : {
+      "get" : {
+        "operationId" : "listAdminShops",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "search",
+          "required" : false,
+          "schema" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "regionId",
+          "required" : false,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "pattern" : "active|hidden",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "default" : 0,
+            "format" : "int32",
+            "maximum" : 10000,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "lang",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Accept-Language",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/AdminShopView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "All shops, hidden ones included, by name. search matches part of the name or the address. Region and district names are in the asked language.",
+        "tags" : [ "shop-admin-controller" ]
+      },
+      "post" : {
+        "operationId" : "createAdminShop",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "lang",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Accept-Language",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ShopBody"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminShopView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Adds a shop; it is active at once.",
+        "tags" : [ "shop-admin-controller" ]
+      }
+    },
+    "/api/admin/shops/requests" : {
+      "get" : {
+        "operationId" : "listAdminShopRequests",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "pattern" : "new|done|rejected",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "default" : 0,
+            "format" : "int32",
+            "maximum" : 10000,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "lang",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Accept-Language",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/AdminShopRequestView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Reports farmers sent, newest first; status filters them (the admin reads the new ones).",
+        "tags" : [ "shop-admin-controller" ]
+      }
+    },
+    "/api/admin/shops/requests/{id}/status" : {
+      "patch" : {
+        "operationId" : "resolveAdminShopRequest",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "lang",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Accept-Language",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RequestDecision"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminShopRequestView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Marks a new report done or rejected. It does not change any shop: the admin adds or edits the shop with the calls above. A report is decided once (409 shop_request_resolved); 404 shop_request_not_found.",
+        "tags" : [ "shop-admin-controller" ]
+      }
+    },
+    "/api/admin/shops/stats" : {
+      "get" : {
+        "operationId" : "getAdminShopStats",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminShopStats"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Counters of the directory and of the reports.",
+        "tags" : [ "shop-admin-controller" ]
+      }
+    },
+    "/api/admin/shops/{id}" : {
+      "get" : {
+        "operationId" : "getAdminShop",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "lang",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Accept-Language",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminShopView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "One shop, hidden or not; 404 shop_not_found.",
+        "tags" : [ "shop-admin-controller" ]
+      },
+      "put" : {
+        "operationId" : "updateAdminShop",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "lang",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Accept-Language",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ShopBody"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminShopView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Replaces the fields of a shop; its status is not changed here. 404 shop_not_found.",
+        "tags" : [ "shop-admin-controller" ]
+      }
+    },
+    "/api/admin/shops/{id}/status" : {
+      "patch" : {
+        "operationId" : "changeAdminShopStatus",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "lang",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Accept-Language",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StatusBody"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminShopView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Hides a shop from farmers or shows it again. Repeating the current status is not an error. There is no delete.",
+        "tags" : [ "shop-admin-controller" ]
       }
     },
     "/api/admin/users" : {
