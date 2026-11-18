@@ -72,7 +72,7 @@ export function AiQualityPage() {
           </div>
           <div className="grid items-start gap-4 xl:grid-cols-2">
             <MismatchesCard mismatches={data.mismatches} />
-            <DiseaseGeographyCard geography={data.geography} />
+            {data.geography ? <DiseaseGeographyCard geography={data.geography} /> : null}
           </div>
         </div>
       ) : (

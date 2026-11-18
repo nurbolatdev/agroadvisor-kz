@@ -35,9 +35,11 @@ export interface AiQualityStats {
   /** Share of diagnoses (%) in 10 confidence buckets: 0–10 %, 10–20 %, … 90–100 %. */
   confidenceHistogram: number[]
   topDiseases: TopDisease[]
-  trainingData: { labeled: number; addedThisWeek: number; classes: number }
+  /** `canExport: false` hides the dataset export (the backend has no export yet); absent means it works. */
+  trainingData: { labeled: number; addedThisWeek: number; classes: number; canExport?: boolean }
   mismatches: AiMismatch[]
-  geography: DiseaseGeography
+  /** Absent when the data source has none (the backend has no disease map yet); the card is then hidden. */
+  geography?: DiseaseGeography
 }
 
 /** One labeled photo in the retraining dataset export. */

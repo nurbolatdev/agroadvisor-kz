@@ -62,14 +62,16 @@ export function TrainingDataCard({ data }: TrainingDataCardProps) {
         <Badge tone="success">{t('perWeek', { value: formatNumber(data.addedThisWeek) })}</Badge>
         <Badge tone="neutral">{t('classes', { count: data.classes })}</Badge>
       </div>
-      <Button
-        icon={Download}
-        disabled={isExporting}
-        onClick={exportDataset}
-        className="mt-auto w-full"
-      >
-        {isExporting ? t('exporting') : t('export')}
-      </Button>
+      {data.canExport === false ? null : (
+        <Button
+          icon={Download}
+          disabled={isExporting}
+          onClick={exportDataset}
+          className="mt-auto w-full"
+        >
+          {isExporting ? t('exporting') : t('export')}
+        </Button>
+      )}
       {error ? (
         <p role="alert" className="mt-2 text-small text-danger">
           {error}
