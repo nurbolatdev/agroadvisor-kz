@@ -22,11 +22,12 @@ import { cn } from '@/shared/utils/cn'
 export function AiQualityPage() {
   const { settings } = useSettings()
   const periodOptions = usePeriodOptions()
-  const { t } = useTranslation(['aiQuality', 'common'])
+  const { t, i18n } = useTranslation(['aiQuality', 'common'])
   const [period, setPeriod] = useState<StatsPeriod>(settings.defaultPeriod)
+  // Class names come from the backend in the interface language, so a language switch reloads them.
   const { data, error, isLoading, reload } = useApiQuery(
     () => api.getAiQualityStats(period),
-    [period],
+    [period, i18n.language],
   )
 
   return (
@@ -70,7 +71,9 @@ export function AiQualityPage() {
             <TopDiseasesCard diseases={data.topDiseases} period={period} />
             <TrainingDataCard data={data.trainingData} />
           </div>
-          <div className="grid items-start gap-4 xl:grid-cols-2">
+          <div
+            className={cn('grid items-start gap-4', data.geography ? 'xl:grid-cols-2' : 'xl:grid-cols-1')}
+          >
             <MismatchesCard mismatches={data.mismatches} />
             {data.geography ? <DiseaseGeographyCard geography={data.geography} /> : null}
           </div>
