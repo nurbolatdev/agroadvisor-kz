@@ -8,7 +8,7 @@ Errors are RFC 9457 problem documents with a `code` field (see [error codes](#er
 
 | Operation | Endpoint | Result |
 | --- | --- | --- |
-| `listUsers` | `GET /api/admin/users?role=&search=&page=0&size=20&lang=` | `200`, a bare array of users, newest first (`createdAt` descending, then `id`). |
+| `listUsers` | `GET /api/admin/users?role=&search=&page=0&size=20&lang=` | `200`, a bare array of users, newest first (`registeredAt` descending, then `id`). |
 | `changeUserStatus` | `PATCH /api/admin/users/{id}/status?lang=` | `200`, the updated user. Body `{ "status": "active" \| "blocked" }`. |
 
 ### Parameters of the list
@@ -75,7 +75,7 @@ Not returned, because the backend has no source for them yet:
 | Status | `code` | When |
 | --- | --- | --- |
 | 400 | `validation_failed` | a parameter out of range, an unknown `role`, a `status` other than `active` or `blocked`, an empty body, a malformed id. |
-| 401 | | no or invalid access token. |
-| 403 | | the caller is not an admin. |
+| 401 | general | no or invalid access token; the `code` is the one of the common error format. |
+| 403 | general | the caller is not an admin; the `code` is the one of the common error format. |
 | 403 | `admin_status_locked` | the target is an administrator or the caller themselves. |
 | 404 | `user_not_found` | there is no such user. |
