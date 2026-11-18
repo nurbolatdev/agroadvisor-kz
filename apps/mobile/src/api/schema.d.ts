@@ -185,6 +185,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Farmers and agrochemists, newest first. search matches part of the name, the login (e-mail) or the phone digits. Administrators are not listed; phone and e-mail are not returned. */
+        get: operations["listUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agrochemist/crops": {
         parameters: {
             query?: never;
@@ -935,6 +952,21 @@ export interface components {
             data?: components["schemas"]["TreatmentData"];
             /** Format: int64 */
             id?: number;
+        };
+        AdminUserView: {
+            /** Format: int32 */
+            diagnosesCount: number;
+            district: string | null;
+            fullName: string;
+            /** Format: uuid */
+            id: string;
+            region: string | null;
+            /** Format: date-time */
+            registeredAt: string;
+            /** @enum {string} */
+            role: "farmer" | "agrochemist";
+            /** @enum {string} */
+            status: "active" | "blocked";
         };
         AgrochemistCardResponse: {
             /** @description Crop codes, alphabetical */
@@ -2099,6 +2131,34 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    listUsers: {
+        parameters: {
+            query?: {
+                role?: string;
+                search?: string;
+                page?: number;
+                size?: number;
+                lang?: string;
+            };
+            header?: {
+                "Accept-Language"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminUserView"][];
+                };
             };
         };
     };

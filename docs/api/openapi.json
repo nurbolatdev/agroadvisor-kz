@@ -46,6 +46,41 @@
         },
         "type" : "object"
       },
+      "AdminUserView" : {
+        "properties" : {
+          "diagnosesCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "district" : {
+            "type" : [ "string", "null" ]
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "region" : {
+            "type" : [ "string", "null" ]
+          },
+          "registeredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "role" : {
+            "enum" : [ "farmer", "agrochemist" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "active", "blocked" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "diagnosesCount", "district", "fullName", "id", "region", "registeredAt", "role", "status" ],
+        "type" : "object"
+      },
       "AgrochemistCardResponse" : {
         "properties" : {
           "crops" : {
@@ -2169,6 +2204,82 @@
           }
         },
         "tags" : [ "catalog-admin-controller" ]
+      }
+    },
+    "/api/admin/users" : {
+      "get" : {
+        "operationId" : "listUsers",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "role",
+          "required" : false,
+          "schema" : {
+            "pattern" : "farmer|agrochemist",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "search",
+          "required" : false,
+          "schema" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "default" : 0,
+            "format" : "int32",
+            "maximum" : 10000,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "lang",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Accept-Language",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/AdminUserView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Farmers and agrochemists, newest first. search matches part of the name, the login (e-mail) or the phone digits. Administrators are not listed; phone and e-mail are not returned.",
+        "tags" : [ "user-admin-controller" ]
       }
     },
     "/api/agrochemist/crops" : {
