@@ -1042,7 +1042,7 @@ export interface components {
             mismatches: components["schemas"]["MismatchView"][];
             /** @enum {string} */
             period: "7d" | "30d" | "season";
-            /** @description At most 6, most frequent first */
+            /** @description At most 6 diseases (no healthy classes), most frequent first */
             topDiseases: components["schemas"]["DiseaseCount"][];
             /**
              * Format: int32

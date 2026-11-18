@@ -58,7 +58,10 @@ public class AiQualityRepository {
         return counts;
     }
 
-    /** The classes the model named most since {@code since}, among answers it stood behind. */
+    /**
+     * The diseases the model named most since {@code since}, among answers it stood behind. Healthy classes and
+     * {@code unknown} are not diseases and are left out.
+     */
     public List<ClassCount> topDiseases(Instant since, String lang, int limit) {
         return jdbc.query("""
                 SELECT d.top1_code AS code, coalesce(c.names ->> ?, d.top1_code) AS name, d.n
@@ -67,6 +70,7 @@ public class AiQualityRepository {
                          AND top1_code <> 'unknown'
                        GROUP BY top1_code) d
                 LEFT JOIN diseases c ON c.code = d.top1_code
+                WHERE c.kind IS NULL OR c.kind <> 'healthy'
                 ORDER BY d.n DESC, d.top1_code
                 LIMIT ?""", (rs, i) -> new ClassCount(rs.getString("code"), rs.getString("name"), rs.getInt("n")),
                 lang, Timestamp.from(since), limit);

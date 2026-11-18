@@ -12,7 +12,7 @@ The endpoint is under `/api/admin` and needs the `ADMIN` role: no token is 401, 
 
 | Parameter | Rule |
 | --- | --- |
-| `period` | `7d`, `30d` (default) or `season`. `7d` and `30d` count back from now; `season` starts on 1 March (UTC), the previous year's when today is before it. An other value is 400 `validation_failed`. |
+| `period` | `7d`, `30d` (default) or `season`. `7d` and `30d` count back from now; `season` starts on 1 March (UTC), the previous year's when today is before it. The boundary is 00:00 UTC, which is 05:00 in Kazakhstan. Any other value is 400 `validation_failed`. |
 | `lang` | `ru`, `kk` or `en`; it wins over the `Accept-Language` header; the default is `ru`. |
 
 ## Result
@@ -25,7 +25,7 @@ The endpoint is under `/api/admin` and needs the `ADMIN` role: no token is 401, 
 | --- | --- |
 | `total` | diagnoses made in the period. |
 | `confidenceHistogram` | always 10 numbers: diagnoses per bucket of the model's top confidence, 0–10 %, 10–20 %, … 90–100 %. A confidence of exactly 100 % is in the last bucket. The client turns counts into shares and marks the buckets below its threshold. |
-| `topDiseases` | at most 6 classes, most frequent first: `code`, `name`, `count`. Only answers the model stood behind (`ok`, `low_confidence`) are counted; the `unknown` class is not a disease and is left out. `name` is in the asked language, the class code when the catalog has no such class. |
+| `topDiseases` | at most 6 classes, most frequent first: `code`, `name`, `count`. Only answers the model stood behind (`ok`, `low_confidence`) are counted; the `unknown` class and the healthy classes (`kind` healthy) are not diseases and are left out. The four queries of one call read one snapshot of the database. `name` is in the asked language, the class code when the catalog has no such class. |
 | `trainingData` | `labeled`: photos with an expert decision (all time, not only the period); `addedThisWeek`: of them, decided in the last 7 days; `classes`: classes these decisions cover. |
 | `mismatches` | at most 5 pairs, most frequent first: the model said `aiCode`, the experts decided `confirmedCode`, `cases` times (for diagnoses made in the period). Names are in the asked language. |
 

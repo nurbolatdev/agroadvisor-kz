@@ -173,7 +173,7 @@
             "type" : "string"
           },
           "topDiseases" : {
-            "description" : "At most 6, most frequent first",
+            "description" : "At most 6 diseases (no healthy classes), most frequent first",
             "items" : {
               "$ref" : "#/components/schemas/DiseaseCount"
             },

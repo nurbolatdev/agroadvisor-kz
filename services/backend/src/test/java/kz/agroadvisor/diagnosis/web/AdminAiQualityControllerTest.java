@@ -5,6 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -26,6 +28,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import kz.agroadvisor.TestcontainersConfiguration;
 import kz.agroadvisor.auth.service.JwtService;
+import kz.agroadvisor.diagnosis.repository.AiQualityRepository;
 import kz.agroadvisor.users.model.Login;
 import kz.agroadvisor.users.model.Role;
 import kz.agroadvisor.users.model.User;
@@ -54,6 +57,8 @@ class AdminAiQualityControllerTest {
     private JdbcTemplate jdbc;
     @Autowired
     private JsonMapper json;
+    @Autowired
+    private AiQualityRepository quality;
 
     private final List<UUID> created = new ArrayList<>();
     private UUID farmerId;
@@ -124,7 +129,39 @@ class AdminAiQualityControllerTest {
     @Test
     void rejectsAnUnknownPeriod() throws Exception {
         mvc.perform(get("/api/admin/ai-quality?period=year").header("Authorization", adminToken))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("validation_failed"));
+    }
+
+    @Test
+    void forbidsAnAgrochemist() throws Exception {
+        UUID chemist = user(Role.AGROCHEMIST);
+        mvc.perform(get("/api/admin/ai-quality").header("Authorization", "Bearer " + jwt.issueAccessToken(chemist)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void countsADiseaseButNotAHealthyClass() throws Exception {
+        // the repository with a large limit, so the figures do not depend on what else is in the shared database
+        Instant since = Instant.now().minus(Duration.ofDays(7));
+        int before = count(quality.topDiseases(since, "ru", 1000), AI);
+        diagnosis("ok", AI, 0.9);
+        diagnosis("low_confidence", AI, 0.3);
+        diagnosis("unknown", AI, 0.2); // no answer the model stood behind
+        for (int i = 0; i < 40; i++) {
+            diagnosis("ok", "potato__healthy", 0.9);
+        }
+
+        List<AiQualityRepository.ClassCount> top = quality.topDiseases(since, "ru", 1000);
+
+        assertThat(count(top, "potato__healthy")).isZero();
+        assertThat(count(top, AI) - before).isEqualTo(2);
+        // and the endpoint caps the list
+        assertThat(stats("?period=7d").get("topDiseases").size()).isLessThanOrEqualTo(6);
+    }
+
+    private static int count(List<AiQualityRepository.ClassCount> top, String code) {
+        return top.stream().filter(c -> c.code().equals(code)).mapToInt(AiQualityRepository.ClassCount::count)
+                .sum();
     }
 
     @Test
@@ -190,8 +227,9 @@ class AdminAiQualityControllerTest {
 
     @Test
     void listsWhereExpertsDisagreedWithTheModel() throws Exception {
-        JsonNode before = pair(stats("?period=7d").get("mismatches"), AI, RIGHT);
-        int cases = before == null ? 0 : before.get("cases").asInt();
+        // the repository with a large limit: the endpoint's top 5 depends on what else is in the shared database
+        Instant since = Instant.now().minus(Duration.ofDays(7));
+        int cases = cases(quality.mismatches(since, "ru", 1000), AI, RIGHT);
         UUID wrong = diagnosis("ok", AI, 0.9);
         review(wrong, adminId, "corrected", RIGHT);
         UUID right = diagnosis("ok", AI, 0.9);
@@ -199,14 +237,17 @@ class AdminAiQualityControllerTest {
         UUID unanswered = diagnosis("unknown", "unknown", 0.2);
         review(unanswered, adminId, "corrected", RIGHT); // the model gave no answer to disagree with
 
-        JsonNode mismatches = stats("?period=7d").get("mismatches");
-        JsonNode found = pair(mismatches, AI, RIGHT);
+        List<AiQualityRepository.Mismatch> all = quality.mismatches(since, "ru", 1000);
 
-        assertThat(mismatches.size()).isLessThanOrEqualTo(5);
-        assertThat(found).isNotNull();
-        assertThat(found.get("cases").asInt() - cases).isEqualTo(1);
-        assertThat(pair(mismatches, AI, AI)).isNull();
-        assertThat(pair(mismatches, "unknown", RIGHT)).isNull();
+        assertThat(cases(all, AI, RIGHT) - cases).isEqualTo(1);
+        assertThat(cases(all, AI, AI)).isZero();
+        assertThat(cases(all, "unknown", RIGHT)).isZero();
+        assertThat(stats("?period=7d").get("mismatches").size()).isLessThanOrEqualTo(5);
+    }
+
+    private static int cases(List<AiQualityRepository.Mismatch> all, String ai, String confirmed) {
+        return all.stream().filter(m -> m.aiCode().equals(ai) && m.confirmedCode().equals(confirmed))
+                .mapToInt(AiQualityRepository.Mismatch::cases).sum();
     }
 
     @Test

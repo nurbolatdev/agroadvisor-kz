@@ -11,6 +11,7 @@ import java.util.List;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import kz.agroadvisor.diagnosis.repository.AiQualityRepository;
@@ -73,7 +74,7 @@ public class AiQualityService {
             @Schema(requiredMode = RequiredMode.REQUIRED, allowableValues = { "7d", "30d", "season" }) String period,
             @Schema(requiredMode = RequiredMode.REQUIRED, description = "Diagnoses in the period") int total,
             @Schema(requiredMode = RequiredMode.REQUIRED, description = "Diagnoses per confidence bucket: 0–10 %, 10–20 %, … 90–100 %; always 10 numbers") List<Integer> confidenceHistogram,
-            @Schema(requiredMode = RequiredMode.REQUIRED, description = "At most 6, most frequent first") List<DiseaseCount> topDiseases,
+            @Schema(requiredMode = RequiredMode.REQUIRED, description = "At most 6 diseases (no healthy classes), most frequent first") List<DiseaseCount> topDiseases,
             @Schema(requiredMode = RequiredMode.REQUIRED) TrainingView trainingData,
             @Schema(requiredMode = RequiredMode.REQUIRED, description = "At most 5, most frequent first") List<MismatchView> mismatches) {
     }
@@ -86,7 +87,8 @@ public class AiQualityService {
         this.clock = clock;
     }
 
-    @Transactional(readOnly = true)
+    /** One snapshot for the four queries, so the totals and the lists agree with each other. */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public AiQualityView stats(Period period, String lang) {
         Instant now = clock.instant();
         Instant since = since(period, now);
