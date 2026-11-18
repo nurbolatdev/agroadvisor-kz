@@ -157,6 +157,8 @@ class ShopAdminControllerTest {
     void rejectsWhatIsNotAShop() throws Exception {
         send(post("/api/admin/shops"), adminToken, body("Агро " + marker, ", \"categories\": [\"cars\"]"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("validation_failed"));
+        send(post("/api/admin/shops"), adminToken, body("Агро " + marker, ", \"categories\": [null]"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("validation_failed"));
         // a point outside Kazakhstan
         send(post("/api/admin/shops"), adminToken, """
                 {"name": "Агро %s", "address": "x", "latitude": 10, "longitude": 76.9}""".formatted(marker))

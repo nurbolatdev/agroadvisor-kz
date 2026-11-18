@@ -43,7 +43,7 @@ The body of `POST` and `PUT`:
 | Field | Rule |
 | --- | --- |
 | `name`, `address` | required, trimmed, at most 120 and 255 characters, no control characters. |
-| `phone`, `hours` | optional, at most 40 and 120 characters; blank is stored as null. The phone is shown only to administrators: farmers get it as text in the shop card (ADR 0011), there is no call button. |
+| `phone`, `hours` | optional, at most 40 and 120 characters; blank is stored as null. Farmers see the phone as text in the shop card (ADR 0011); there is no call button. |
 | `categories` | optional list of `fungicides`, `insecticides`, `herbicides`, `fertilizers`, `seeds`, `equipment`; repeats are dropped, another code is 400. |
 | `latitude`, `longitude` | required, a point in Kazakhstan: 40 to 56 and 46 to 88; kept with six decimals. |
 | `regionId`, `districtId` | optional. A district needs its region and must lie in it; otherwise 400 `unknown_region`. |

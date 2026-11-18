@@ -180,7 +180,8 @@ public class ShopAdminService {
         String phone = text(c.phone(), "phone", 40, false);
         String hours = text(c.hours(), "hours", 120, false);
         Set<String> categories = new LinkedHashSet<>(c.categories() == null ? List.of() : c.categories());
-        if (!CATEGORIES.containsAll(categories)) {
+        // a null element would make the immutable set throw, so it is checked first
+        if (!categories.stream().allMatch(code -> code != null && CATEGORIES.contains(code))) {
             throw invalid("categories are among " + String.join(", ", CATEGORIES.stream().sorted().toList()));
         }
         if (c.latitude() == null || c.longitude() == null || c.latitude().compareTo(MIN_LAT) < 0
