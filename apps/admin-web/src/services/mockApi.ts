@@ -164,12 +164,14 @@ export const mockApi: AdminApi = {
         .filter((item) => matches(item.name, filters.search)),
     ),
 
+  getShopAreas: () => respond([...SHOP_DISTRICTS]),
+
   getShopStats: () => {
     const active = db.shops.filter((item) => item.status === 'active')
     return respond({
       total: db.shops.length,
       addedThisMonth: mockShopStatsBase.addedThisMonth + db.shops.length - mockShops.length,
-      routes30d: active.reduce((sum, item) => sum + item.routes30d, 0),
+      routes30d: active.reduce((sum, item) => sum + (item.routes30d ?? 0), 0),
       routesChangePercent: mockShopStatsBase.routesChangePercent,
       districtsWithoutShop: SHOP_DISTRICTS.filter(
         (district) => !active.some((item) => item.district === district),
@@ -184,7 +186,7 @@ export const mockApi: AdminApi = {
         .filter((item) => !filters.status || item.status === filters.status)
         .filter((item) => !filters.district || item.district === filters.district)
         .filter((item) => matches(`${item.name} ${item.address}`, filters.search))
-        .sort((a, b) => b.routes30d - a.routes30d),
+        .sort((a, b) => (b.routes30d ?? 0) - (a.routes30d ?? 0)),
     ),
 
   saveShop: (input, id) => {

@@ -8,7 +8,6 @@ import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { navigatorLinks, SHOP_CATEGORIES } from '@/features/shops/shops'
 import { api } from '@/services/api'
-import { SHOP_DISTRICTS } from '@/shared/constants/districts'
 import type { Shop, ShopCategory, ShopInput } from '@/shared/types'
 
 export interface ShopFormTarget {
@@ -26,6 +25,8 @@ interface ShopFormModalProps {
   target: ShopFormTarget | undefined
   onClose: () => void
   onSaved: (shop: Shop) => void
+  /** The areas the select offers. */
+  areas: string[]
 }
 
 type Field = 'name' | 'district' | 'address' | 'lat' | 'lng'
@@ -37,7 +38,7 @@ const LNG_RANGE = [46, 88] as const
 const inRange = (value: number, [min, max]: readonly [number, number]) =>
   Number.isFinite(value) && value >= min && value <= max
 
-export function ShopFormModal({ target, onClose, onSaved }: ShopFormModalProps) {
+export function ShopFormModal({ target, onClose, onSaved, areas }: ShopFormModalProps) {
   const { t } = useTranslation(['shops', 'common'])
   const source = { ...target?.initial, ...target?.shop }
   const [name, setName] = useState(source.name ?? '')
@@ -156,7 +157,7 @@ export function ShopFormModal({ target, onClose, onSaved }: ShopFormModalProps) 
           value={district}
           onChange={(event) => setDistrict(event.target.value)}
           error={errors.district}
-          options={SHOP_DISTRICTS.map((item) => ({ value: item, label: item }))}
+          options={areas.map((item) => ({ value: item, label: item }))}
         />
         <Input
           label={t('form.address')}

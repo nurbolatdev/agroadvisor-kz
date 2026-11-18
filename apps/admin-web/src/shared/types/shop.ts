@@ -19,8 +19,8 @@ export interface Shop {
   categories: ShopCategory[]
   /** Hidden shops stay in the directory but are not shown in the app. */
   status: ShopStatus
-  /** Routes farmers built to this shop in the last 30 days. */
-  routes30d: number
+  /** Routes farmers built to this shop in the last 30 days; absent when the data source does not count them. */
+  routes30d?: number
   updatedAt: IsoDateTime
 }
 
@@ -39,7 +39,15 @@ export interface ShopRequest {
   type: ShopRequestType
   /** The shop the request is about; absent for `new_shop`. */
   shopId?: string
-  payload: { name?: string; address?: string; district?: string; comment: string }
+  /** `lat` and `lng` are the point a farmer gave for a new shop. */
+  payload: {
+    name?: string
+    address?: string
+    district?: string
+    lat?: number
+    lng?: number
+    comment: string
+  }
   author: { name: string; district: string }
   createdAt: IsoDateTime
   status: ShopRequestStatus
@@ -48,8 +56,9 @@ export interface ShopRequest {
 export interface ShopStats {
   total: number
   addedThisMonth: number
-  routes30d: number
-  routesChangePercent: number
+  /** Both route figures are absent when the data source does not count routes; the card is then hidden. */
+  routes30d?: number
+  routesChangePercent?: number
   districtsWithoutShop: number
   pendingRequests: number
 }

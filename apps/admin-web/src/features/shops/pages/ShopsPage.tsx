@@ -23,7 +23,8 @@ import { notifyDataChanged } from '@/shared/utils/dataEvents'
 type Tab = 'directory' | 'requests'
 
 export function ShopsPage() {
-  const { t } = useTranslation(['shops', 'common'])
+  const { t, i18n } = useTranslation(['shops', 'common'])
+  const lang = i18n.language // area names come from the backend in the interface language
   const [filters, setFilters] = useState<ShopFilterValue>({
     search: '',
     district: '',
@@ -33,9 +34,10 @@ export function ShopsPage() {
   const [formTarget, setFormTarget] = useState<ShopFormTarget>()
   const [busyRequestId, setBusyRequestId] = useState<string>()
   const [requestError, setRequestError] = useState<string>()
-  const stats = useApiQuery(() => api.getShopStats(), [])
+  const areas = useApiQuery(() => api.getShopAreas(), [lang])
+  const stats = useApiQuery(() => api.getShopStats(), [lang])
   // Unfiltered list for the coverage card, independent of the table filters.
-  const allShops = useApiQuery(() => api.getShops(), [])
+  const allShops = useApiQuery(() => api.getShops(), [lang])
   const shops = useApiQuery(
     () =>
       api.getShops({
@@ -43,9 +45,9 @@ export function ShopsPage() {
         district: filters.district || undefined,
         status: filters.status,
       }),
-    [filters.search, filters.district, filters.status],
+    [filters.search, filters.district, filters.status, lang],
   )
-  const requests = useApiQuery(() => api.getShopRequests(), [])
+  const requests = useApiQuery(() => api.getShopRequests(), [lang])
   // One `?page=` for the active tab: the shops table or the requests list.
   const requestPages = usePagination(requests.data ?? [])
   const tablePage = usePageParam()
@@ -162,6 +164,7 @@ export function ShopsPage() {
           <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,640fr)_minmax(0,312fr)]">
             <section aria-label={t('tabs.directory')} className="flex min-w-0 flex-col gap-3">
               <ShopFilters
+                areas={areas.data ?? []}
                 value={filters}
                 onChange={(next) => {
                   setFilters(next)
@@ -191,7 +194,11 @@ export function ShopsPage() {
                 <Loader />
               )}
             </section>
-            {allShops.data ? <DistrictCoverageCard shops={allShops.data} /> : <Loader />}
+            {allShops.data && areas.data ? (
+              <DistrictCoverageCard shops={allShops.data} areas={areas.data} />
+            ) : (
+              <Loader />
+            )}
           </div>
         )}
       </div>
@@ -199,6 +206,7 @@ export function ShopsPage() {
       <ShopFormModal
         key={formTarget ? (formTarget.shop?.id ?? 'new') : 'closed'}
         target={formTarget}
+        areas={areas.data ?? []}
         onClose={() => setFormTarget(undefined)}
         onSaved={async () => {
           const requestId = formTarget?.requestId

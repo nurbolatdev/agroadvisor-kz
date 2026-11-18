@@ -1,22 +1,24 @@
 import { useTranslation } from 'react-i18next'
 import { Card, CardHeader } from '@/components/ui/Card'
-import { SHOP_DISTRICTS } from '@/shared/constants/districts'
 import type { Shop } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
 
 interface DistrictCoverageCardProps {
   /** All shops of the directory; only active ones count as coverage. */
   shops: Shop[]
+  /** The areas to list, also those without a shop. */
+  areas: string[]
 }
 
-export function DistrictCoverageCard({ shops }: DistrictCoverageCardProps) {
+export function DistrictCoverageCard({ shops, areas }: DistrictCoverageCardProps) {
   const { t } = useTranslation('shops', { keyPrefix: 'coverage' })
-  const rows = SHOP_DISTRICTS.map((district) => {
+  const countsRoutes = shops.some((shop) => shop.routes30d !== undefined)
+  const rows = areas.map((district) => {
     const active = shops.filter((shop) => shop.district === district && shop.status === 'active')
     return {
       district,
       shops: active.length,
-      routes: active.reduce((sum, shop) => sum + shop.routes30d, 0),
+      routes: active.reduce((sum, shop) => sum + (shop.routes30d ?? 0), 0),
     }
   })
 
@@ -47,11 +49,11 @@ export function DistrictCoverageCard({ shops }: DistrictCoverageCardProps) {
               <span className="mt-0.5 block text-caption font-normal text-danger">
                 {t('noShops')}
               </span>
-            ) : (
+            ) : countsRoutes ? (
               <span className="block text-caption font-normal text-text-muted">
                 {t('routes', { count: row.routes })}
               </span>
-            )}
+            ) : null}
           </li>
         ))}
       </ul>

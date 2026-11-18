@@ -46,13 +46,18 @@ export function ShopsTable({
         </span>
       ),
     },
-    {
-      key: 'routes30d',
-      header: t('routes'),
-      align: 'right',
-      className: 'whitespace-nowrap',
-      render: (shop) => formatNumber(shop.routes30d),
-    },
+    // Only when the data source counts routes (the backend does not yet).
+    ...(shops.some((shop) => shop.routes30d !== undefined)
+      ? [
+          {
+            key: 'routes30d',
+            header: t('routes'),
+            align: 'right' as const,
+            className: 'whitespace-nowrap',
+            render: (shop: Shop) => formatNumber(shop.routes30d ?? 0),
+          },
+        ]
+      : []),
     {
       key: 'status',
       header: t('status'),

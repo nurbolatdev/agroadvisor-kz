@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next'
 import { Chip } from '@/components/ui/Chip'
 import { SearchBar } from '@/components/ui/SearchBar'
 import { Select } from '@/components/ui/Select'
-import { SHOP_DISTRICTS } from '@/shared/constants/districts'
 import type { ShopStatus } from '@/shared/types'
 
 export interface ShopFilterValue {
@@ -14,11 +13,13 @@ export interface ShopFilterValue {
 interface ShopFiltersProps {
   value: ShopFilterValue
   onChange: (value: ShopFilterValue) => void
+  /** The areas the select offers. */
+  areas: string[]
 }
 
 const STATUS_CHIPS: (ShopStatus | undefined)[] = [undefined, 'active', 'hidden']
 
-export function ShopFilters({ value, onChange }: ShopFiltersProps) {
+export function ShopFilters({ value, onChange, areas }: ShopFiltersProps) {
   const { t } = useTranslation('shops', { keyPrefix: 'filters' })
   return (
     <div className="flex flex-col gap-3">
@@ -35,7 +36,7 @@ export function ShopFilters({ value, onChange }: ShopFiltersProps) {
           onChange={(event) => onChange({ ...value, district: event.target.value })}
           options={[
             { value: '', label: t('allDistricts') },
-            ...SHOP_DISTRICTS.map((district) => ({ value: district, label: district })),
+            ...areas.map((district) => ({ value: district, label: district })),
           ]}
           className="h-12"
         />
