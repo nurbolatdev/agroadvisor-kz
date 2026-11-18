@@ -6,6 +6,7 @@
 - [diagnosis-reviews.md](diagnosis-reviews.md) — expert checks of diagnoses by an agrochemist or an admin and the combined verdict.
 - [notifications.md](notifications.md) — the notification inbox, push token registration, notification types and limits.
 - [admin-users.md](admin-users.md) — the admin's list of farmers and agrochemists, blocking and unblocking, fields, search and error codes.
+- [admin-ai-quality.md](admin-ai-quality.md) — the admin's AI quality statistics: confidence, top classes, expert-decided photos and mismatches.
 - `openapi.json` — snapshot of the backend OpenAPI schema. It is the single source of truth for the generated mobile types (`apps/mobile/src/api/schema.d.ts`).
 
 ## Updating the snapshot
