@@ -42,7 +42,8 @@ CREATE TABLE shop_requests (
     status     varchar(10)   NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'done', 'rejected')),
     created_at timestamptz   NOT NULL DEFAULT now(),
     CONSTRAINT shop_requests_shop_by_type CHECK ((type = 'new_shop') = (shop_id IS NULL)),
-    CONSTRAINT shop_requests_coordinates_together CHECK ((latitude IS NULL) = (longitude IS NULL))
+    CONSTRAINT shop_requests_coordinates_together CHECK ((latitude IS NULL) = (longitude IS NULL)),
+    CONSTRAINT shop_requests_point_by_type CHECK ((type = 'new_shop') = (latitude IS NOT NULL))
 );
 
 CREATE INDEX shop_requests_author_id_created_at_idx ON shop_requests (author_id, created_at);

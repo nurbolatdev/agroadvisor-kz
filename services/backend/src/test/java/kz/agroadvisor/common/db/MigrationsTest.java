@@ -52,8 +52,8 @@ class MigrationsTest {
         UUID user = insertUser("+77010000031", null);
         UUID shop = insertShop("Agro Astana", 51.16, 71.43);
 
-        jdbc.update("INSERT INTO shop_requests (author_id, type, comment) VALUES (?, 'new_shop', 'Seeds on Abay 1')",
-                user);
+        jdbc.update("INSERT INTO shop_requests (author_id, type, comment, latitude, longitude) "
+                + "VALUES (?, 'new_shop', 'Seeds on Abay 1', 51.1, 71.4)", user);
         jdbc.update("INSERT INTO shop_requests (author_id, type, shop_id, comment) VALUES (?, 'closed', ?, 'Closed')",
                 user, shop);
 
@@ -90,7 +90,8 @@ class MigrationsTest {
 
         jdbc.update("DELETE FROM shops WHERE id = ?", shop);
 
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM shop_requests", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM shop_requests WHERE shop_id = ?", Integer.class, shop))
+                .isZero();
     }
 
     @Test
