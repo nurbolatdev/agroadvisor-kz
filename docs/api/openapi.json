@@ -151,6 +151,46 @@
         },
         "type" : "object"
       },
+      "AiQualityView" : {
+        "properties" : {
+          "confidenceHistogram" : {
+            "description" : "Diagnoses per confidence bucket: 0–10 %, 10–20 %, … 90–100 %; always 10 numbers",
+            "items" : {
+              "format" : "int32",
+              "type" : "integer"
+            },
+            "type" : "array"
+          },
+          "mismatches" : {
+            "description" : "At most 5, most frequent first",
+            "items" : {
+              "$ref" : "#/components/schemas/MismatchView"
+            },
+            "type" : "array"
+          },
+          "period" : {
+            "enum" : [ "7d", "30d", "season" ],
+            "type" : "string"
+          },
+          "topDiseases" : {
+            "description" : "At most 6 diseases (no healthy classes), most frequent first",
+            "items" : {
+              "$ref" : "#/components/schemas/DiseaseCount"
+            },
+            "type" : "array"
+          },
+          "total" : {
+            "description" : "Diagnoses in the period",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "trainingData" : {
+            "$ref" : "#/components/schemas/TrainingView"
+          }
+        },
+        "required" : [ "confidenceHistogram", "mismatches", "period", "topDiseases", "total", "trainingData" ],
+        "type" : "object"
+      },
       "CalculationResponse" : {
         "properties" : {
           "areaHa" : {
@@ -824,6 +864,24 @@
         "required" : [ "kind", "names" ],
         "type" : "object"
       },
+      "DiseaseCount" : {
+        "properties" : {
+          "code" : {
+            "description" : "Class code; the catalog entry id when it is in the catalog",
+            "type" : "string"
+          },
+          "count" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "name" : {
+            "description" : "Name in the asked language, the code if the catalog has no such class",
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "count", "name" ],
+        "type" : "object"
+      },
       "DiseaseData" : {
         "properties" : {
           "conditions" : {
@@ -1159,6 +1217,28 @@
           }
         },
         "required" : [ "classesVersion", "modelVersion" ],
+        "type" : "object"
+      },
+      "MismatchView" : {
+        "properties" : {
+          "aiCode" : {
+            "type" : "string"
+          },
+          "aiName" : {
+            "type" : "string"
+          },
+          "cases" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "confirmedCode" : {
+            "type" : "string"
+          },
+          "confirmedName" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "aiCode", "aiName", "cases", "confirmedCode", "confirmedName" ],
         "type" : "object"
       },
       "NotificationResponse" : {
@@ -1514,6 +1594,27 @@
           }
         },
         "required" : [ "accessToken", "expiresIn", "refreshToken", "tokenType" ],
+        "type" : "object"
+      },
+      "TrainingView" : {
+        "properties" : {
+          "addedThisWeek" : {
+            "description" : "Of them, decided in the last 7 days",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "classes" : {
+            "description" : "Classes those decisions cover",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "labeled" : {
+            "description" : "Photos with an expert decision, all time",
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "addedThisWeek", "classes", "labeled" ],
         "type" : "object"
       },
       "TreatmentBody" : {
@@ -1892,6 +1993,49 @@
         },
         "summary" : "The document as it was sent (PDF, JPEG or PNG), as a download",
         "tags" : [ "agrochemist-admin-controller" ]
+      }
+    },
+    "/api/admin/ai-quality" : {
+      "get" : {
+        "operationId" : "getAdminAiQuality",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "period",
+          "required" : false,
+          "schema" : {
+            "default" : "30d",
+            "pattern" : "7d|30d|season",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "lang",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Accept-Language",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AiQualityView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "How the model performs over a period: the confidence of its answers, the classes it names most, the photos experts have decided (for retraining) and where the experts disagreed with the model. Class names are in the asked language. A diagnosis counts as decided when experts agree on one class; disputed and unclear ones do not count.",
+        "tags" : [ "admin-ai-quality-controller" ]
       }
     },
     "/api/admin/crops" : {

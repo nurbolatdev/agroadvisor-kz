@@ -1,5 +1,6 @@
 import { httpClient } from '@/services/backend'
 import { API_MODE } from '@/services/config'
+import { createLiveAiQuality } from '@/services/liveAiQuality'
 import { createLiveDiseases } from '@/services/liveDiseases'
 import { createLiveUsers } from '@/services/liveUsers'
 import { createLiveVerification } from '@/services/liveVerification'
@@ -96,7 +97,7 @@ export interface AdminApi {
 }
 
 /**
- * In `live` mode the pages that already use the backend (agrochemist verification, diseases, users) go through
+ * In `live` mode the pages that already use the backend (agrochemist verification, diseases, users, AI quality) go through
  * the HTTP client; everything else is still served by the mock.
  */
 export const api: AdminApi =
@@ -106,5 +107,6 @@ export const api: AdminApi =
         ...createLiveVerification(httpClient, mockApi),
         ...createLiveDiseases(httpClient),
         ...createLiveUsers(httpClient),
+        ...createLiveAiQuality(httpClient),
       }
     : mockApi

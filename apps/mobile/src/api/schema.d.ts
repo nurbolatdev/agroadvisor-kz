@@ -71,6 +71,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/ai-quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How the model performs over a period: the confidence of its answers, the classes it names most, the photos experts have decided (for retraining) and where the experts disagreed with the model. Class names are in the asked language. A diagnosis counts as decided when experts agree on one class; disputed and unclear ones do not count. */
+        get: operations["getAdminAiQuality"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/crops": {
         parameters: {
             query?: never;
@@ -1066,6 +1083,22 @@ export interface components {
         AgrochemistCropsResponse: {
             crops?: string[];
         };
+        AiQualityView: {
+            /** @description Diagnoses per confidence bucket: 0–10 %, 10–20 %, … 90–100 %; always 10 numbers */
+            confidenceHistogram: number[];
+            /** @description At most 5, most frequent first */
+            mismatches: components["schemas"]["MismatchView"][];
+            /** @enum {string} */
+            period: "7d" | "30d" | "season";
+            /** @description At most 6 diseases (no healthy classes), most frequent first */
+            topDiseases: components["schemas"]["DiseaseCount"][];
+            /**
+             * Format: int32
+             * @description Diagnoses in the period
+             */
+            total: number;
+            trainingData: components["schemas"]["TrainingView"];
+        };
         CalculationResponse: {
             /** @description Hectares */
             areaHa: number;
@@ -1387,6 +1420,14 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        DiseaseCount: {
+            /** @description Class code; the catalog entry id when it is in the catalog */
+            code: string;
+            /** Format: int32 */
+            count: number;
+            /** @description Name in the asked language, the code if the catalog has no such class */
+            name: string;
+        };
         DiseaseData: {
             conditions?: {
                 [key: string]: unknown;
@@ -1542,6 +1583,14 @@ export interface components {
             classesVersion: number;
             /** @example effnet-b0-v1 */
             modelVersion: string;
+        };
+        MismatchView: {
+            aiCode: string;
+            aiName: string;
+            /** Format: int32 */
+            cases: number;
+            confirmedCode: string;
+            confirmedName: string;
         };
         NotificationResponse: {
             /** Format: uuid */
@@ -1710,6 +1759,23 @@ export interface components {
             refreshToken: string;
             /** @enum {string} */
             tokenType: "Bearer";
+        };
+        TrainingView: {
+            /**
+             * Format: int32
+             * @description Of them, decided in the last 7 days
+             */
+            addedThisWeek: number;
+            /**
+             * Format: int32
+             * @description Classes those decisions cover
+             */
+            classes: number;
+            /**
+             * Format: int32
+             * @description Photos with an expert decision, all time
+             */
+            labeled: number;
         };
         TreatmentBody: {
             activeIngredient?: string;
@@ -1897,6 +1963,31 @@ export interface operations {
                 };
                 content: {
                     "*/*": string;
+                };
+            };
+        };
+    };
+    getAdminAiQuality: {
+        parameters: {
+            query?: {
+                period?: string;
+                lang?: string;
+            };
+            header?: {
+                "Accept-Language"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AiQualityView"];
                 };
             };
         };
