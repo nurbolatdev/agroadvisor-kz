@@ -202,6 +202,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/users/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Blocks or unblocks a farmer or an agrochemist. A block takes effect at once: the access token is refused and every refresh token of the user is revoked; unblocking does not restore sessions, the user signs in again. The status of an administrator cannot be changed (403 admin_status_locked), nor can the caller's own. Repeating the current status is not an error. */
+        patch: operations["changeUserStatus"];
+        trace?: never;
+    };
     "/api/agrochemist/crops": {
         parameters: {
             query?: never;
@@ -1575,6 +1592,10 @@ export interface components {
              */
             to: string;
         };
+        StatusRequest: {
+            /** @enum {string} */
+            status: "active" | "blocked";
+        };
         SummaryView: {
             /** Format: int32 */
             documentCount: number;
@@ -2158,6 +2179,36 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AdminUserView"][];
+                };
+            };
+        };
+    };
+    changeUserStatus: {
+        parameters: {
+            query?: {
+                lang?: string;
+            };
+            header?: {
+                "Accept-Language"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminUserView"];
                 };
             };
         };

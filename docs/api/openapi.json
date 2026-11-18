@@ -1359,6 +1359,18 @@
         "required" : [ "from", "to" ],
         "type" : "object"
       },
+      "StatusRequest" : {
+        "properties" : {
+          "status" : {
+            "enum" : [ "active", "blocked" ],
+            "minLength" : 1,
+            "pattern" : "active|blocked",
+            "type" : "string"
+          }
+        },
+        "required" : [ "status" ],
+        "type" : "object"
+      },
       "SummaryView" : {
         "properties" : {
           "documentCount" : {
@@ -2279,6 +2291,58 @@
           }
         },
         "summary" : "Farmers and agrochemists, newest first. search matches part of the name, the login (e-mail) or the phone digits. Administrators are not listed; phone and e-mail are not returned.",
+        "tags" : [ "user-admin-controller" ]
+      }
+    },
+    "/api/admin/users/{id}/status" : {
+      "patch" : {
+        "operationId" : "changeUserStatus",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "lang",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Accept-Language",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StatusRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminUserView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Blocks or unblocks a farmer or an agrochemist. A block takes effect at once: the access token is refused and every refresh token of the user is revoked; unblocking does not restore sessions, the user signs in again. The status of an administrator cannot be changed (403 admin_status_locked), nor can the caller's own. Repeating the current status is not an error.",
         "tags" : [ "user-admin-controller" ]
       }
     },
