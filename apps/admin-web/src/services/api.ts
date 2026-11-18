@@ -2,6 +2,7 @@ import { httpClient } from '@/services/backend'
 import { API_MODE } from '@/services/config'
 import { createLiveAiQuality } from '@/services/liveAiQuality'
 import { createLiveDiseases } from '@/services/liveDiseases'
+import { createLiveShops } from '@/services/liveShops'
 import { createLiveUsers } from '@/services/liveUsers'
 import { createLiveVerification } from '@/services/liveVerification'
 import { mockApi } from '@/services/mockApi'
@@ -83,6 +84,8 @@ export interface AdminApi {
 
   getUsers(filters?: { role?: UserRole; search?: string }): Promise<User[]>
 
+  /** Names a shop is tied to and the filter offers: the districts of the mock, the regions of the backend. */
+  getShopAreas(): Promise<string[]>
   getShopStats(): Promise<ShopStats>
   getShops(filters?: { search?: string; district?: string; status?: ShopStatus }): Promise<Shop[]>
   /** Creates a shop, or updates it when `id` is given. */
@@ -97,16 +100,20 @@ export interface AdminApi {
 }
 
 /**
- * In `live` mode the pages that already use the backend (agrochemist verification, diseases, users, AI quality) go through
- * the HTTP client; everything else is still served by the mock.
+ * In `live` mode the pages that already use the backend (agrochemist verification, diseases, users, AI quality,
+ * shops) go through the HTTP client; everything else is still served by the mock.
  */
-export const api: AdminApi =
-  API_MODE === 'live'
-    ? {
-        ...mockApi,
-        ...createLiveVerification(httpClient, mockApi),
-        ...createLiveDiseases(httpClient),
-        ...createLiveUsers(httpClient),
-        ...createLiveAiQuality(httpClient),
-      }
-    : mockApi
+function createLiveApi(): AdminApi {
+  const verification = createLiveVerification(httpClient, mockApi)
+  return {
+    ...mockApi,
+    ...verification,
+    ...createLiveDiseases(httpClient),
+    ...createLiveUsers(httpClient),
+    ...createLiveAiQuality(httpClient),
+    // the sidebar counters of the verification and of the shops are both live: shops wrap the verification's
+    ...createLiveShops(httpClient, verification),
+  }
+}
+
+export const api: AdminApi = API_MODE === 'live' ? createLiveApi() : mockApi

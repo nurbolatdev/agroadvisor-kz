@@ -202,6 +202,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/shops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** All shops, hidden ones included, by name. search matches part of the name or the address. Region and district names are in the asked language. */
+        get: operations["listAdminShops"];
+        put?: never;
+        /** Adds a shop; it is active at once. */
+        post: operations["createAdminShop"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/shops/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reports farmers sent, newest first; status filters them (the admin reads the new ones). */
+        get: operations["listAdminShopRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/shops/requests/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Marks a new report done or rejected. It does not change any shop: the admin adds or edits the shop with the calls above. A report is decided once (409 shop_request_resolved); 404 shop_request_not_found. */
+        patch: operations["resolveAdminShopRequest"];
+        trace?: never;
+    };
+    "/api/admin/shops/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Counters of the directory and of the reports. */
+        get: operations["getAdminShopStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/shops/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One shop, hidden or not; 404 shop_not_found. */
+        get: operations["getAdminShop"];
+        /** Replaces the fields of a shop; its status is not changed here. 404 shop_not_found. */
+        put: operations["updateAdminShop"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/shops/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Hides a shop from farmers or shows it again. Repeating the current status is not an error. There is no delete. */
+        patch: operations["changeAdminShopStatus"];
+        trace?: never;
+    };
     "/api/admin/users": {
         parameters: {
             query?: never;
@@ -1030,6 +1134,68 @@ export interface components {
             /** Format: int32 */
             treatmentCount?: number;
         };
+        AdminShopRequestView: {
+            author: components["schemas"]["RequestAuthor"];
+            comment: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            latitude: number | null;
+            longitude: number | null;
+            /** Format: uuid */
+            shopId: string | null;
+            shopName: string | null;
+            /** @enum {string} */
+            status: "new" | "done" | "rejected";
+            /** @enum {string} */
+            type: "new_shop" | "wrong_info" | "closed";
+        };
+        AdminShopStats: {
+            /**
+             * Format: int32
+             * @description Of them, shown to farmers
+             */
+            active: number;
+            /**
+             * Format: int32
+             * @description Added since the start of this month (UTC)
+             */
+            addedThisMonth: number;
+            /**
+             * Format: int32
+             * @description Reports waiting for a decision
+             */
+            pendingRequests: number;
+            /**
+             * Format: int32
+             * @description Shops in the directory, hidden ones included
+             */
+            total: number;
+        };
+        AdminShopView: {
+            address: string;
+            categories: string[];
+            /** Format: date-time */
+            createdAt: string;
+            district: string | null;
+            /** Format: int64 */
+            districtId: number | null;
+            hours: string | null;
+            /** Format: uuid */
+            id: string;
+            latitude: number;
+            longitude: number;
+            name: string;
+            phone: string | null;
+            region: string | null;
+            /** Format: int64 */
+            regionId: number | null;
+            /** @enum {string} */
+            status: "active" | "hidden";
+            /** Format: date-time */
+            updatedAt: string;
+        };
         AdminTreatment: {
             data?: components["schemas"]["TreatmentData"];
             /** Format: int64 */
@@ -1697,9 +1863,38 @@ export interface components {
             /** @description Required for an agrochemist (at least one), not allowed for a farmer: fields of work, up to four different values. A missing or unknown value, a duplicate, or any value for a farmer is 400 invalid_profile_fields */
             specializations?: ("plant_protection" | "agrochemistry" | "phytopathology" | "soil_science")[];
         };
+        RequestAuthor: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            region: string | null;
+        };
+        RequestDecision: {
+            /** @enum {string} */
+            status: "done" | "rejected";
+        };
         SendMessageRequest: {
             /** @description Trimmed; 1 to 2000 characters */
             text: string;
+        };
+        ShopBody: {
+            address: string;
+            /** @description fungicides, insecticides, herbicides, fertilizers, seeds, equipment */
+            categories?: string[];
+            /**
+             * Format: int64
+             * @description Needs regionId; the district must be in that region
+             */
+            districtId?: number | null;
+            hours?: string | null;
+            /** @description 40 to 56 */
+            latitude: number;
+            /** @description 46 to 88 */
+            longitude: number;
+            name: string;
+            phone?: string | null;
+            /** Format: int64 */
+            regionId?: number | null;
         };
         ShopRequestView: {
             /** Format: date-time */
@@ -1732,6 +1927,10 @@ export interface components {
              * @description The end of the last good hour
              */
             to: string;
+        };
+        StatusBody: {
+            /** @enum {string} */
+            status: "active" | "hidden";
         };
         StatusRequest: {
             /** @enum {string} */
@@ -2335,6 +2534,226 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    listAdminShops: {
+        parameters: {
+            query?: {
+                search?: string;
+                regionId?: number;
+                status?: string;
+                page?: number;
+                size?: number;
+                lang?: string;
+            };
+            header?: {
+                "Accept-Language"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminShopView"][];
+                };
+            };
+        };
+    };
+    createAdminShop: {
+        parameters: {
+            query?: {
+                lang?: string;
+            };
+            header?: {
+                "Accept-Language"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShopBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminShopView"];
+                };
+            };
+        };
+    };
+    listAdminShopRequests: {
+        parameters: {
+            query?: {
+                status?: string;
+                page?: number;
+                size?: number;
+                lang?: string;
+            };
+            header?: {
+                "Accept-Language"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminShopRequestView"][];
+                };
+            };
+        };
+    };
+    resolveAdminShopRequest: {
+        parameters: {
+            query?: {
+                lang?: string;
+            };
+            header?: {
+                "Accept-Language"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestDecision"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminShopRequestView"];
+                };
+            };
+        };
+    };
+    getAdminShopStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminShopStats"];
+                };
+            };
+        };
+    };
+    getAdminShop: {
+        parameters: {
+            query?: {
+                lang?: string;
+            };
+            header?: {
+                "Accept-Language"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminShopView"];
+                };
+            };
+        };
+    };
+    updateAdminShop: {
+        parameters: {
+            query?: {
+                lang?: string;
+            };
+            header?: {
+                "Accept-Language"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShopBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminShopView"];
+                };
+            };
+        };
+    };
+    changeAdminShopStatus: {
+        parameters: {
+            query?: {
+                lang?: string;
+            };
+            header?: {
+                "Accept-Language"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StatusBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AdminShopView"];
+                };
             };
         };
     };
