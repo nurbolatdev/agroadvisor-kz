@@ -51,7 +51,8 @@ One package per module under `kz.agroadvisor`. The intended layout, written in e
 | `verification` | done: agrochemist documents and the admin decision |
 | `access` | feature-access layer, minimal |
 | `common` | shared pieces: errors, cache, rate limiting, configuration checks, image handling |
-| `community`, `consultations`, `notifications`, `shops`, `analytics` | empty |
+| `community` | done in part: questions, answers, votes, the best answer, crop subscriptions (reports and moderation follow) |
+| `consultations`, `notifications`, `shops`, `analytics` | empty |
 
 ## File storage
 

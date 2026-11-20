@@ -3,6 +3,7 @@
 - [ai-predict.md](ai-predict.md) — contract of the ai-service `/predict` endpoint.
 - [agrochemist-verification.md](agrochemist-verification.md) — sending documents, the states of the check and the admin's decision.
 - [consultations.md](consultations.md) — consultation requests, the status machine, chat messages, read receipts, limits and error codes.
+- [community.md](community.md) — farmer questions with photos, the feed, answers, votes, the best answer, crop subscriptions, limits and error codes.
 - [diagnosis-reviews.md](diagnosis-reviews.md) — expert checks of diagnoses by an agrochemist or an admin and the combined verdict.
 - [notifications.md](notifications.md) — the notification inbox, push token registration, notification types and limits.
 - [admin-users.md](admin-users.md) — the admin's list of farmers and agrochemists, blocking and unblocking, fields, search and error codes.
