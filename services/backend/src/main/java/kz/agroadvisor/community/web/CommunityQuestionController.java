@@ -25,10 +25,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MultipartFile;
 
+import kz.agroadvisor.common.web.ApiException;
+import kz.agroadvisor.common.web.ErrorCodes;
 import kz.agroadvisor.community.service.CommunityQuestionService;
 import kz.agroadvisor.community.service.CommunityQuestionService.FeedFilter;
 import kz.agroadvisor.community.service.CommunityQuestionService.PhotoContent;
@@ -61,11 +64,13 @@ public class CommunityQuestionController {
                     + "the profile: 400 region_required without one. 400 validation_failed or invalid_image; 413 "
                     + "payload_too_large; 429 rate_limited after 10 questions an hour; 503 storage_unavailable.")
     @ApiResponse(responseCode = "201", description = "The new question")
-    public ResponseEntity<QuestionResponse> ask(@RequestParam(required = false) String title,
-            @RequestParam(required = false) String text, @RequestParam(required = false) String cropCode,
-            @RequestParam(required = false) UUID diagnosisId,
+    public ResponseEntity<QuestionResponse> ask(@RequestPart(value = "title", required = false) String title,
+            @RequestPart(value = "text", required = false) String text,
+            @RequestPart(value = "cropCode", required = false) String cropCode,
+            @RequestPart(value = "diagnosisId", required = false) String diagnosisId,
             @RequestParam(value = "photos", required = false) List<MultipartFile> photos,
             Authentication authentication) throws IOException {
+        UUID attached = parseDiagnosisId(diagnosisId);
         List<byte[]> files = new ArrayList<>();
         if (photos != null) {
             for (MultipartFile photo : photos) {
@@ -74,7 +79,7 @@ public class CommunityQuestionController {
         }
         UUID me = me(authentication);
         QuestionResponse asked = QuestionResponse.of(
-                questions.ask(me, title, text, cropCode, diagnosisId, files), me);
+                questions.ask(me, title, text, cropCode, attached, files), me);
         return ResponseEntity.created(URI.create("/api/community/questions/" + asked.id())).body(asked);
     }
 
@@ -139,6 +144,18 @@ public class CommunityQuestionController {
                 .eTag(etag)
                 .header("X-Content-Type-Options", "nosniff")
                 .body(bytes);
+    }
+
+    private static UUID parseDiagnosisId(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value.strip());
+        } catch (IllegalArgumentException e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,
+                    "diagnosisId must be a UUID");
+        }
     }
 
     private static UUID me(Authentication authentication) {

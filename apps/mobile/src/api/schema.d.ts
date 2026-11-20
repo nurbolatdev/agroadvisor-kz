@@ -3549,12 +3549,7 @@ export interface operations {
     };
     askCommunityQuestion: {
         parameters: {
-            query?: {
-                title?: string;
-                text?: string;
-                cropCode?: string;
-                diagnosisId?: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -3562,7 +3557,11 @@ export interface operations {
         requestBody?: {
             content: {
                 "multipart/form-data": {
+                    cropCode?: string;
+                    diagnosisId?: string;
                     photos?: string[];
+                    text?: string;
+                    title?: string;
                 };
             };
         };

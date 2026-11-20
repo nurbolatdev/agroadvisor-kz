@@ -26,7 +26,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.mock.web.MockPart;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -83,9 +85,17 @@ class CommunityQuestionControllerIntegrationTest {
         return "Bearer " + jwt.issueAccessToken(id);
     }
 
+    /** A text field as a part of the multipart body, the way the mobile app sends it. */
+    static MockPart textPart(String name, String value) {
+        MockPart part = new MockPart(name, value.getBytes(StandardCharsets.UTF_8));
+        part.getHeaders().setContentType(new MediaType("text", "plain", StandardCharsets.UTF_8));
+        return part;
+    }
+
     private ResultActions ask(String token, String title, byte[]... photos) throws Exception {
         var request = multipart("/api/community/questions")
-                .param("title", title).param("text", "Spots on the leaves").param("cropCode", "potato")
+                .part(textPart("title", title), textPart("text", "Spots on the leaves"),
+                        textPart("cropCode", "potato"))
                 .header("Authorization", token);
         for (byte[] photo : photos) {
             request.file(new MockMultipartFile("photos", "leaf.jpg", "image/jpeg", photo));
