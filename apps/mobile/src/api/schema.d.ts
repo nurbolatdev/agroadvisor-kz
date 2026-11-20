@@ -554,6 +554,89 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/community/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The feed, newest first, without hidden questions. Filters (all optional): crop (up to 4, repeat the parameter), regionId, status open|solved|unanswered, mine. Pages: before = id of the last question of the previous page; an unknown id is 404 question_not_found. */
+        get: operations["listCommunityQuestions"];
+        put?: never;
+        /** @description Farmers only. Fields: title (3-120), text (1-2000), cropCode, optional diagnosisId (an own diagnosis of the same crop; 404 diagnosis_not_found, otherwise 400), photos (0-3 JPEG or PNG, up to 10 MB each, 11 MB in all; the metadata is removed). The region comes from the profile: 400 region_required without one. 400 validation_failed or invalid_image; 413 payload_too_large; 429 rate_limited after 10 questions an hour; 503 storage_unavailable. */
+        post: operations["askCommunityQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/questions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCommunityQuestion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/questions/{id}/diagnosis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The diagnosis the author attached, for every reader; its photoUrl points to /api/community/questions/{id}/diagnosis/photo. 404 diagnosis_not_found without one. */
+        get: operations["getCommunityQuestionDiagnosis"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/questions/{id}/diagnosis/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCommunityQuestionDiagnosisPhoto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/questions/{id}/photos/{photoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCommunityQuestionPhoto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/consultations": {
         parameters: {
             query?: never;
@@ -1293,6 +1376,37 @@ export interface components {
             code: string;
             /** Format: double */
             confidence: number;
+        };
+        CommunityQuestion: {
+            /**
+             * Format: int32
+             * @description Visible answers
+             */
+            answerCount: number;
+            /** @description True only for an agrochemist with a verified profile */
+            authorExpert: boolean;
+            /** Format: uuid */
+            authorId: string;
+            authorName: string;
+            /** Format: date-time */
+            createdAt: string;
+            cropCode: string;
+            /** @description Relative path of the attached diagnosis, if there is one */
+            diagnosisUrl?: string | null;
+            /** Format: int64 */
+            districtId?: number | null;
+            /** Format: uuid */
+            id: string;
+            /** @description Whether the caller asked it */
+            mine: boolean;
+            /** @description Relative paths of the photos, in order */
+            photoUrls: string[];
+            /** Format: int64 */
+            regionId: number;
+            /** @enum {string} */
+            status: "open" | "solved";
+            text: string;
+            title: string;
         };
         ConsultationAgrochemist: {
             fullName: string;
@@ -3229,6 +3343,155 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    listCommunityQuestions: {
+        parameters: {
+            query?: {
+                crop?: string[];
+                regionId?: number;
+                status?: string;
+                mine?: boolean;
+                before?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityQuestion"][];
+                };
+            };
+        };
+    };
+    askCommunityQuestion: {
+        parameters: {
+            query?: {
+                title?: string;
+                text?: string;
+                cropCode?: string;
+                diagnosisId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    photos?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The new question */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityQuestion"];
+                };
+            };
+        };
+    };
+    getCommunityQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityQuestion"];
+                };
+            };
+        };
+    };
+    getCommunityQuestionDiagnosis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DiagnosisView"];
+                };
+            };
+        };
+    };
+    getCommunityQuestionDiagnosisPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A JPEG or PNG photo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                };
+            };
+        };
+    };
+    getCommunityQuestionPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                photoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A JPEG or PNG photo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                };
             };
         };
     };

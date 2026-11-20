@@ -381,6 +381,72 @@
         "required" : [ "code", "confidence" ],
         "type" : "object"
       },
+      "CommunityQuestion" : {
+        "properties" : {
+          "answerCount" : {
+            "description" : "Visible answers",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "authorExpert" : {
+            "description" : "True only for an agrochemist with a verified profile",
+            "type" : "boolean"
+          },
+          "authorId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "authorName" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "cropCode" : {
+            "type" : "string"
+          },
+          "diagnosisUrl" : {
+            "description" : "Relative path of the attached diagnosis, if there is one",
+            "type" : [ "string", "null" ]
+          },
+          "districtId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "mine" : {
+            "description" : "Whether the caller asked it",
+            "type" : "boolean"
+          },
+          "photoUrls" : {
+            "description" : "Relative paths of the photos, in order",
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "regionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "status" : {
+            "enum" : [ "open", "solved" ],
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "answerCount", "authorExpert", "authorId", "authorName", "createdAt", "cropCode", "id", "mine", "photoUrls", "regionId", "status", "text", "title" ],
+        "type" : "object"
+      },
       "ConsultationAgrochemist" : {
         "properties" : {
           "fullName" : {
@@ -3730,6 +3796,277 @@
           }
         },
         "tags" : [ "calculation-controller" ]
+      }
+    },
+    "/api/community/questions" : {
+      "get" : {
+        "description" : "The feed, newest first, without hidden questions. Filters (all optional): crop (up to 4, repeat the parameter), regionId, status open|solved|unanswered, mine. Pages: before = id of the last question of the previous page; an unknown id is 404 question_not_found.",
+        "operationId" : "listCommunityQuestions",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "crop",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "in" : "query",
+          "name" : "regionId",
+          "required" : false,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "mine",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "before",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 50,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/CommunityQuestion"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "community-question-controller" ]
+      },
+      "post" : {
+        "description" : "Farmers only. Fields: title (3-120), text (1-2000), cropCode, optional diagnosisId (an own diagnosis of the same crop; 404 diagnosis_not_found, otherwise 400), photos (0-3 JPEG or PNG, up to 10 MB each, 11 MB in all; the metadata is removed). The region comes from the profile: 400 region_required without one. 400 validation_failed or invalid_image; 413 payload_too_large; 429 rate_limited after 10 questions an hour; 503 storage_unavailable.",
+        "operationId" : "askCommunityQuestion",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "title",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "text",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cropCode",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "diagnosisId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "photos" : {
+                    "items" : {
+                      "format" : "binary",
+                      "type" : "string"
+                    },
+                    "type" : "array"
+                  }
+                },
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommunityQuestion"
+                }
+              }
+            },
+            "description" : "The new question"
+          }
+        },
+        "tags" : [ "community-question-controller" ]
+      }
+    },
+    "/api/community/questions/{id}" : {
+      "get" : {
+        "operationId" : "getCommunityQuestion",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommunityQuestion"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "community-question-controller" ]
+      }
+    },
+    "/api/community/questions/{id}/diagnosis" : {
+      "get" : {
+        "description" : "The diagnosis the author attached, for every reader; its photoUrl points to /api/community/questions/{id}/diagnosis/photo. 404 diagnosis_not_found without one.",
+        "operationId" : "getCommunityQuestionDiagnosis",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DiagnosisView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "community-question-controller" ]
+      }
+    },
+    "/api/community/questions/{id}/diagnosis/photo" : {
+      "get" : {
+        "operationId" : "getCommunityQuestionDiagnosisPhoto",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "image/jpeg" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              },
+              "image/png" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "A JPEG or PNG photo"
+          }
+        },
+        "tags" : [ "community-question-controller" ]
+      }
+    },
+    "/api/community/questions/{id}/photos/{photoId}" : {
+      "get" : {
+        "operationId" : "getCommunityQuestionPhoto",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "photoId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "image/jpeg" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              },
+              "image/png" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "A JPEG or PNG photo"
+          }
+        },
+        "tags" : [ "community-question-controller" ]
       }
     },
     "/api/consultations" : {
