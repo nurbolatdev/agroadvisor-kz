@@ -1,6 +1,6 @@
 # Database ER diagram
 
-PostgreSQL 16 + PostGIS. The schema is owned by Flyway migrations in [`services/backend/src/main/resources/db/migration`](../../services/backend/src/main/resources/db/migration); this page describes migrations `V1`–`V22`.
+PostgreSQL 16 + PostGIS. The schema is owned by Flyway migrations in [`services/backend/src/main/resources/db/migration`](../../services/backend/src/main/resources/db/migration); this page describes migrations `V1`–`V25`.
 
 Conventions:
 
@@ -56,6 +56,26 @@ erDiagram
     districts |o--o{ shops : "set by an admin"
     users ||--o{ shop_requests : writes
     shops |o--o{ shop_requests : "is about"
+    users ||--o{ community_questions : asks
+    crops ||--o{ community_questions : "about"
+    regions ||--o{ community_questions : "copied from the profile"
+    districts |o--o{ community_questions : "copied from the profile"
+    diagnoses |o--o{ community_questions : "attached to"
+    users |o--o{ community_questions : "hides"
+    community_questions ||--o{ community_question_photos : has
+    community_questions ||--o{ community_answers : has
+    users ||--o{ community_answers : writes
+    users |o--o{ community_answers : "hides"
+    community_answers |o--o| community_questions : "is the best answer of"
+    community_answers ||--o{ community_votes : receives
+    users ||--o{ community_votes : casts
+    users ||--o{ community_crop_subscriptions : follows
+    crops ||--o{ community_crop_subscriptions : ""
+    community_questions ||--o{ community_complaints : "is the target of"
+    community_answers |o--o{ community_complaints : "is the target of"
+    users |o--o{ community_complaints : "resolves"
+    community_complaints ||--o{ community_reports : "collects"
+    users ||--o{ community_reports : files
 
     regions {
         bigint id PK
@@ -244,6 +264,77 @@ erDiagram
         timestamptz created_at
     }
 
+    community_questions {
+        uuid id PK
+        uuid author_id FK
+        varchar crop_code FK
+        bigint region_id FK "copied from the author profile"
+        bigint district_id FK "nullable"
+        uuid diagnosis_id FK "nullable, ON DELETE SET NULL"
+        varchar title "3 to 120, trimmed"
+        varchar body "up to 2000, trimmed"
+        uuid accepted_answer_id FK "the best answer, composite FK with id"
+        varchar status "generated: open or solved"
+        timestamptz hidden_at "set with hidden_by"
+        uuid hidden_by FK "NO ACTION"
+        timestamptz created_at
+    }
+
+    community_question_photos {
+        uuid id PK
+        uuid question_id FK
+        varchar photo_key "S3 key under community/"
+        varchar content_type "image/jpeg, image/png"
+        int size_bytes "greater than 0"
+        smallint position "0 to 2, unique with question_id"
+    }
+
+    community_answers {
+        uuid id PK
+        uuid question_id FK "unique with id"
+        uuid author_id FK
+        varchar body "up to 2000, trimmed"
+        timestamptz hidden_at "set with hidden_by"
+        uuid hidden_by FK "NO ACTION"
+        timestamptz created_at
+    }
+
+    community_votes {
+        uuid answer_id PK, FK
+        uuid user_id PK, FK
+        smallint value "-1 or 1"
+        timestamptz created_at
+    }
+
+    community_crop_subscriptions {
+        uuid user_id PK, FK
+        varchar crop_code PK, FK
+        timestamptz created_at
+    }
+
+    community_complaints {
+        uuid id PK
+        varchar target_type "question or answer"
+        uuid question_id FK
+        uuid answer_id FK "composite FK with question_id, set exactly for answer"
+        varchar status "new, in_progress, resolved"
+        timestamptz created_at
+        timestamptz started_at
+        timestamptz resolved_at "set with resolved_by and action"
+        uuid resolved_by FK "NO ACTION"
+        varchar action "keep, hide, block"
+        varchar comment "up to 500"
+    }
+
+    community_reports {
+        uuid id PK
+        uuid complaint_id FK "unique with reporter_id"
+        uuid reporter_id FK
+        varchar reason "ads, misinformation, spam, abuse"
+        varchar comment "nullable, up to 500"
+        timestamptz created_at
+    }
+
     diagnosis_reviews {
         uuid id PK
         uuid diagnosis_id FK "unique with reviewer_id"
@@ -333,6 +424,7 @@ Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` wit
 - **Consultations (`V20`).** `consultations` is a request of a farmer to an agrochemist and the chat that follows; `consultation_messages` holds the chat. A partial unique index on `(farmer_id, agrochemist_id) WHERE status IN ('requested', 'active')` allows one open consultation per pair. Check constraints keep the status and the times together: `requested` has no `accepted_at` and no `closed_at`, `active` has `accepted_at` and no `closed_at`, `declined` and `closed` have `closed_at` (the check does not constrain `accepted_at` for them: it is set exactly when the consultation was accepted, so it is NULL for a declined or withdrawn request); the two participants differ. `closed_by` is the user who declined or closed (a withdrawal by the farmer is `closed`). A message has one recipient, the other participant, so `read_at` on the message is the read receipt (a partial index covers unread rows). The text of the request is stored as the first message, not in `consultations`. Messages and consultations are deleted with their users (`ON DELETE CASCADE`); `diagnosis_id` is `ON DELETE SET NULL`, so deleting a diagnosis keeps the consultation. `last_message_at` orders the list and is moved by the service on every message. A message has text, a photo or both; a photo is stored under the key prefix `consultations/`, apart from `diagnoses/`, so the cleanup of orphaned diagnosis photos never sees it (objects of deleted users and of a crash between the upload and the insert are not cleaned yet; the partial index on `photo_key` is there for that). Messages are paged by `(created_at, id)` through an index on `(consultation_id, created_at DESC, id DESC)`.
 - **Notifications and push tokens (`V21`).** `notifications` is the in-app feed of a user and `push_tokens` holds the device tokens ([docs/api/notifications.md](../api/notifications.md)). A notification has a `type` and references only (`consultation_id`, `message_id`, `diagnosis_id`), never names or text; a check constraint ties the set references to the type (a message notification has the consultation and the message, a verification notification has none). All references and the recipient are `ON DELETE CASCADE`. Unread rows of one recipient with the same `collapse_key` collapse into one row with `event_count` (a partial unique index on `(recipient_id, collapse_key) WHERE read_at IS NULL`), so a chat or a diagnosis with many events is one row; a read row is never reused. The feed is ordered by `(updated_at DESC, id DESC)`; a partial index on unread rows serves the counter. `push_tokens.token` is unique across users, so a device that signs in under another account moves the token. The limit of 10 tokens per user is a service rule, checked under an advisory lock.
 - **Calculations (`V22`).** `calculations` holds the saved seasons of the farm economics calculator. The formulas run on the device, so the server stores what the farmer entered (`area_ha`, `yield_c_ha` in centners per hectare, `price_t` per tonne, `costs`) and what the app calculated from it (`results`) as sent; it never recalculates, so `results` must not be trusted for analytics. `costs` and `results` are jsonb objects of name to number; their keys belong to the app and change without a migration, the service checks only the number of entries (up to 30), simple keys, the range (±10^12) and at most 4 decimal places. As in `fields`, `area_unit` is only what the farmer typed. The ER model of the documentation planned `calculation (user_id, crop_id)`; the table is plural, uses `owner_id` and `crop_code` like `fields`, and has `area_unit`. A saved season is not edited: the app saves a new one and deletes the old. The API limits a farmer to 100 seasons (a service rule, checked under an advisory lock). The feature `calculator` exists since `V4`; the API needs the role `farmer` and that feature.
+- **Community (`V25`).** Seven tables with the prefix `community_`; the decisions are in [ADR 0012](../adr/0012-community-and-moderation.md). The status of a question is a generated column (`open` without `accepted_answer_id`, `solved` with it); hiding is the pair `hidden_at`, `hidden_by` on questions and answers (both set or both empty). The composite foreign key `(id, accepted_answer_id)` to `community_answers (question_id, id)` keeps the best answer inside its question, and `ON DELETE SET NULL (accepted_answer_id)` makes the question open again when that answer is deleted. `region_id` and `district_id` are copied from the author's profile when the question is created. Photos are under the key prefix `community/`, apart from `diagnoses/` and `consultations/`, so the cleanup of orphaned diagnosis photos never sees them. A vote is `-1` or `1`, one per user and answer. `community_complaints` is a moderation case: one open case per target (partial unique indexes on the question and on the answer), the status `new`, `in_progress`, `resolved` and the resolution (`resolved_at`, `resolved_by`, `action`) set together exactly when it is resolved; `community_reports` holds one report per user in a case. Everything is deleted with its users and questions (`ON DELETE CASCADE`) except `hidden_by` and `resolved_by`, which keep `NO ACTION` (audit trail: an admin who moderated is blocked, not deleted).
 - **`diseases.kind` (`V7`)** has `oomycete` for late blight (*Phytophthora*), which is neither a fungus nor a bacterium: the treatment and the advice differ.
 - **Feature access.** Code checks whether the user's plan includes a feature instead of checking roles, so paid plans can be added later as data. Today everyone is on `FREE` and nothing is limited; the per-minute diagnosis rate limit lives in Redis, not in the database.
 
@@ -346,12 +438,6 @@ erDiagram
     diagnoses ||--o{ diagnosis_reviews : "confirmed by"
     users ||--o{ user_subscription : has
     plan ||--o{ user_subscription : ""
-    users ||--o{ post : writes
-    post ||--o{ post_image : has
-    post ||--o{ answer : has
-    answer ||--o{ vote : receives
-    users ||--o{ crop_subscription : follows
-    users ||--o{ report : files
 
     diagnosis_reviews {
         uuid id PK
@@ -371,4 +457,4 @@ erDiagram
 
 - **Shops (`V23`).** `shops` is the directory of agro shops for the map (screen 18); it replaces the `agro_shops` of the documentation. The point is two numbers (`latitude`, `longitude`) and `location` is a generated geometry with a GiST index, so the nearby search needs no spatial mapping in the entity. `region_id` and `district_id` are optional, `categories` is a `text[]` of free codes, and a `hidden` shop is not shown to farmers. Shops are written by an admin (the admin API comes with B12); a farmer only reads them and sends `shop_requests`: `new_shop` (a point and no `shop_id`), `wrong_info` or `closed` (a `shop_id` and no point); the constraints enforce this. Requests go with their shop (`ON DELETE CASCADE`). The API limits a farmer to 10 requests per hour. The phone is shown as text only. The feature `shops` exists since `V4`; the API needs the role `farmer` and that feature.
 
-Also planned: community tables (`post`, `post_image`, `answer`, `vote`, `crop_subscription`, `report`, plus `users.reputation`), `disease_alert`.
+Also planned: `users.reputation` (it needs the answers and votes of the community, which now exist), `disease_alert`.

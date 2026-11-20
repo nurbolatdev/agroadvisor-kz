@@ -571,6 +571,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/community/answers/{id}/vote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description A vote of 1 or -1 on an answer of someone else; a repeat replaces the vote. 400 validation_failed; 404 answer_not_found; 409 own_answer; 429 rate_limited after 60 votes a minute. */
+        put: operations["voteCommunityAnswer"];
+        post?: never;
+        /** @description Takes the vote back; without one it does nothing. */
+        delete: operations["unvoteCommunityAnswer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The feed, newest first, without hidden questions. Filters (all optional): crop (up to 4, repeat the parameter), regionId, status open|solved|unanswered, mine. Pages: before = id of the last question of the previous page; an unknown id is 404 question_not_found. */
+        get: operations["listCommunityQuestions"];
+        put?: never;
+        /** @description Farmers only. Fields: title (3-120), text (1-2000), cropCode, optional diagnosisId (an own diagnosis of the same crop; 404 diagnosis_not_found, otherwise 400), photos (0-3 JPEG or PNG, up to 10 MB each, 11 MB in all; the metadata is removed). The region comes from the profile: 400 region_required without one. 400 validation_failed or invalid_image; 413 payload_too_large; 429 rate_limited after 10 questions an hour; 503 storage_unavailable. */
+        post: operations["askCommunityQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/questions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCommunityQuestion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/questions/{id}/accepted-answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Author of the question only; replaces the previous best answer, a repeat changes nothing. 403 not_question_author; 404 question_not_found or answer_not_found; 409 own_answer. */
+        put: operations["acceptCommunityAnswer"];
+        post?: never;
+        /** @description Author of the question only; without a best answer it does nothing. */
+        delete: operations["clearCommunityAcceptedAnswer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/questions/{id}/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Visible answers: the best first, then by score, time and id. 404 question_not_found. */
+        get: operations["listCommunityAnswers"];
+        put?: never;
+        /** @description Anyone with access may answer, the author of the question too. 400 validation_failed; 404 question_not_found; 409 answer_limit after 200 answers; 429 rate_limited after 30 answers an hour. */
+        post: operations["answerCommunityQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/questions/{id}/diagnosis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The diagnosis the author attached, for every reader; its photoUrl points to /api/community/questions/{id}/diagnosis/photo. 404 diagnosis_not_found without one. */
+        get: operations["getCommunityQuestionDiagnosis"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/questions/{id}/diagnosis/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCommunityQuestionDiagnosisPhoto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/questions/{id}/photos/{photoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCommunityQuestionPhoto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCommunitySubscriptions"];
+        /** @description Replaces the whole set. Up to 20 different known crop codes, otherwise 400 validation_failed and the previous set stays. */
+        put: operations["replaceCommunitySubscriptions"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/consultations": {
         parameters: {
             query?: never;
@@ -1137,6 +1291,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AcceptAnswerRequest: {
+            /** Format: uuid */
+            answerId: string;
+        };
         AdminCrop: {
             code?: string;
             names?: {
@@ -1311,6 +1469,78 @@ export interface components {
             /** Format: double */
             confidence: number;
         };
+        CommunityAnswer: {
+            /** @description The best answer of the question */
+            accepted: boolean;
+            /** @description True only for an agrochemist with a verified profile */
+            authorExpert: boolean;
+            /** Format: uuid */
+            authorId: string;
+            authorName: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** @description Whether the caller wrote it */
+            mine: boolean;
+            /**
+             * Format: int32
+             * @description The caller's vote: -1, 0 or 1
+             */
+            myVote: number;
+            /** Format: uuid */
+            questionId: string;
+            /**
+             * Format: int32
+             * @description Sum of the votes
+             */
+            score: number;
+            text: string;
+        };
+        CommunityQuestion: {
+            /**
+             * Format: int32
+             * @description Visible answers
+             */
+            answerCount: number;
+            /** @description True only for an agrochemist with a verified profile */
+            authorExpert: boolean;
+            /** Format: uuid */
+            authorId: string;
+            authorName: string;
+            /** Format: date-time */
+            createdAt: string;
+            cropCode: string;
+            /** @description Relative path of the attached diagnosis, if there is one */
+            diagnosisUrl?: string | null;
+            /** Format: int64 */
+            districtId?: number | null;
+            /** Format: uuid */
+            id: string;
+            /** @description Whether the caller asked it */
+            mine: boolean;
+            /** @description Relative paths of the photos, in order */
+            photoUrls: string[];
+            /** Format: int64 */
+            regionId: number;
+            /** @enum {string} */
+            status: "open" | "solved";
+            text: string;
+            title: string;
+        };
+        CommunitySubscriptions: {
+            /** @description Up to 20 different crop codes */
+            crops: string[];
+        };
+        CommunityVote: {
+            /**
+             * Format: int32
+             * @description -1, 0 or 1
+             */
+            myVote: number;
+            /** Format: int32 */
+            score: number;
+        };
         ConsultationAgrochemist: {
             fullName: string;
             /** Format: uuid */
@@ -1375,6 +1605,9 @@ export interface components {
         ConsultationUnreadCount: {
             /** Format: int64 */
             count: number;
+        };
+        CreateAnswerRequest: {
+            text: string;
         };
         CreateCalculationRequest: {
             /**
@@ -2125,6 +2358,13 @@ export interface components {
              * @description When the profile entered the admins' queue: at registration, and again when a document is sent after a rejection or a request for documents
              */
             submittedAt: string;
+        };
+        VoteRequest: {
+            /**
+             * Format: int32
+             * @enum {integer}
+             */
+            value: "1" | "-1";
         };
         WeatherView: {
             current: components["schemas"]["Now"];
@@ -3330,6 +3570,338 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    voteCommunityAnswer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityVote"];
+                };
+            };
+        };
+    };
+    unvoteCommunityAnswer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityVote"];
+                };
+            };
+        };
+    };
+    listCommunityQuestions: {
+        parameters: {
+            query?: {
+                crop?: string[];
+                regionId?: number;
+                status?: string;
+                mine?: boolean;
+                before?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityQuestion"][];
+                };
+            };
+        };
+    };
+    askCommunityQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    cropCode?: string;
+                    diagnosisId?: string;
+                    photos?: string[];
+                    text?: string;
+                    title?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The new question */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityQuestion"];
+                };
+            };
+        };
+    };
+    getCommunityQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityQuestion"];
+                };
+            };
+        };
+    };
+    acceptCommunityAnswer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptAnswerRequest"];
+            };
+        };
+        responses: {
+            /** @description The answer is the best one */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    clearCommunityAcceptedAnswer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The question has no best answer */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listCommunityAnswers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityAnswer"][];
+                };
+            };
+        };
+    };
+    answerCommunityQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAnswerRequest"];
+            };
+        };
+        responses: {
+            /** @description The new answer */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityAnswer"];
+                };
+            };
+        };
+    };
+    getCommunityQuestionDiagnosis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DiagnosisView"];
+                };
+            };
+        };
+    };
+    getCommunityQuestionDiagnosisPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A JPEG or PNG photo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                };
+            };
+        };
+    };
+    getCommunityQuestionPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                photoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A JPEG or PNG photo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                };
+            };
+        };
+    };
+    getCommunitySubscriptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunitySubscriptions"];
+                };
+            };
+        };
+    };
+    replaceCommunitySubscriptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommunitySubscriptions"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunitySubscriptions"];
+                };
             };
         };
     };

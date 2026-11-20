@@ -87,6 +87,10 @@ app:
     consultation-requests-per-hour: ${APP_RATE_LIMIT_CONSULTATION_REQUESTS_PER_HOUR:10} # new consultation requests per farmer per hour
     consultation-messages-per-minute: ${APP_RATE_LIMIT_CONSULTATION_MESSAGES_PER_MINUTE:30} # chat messages per user per minute
     push-token-registrations-per-hour: ${APP_RATE_LIMIT_PUSH_TOKEN_REGISTRATIONS_PER_HOUR:20} # push token registrations per user per hour
+    community-questions-per-hour: ${APP_RATE_LIMIT_COMMUNITY_QUESTIONS_PER_HOUR:10} # community questions per farmer per hour
+    community-answers-per-hour: ${APP_RATE_LIMIT_COMMUNITY_ANSWERS_PER_HOUR:30} # community answers per user per hour
+    community-votes-per-minute: ${APP_RATE_LIMIT_COMMUNITY_VOTES_PER_MINUTE:60} # community votes per user per minute
+    community-reports-per-hour: ${APP_RATE_LIMIT_COMMUNITY_REPORTS_PER_HOUR:20} # community complaints per user per hour
   security:
     jwt:
       # Base64, at least 32 random bytes (openssl rand -base64 48). Kept outside git; startup fails without it.
