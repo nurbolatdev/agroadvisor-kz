@@ -27,6 +27,10 @@ import org.springframework.validation.annotation.Validated;
  *
  * <p>{@code pushTokenRegistrationsPerHour} (20) caps device token registrations per user; every attempt
  * counts, and none is given back.
+ *
+ * <p>Four limits keep the community from being used for spam, all per user: {@code
+ * communityQuestionsPerHour} (10), {@code communityAnswersPerHour} (30), {@code communityVotesPerMinute} (60)
+ * and {@code communityReportsPerHour} (20). Every attempt counts, and none is given back.
  */
 @Validated
 @ConfigurationProperties("app.rate-limit")
@@ -39,5 +43,9 @@ public record RateLimitProperties(
         @Min(1) @DefaultValue("60") int refreshPerIpPerMinute,
         @Min(1) @DefaultValue("10") int consultationRequestsPerHour,
         @Min(1) @DefaultValue("30") int consultationMessagesPerMinute,
-        @Min(1) @DefaultValue("20") int pushTokenRegistrationsPerHour) {
+        @Min(1) @DefaultValue("20") int pushTokenRegistrationsPerHour,
+        @Min(1) @DefaultValue("10") int communityQuestionsPerHour,
+        @Min(1) @DefaultValue("30") int communityAnswersPerHour,
+        @Min(1) @DefaultValue("60") int communityVotesPerMinute,
+        @Min(1) @DefaultValue("20") int communityReportsPerHour) {
 }
