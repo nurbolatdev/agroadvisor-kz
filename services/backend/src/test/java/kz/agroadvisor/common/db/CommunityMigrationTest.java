@@ -96,6 +96,32 @@ class CommunityMigrationTest {
     }
 
     @Test
+    void complaintCommentIsNotBlankAndAWorkingCaseHasAStartTime() {
+        UUID author = insertUser("+77030000013");
+        UUID question = insertQuestion(author);
+        UUID complaint = insertComplaint(question, null);
+
+        assertRejected(() -> jdbc.update("UPDATE community_complaints SET comment = '  ' WHERE id = ?", complaint));
+        assertRejected(() -> jdbc.update("UPDATE community_complaints SET comment = '' WHERE id = ?", complaint));
+        assertRejected(() -> jdbc.update(
+                "UPDATE community_complaints SET comment = ' padded ' WHERE id = ?", complaint));
+        jdbc.update("UPDATE community_complaints SET comment = 'Spam' WHERE id = ?", complaint);
+
+        assertRejected(() -> jdbc.update(
+                "UPDATE community_complaints SET status = 'in_progress' WHERE id = ?", complaint));
+        jdbc.update("UPDATE community_complaints SET status = 'in_progress', started_at = now() WHERE id = ?",
+                complaint);
+    }
+
+    @Test
+    void complaintsAreIndexedByQuestion() {
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM pg_indexes
+                WHERE tablename = 'community_complaints' AND indexname = 'community_complaints_question_idx'
+                """, Integer.class)).isEqualTo(1);
+    }
+
+    @Test
     void voteValueIsPlusOrMinusOne() {
         UUID author = insertUser("+77030000006");
         UUID voter = insertUser("+77030000007");

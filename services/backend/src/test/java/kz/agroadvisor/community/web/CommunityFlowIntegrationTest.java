@@ -81,7 +81,9 @@ class CommunityFlowIntegrationTest {
 
     private ResultActions ask(String token) throws Exception {
         return mvc.perform(multipart("/api/community/questions")
-                .param("title", "Late blight?").param("text", "Spots on the leaves").param("cropCode", "potato")
+                .part(CommunityQuestionControllerIntegrationTest.textPart("title", "Late blight?"),
+                        CommunityQuestionControllerIntegrationTest.textPart("text", "Spots on the leaves"),
+                        CommunityQuestionControllerIntegrationTest.textPart("cropCode", "potato"))
                 .header("Authorization", token));
     }
 
@@ -95,7 +97,7 @@ class CommunityFlowIntegrationTest {
     }
 
     @Test
-    void aQuestionIsAnsweredVotedAcceptedAndMovesBetweenFeedFilters() throws Exception {
+    void aQuestionIsAnsweredVotedAcceptedAndMovesBetweenFeedFiltersAndReadsAsOpenAfterTheAnswerIsClearedInSql() throws Exception {
         String farmerA = token(newUser(Role.FARMER, false));
         String farmerB = token(newUser(Role.FARMER, false));
         String expert = token(newUser(Role.AGROCHEMIST, true));
@@ -122,7 +124,8 @@ class CommunityFlowIntegrationTest {
         feed(farmerB, "?status=unanswered&crop=potato&limit=50")
                 .andExpect(jsonPath("$[?(@.id=='" + questionId + "')]").isEmpty());
 
-        // what moderation does to a hidden best answer (step 14 moves this into a service)
+        // Only reading after a direct SQL change: the card and the feed show an open question once the best
+        // answer is cleared and hidden. The rule that moderation clears it is tested with the moderation service.
         jdbc.update("UPDATE community_questions SET accepted_answer_id = NULL WHERE id = ?::uuid", questionId);
         jdbc.update("UPDATE community_answers SET hidden_at = now(), hidden_by = "
                 + "(SELECT id FROM users WHERE id = author_id) WHERE id = ?::uuid", answerId);

@@ -103,7 +103,8 @@ CREATE TABLE community_complaints (
     resolved_at timestamptz,
     resolved_by uuid REFERENCES users (id),
     action      varchar(10) CHECK (action IN ('keep', 'hide', 'block')),
-    comment     varchar(500),
+    comment     varchar(500) CHECK (comment = btrim(comment) AND comment <> ''),
+    CONSTRAINT community_complaints_started_with_work CHECK (status <> 'in_progress' OR started_at IS NOT NULL),
     CONSTRAINT community_complaints_answer_belongs_to_question
         FOREIGN KEY (question_id, answer_id) REFERENCES community_answers (question_id, id) ON DELETE CASCADE,
     CONSTRAINT community_complaints_answer_by_type CHECK ((target_type = 'answer') = (answer_id IS NOT NULL)),
@@ -117,6 +118,8 @@ CREATE UNIQUE INDEX community_complaints_one_open_question_idx
 CREATE UNIQUE INDEX community_complaints_one_open_answer_idx
     ON community_complaints (answer_id) WHERE answer_id IS NOT NULL AND status <> 'resolved';
 CREATE INDEX community_complaints_status_created_at_idx ON community_complaints (status, created_at DESC);
+-- For the cascade of deleting a question and for the cases of one question
+CREATE INDEX community_complaints_question_idx ON community_complaints (question_id);
 
 -- A single user's report inside a case; sending it again changes nothing
 CREATE TABLE community_reports (

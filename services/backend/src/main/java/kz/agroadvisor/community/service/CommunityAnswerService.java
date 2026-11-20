@@ -52,7 +52,7 @@ public class CommunityAnswerService {
      */
     public Answer answer(UUID me, UUID questionId, String text) {
         String body = text == null ? "" : normalize(text);
-        if (body.isEmpty() || body.length() > MAX_TEXT || hasControlChars(body)) {
+        if (body.isEmpty() || body.length() > MAX_TEXT || hasControlChars(body, true)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,
                     "The answer must have 1 to " + MAX_TEXT + " characters, without control characters");
         }

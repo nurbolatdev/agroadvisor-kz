@@ -86,6 +86,13 @@ public class CommunityQuestionRepository {
                 authorId) > 0;
     }
 
+    /** Whether the user exists and has a region; the early check before the limit and the uploads. */
+    public boolean userHasRegion(UUID userId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM users WHERE id = ? AND region_id IS NOT NULL)", Boolean.class,
+                userId));
+    }
+
     public boolean cropExists(String cropCode) {
         return Boolean.TRUE.equals(
                 jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM crops WHERE code = ?)", Boolean.class, cropCode));

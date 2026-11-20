@@ -104,7 +104,7 @@ class CommunityAnswerControllerIntegrationTest {
 
         json(post("/api/community/questions/" + questionId + "/answers"), expert, "{\"text\":\"  Spray copper  \"}")
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", "/api/community/questions/" + questionId + "/answers"))
+                .andExpect(header().doesNotExist("Location"))
                 .andExpect(jsonPath("$.text").value("Spray copper"))
                 .andExpect(jsonPath("$.mine").value(true))
                 .andExpect(jsonPath("$.accepted").value(false));

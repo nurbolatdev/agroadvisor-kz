@@ -85,10 +85,11 @@ public class CommunityQuestionService {
             List<byte[]> photos) {
         String heading = title == null ? "" : normalize(title);
         String body = text == null ? "" : normalize(text);
-        if (heading.length() < MIN_TITLE || heading.length() > MAX_TITLE || hasControlChars(heading)) {
-            throw validation("The title must have " + MIN_TITLE + " to " + MAX_TITLE + " characters");
+        if (heading.length() < MIN_TITLE || heading.length() > MAX_TITLE || hasControlChars(heading, false)) {
+            throw validation("The title must have " + MIN_TITLE + " to " + MAX_TITLE
+                    + " characters, in one line");
         }
-        if (body.isEmpty() || body.length() > MAX_TEXT || hasControlChars(body)) {
+        if (body.isEmpty() || body.length() > MAX_TEXT || hasControlChars(body, true)) {
             throw validation("The text must have 1 to " + MAX_TEXT + " characters, without control characters");
         }
         if (cropCode == null || !questions.cropExists(cropCode)) {
@@ -103,6 +104,11 @@ public class CommunityQuestionService {
         if (diagnosisId != null && !diagnoses.get(author, diagnosisId).crop().equals(cropCode)) {
             throw validation("The diagnosis belongs to another crop than the question");
         }
+        // Cheap early check, so a user without a region uses no attempt and uploads nothing; the insert below
+        // checks again for the case when the region disappears in between
+        if (!questions.userHasRegion(author)) {
+            throw regionRequired();
+        }
         rateLimiter.check("community-questions", author.toString(), limits.communityQuestionsPerHour(),
                 Duration.ofHours(1));
         List<byte[]> cleaned = files.stream().map(this::clean).toList();
@@ -114,8 +120,7 @@ public class CommunityQuestionService {
             }
             tx.executeWithoutResult(status -> {
                 if (!questions.insert(id, author, cropCode, diagnosisId, heading, body)) {
-                    throw new ApiException(HttpStatus.BAD_REQUEST, CommunityErrors.REGION_REQUIRED,
-                            "Set the region in the profile before asking a question");
+                    throw regionRequired();
                 }
                 for (int i = 0; i < keys.size(); i++) {
                     questions.insertPhoto(id, keys.get(i), types.get(i), cleaned.get(i).length, i);
@@ -223,9 +228,17 @@ public class CommunityQuestionService {
         return text.strip().replace("\r\n", "\n").replace('\r', '\n');
     }
 
-    /** Whether the text has a control character other than a line break (PostgreSQL rejects NUL). */
-    static boolean hasControlChars(String text) {
-        return text.chars().anyMatch(c -> Character.isISOControl(c) && c != '\n');
+    /**
+     * Whether the text has a control character other than a line break and a tab (PostgreSQL rejects NUL).
+     * The title is one line, so it allows neither.
+     */
+    static boolean hasControlChars(String text, boolean multiline) {
+        return text.chars().anyMatch(c -> Character.isISOControl(c) && !(multiline && (c == '\n' || c == '\t')));
+    }
+
+    private static ApiException regionRequired() {
+        return new ApiException(HttpStatus.BAD_REQUEST, CommunityErrors.REGION_REQUIRED,
+                "Set the region in the profile before asking a question");
     }
 
     private static ApiException validation(String detail) {

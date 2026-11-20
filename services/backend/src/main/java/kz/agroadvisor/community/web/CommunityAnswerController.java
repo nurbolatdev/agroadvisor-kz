@@ -1,6 +1,5 @@
 package kz.agroadvisor.community.web;
 
-import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
@@ -57,7 +56,7 @@ public class CommunityAnswerController {
             Authentication authentication) {
         UUID me = me(authentication);
         AnswerResponse created = AnswerResponse.of(answers.answer(me, id, request.text()), me);
-        return ResponseEntity.created(URI.create("/api/community/questions/" + id + "/answers")).body(created);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/questions/{id}/accepted-answer")

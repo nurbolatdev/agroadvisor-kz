@@ -57,14 +57,16 @@ class CommunityQuestionServiceTest {
     @Test
     void theLimitIsCheckedAfterValidationAndBeforeTheUpload() {
         when(questions.cropExists("potato")).thenReturn(true);
+        when(questions.userHasRegion(me)).thenReturn(true);
         when(stripper.strip(any())).thenReturn(JPEG);
         when(storage.store(any(), any(), anyString())).thenReturn("community/q/a.jpg");
         when(questions.insert(any(), eq(me), eq("potato"), any(), anyString(), anyString())).thenReturn(true);
         when(questions.findVisible(any())).thenAnswer(i -> Optional.of(question(i.getArgument(0), me, null)));
 
-        service.ask(me, " Spots on leaves ", "Brown spots appeared", "potato", null, List.of(JPEG));
+        service.ask(me, " Spots on leaves ", "Brown\tspots\nappeared", "potato", null, List.of(JPEG));
 
         InOrder order = inOrder(rateLimiter, storage, questions);
+        order.verify(questions).userHasRegion(me);
         order.verify(rateLimiter).check("community-questions", me.toString(), 0, Duration.ofHours(1));
         order.verify(storage).store(any(), any(), eq("image/jpeg"));
         order.verify(questions).insert(any(), eq(me), eq("potato"), any(), eq("Spots on leaves"), anyString());
@@ -79,8 +81,31 @@ class CommunityQuestionServiceTest {
         assertCode(() -> service.ask(me, "Title", " ", "potato", null, List.of()), "validation_failed");
         assertCode(() -> service.ask(me, "Title", "bad\u0000text", "potato", null, List.of()), "validation_failed");
         assertCode(() -> service.ask(me, "Title", "text", "banana", null, List.of()), "validation_failed");
+        // A title is one line: neither a line break nor a tab
+        assertCode(() -> service.ask(me, "Two\nlines", "text", "potato", null, List.of()), "validation_failed");
+        assertCode(() -> service.ask(me, "Tab\there", "text", "potato", null, List.of()), "validation_failed");
 
         verifyNoInteractions(rateLimiter, storage);
+    }
+
+    @Test
+    void controlCharactersAreForbiddenInATitleAndOnlyNewlineAndTabAreAllowedInATextAndAnAnswer() {
+        assertThat(CommunityQuestionService.hasControlChars("a\tb\nc", true)).isFalse();
+        assertThat(CommunityQuestionService.hasControlChars("a\tb", false)).isTrue();
+        assertThat(CommunityQuestionService.hasControlChars("a\nb", false)).isTrue();
+        assertThat(CommunityQuestionService.hasControlChars("a\u0000b", true)).isTrue();
+        assertThat(CommunityQuestionService.hasControlChars("a\u0007b", true)).isTrue();
+    }
+
+    @Test
+    void aUserWithoutARegionUsesNoAttemptAndUploadsNothing() {
+        when(questions.cropExists("potato")).thenReturn(true);
+        when(questions.userHasRegion(me)).thenReturn(false);
+
+        assertCode(() -> service.ask(me, "Title", "text", "potato", null, List.of(JPEG)), "region_required");
+
+        verifyNoInteractions(rateLimiter, storage, stripper);
+        verify(questions, never()).insert(any(), any(), anyString(), any(), anyString(), anyString());
     }
 
     @Test
@@ -113,6 +138,7 @@ class CommunityQuestionServiceTest {
     @Test
     void uploadedObjectsAreRemovedWhenTheInsertFails() {
         when(questions.cropExists("potato")).thenReturn(true);
+        when(questions.userHasRegion(me)).thenReturn(true);
         when(stripper.strip(any())).thenReturn(JPEG);
         when(storage.store(any(), any(), anyString())).thenReturn("community/q/a.jpg", "community/q/b.jpg");
         when(questions.insert(any(), any(), anyString(), any(), anyString(), anyString()))
@@ -126,8 +152,9 @@ class CommunityQuestionServiceTest {
     }
 
     @Test
-    void aMissingRegionIsRejectedAndTheUploadsAreRemoved() {
+    void aRegionLostBetweenTheCheckAndTheInsertIsRejectedAndTheUploadsAreRemoved() {
         when(questions.cropExists("potato")).thenReturn(true);
+        when(questions.userHasRegion(me)).thenReturn(true);
         when(stripper.strip(any())).thenReturn(JPEG);
         when(storage.store(any(), any(), anyString())).thenReturn("community/q/a.jpg");
         when(questions.insert(any(), any(), anyString(), any(), anyString(), anyString())).thenReturn(false);

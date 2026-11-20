@@ -27,6 +27,8 @@ class CommunitySubscriptionServiceTest {
     @Autowired
     private CommunitySubscriptionService service;
     @Autowired
+    private kz.agroadvisor.community.repository.CommunitySubscriptionRepository repository;
+    @Autowired
     private JdbcTemplate jdbc;
 
     private UUID me;
@@ -63,6 +65,17 @@ class CommunitySubscriptionServiceTest {
         assertInvalid(java.util.stream.IntStream.range(0, 21).mapToObj(i -> "crop" + i).toList());
         assertInvalid(null);
         assertThat(service.list(me)).containsExactly("corn");
+    }
+
+    @Test
+    void aSubscriptionInsertedByAParallelRequestDoesNotFailTheReplace() {
+        // The other request commits the same crop between this one's delete and insert
+        jdbc.update("INSERT INTO community_crop_subscriptions (user_id, crop_code) VALUES (?, 'corn')", me);
+
+        assertThat(repository.list(me)).containsExactly("corn");
+        repository.insert(me, "corn");
+
+        assertThat(repository.list(me)).containsExactly("corn");
     }
 
     private void assertInvalid(List<String> crops) {

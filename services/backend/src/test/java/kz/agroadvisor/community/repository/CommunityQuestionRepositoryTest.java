@@ -73,6 +73,13 @@ class CommunityQuestionRepositoryTest {
     }
 
     @Test
+    void userHasRegionIsFalseWithoutRegionAndForAnUnknownUser() {
+        assertThat(repository.userHasRegion(user(regionA))).isTrue();
+        assertThat(repository.userHasRegion(user(null))).isFalse();
+        assertThat(repository.userHasRegion(UUID.randomUUID())).isFalse();
+    }
+
+    @Test
     void authorIsAnExpertOnlyWithApprovedDocuments() {
         UUID expert = user(regionA);
         UUID pending = user(regionA);

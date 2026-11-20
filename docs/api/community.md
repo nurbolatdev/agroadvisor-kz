@@ -50,7 +50,7 @@ A question has 0 to 3 photos (JPEG or PNG, up to 10 MB each). They travel in the
 | Photos per question | 3 | 400 `invalid_image` |
 | Crops followed | 20 | 400 `validation_failed` |
 
-Text may hold a line break and a tab, no other control characters.
+The text of a question and of an answer may hold a line break and a tab, no other control characters. A title is one line: neither a line break nor a tab.
 
 ## Question object
 
@@ -131,7 +131,7 @@ Visible answers: the best answer first, then by `score` (highest first), creatio
 
 ### `POST /api/community/questions/{id}/answers`
 
-Request: `{ "text": string }`. Response: 201 with the answer and `Location: /api/community/questions/{id}/answers`.
+Request: `{ "text": string }`. Response: 201 with the answer, without a `Location` (an answer has no address of its own; read the list).
 Errors: 400 `validation_failed`; 404 `question_not_found`; 409 `answer_limit`; 429 `rate_limited`.
 
 ### `PUT /api/community/questions/{id}/accepted-answer`
@@ -150,7 +150,7 @@ Errors: 400 `validation_failed`; 404 `answer_not_found` (missing, hidden, or its
 
 ### `DELETE /api/community/answers/{id}/vote`
 
-Takes the vote back; without one it does nothing. Response: `{ "score", "myVote" }`. Errors: 404 `answer_not_found`.
+Takes the vote back; without one it does nothing. It counts toward the votes limit like a vote. Response: `{ "score", "myVote" }`. Errors: 404 `answer_not_found`; 409 `own_answer` (one's own answer); 429 `rate_limited`.
 
 ### `GET /api/community/subscriptions`
 

@@ -34,8 +34,10 @@ public class CommunitySubscriptionRepository {
         jdbc.update("DELETE FROM community_crop_subscriptions WHERE user_id = ?", userId);
     }
 
+    /** Adds a subscription; a repeat (for example from a parallel request of the same user) changes nothing. */
     public void insert(UUID userId, String cropCode) {
-        jdbc.update("INSERT INTO community_crop_subscriptions (user_id, crop_code) VALUES (?, ?)", userId,
-                cropCode);
+        jdbc.update("""
+                INSERT INTO community_crop_subscriptions (user_id, crop_code) VALUES (?, ?)
+                ON CONFLICT (user_id, crop_code) DO NOTHING""", userId, cropCode);
     }
 }
