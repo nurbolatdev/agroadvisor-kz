@@ -1,6 +1,16 @@
 {
   "components" : {
     "schemas" : {
+      "AcceptAnswerRequest" : {
+        "properties" : {
+          "answerId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "answerId" ],
+        "type" : "object"
+      },
       "AdminCrop" : {
         "properties" : {
           "code" : {
@@ -381,6 +391,56 @@
         "required" : [ "code", "confidence" ],
         "type" : "object"
       },
+      "CommunityAnswer" : {
+        "properties" : {
+          "accepted" : {
+            "description" : "The best answer of the question",
+            "type" : "boolean"
+          },
+          "authorExpert" : {
+            "description" : "True only for an agrochemist with a verified profile",
+            "type" : "boolean"
+          },
+          "authorId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "authorName" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "mine" : {
+            "description" : "Whether the caller wrote it",
+            "type" : "boolean"
+          },
+          "myVote" : {
+            "description" : "The caller's vote: -1, 0 or 1",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "questionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "score" : {
+            "description" : "Sum of the votes",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "accepted", "authorExpert", "authorId", "authorName", "createdAt", "id", "mine", "myVote", "questionId", "score", "text" ],
+        "type" : "object"
+      },
       "CommunityQuestion" : {
         "properties" : {
           "answerCount" : {
@@ -445,6 +505,34 @@
           }
         },
         "required" : [ "answerCount", "authorExpert", "authorId", "authorName", "createdAt", "cropCode", "id", "mine", "photoUrls", "regionId", "status", "text", "title" ],
+        "type" : "object"
+      },
+      "CommunitySubscriptions" : {
+        "properties" : {
+          "crops" : {
+            "description" : "Up to 20 different crop codes",
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "crops" ],
+        "type" : "object"
+      },
+      "CommunityVote" : {
+        "properties" : {
+          "myVote" : {
+            "description" : "-1, 0 or 1",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "score" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "myVote", "score" ],
         "type" : "object"
       },
       "ConsultationAgrochemist" : {
@@ -573,6 +661,15 @@
           }
         },
         "required" : [ "count" ],
+        "type" : "object"
+      },
+      "CreateAnswerRequest" : {
+        "properties" : {
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "text" ],
         "type" : "object"
       },
       "CreateCalculationRequest" : {
@@ -2072,6 +2169,17 @@
           }
         },
         "required" : [ "documents", "specializations", "status", "submittedAt" ],
+        "type" : "object"
+      },
+      "VoteRequest" : {
+        "properties" : {
+          "value" : {
+            "enum" : [ "1", "-1" ],
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "value" ],
         "type" : "object"
       },
       "WeatherView" : {
@@ -3798,6 +3906,70 @@
         "tags" : [ "calculation-controller" ]
       }
     },
+    "/api/community/answers/{id}/vote" : {
+      "delete" : {
+        "description" : "Takes the vote back; without one it does nothing.",
+        "operationId" : "unvoteCommunityAnswer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommunityVote"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "community-answer-controller" ]
+      },
+      "put" : {
+        "description" : "A vote of 1 or -1 on an answer of someone else; a repeat replaces the vote. 400 validation_failed; 404 answer_not_found; 409 own_answer; 429 rate_limited after 60 votes a minute.",
+        "operationId" : "voteCommunityAnswer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/VoteRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommunityVote"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "community-answer-controller" ]
+      }
+    },
     "/api/community/questions" : {
       "get" : {
         "description" : "The feed, newest first, without hidden questions. Filters (all optional): crop (up to 4, repeat the parameter), regionId, status open|solved|unanswered, mine. Pages: before = id of the last question of the previous page; an unknown id is 404 question_not_found.",
@@ -3965,6 +4137,123 @@
         "tags" : [ "community-question-controller" ]
       }
     },
+    "/api/community/questions/{id}/accepted-answer" : {
+      "delete" : {
+        "description" : "Author of the question only; without a best answer it does nothing.",
+        "operationId" : "clearCommunityAcceptedAnswer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "The question has no best answer"
+          }
+        },
+        "tags" : [ "community-answer-controller" ]
+      },
+      "put" : {
+        "description" : "Author of the question only; replaces the previous best answer, a repeat changes nothing. 403 not_question_author; 404 question_not_found or answer_not_found; 409 own_answer.",
+        "operationId" : "acceptCommunityAnswer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AcceptAnswerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "The answer is the best one"
+          }
+        },
+        "tags" : [ "community-answer-controller" ]
+      }
+    },
+    "/api/community/questions/{id}/answers" : {
+      "get" : {
+        "description" : "Visible answers: the best first, then by score, time and id. 404 question_not_found.",
+        "operationId" : "listCommunityAnswers",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/CommunityAnswer"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "community-answer-controller" ]
+      },
+      "post" : {
+        "description" : "Anyone with access may answer, the author of the question too. 400 validation_failed; 404 question_not_found; 409 answer_limit after 200 answers; 429 rate_limited after 30 answers an hour.",
+        "operationId" : "answerCommunityQuestion",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateAnswerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommunityAnswer"
+                }
+              }
+            },
+            "description" : "The new answer"
+          }
+        },
+        "tags" : [ "community-answer-controller" ]
+      }
+    },
     "/api/community/questions/{id}/diagnosis" : {
       "get" : {
         "description" : "The diagnosis the author attached, for every reader; its photoUrl points to /api/community/questions/{id}/diagnosis/photo. 404 diagnosis_not_found without one.",
@@ -4067,6 +4356,51 @@
           }
         },
         "tags" : [ "community-question-controller" ]
+      }
+    },
+    "/api/community/subscriptions" : {
+      "get" : {
+        "operationId" : "getCommunitySubscriptions",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommunitySubscriptions"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "community-subscription-controller" ]
+      },
+      "put" : {
+        "description" : "Replaces the whole set. Up to 20 different known crop codes, otherwise 400 validation_failed and the previous set stays.",
+        "operationId" : "replaceCommunitySubscriptions",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CommunitySubscriptions"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommunitySubscriptions"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "community-subscription-controller" ]
       }
     },
     "/api/consultations" : {
