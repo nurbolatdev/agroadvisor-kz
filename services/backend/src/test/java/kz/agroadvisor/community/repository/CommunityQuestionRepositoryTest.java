@@ -195,11 +195,16 @@ class CommunityQuestionRepositoryTest {
 
         List<Photo> photos = repository.photos(List.of(first, second, none));
 
-        assertThat(photos).extracting(Photo::id).containsExactly(p0, p1, q0).hasSize(3);
-        assertThat(photos.get(0).key()).isEqualTo("community/a/0.png");
-        assertThat(photos.get(0).contentType()).isEqualTo("image/png");
-        assertThat(photos.get(0).sizeBytes()).isEqualTo(50);
-        assertThat(photos.get(1).position()).isEqualTo(1);
+        // Questions come in any order, the photos of one question by position
+        List<Photo> ofFirst = photos.stream().filter(p -> p.questionId().equals(first)).toList();
+        assertThat(photos).hasSize(3);
+        assertThat(ofFirst).extracting(Photo::id).containsExactly(p0, p1);
+        assertThat(photos).filteredOn(p -> p.questionId().equals(second)).extracting(Photo::id)
+                .containsExactly(q0);
+        assertThat(ofFirst.get(0).key()).isEqualTo("community/a/0.png");
+        assertThat(ofFirst.get(0).contentType()).isEqualTo("image/png");
+        assertThat(ofFirst.get(0).sizeBytes()).isEqualTo(50);
+        assertThat(ofFirst.get(1).position()).isEqualTo(1);
         assertThat(repository.photos(List.of())).isEmpty();
     }
 

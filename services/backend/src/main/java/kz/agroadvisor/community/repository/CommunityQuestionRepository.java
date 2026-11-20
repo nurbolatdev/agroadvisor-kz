@@ -86,6 +86,11 @@ public class CommunityQuestionRepository {
                 authorId) > 0;
     }
 
+    public boolean cropExists(String cropCode) {
+        return Boolean.TRUE.equals(
+                jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM crops WHERE code = ?)", Boolean.class, cropCode));
+    }
+
     public UUID insertPhoto(UUID questionId, String key, String contentType, int sizeBytes, int position) {
         return jdbc.queryForObject("""
                 INSERT INTO community_question_photos (question_id, photo_key, content_type, size_bytes, position)
