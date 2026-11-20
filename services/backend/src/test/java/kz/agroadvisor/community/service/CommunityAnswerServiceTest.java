@@ -155,6 +155,42 @@ class CommunityAnswerServiceTest {
         assertApi(() -> service.answer(helper, question, "bad\u0000text"), 400, "validation_failed");
     }
 
+    @Test
+    void changingTheVoteMovesTheScoreByTwo() {
+        UUID a = service.answer(helper, question, "A").id();
+
+        assertThat(service.vote(author, a, 1)).isEqualTo(new CommunityAnswerService.VoteResult(1, 1));
+        assertThat(service.vote(other, a, 1)).isEqualTo(new CommunityAnswerService.VoteResult(2, 1));
+        assertThat(service.vote(author, a, -1)).isEqualTo(new CommunityAnswerService.VoteResult(0, -1));
+        assertThat(service.vote(author, a, -1)).isEqualTo(new CommunityAnswerService.VoteResult(0, -1));
+        assertThat(service.unvote(author, a)).isEqualTo(new CommunityAnswerService.VoteResult(1, 0));
+        assertThat(service.unvote(author, a)).isEqualTo(new CommunityAnswerService.VoteResult(1, 0));
+    }
+
+    @Test
+    void ownAnswerCannotBeVotedAndBadValuesAreRejected() {
+        UUID own = service.answer(helper, question, "Own").id();
+
+        assertApi(() -> service.vote(helper, own, 1), 409, CommunityErrors.OWN_ANSWER);
+        assertApi(() -> service.unvote(helper, own), 409, CommunityErrors.OWN_ANSWER);
+        assertApi(() -> service.vote(author, own, 0), 400, "validation_failed");
+        assertApi(() -> service.vote(author, own, 2), 400, "validation_failed");
+    }
+
+    @Test
+    void hiddenOrMissingAnswerCannotBeVoted() {
+        UUID hiddenAnswer = service.answer(helper, question, "Hidden").id();
+        UUID visible = service.answer(helper, question, "Visible").id();
+        jdbc.update("UPDATE community_answers SET hidden_at = now(), hidden_by = ? WHERE id = ?", author,
+                hiddenAnswer);
+
+        assertApi(() -> service.vote(author, hiddenAnswer, 1), 404, CommunityErrors.ANSWER_NOT_FOUND);
+        assertApi(() -> service.vote(author, UUID.randomUUID(), 1), 404, CommunityErrors.ANSWER_NOT_FOUND);
+
+        jdbc.update("UPDATE community_questions SET hidden_at = now(), hidden_by = ? WHERE id = ?", other, question);
+        assertApi(() -> service.vote(author, visible, 1), 404, CommunityErrors.ANSWER_NOT_FOUND);
+    }
+
     private static List<UUID> ids(List<Answer> list) {
         return list.stream().map(Answer::id).toList();
     }

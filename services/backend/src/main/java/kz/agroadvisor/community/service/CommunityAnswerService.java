@@ -103,6 +103,37 @@ public class CommunityAnswerService {
         });
     }
 
+    /** The score and the caller's vote after a vote change. */
+    public record VoteResult(int score, int myVote) {
+    }
+
+    /** Votes +1 or -1 on an answer of someone else; a repeated vote replaces the previous one. */
+    public VoteResult vote(UUID me, UUID answerId, int value) {
+        if (value != 1 && value != -1) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED,
+                    "The vote must be 1 or -1");
+        }
+        return changeVote(me, answerId, () -> answers.upsertVote(answerId, me, value));
+    }
+
+    /** Takes the vote back; without one it does nothing. */
+    public VoteResult unvote(UUID me, UUID answerId) {
+        return changeVote(me, answerId, () -> answers.deleteVote(answerId, me));
+    }
+
+    private VoteResult changeVote(UUID me, UUID answerId, Runnable change) {
+        rateLimiter.check("community-votes", me.toString(), limits.communityVotesPerMinute(),
+                Duration.ofMinutes(1));
+        Answer answer = answers.findVisibleById(answerId, me).orElseThrow(CommunityAnswerService::answerNotFound);
+        if (answer.authorId().equals(me)) {
+            throw new ApiException(HttpStatus.CONFLICT, CommunityErrors.OWN_ANSWER,
+                    "Your own answer cannot be voted");
+        }
+        change.run();
+        Answer fresh = answers.findVisibleById(answerId, me).orElseThrow(CommunityAnswerService::answerNotFound);
+        return new VoteResult(fresh.score(), fresh.myVote());
+    }
+
     private Question lockVisible(UUID questionId) {
         if (!questions.lock(questionId)) {
             throw notFound();

@@ -63,6 +63,25 @@ public class CommunityAnswerRepository {
                 viewer, questionId, answerId).stream().findFirst();
     }
 
+    /** The answer by id when neither it nor its question is hidden. */
+    public Optional<Answer> findVisibleById(UUID answerId, UUID viewer) {
+        return jdbc.query(SELECT + " WHERE a.id = ? AND a.hidden_at IS NULL AND q.hidden_at IS NULL", ANSWER,
+                viewer, answerId).stream().findFirst();
+    }
+
+    /** Sets the vote of the user on the answer, replacing the previous one. */
+    public void upsertVote(UUID answerId, UUID userId, int value) {
+        jdbc.update("""
+                INSERT INTO community_votes (answer_id, user_id, value) VALUES (?, ?, ?)
+                ON CONFLICT (answer_id, user_id) DO UPDATE SET value = EXCLUDED.value""", answerId, userId,
+                value);
+    }
+
+    /** Removes the vote of the user on the answer; without one it does nothing. */
+    public void deleteVote(UUID answerId, UUID userId) {
+        jdbc.update("DELETE FROM community_votes WHERE answer_id = ? AND user_id = ?", answerId, userId);
+    }
+
     /** Sets or, with null, clears the best answer of the question. */
     public void setAccepted(UUID questionId, UUID answerId) {
         jdbc.update("UPDATE community_questions SET accepted_answer_id = ? WHERE id = ?", answerId, questionId);
