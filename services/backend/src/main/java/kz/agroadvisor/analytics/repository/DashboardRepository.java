@@ -1,4 +1,4 @@
-package kz.agroadvisor.dashboard.repository;
+package kz.agroadvisor.analytics.repository;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -44,34 +44,38 @@ public class DashboardRepository {
                 }, threshold, Timestamp.from(from), Timestamp.from(to));
     }
 
-    /** Diagnoses per UTC day in [from, to); days without any are left out. */
+    /** Diagnoses per UTC day, one row for every day from the day of {@code from} to the day of {@code to}. */
     public List<DayCount> perDay(Instant from, Instant to) {
-        return jdbc.query("""
-                SELECT (created_at AT TIME ZONE 'UTC')::date AS day, count(*) AS n
-                FROM diagnoses WHERE created_at >= ? AND created_at < ?
-                GROUP BY day ORDER BY day""", (rs, i) -> new DayCount(rs.getObject("day", LocalDate.class),
-                rs.getInt("n")), Timestamp.from(from), Timestamp.from(to));
+        return series(from, to, 1);
     }
 
-    /** Diagnoses per 7-day week counted from {@code from} (day 0): week 0, 1, … in [from, to). */
+    /** Diagnoses per 7-day week starting on the UTC day of {@code from}; every week is there, empty or not. */
     public List<DayCount> perWeek(Instant from, Instant to) {
-        return jdbc.query("""
-                SELECT (?::timestamptz AT TIME ZONE 'UTC')::date
-                         + 7 * floor(extract(epoch FROM created_at - ?::timestamptz) / 604800)::int AS day,
-                       count(*) AS n
-                FROM diagnoses WHERE created_at >= ? AND created_at < ?
-                GROUP BY day ORDER BY day""", (rs, i) -> new DayCount(rs.getObject("day", LocalDate.class),
-                rs.getInt("n")), Timestamp.from(from), Timestamp.from(from), Timestamp.from(from),
-                Timestamp.from(to));
+        return series(from, to, 7);
     }
 
-    /** New accounts per 7-day week counted from {@code from}: bucket 1, 2, … (weeks) in [from, to). */
+    private List<DayCount> series(Instant from, Instant to, int stepDays) {
+        return jdbc.query("""
+                SELECT s.day::date AS day, count(g.id) AS n
+                FROM generate_series(date_trunc('day', ?::timestamptz AT TIME ZONE 'UTC'),
+                                     date_trunc('day', ?::timestamptz AT TIME ZONE 'UTC'),
+                                     make_interval(days => ?)) AS s(day)
+                LEFT JOIN diagnoses g
+                       ON g.created_at >= ? AND g.created_at < ?
+                      AND (g.created_at AT TIME ZONE 'UTC')::date >= s.day::date
+                      AND (g.created_at AT TIME ZONE 'UTC')::date < s.day::date + ?
+                GROUP BY s.day ORDER BY s.day""", (rs, i) -> new DayCount(rs.getObject("day", LocalDate.class),
+                rs.getInt("n")), Timestamp.from(from), Timestamp.from(to), stepDays, Timestamp.from(from),
+                Timestamp.from(to), stepDays);
+    }
+
+    /** New accounts per 7-day week counted from {@code from}: bucket 1, 2, … in [from, to); weeks with none are absent. */
     public List<SignupBucket> signupsPerWeek(Instant from, Instant to) {
         return signups("1 + floor(extract(epoch FROM u.created_at - ?::timestamptz) / 604800)::int",
                 Timestamp.from(from), from, to);
     }
 
-    /** New accounts per calendar month (UTC, 0 = January) in [from, to). */
+    /** New accounts per calendar month (UTC, 0 = January) in [from, to); months with none are absent. */
     public List<SignupBucket> signupsPerMonth(Instant from, Instant to) {
         return signups("extract(month FROM u.created_at AT TIME ZONE 'UTC')::int - 1", null, from, to);
     }
@@ -95,10 +99,11 @@ public class DashboardRepository {
                 rs.getInt("agrochemists")), args.toArray());
     }
 
-    /** Agrochemist applications waiting for the admin's decision. */
+    /** Agrochemist applications waiting for the admin: new ones and those with documents requested. */
     public int pendingVerifications() {
-        Integer n = jdbc.queryForObject(
-                "SELECT count(*) FROM agrochemist_profiles WHERE verification_status = 'pending'", Integer.class);
+        Integer n = jdbc.queryForObject("""
+                SELECT count(*) FROM agrochemist_profiles
+                WHERE verification_status IN ('pending', 'documents_requested')""", Integer.class);
         return n == null ? 0 : n;
     }
 }

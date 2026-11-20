@@ -1306,15 +1306,6 @@ export interface components {
             /** @description Centners per hectare */
             yieldCHa: number;
         };
-        Change: {
-            /**
-             * Format: int32
-             * @description Percent against the previous window; 0 when it had none
-             */
-            changePercent: number;
-            /** Format: int32 */
-            value: number;
-        };
         ClassScore: {
             code: string;
             /** Format: double */
@@ -1513,11 +1504,66 @@ export interface components {
             code: string;
             name: string;
         };
-        DayView: {
+        DashboardChange: {
+            /**
+             * Format: int32
+             * @description Percent against the previous window; 0 when it had none
+             */
+            changePercent: number;
+            /** Format: int32 */
+            value: number;
+        };
+        DashboardDay: {
             /** Format: int32 */
             count: number;
             /** @description UTC date; the first day of the week for the season */
             date: string;
+        };
+        DashboardOverview: {
+            /** @description Users who made a diagnosis in the window */
+            activeUsers: components["schemas"]["DashboardChange"];
+            /** @description Mean confidence of the model's top answer; 0 with no diagnoses */
+            avgConfidence: components["schemas"]["DashboardShare"];
+            /** @description Diagnoses in the window */
+            diagnoses: components["schemas"]["DashboardChange"];
+            /** @description One point per day (per week for the season) from the first day of the window to today, zeros included */
+            diagnosesByDay: components["schemas"]["DashboardDay"][];
+            /** @description Share of diagnoses below the asked confidence threshold */
+            lowConfidenceShare: components["schemas"]["DashboardShare"];
+            /** @description New accounts without the admin role, every bucket of the window, zeros included */
+            newUsers: components["schemas"]["DashboardSignup"][];
+            /**
+             * Format: int32
+             * @description Agrochemist applications waiting for the admin: pending and documents requested (all time)
+             */
+            pendingVerifications: number;
+            /** @enum {string} */
+            period: "7d" | "30d" | "season";
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        DashboardShare: {
+            /**
+             * Format: int32
+             * @description Percentage points against the previous window; 0 when either window had no diagnoses
+             */
+            changePoints: number;
+            /**
+             * Format: int32
+             * @description 0–100, whole numbers
+             */
+            percent: number;
+        };
+        DashboardSignup: {
+            /** Format: int32 */
+            agrochemists: number;
+            /**
+             * Format: int32
+             * @description Week (from 1) for 7d and 30d, month (0 = January) for the season
+             */
+            bucket: number;
+            /** Format: int32 */
+            farmers: number;
         };
         DecisionRequest: {
             decision: string;
@@ -1844,29 +1890,6 @@ export interface components {
              */
             windMs: number;
         };
-        OverviewView: {
-            /** @description Users who made a diagnosis in the window */
-            activeUsers: components["schemas"]["Change"];
-            /** @description Mean confidence of the model's top answer; 0 with no diagnoses */
-            avgConfidence: components["schemas"]["Share"];
-            /** @description Diagnoses in the window */
-            diagnoses: components["schemas"]["Change"];
-            /** @description Days with at least one diagnosis; weeks for the season */
-            diagnosesByDay: components["schemas"]["DayView"][];
-            /** @description Share of diagnoses below the asked confidence threshold */
-            lowConfidenceShare: components["schemas"]["Share"];
-            /** @description New accounts without the admin role; buckets without any are left out */
-            newUsers: components["schemas"]["SignupView"][];
-            /**
-             * Format: int32
-             * @description Agrochemist applications waiting for a decision (all time)
-             */
-            pendingVerifications: number;
-            /** @enum {string} */
-            period: "7d" | "30d" | "season";
-            /** Format: date-time */
-            updatedAt: string;
-        };
         PushTokenResponse: {
             /** Format: date-time */
             createdAt: string;
@@ -1932,18 +1955,6 @@ export interface components {
             /** @description Trimmed; 1 to 2000 characters */
             text: string;
         };
-        Share: {
-            /**
-             * Format: int32
-             * @description Percentage points against the previous window
-             */
-            changePoints: number;
-            /**
-             * Format: int32
-             * @description 0–100, whole numbers
-             */
-            percent: number;
-        };
         ShopBody: {
             address: string;
             /** @description fungicides, insecticides, herbicides, fertilizers, seeds, equipment */
@@ -1985,17 +1996,6 @@ export interface components {
             longitude?: number;
             name?: string;
             phone?: string;
-        };
-        SignupView: {
-            /** Format: int32 */
-            agrochemists: number;
-            /**
-             * Format: int32
-             * @description Week (from 1) for 7d and 30d, month (0 = January) for the season
-             */
-            bucket: number;
-            /** Format: int32 */
-            farmers: number;
         };
         SprayWindowView: {
             /** Format: date-time */
@@ -2377,7 +2377,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["OverviewView"];
+                    "*/*": components["schemas"]["DashboardOverview"];
                 };
             };
         };

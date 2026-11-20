@@ -1,4 +1,4 @@
-package kz.agroadvisor.dashboard.service;
+package kz.agroadvisor.analytics.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

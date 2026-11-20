@@ -1,6 +1,6 @@
 # Admin dashboard API
 
-Numbers for the admin's overview screen, counted from the database. Schemas and the operation id are in [`openapi.json`](openapi.json) (`OverviewView`).
+Numbers for the admin's overview screen, counted from the database. Schemas and the operation id are in [`openapi.json`](openapi.json) (`DashboardOverview`).
 
 The endpoint is under `/api/admin` and needs the `ADMIN` role: no token is 401, a farmer or an agrochemist is 403. Errors are RFC 9457 problem documents with a `code` field.
 
@@ -21,11 +21,11 @@ The endpoint is under `/api/admin` and needs the `ADMIN` role: no token is 401, 
 | --- | --- |
 | `activeUsers` | `value`: users who made at least one diagnosis in the window (there is no activity log, so "active" means "diagnosed"); `changePercent` against the previous window of the same length. 0 when the previous one had none. |
 | `diagnoses` | diagnoses in the window, same change. |
-| `avgConfidence` | `percent`: mean top confidence, whole number, 0 with no diagnoses; `changePoints` against the previous window. |
-| `lowConfidenceShare` | `percent`: share of diagnoses below `confidenceThreshold`; `changePoints` against the previous window. |
-| `pendingVerifications` | agrochemist applications in `pending` (all time, not the window). |
-| `diagnosesByDay` | `date` (UTC) and `count`; days without diagnoses are left out. For `season` one point per 7 days from 1 March, `date` is the first day of the week. |
-| `newUsers` | new accounts without the admin role, `farmers` and `agrochemists` (a user with both roles counts in both). `bucket` is a week from 1 (7-day weeks from the start of the window) for `7d` and `30d`, a calendar month (UTC, 0 = January) for `season`. Empty buckets are left out. |
+| `avgConfidence` | `percent`: mean top confidence, whole number, 0 with no diagnoses; `changePoints` against the previous window, 0 when either window has no diagnoses. |
+| `lowConfidenceShare` | `percent`: share of diagnoses below `confidenceThreshold`; `changePoints` as above. |
+| `pendingVerifications` | agrochemist applications in `pending` or `documents_requested`, the same rule as the verification queue (all time, not the window). |
+| `diagnosesByDay` | `date` (UTC) and `count`, one point for every day from the first day of the window to today, zeros included (the first day is partial). For `season` one point per 7 days from 1 March, `date` is the first day of the week. |
+| `newUsers` | new accounts without the admin role, `farmers` and `agrochemists` (a user with both roles counts in both). `bucket` is a week from 1 (7-day weeks from the start of the window; the last one may be partial) for `7d` and `30d`, a calendar month (UTC, 0 = January) for `season`, oldest first. Every bucket is there, zeros included. `7d` is one bucket. |
 | `updatedAt` | when the numbers were counted. |
 
 All figures of one call read one database snapshot.

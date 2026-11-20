@@ -1,4 +1,4 @@
-package kz.agroadvisor.dashboard.web;
+package kz.agroadvisor.analytics.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.Max;
@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import kz.agroadvisor.dashboard.service.DashboardService;
-import kz.agroadvisor.dashboard.service.DashboardService.OverviewView;
+import kz.agroadvisor.analytics.service.DashboardService;
+import kz.agroadvisor.analytics.service.DashboardService.DashboardOverview;
 import kz.agroadvisor.diagnosis.service.AiQualityService.Period;
 
 /** Admin: the overview screen. */
@@ -31,7 +31,7 @@ public class AdminDashboardController {
             + "active users, the model's confidence, agrochemist applications waiting, diagnoses per day and new "
             + "accounts. Changes are against the previous period of the same length. Complaints, the funnel and "
             + "time to first advice have no source yet and are not here.")
-    public OverviewView overview(
+    public DashboardOverview overview(
             @RequestParam(defaultValue = "30d") @Pattern(regexp = "7d|30d|season") String period,
             @RequestParam(defaultValue = "70") @Min(0) @Max(100) int confidenceThreshold) {
         return service.overview(Period.parse(period), confidenceThreshold);
