@@ -120,6 +120,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overview of the service over a period: diagnoses, active users, the model's confidence, agrochemist applications waiting, diagnoses per day and new accounts. Changes are against the previous period of the same length. Complaints, the funnel and time to first advice have no source yet and are not here. */
+        get: operations["getAdminDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/diagnoses/{id}/review": {
         parameters: {
             query?: never;
@@ -1720,6 +1737,67 @@ export interface components {
             code: string;
             name: string;
         };
+        DashboardChange: {
+            /**
+             * Format: int32
+             * @description Percent against the previous window; 0 when it had none
+             */
+            changePercent: number;
+            /** Format: int32 */
+            value: number;
+        };
+        DashboardDay: {
+            /** Format: int32 */
+            count: number;
+            /** @description UTC date; the first day of the week for the season */
+            date: string;
+        };
+        DashboardOverview: {
+            /** @description Users who made a diagnosis in the window */
+            activeUsers: components["schemas"]["DashboardChange"];
+            /** @description Mean confidence of the model's top answer; 0 with no diagnoses */
+            avgConfidence: components["schemas"]["DashboardShare"];
+            /** @description Diagnoses in the window */
+            diagnoses: components["schemas"]["DashboardChange"];
+            /** @description One point per day (per week for the season) from the first day of the window to today, zeros included */
+            diagnosesByDay: components["schemas"]["DashboardDay"][];
+            /** @description Share of diagnoses below the asked confidence threshold */
+            lowConfidenceShare: components["schemas"]["DashboardShare"];
+            /** @description New accounts without the admin role, every bucket of the window, zeros included */
+            newUsers: components["schemas"]["DashboardSignup"][];
+            /**
+             * Format: int32
+             * @description Agrochemist applications waiting for the admin: pending and documents requested (all time)
+             */
+            pendingVerifications: number;
+            /** @enum {string} */
+            period: "7d" | "30d" | "season";
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        DashboardShare: {
+            /**
+             * Format: int32
+             * @description Percentage points against the previous window; 0 when either window had no diagnoses
+             */
+            changePoints: number;
+            /**
+             * Format: int32
+             * @description 0–100, whole numbers
+             */
+            percent: number;
+        };
+        DashboardSignup: {
+            /** Format: int32 */
+            agrochemists: number;
+            /**
+             * Format: int32
+             * @description Week (from 1) for 7d and 30d, month (0 = January) for the season
+             */
+            bucket: number;
+            /** Format: int32 */
+            farmers: number;
+        };
         DecisionRequest: {
             decision: string;
             reason?: string;
@@ -2518,6 +2596,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getAdminDashboard: {
+        parameters: {
+            query?: {
+                period?: string;
+                confidenceThreshold?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DashboardOverview"];
+                };
             };
         };
     };

@@ -9,6 +9,7 @@
 - [admin-users.md](admin-users.md) — the admin's list of farmers and agrochemists, blocking and unblocking, fields, search and error codes.
 - [admin-shops.md](admin-shops.md) — the admin's shop directory (add, change, hide) and the reports farmers send about it.
 - [admin-ai-quality.md](admin-ai-quality.md) — the admin's AI quality statistics: confidence, top classes, expert-decided photos and mismatches.
+- [admin-dashboard.md](admin-dashboard.md) — the admin's overview: diagnoses, active users, confidence, applications waiting, diagnoses per day and new accounts.
 - `openapi.json` — snapshot of the backend OpenAPI schema. It is the single source of truth for the generated mobile types (`apps/mobile/src/api/schema.d.ts`).
 
 ## Updating the snapshot

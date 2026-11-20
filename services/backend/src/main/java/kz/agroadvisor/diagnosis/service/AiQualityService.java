@@ -104,7 +104,7 @@ public class AiQualityService {
                 new TrainingView(training.labeled(), training.addedSince(), training.classes()), mismatches);
     }
 
-    static Instant since(Period period, Instant now) {
+    public static Instant since(Period period, Instant now) {
         return switch (period) {
             case D7 -> now.minus(Duration.ofDays(7));
             case D30 -> now.minus(Duration.ofDays(30));

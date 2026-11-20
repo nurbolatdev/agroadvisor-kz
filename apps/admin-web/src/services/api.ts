@@ -1,6 +1,7 @@
 import { httpClient } from '@/services/backend'
 import { API_MODE } from '@/services/config'
 import { createLiveAiQuality } from '@/services/liveAiQuality'
+import { createLiveDashboard } from '@/services/liveDashboard'
 import { createLiveDiseases } from '@/services/liveDiseases'
 import { createLiveShops } from '@/services/liveShops'
 import { createLiveUsers } from '@/services/liveUsers'
@@ -101,7 +102,7 @@ export interface AdminApi {
 
 /**
  * In `live` mode the pages that already use the backend (agrochemist verification, diseases, users, AI quality,
- * shops) go through the HTTP client; everything else is still served by the mock.
+ * shops, the dashboard numbers) go through the HTTP client; everything else is still served by the mock.
  */
 function createLiveApi(): AdminApi {
   const verification = createLiveVerification(httpClient, mockApi)
@@ -111,6 +112,8 @@ function createLiveApi(): AdminApi {
     ...createLiveDiseases(httpClient),
     ...createLiveUsers(httpClient),
     ...createLiveAiQuality(httpClient),
+    // complaints, the funnel and the time to first advice stay mock: no backend source yet
+    ...createLiveDashboard(httpClient, mockApi),
     // the sidebar counters of the verification and of the shops are both live: shops wrap the verification's
     ...createLiveShops(httpClient, verification),
   }
