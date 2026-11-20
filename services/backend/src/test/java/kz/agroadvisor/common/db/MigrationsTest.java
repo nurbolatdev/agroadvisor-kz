@@ -33,7 +33,14 @@ class MigrationsTest {
                 "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class);
         assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13",
-                "14", "15", "16", "17", "18", "19", "20", "21", "22", "23");
+                "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24");
+    }
+
+    @Test
+    void diagnosesAreIndexedByTimeForTheAdminWindows() {
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM pg_indexes "
+                + "WHERE tablename = 'diagnoses' AND indexname = 'diagnoses_created_at_idx'", Integer.class))
+                .isEqualTo(1);
     }
 
     @Test
