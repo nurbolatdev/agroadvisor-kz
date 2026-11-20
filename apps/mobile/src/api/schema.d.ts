@@ -120,6 +120,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overview of the service over a period: diagnoses, active users, the model's confidence, agrochemist applications waiting, diagnoses per day and new accounts. Changes are against the previous period of the same length. Complaints, the funnel and time to first advice have no source yet and are not here. */
+        get: operations["getAdminDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/diagnoses/{id}/review": {
         parameters: {
             query?: never;
@@ -1289,6 +1306,15 @@ export interface components {
             /** @description Centners per hectare */
             yieldCHa: number;
         };
+        Change: {
+            /**
+             * Format: int32
+             * @description Percent against the previous window; 0 when it had none
+             */
+            changePercent: number;
+            /** Format: int32 */
+            value: number;
+        };
         ClassScore: {
             code: string;
             /** Format: double */
@@ -1486,6 +1512,12 @@ export interface components {
         CropView: {
             code: string;
             name: string;
+        };
+        DayView: {
+            /** Format: int32 */
+            count: number;
+            /** @description UTC date; the first day of the week for the season */
+            date: string;
         };
         DecisionRequest: {
             decision: string;
@@ -1812,6 +1844,29 @@ export interface components {
              */
             windMs: number;
         };
+        OverviewView: {
+            /** @description Users who made a diagnosis in the window */
+            activeUsers: components["schemas"]["Change"];
+            /** @description Mean confidence of the model's top answer; 0 with no diagnoses */
+            avgConfidence: components["schemas"]["Share"];
+            /** @description Diagnoses in the window */
+            diagnoses: components["schemas"]["Change"];
+            /** @description Days with at least one diagnosis; weeks for the season */
+            diagnosesByDay: components["schemas"]["DayView"][];
+            /** @description Share of diagnoses below the asked confidence threshold */
+            lowConfidenceShare: components["schemas"]["Share"];
+            /** @description New accounts without the admin role; buckets without any are left out */
+            newUsers: components["schemas"]["SignupView"][];
+            /**
+             * Format: int32
+             * @description Agrochemist applications waiting for a decision (all time)
+             */
+            pendingVerifications: number;
+            /** @enum {string} */
+            period: "7d" | "30d" | "season";
+            /** Format: date-time */
+            updatedAt: string;
+        };
         PushTokenResponse: {
             /** Format: date-time */
             createdAt: string;
@@ -1877,6 +1932,18 @@ export interface components {
             /** @description Trimmed; 1 to 2000 characters */
             text: string;
         };
+        Share: {
+            /**
+             * Format: int32
+             * @description Percentage points against the previous window
+             */
+            changePoints: number;
+            /**
+             * Format: int32
+             * @description 0–100, whole numbers
+             */
+            percent: number;
+        };
         ShopBody: {
             address: string;
             /** @description fungicides, insecticides, herbicides, fertilizers, seeds, equipment */
@@ -1918,6 +1985,17 @@ export interface components {
             longitude?: number;
             name?: string;
             phone?: string;
+        };
+        SignupView: {
+            /** Format: int32 */
+            agrochemists: number;
+            /**
+             * Format: int32
+             * @description Week (from 1) for 7d and 30d, month (0 = January) for the season
+             */
+            bucket: number;
+            /** Format: int32 */
+            farmers: number;
         };
         SprayWindowView: {
             /** Format: date-time */
@@ -2278,6 +2356,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getAdminDashboard: {
+        parameters: {
+            query?: {
+                period?: string;
+                confidenceThreshold?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OverviewView"];
+                };
             };
         };
     };

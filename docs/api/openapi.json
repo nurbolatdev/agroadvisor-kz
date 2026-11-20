@@ -368,6 +368,21 @@
         "required" : [ "areaHa", "areaUnit", "costs", "createdAt", "crop", "id", "priceT", "results", "season", "yieldCHa" ],
         "type" : "object"
       },
+      "Change" : {
+        "properties" : {
+          "changePercent" : {
+            "description" : "Percent against the previous window; 0 when it had none",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "value" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "changePercent", "value" ],
+        "type" : "object"
+      },
       "ClassScore" : {
         "properties" : {
           "code" : {
@@ -752,6 +767,20 @@
           }
         },
         "required" : [ "code", "name" ],
+        "type" : "object"
+      },
+      "DayView" : {
+        "properties" : {
+          "count" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "date" : {
+            "description" : "UTC date; the first day of the week for the season",
+            "type" : "string"
+          }
+        },
+        "required" : [ "count", "date" ],
         "type" : "object"
       },
       "DecisionRequest" : {
@@ -1452,6 +1481,55 @@
         "required" : [ "precipitationMm", "temperatureC", "time", "weatherCode", "windMs" ],
         "type" : "object"
       },
+      "OverviewView" : {
+        "properties" : {
+          "activeUsers" : {
+            "$ref" : "#/components/schemas/Change",
+            "description" : "Users who made a diagnosis in the window"
+          },
+          "avgConfidence" : {
+            "$ref" : "#/components/schemas/Share",
+            "description" : "Mean confidence of the model's top answer; 0 with no diagnoses"
+          },
+          "diagnoses" : {
+            "$ref" : "#/components/schemas/Change",
+            "description" : "Diagnoses in the window"
+          },
+          "diagnosesByDay" : {
+            "description" : "Days with at least one diagnosis; weeks for the season",
+            "items" : {
+              "$ref" : "#/components/schemas/DayView"
+            },
+            "type" : "array"
+          },
+          "lowConfidenceShare" : {
+            "$ref" : "#/components/schemas/Share",
+            "description" : "Share of diagnoses below the asked confidence threshold"
+          },
+          "newUsers" : {
+            "description" : "New accounts without the admin role; buckets without any are left out",
+            "items" : {
+              "$ref" : "#/components/schemas/SignupView"
+            },
+            "type" : "array"
+          },
+          "pendingVerifications" : {
+            "description" : "Agrochemist applications waiting for a decision (all time)",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "period" : {
+            "enum" : [ "7d", "30d", "season" ],
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "activeUsers", "avgConfidence", "diagnoses", "diagnosesByDay", "lowConfidenceShare", "newUsers", "pendingVerifications", "period", "updatedAt" ],
+        "type" : "object"
+      },
       "PushTokenResponse" : {
         "properties" : {
           "createdAt" : {
@@ -1615,6 +1693,22 @@
         "required" : [ "text" ],
         "type" : "object"
       },
+      "Share" : {
+        "properties" : {
+          "changePoints" : {
+            "description" : "Percentage points against the previous window",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "percent" : {
+            "description" : "0–100, whole numbers",
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "changePoints", "percent" ],
+        "type" : "object"
+      },
       "ShopBody" : {
         "properties" : {
           "address" : {
@@ -1723,6 +1817,25 @@
             "type" : "string"
           }
         },
+        "type" : "object"
+      },
+      "SignupView" : {
+        "properties" : {
+          "agrochemists" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "bucket" : {
+            "description" : "Week (from 1) for 7d and 30d, month (0 = January) for the season",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "farmers" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "agrochemists", "bucket", "farmers" ],
         "type" : "object"
       },
       "SprayWindowView" : {
@@ -2353,6 +2466,46 @@
           }
         },
         "tags" : [ "catalog-admin-controller" ]
+      }
+    },
+    "/api/admin/dashboard" : {
+      "get" : {
+        "operationId" : "getAdminDashboard",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "period",
+          "required" : false,
+          "schema" : {
+            "default" : "30d",
+            "pattern" : "7d|30d|season",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "confidenceThreshold",
+          "required" : false,
+          "schema" : {
+            "default" : 70,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OverviewView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Overview of the service over a period: diagnoses, active users, the model's confidence, agrochemist applications waiting, diagnoses per day and new accounts. Changes are against the previous period of the same length. Complaints, the funnel and time to first advice have no source yet and are not here.",
+        "tags" : [ "admin-dashboard-controller" ]
       }
     },
     "/api/admin/diagnoses/{id}/review" : {
