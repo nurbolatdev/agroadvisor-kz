@@ -50,7 +50,7 @@ class CommunityQuestionServiceTest {
     private final RateLimitProperties limits = mock(RateLimitProperties.class);
     private final TransactionTemplate tx = new TransactionTemplate(mock(PlatformTransactionManager.class));
     private final CommunityQuestionService service = new CommunityQuestionService(questions, diagnoses, storage,
-            stripper, rateLimiter, limits, tx);
+            stripper, rateLimiter, limits, tx, mock(CommunityEvents.class));
 
     private final UUID me = UUID.randomUUID();
 

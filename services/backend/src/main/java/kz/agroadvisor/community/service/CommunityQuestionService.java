@@ -51,10 +51,12 @@ public class CommunityQuestionService {
     private final RateLimiter rateLimiter;
     private final RateLimitProperties limits;
     private final TransactionTemplate tx;
+    private final CommunityEvents events;
 
     public CommunityQuestionService(CommunityQuestionRepository questions, DiagnosisService diagnoses,
             CommunityPhotoStorage storage, ImageMetadataStripper stripper, RateLimiter rateLimiter,
-            RateLimitProperties limits, TransactionTemplate tx) {
+            RateLimitProperties limits, TransactionTemplate tx, CommunityEvents events) {
+        this.events = events;
         this.questions = questions;
         this.diagnoses = diagnoses;
         this.storage = storage;
@@ -125,6 +127,7 @@ public class CommunityQuestionService {
                 for (int i = 0; i < keys.size(); i++) {
                     questions.insertPhoto(id, keys.get(i), types.get(i), cleaned.get(i).length, i);
                 }
+                events.asked(id, cropCode, author);
             });
         } catch (RuntimeException e) {
             keys.forEach(key -> discard(key, e));
