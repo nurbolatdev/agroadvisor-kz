@@ -91,8 +91,10 @@ export function formatBucket(unit: ChartBucketUnit, bucket: number) {
 
 /** 220 → "3 ч 40 мин", 45 → "45 мин", 120 → "2 ч". */
 export function formatDuration(totalMinutes: number) {
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = Math.round(totalMinutes % 60)
+  // Round first: 59.6 is an hour, not "0 h 60 min".
+  const rounded = Math.round(totalMinutes)
+  const hours = Math.floor(rounded / 60)
+  const minutes = rounded % 60
   if (hours === 0) return t('minutes', { minutes })
   return minutes === 0 ? t('hours', { hours }) : t('hoursMinutes', { hours, minutes })
 }

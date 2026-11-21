@@ -14,9 +14,15 @@ interface BackendOverview {
   newUsers: { bucket: number; farmers: number; agrochemists: number }[]
 }
 
+/** The part of `GET /api/admin/community/moderation-stats` the dashboard reads. */
+interface BackendModerationStats {
+  newComplaints: number
+  complaintsToday: number
+}
+
 /**
- * The overview on the backend's numbers. Complaints, the funnel and the time to first advice have no source yet
- * (community, event log), so they come from `fallback` until those appear.
+ * The overview on the backend's numbers. The funnel and the time to first advice have no source yet
+ * (event log), so they come from `fallback` until that appears.
  */
 export function createLiveDashboard(
   client: HttpClient,
@@ -24,10 +30,11 @@ export function createLiveDashboard(
 ): Pick<AdminApi, 'getOverviewStats'> {
   return {
     getOverviewStats: async (period, confidenceThreshold) => {
-      const [body, rest] = await Promise.all([
+      const [body, moderation, rest] = await Promise.all([
         client.request<BackendOverview>('/api/admin/dashboard', {
           query: { period, confidenceThreshold },
         }),
+        client.request<BackendModerationStats>('/api/admin/community/moderation-stats'),
         fallback.getOverviewStats(period, confidenceThreshold),
       ])
       const stats: OverviewStats = {
@@ -41,6 +48,7 @@ export function createLiveDashboard(
         pendingVerifications: body.pendingVerifications,
         diagnosesByDay: body.diagnosesByDay,
         newUsers: body.newUsers,
+        openComplaints: { value: moderation.newComplaints, changeToday: moderation.complaintsToday },
       }
       return stats
     },

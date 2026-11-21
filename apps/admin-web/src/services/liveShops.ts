@@ -1,6 +1,7 @@
-import i18n from '@/i18n'
 import type { AdminApi } from '@/services/api'
 import type { HttpClient } from '@/services/http'
+import type { RegionDirectory } from '@/services/liveRegions'
+import { readPages } from '@/services/readPages'
 import type {
   Shop,
   ShopCategory,
@@ -36,11 +37,6 @@ interface BackendRequest {
   createdAt: string
 }
 
-interface BackendRegion {
-  id: number
-  name: string
-}
-
 const KNOWN_CATEGORIES: readonly string[] = [
   'fungicides',
   'insecticides',
@@ -50,9 +46,6 @@ const KNOWN_CATEGORIES: readonly string[] = [
   'equipment',
 ]
 
-/** The backend caps a page at 100; a directory of a few dozen shops needs one, the cap is a safety net. */
-const PAGE_SIZE = 100
-const MAX_PAGES = 10
 const NO_AREA = '—'
 
 type ShopsApi = Pick<
@@ -75,23 +68,9 @@ type ShopsApi = Pick<
 export function createLiveShops(
   client: HttpClient,
   base: Pick<AdminApi, 'getSidebarCounters'>,
+  regions: RegionDirectory,
 ): ShopsApi {
-  // Regions change rarely; one answer per language is enough, a failed one is not kept.
-  const regionCache = new Map<string, Promise<BackendRegion[]>>()
-  const regions = (language: string) => {
-    let cached = regionCache.get(language)
-    if (!cached) {
-      cached = client.request<BackendRegion[]>('/api/regions', { auth: false })
-      regionCache.set(language, cached)
-      cached.catch(() => regionCache.delete(language))
-    }
-    return cached
-  }
-  // The client sends the interface language itself; the cache key only has to differ between languages.
-  const currentRegions = () => regions(i18n.language)
-
-  const regionIdByName = async (name: string) =>
-    (await currentRegions()).find((region) => region.name === name)?.id
+  const regionIdByName = regions.idByName
 
   const toShop = (row: BackendShop): Shop => ({
     id: row.id,
@@ -123,16 +102,8 @@ export function createLiveShops(
     status: row.status,
   })
 
-  /** Reads pages until a short one. */
-  async function readAll<T>(path: string, query: Record<string, string | number | undefined>) {
-    const rows: T[] = []
-    for (let page = 0; page < MAX_PAGES; page++) {
-      const part = await client.request<T[]>(path, { query: { ...query, page, size: PAGE_SIZE } })
-      rows.push(...part)
-      if (part.length < PAGE_SIZE) break
-    }
-    return rows
-  }
+  const readAll = <T>(path: string, query: Record<string, string | number | undefined>) =>
+    readPages<T>(client, path, query)
 
   /** An empty area or "—" means no region; a name that matches none (a stale form) must not wipe the region. */
   const regionIdOf = async (area: string) => {
@@ -167,8 +138,7 @@ export function createLiveShops(
     return rows.map(toShop)
   }
 
-  const getShopAreas: AdminApi['getShopAreas'] = async () =>
-    (await currentRegions()).map((region) => region.name)
+  const getShopAreas: AdminApi['getShopAreas'] = () => regions.names()
 
   return {
     getShopAreas,

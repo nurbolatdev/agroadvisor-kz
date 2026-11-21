@@ -102,6 +102,7 @@ export const mockModerationStats: ModerationStats = {
   complaintsToday: 3,
   avgResolutionMinutes: 80,
   resolvedThisWeek: 27,
+  newComplaints: 0,
 }
 
 export const mockVerificationStats: VerificationStats = {

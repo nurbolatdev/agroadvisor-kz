@@ -3,6 +3,8 @@ import { API_MODE } from '@/services/config'
 import { createLiveAiQuality } from '@/services/liveAiQuality'
 import { createLiveDashboard } from '@/services/liveDashboard'
 import { createLiveDiseases } from '@/services/liveDiseases'
+import { createLiveModeration } from '@/services/liveModeration'
+import { createRegionDirectory } from '@/services/liveRegions'
 import { createLiveShops } from '@/services/liveShops'
 import { createLiveUsers } from '@/services/liveUsers'
 import { createLiveVerification } from '@/services/liveVerification'
@@ -17,6 +19,7 @@ import type {
   ComplaintStatus,
   CropId,
   Disease,
+  IsoDateTime,
   ModerationAction,
   ModerationStats,
   Shop,
@@ -32,6 +35,7 @@ import type {
   UnansweredQuestion,
   User,
   UserRole,
+  UserStatus,
   VerificationStats,
   VerificationStatus,
 } from '@/shared/types'
@@ -39,7 +43,20 @@ import type {
 /** Complaint joined with the reported post and its author, as the moderation screen needs it. */
 export interface ComplaintDetails extends Complaint {
   post: CommunityPost
-  author: User
+  author: ComplaintAuthor
+}
+
+/** The author of a reported post: what the API gives, not a full user profile. */
+export interface ComplaintAuthor {
+  id: string
+  name: string
+  role: UserRole
+  status: UserStatus
+  expert: boolean
+  /** Posts of the author hidden by moderators. */
+  hiddenCount: number
+  registeredAt?: IsoDateTime
+  postsCount?: number
 }
 
 export interface ComplaintFilters {
@@ -72,6 +89,8 @@ export interface AdminApi {
 
   getModerationStats(): Promise<ModerationStats>
   getComplaints(filters?: ComplaintFilters): Promise<ComplaintDetails[]>
+  /** Takes a new case into work; a case already in work is returned as it is. */
+  startComplaint(id: string): Promise<ComplaintDetails>
   resolveComplaint(id: string, action: ModerationAction, comment: string): Promise<ComplaintDetails>
 
   getVerificationStats(): Promise<VerificationStats>
@@ -102,20 +121,25 @@ export interface AdminApi {
 
 /**
  * In `live` mode the pages that already use the backend (agrochemist verification, diseases, users, AI quality,
- * shops, the dashboard numbers) go through the HTTP client; everything else is still served by the mock.
+ * shops, moderation, the dashboard numbers) go through the HTTP client; everything else is still served by the mock.
  */
 function createLiveApi(): AdminApi {
   const verification = createLiveVerification(httpClient, mockApi)
+  // One directory: the regions are read once for the shops and the moderation.
+  const regions = createRegionDirectory(httpClient)
+  const shops = createLiveShops(httpClient, verification, regions)
+  const moderation = createLiveModeration(httpClient, regions, shops)
   return {
     ...mockApi,
     ...verification,
     ...createLiveDiseases(httpClient),
     ...createLiveUsers(httpClient),
     ...createLiveAiQuality(httpClient),
-    // complaints, the funnel and the time to first advice stay mock: no backend source yet
+    // the funnel and the time to first advice stay mock: no backend source yet
     ...createLiveDashboard(httpClient, mockApi),
-    // the sidebar counters of the verification and of the shops are both live: shops wrap the verification's
-    ...createLiveShops(httpClient, verification),
+    // the sidebar counters of the verification, the shops and the moderation are all live: each wraps the previous
+    ...shops,
+    ...moderation,
   }
 }
 

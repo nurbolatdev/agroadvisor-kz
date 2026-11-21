@@ -11,7 +11,8 @@ export interface CommunityPost {
   title: string
   text: string
   imageUrl?: string
-  createdAt: IsoDateTime
+  /** Absent when the source does not give the time of the post. */
+  createdAt?: IsoDateTime
   hidden: boolean
 }
 

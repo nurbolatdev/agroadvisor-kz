@@ -1,5 +1,6 @@
 import type { AdminApi } from '@/services/api'
 import type { HttpClient } from '@/services/http'
+import { readPages } from '@/services/readPages'
 import type { User, UserRole, UserStatus } from '@/shared/types'
 
 /** Answer of `GET /api/admin/users` (docs/api/admin-users.md). */
@@ -13,10 +14,6 @@ interface BackendUser {
   registeredAt: string
   diagnosesCount: number
 }
-
-/** The backend caps a page at 100; the table and the summary count what is loaded, at most MAX_PAGES pages. */
-const PAGE_SIZE = 100
-const MAX_PAGES = 10
 
 function toUser(row: BackendUser): User {
   return {
@@ -37,15 +34,11 @@ function toUser(row: BackendUser): User {
 export function createLiveUsers(client: HttpClient): Pick<AdminApi, 'getUsers'> {
   return {
     getUsers: async (filters = {}) => {
-      const users: User[] = []
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const rows = await client.request<BackendUser[]>('/api/admin/users', {
-          query: { role: filters.role, search: filters.search, page, size: PAGE_SIZE },
-        })
-        users.push(...rows.map(toUser))
-        if (rows.length < PAGE_SIZE) break
-      }
-      return users
+      const rows = await readPages<BackendUser>(client, '/api/admin/users', {
+        role: filters.role,
+        search: filters.search,
+      })
+      return rows.map(toUser)
     },
   }
 }

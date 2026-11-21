@@ -45,6 +45,7 @@ const moderation: Translation<typeof ru> = {
     back: 'Back to list',
     selectTitle: 'Select a complaint',
     selectDescription: 'Complaint details and actions will appear here.',
+    stale: 'The complaint is already resolved. The list has been refreshed.',
   },
   reports_one: '{{count}} complaint',
   reports_other: '{{count}} complaints',
@@ -59,9 +60,7 @@ const moderation: Translation<typeof ru> = {
     onPlatform: 'On the platform {{since}}',
     posts_one: '{{count}} publication',
     posts_other: '{{count}} publications',
-    warnings_one: '{{count}} warning',
-    warnings_other: '{{count}} warnings',
-    noWarnings: 'No warnings',
+    hiddenPosts: 'Hidden by a moderator: {{count}}',
     blocked: 'Blocked',
   },
   actions: {
@@ -79,6 +78,8 @@ const moderation: Translation<typeof ru> = {
       block: 'Publication hidden, author blocked',
     },
     keep: 'Keep',
+    start: 'Take into work',
+    starting: 'Taking into work…',
     saving: 'Saving…',
     hide: {
       post: 'Hide post',
