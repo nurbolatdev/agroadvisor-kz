@@ -20,6 +20,29 @@ All reports about one target (a question or an answer) hang under one case. A ca
 | `changeAdminCommunityQuestionStatus` | `PATCH /api/admin/community/questions/{id}/status` | `204`, no body. Body `{ "status": "visible" \| "hidden" }`. 404 `question_not_found`. |
 | `changeAdminCommunityAnswerStatus` | `PATCH /api/admin/community/answers/{id}/status` | `204`, no body. Body `{ "status": "visible" \| "hidden" }`. 404 `answer_not_found`. |
 | `getAdminCommunityQuestionPhoto` | `GET /api/admin/community/questions/{id}/photos/{photoId}` | `200`, a JPEG or PNG, also for a hidden question. 404 `question_not_found` or `photo_not_found`. |
+| `inviteAdminCommunityAgrochemist` | `POST /api/admin/community/questions/{id}/invitations` | `200`, the invitation. Body `{ "agrochemistId": uuid }`. See [Inviting an agrochemist](#inviting-an-agrochemist). |
+
+## Inviting an agrochemist
+
+An admin asks a verified agrochemist to answer a question (the "Invite an agrochemist" button of the "no answer" list). The code is `CommunityInvitationController` and `CommunityInvitationService` in the `community` module; the service asks `AgrochemistVerificationService.isApproved`, so `community` depends on `verification`.
+
+Request: `{ "agrochemistId": uuid }` (required). Response (`CommunityInvitation`): `questionId`, `agrochemist` (`id`, `name`), `invitedAt`.
+
+Rules:
+
+- The question must exist and not be hidden; a hidden question is answered as not found.
+- The user must exist and have the agrochemist role, otherwise `agrochemist_not_found`; an agrochemist whose profile is not approved or whose account is not active gets `agrochemist_not_verified`.
+- Whether the question already has an answer is not checked: an answer may arrive between the list and the click.
+- The invitation is stored in `community_invitations` (one row per question and agrochemist, `V27`) and the agrochemist gets a `community_invitation` notification in the same transaction ([notifications](notifications.md)).
+- Repeating the same pair is not an error: the answer is `200` with the first `invitedAt`, no second row and no second notification.
+
+| Status | `code` | When |
+| --- | --- | --- |
+| 400 | `validation_failed` | no `agrochemistId`, a malformed id or body. |
+| 401, 403 | general | no or invalid token; not an administrator. |
+| 404 | `question_not_found` | no such question, or it is hidden. |
+| 404 | `agrochemist_not_found` | no such user, or the user is not an agrochemist. |
+| 409 | `agrochemist_not_verified` | the profile is not approved, or the account is not active. |
 
 ## Parameters of the list
 
@@ -124,7 +147,7 @@ Figures for the admin's community screen (B12.5). The operation is `getAdminComm
 | `unansweredOver24h` | `value`: visible questions older than 24 hours that have no visible answer of somebody else, right now (not limited to the window); `change`: this number minus the same count at the start of the window. |
 | `activity` | questions (visible, created in the window) and answers (visible, created in the window) per bucket, in the bucket order of the table below (for `7d` the calendar weekday order, not oldest first), every bucket present with zeros. Fields: `bucket`, `questions`, `answers`. |
 | `topMembers` | up to 4 members with the most visible answers to visible questions in the window, admins left out, ties by name. `name`, `role` (`agrochemist` when the user has that role, otherwise `farmer`), `answers`. |
-| `unanswered` | the questions counted by `unansweredOver24h.value`, the oldest first, at most 50 (so its length can be less than `value`). `id`, `title`, `cropCode`, `regionId`, `hoursWithoutAnswer` (whole hours since the question was created, rounded down). |
+| `unanswered` | the questions counted by `unansweredOver24h.value`, the oldest first, at most 50 (so its length can be less than `value`). `id`, `title`, `cropCode`, `regionId`, `hoursWithoutAnswer` (whole hours since the question was created, rounded down), `invitedAgrochemist` (`id`, `name` of the agrochemist most recently invited to the question, `null` when nobody was). |
 | `consultations` | `requests`: consultations created in the window; `closed`: those with status `closed` whose `closed_at` is in the window; `avgResponseMinutes`: mean minutes from request to acceptance over those accepted in the window, `null` when none was. |
 
 `activity.bucket` depends on the period:
@@ -157,11 +180,11 @@ The admin's `CommunityStats` type (`apps/admin-web/src/shared/types/communitySta
 | `topMembers[].role` | `role`, `farmer` or `agrochemist`. |
 | `unanswered[].crop` | `cropCode`. |
 | `unanswered[].district` | `regionId`, resolved to a region name through `/api/regions` (a dash if unknown). |
-| `unanswered[].invitedAgrochemist` | not in the API yet (the invitation arrives in B12.5c). |
+| `unanswered[].invitedAgrochemist` | `invitedAgrochemist` (`id`, `name`), or `null`. |
 
 ### Known limits and debt
 
-- There are no indexes on `consultations(created_at)`, `consultations(closed_at)`, `consultations(accepted_at)` and `community_answers(created_at)`, so the statistics scan those tables sequentially. If the response gets slow, add the indexes in a separate migration (V27 or later).
+- There are no indexes on `consultations(created_at)`, `consultations(closed_at)`, `consultations(accepted_at)` and `community_answers(created_at)`, so the statistics scan those tables sequentially. If the response gets slow, add the indexes in a separate migration (V28 or later).
 - `unansweredOver24h.value` and `unanswered` scan all visible questions older than 24 hours on every request, with no cache.
 - The admin adapter casts `cropCode` to `CropId` without checking it; the same debt is in `liveModeration`, `liveDiseases` and `liveCommunity`.
 
@@ -173,7 +196,9 @@ The admin's `CommunityStats` type (`apps/admin-web/src/shared/types/communitySta
 | 401, 403 | general | no or invalid token; not an administrator. |
 | 403 | `admin_status_locked` | `block` and the author is an administrator or the caller. |
 | 404 | `complaint_not_found` | no such case. |
-| 404 | `question_not_found` | no such question (status change, photo). |
+| 404 | `question_not_found` | no such question (status change, photo); no such or a hidden question (invitation). |
+| 404 | `agrochemist_not_found` | the invited user does not exist or is not an agrochemist. |
+| 409 | `agrochemist_not_verified` | the invited agrochemist is not approved or not active. |
 | 404 | `answer_not_found` | no such answer (status change). |
 | 404 | `photo_not_found` | the question has no such photo, or its object is missing from the storage. |
 | 409 | `complaint_resolved` | `start` or `resolve` on a case that is already resolved, also when two admins decide at once: the second gets this. |

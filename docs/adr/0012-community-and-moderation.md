@@ -67,6 +67,15 @@ approved once, in `V25`; the notification columns come later in `V26`.
   agrochemist" belong to B12.5. The statistics live in the `analytics` module
   (`GET /api/admin/community/stats`), not in `community`: they also read `consultations` of another module, and
   `analytics` already holds the admin's read-only aggregates. Definitions are in `docs/api/admin-community.md`.
+- **Invitations (B12.5c, `V27`):** an admin invites a verified, active agrochemist to a visible question
+  (`POST /api/admin/community/questions/{id}/invitations`). The invitation is kept in its own table
+  `community_invitations` (unique per question and agrochemist), and the agrochemist gets a `community_invitation`
+  notification that refers only to the question and never collapses. Repeating the pair is idempotent: `200` with
+  the first time and no second notification. The service lives in `community` and asks `verification`
+  (`isApproved`), so `community` now depends on `verification`; the statistics read the table to show who was
+  invited. Rejected: storing the invitation only as a notification (the recipient reads and clears the feed, so
+  the admin's list would lose the mark); refusing a repeated invitation with `409` (a double click is not an error);
+  refusing a question that already has an answer (an answer may arrive between the list and the click).
 
 ## Consequences
 
