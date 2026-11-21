@@ -114,7 +114,8 @@ class NotificationControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].*", hasSize(11)))
                 .andExpect(jsonPath("$[0].keys()", containsInAnyOrder("id", "type", "consultationId",
-                        "messageId", "diagnosisId", "questionId", "answerId", "count", "createdAt", "updatedAt", "readAt")))
+                        "messageId", "diagnosisId", "questionId", "answerId", "count", "createdAt", "updatedAt",
+                        "readAt")))
                 .andExpect(jsonPath("$[0].count").value(1));
     }
 
