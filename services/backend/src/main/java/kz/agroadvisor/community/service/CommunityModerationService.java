@@ -1,5 +1,8 @@
 package kz.agroadvisor.community.service;
 
+import static kz.agroadvisor.community.service.CommunityQuestionService.hasControlChars;
+import static kz.agroadvisor.community.service.CommunityQuestionService.normalize;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -12,9 +15,13 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import kz.agroadvisor.common.web.ApiException;
 import kz.agroadvisor.common.web.ErrorCodes;
+import kz.agroadvisor.community.repository.CommunityAnswerRepository;
+import kz.agroadvisor.community.repository.CommunityQuestionRepository;
+import kz.agroadvisor.users.service.UserAdminService;
 import kz.agroadvisor.community.repository.CommunityComplaintRepository;
 import kz.agroadvisor.community.repository.CommunityComplaintRepository.ReasonCount;
 import kz.agroadvisor.community.repository.CommunityComplaintRepository.ReportComment;
@@ -52,12 +59,101 @@ public class CommunityModerationService {
     public record Stats(int complaintsToday, Double avgResolutionMinutes, int resolvedThisWeek, int newComplaints) {
     }
 
+    public static final Set<String> ACTIONS = Set.of("keep", "hide", "block");
+
     private final CommunityComplaintRepository complaints;
+    private final CommunityQuestionRepository questions;
+    private final CommunityAnswerRepository answers;
+    private final UserAdminService users;
     private final Clock clock;
 
-    public CommunityModerationService(CommunityComplaintRepository complaints, Clock clock) {
+    public CommunityModerationService(CommunityComplaintRepository complaints, CommunityQuestionRepository questions,
+            CommunityAnswerRepository answers, UserAdminService users, Clock clock) {
         this.complaints = complaints;
+        this.questions = questions;
+        this.answers = answers;
+        this.users = users;
         this.clock = clock;
+    }
+
+    /**
+     * Takes a new case into work. A case already in work stays as it is, a resolved one is a conflict.
+     */
+    @Transactional
+    public ComplaintView start(UUID adminId, UUID id) {
+        var locked = complaints.lock(id).orElseThrow(CommunityModerationService::complaintNotFound);
+        if ("resolved".equals(locked.status())) {
+            throw resolved();
+        }
+        if ("new".equals(locked.status())) {
+            complaints.markInProgress(id);
+        }
+        return get(id);
+    }
+
+    /**
+     * Decides the case. {@code keep} leaves the target, {@code hide} hides it, {@code block} hides it and blocks
+     * its author by the rules of the users module (an admin or oneself cannot be blocked); everything happens in
+     * one transaction, so a refused block leaves the target visible and the case open.
+     */
+    @Transactional
+    public ComplaintView resolve(UUID adminId, UUID id, String action, String comment, String lang) {
+        if (action == null || !ACTIONS.contains(action)) {
+            throw validation("The action must be one of keep, hide, block");
+        }
+        String note = comment == null ? null : normalize(comment);
+        if (note != null && (note.length() > CommunityReportService.MAX_COMMENT || hasControlChars(note, true))) {
+            throw validation("The comment must have up to " + CommunityReportService.MAX_COMMENT
+                    + " characters, without control characters");
+        }
+        if (note != null && note.isEmpty()) {
+            note = null;
+        }
+        var locked = complaints.lock(id).orElseThrow(CommunityModerationService::complaintNotFound);
+        if ("resolved".equals(locked.status())) {
+            throw resolved();
+        }
+        if (!"keep".equals(action)) {
+            if (locked.answerId() == null) {
+                questions.setHidden(locked.questionId(), adminId, true);
+            } else {
+                answers.setHidden(locked.answerId(), adminId, true);
+            }
+        }
+        if ("block".equals(action)) {
+            UUID author = complaints.find(id).orElseThrow(CommunityModerationService::complaintNotFound).authorId();
+            users.changeStatus(adminId, author, "blocked", lang);
+        }
+        complaints.markResolved(id, adminId, action, note);
+        return get(id);
+    }
+
+    /** Hides the question for everyone or brings it back; repeating the same change does nothing. */
+    @Transactional
+    public void setQuestionHidden(UUID adminId, UUID questionId, boolean hidden) {
+        if (!questions.setHidden(questionId, adminId, hidden)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, CommunityErrors.QUESTION_NOT_FOUND, "Question not found");
+        }
+    }
+
+    /**
+     * Hides the answer or brings it back. Hiding the best answer makes its question open again; bringing it
+     * back does not choose it again.
+     */
+    @Transactional
+    public void setAnswerHidden(UUID adminId, UUID answerId, boolean hidden) {
+        if (answers.setHidden(answerId, adminId, hidden).isEmpty()) {
+            throw new ApiException(HttpStatus.NOT_FOUND, CommunityErrors.ANSWER_NOT_FOUND, "Answer not found");
+        }
+    }
+
+    private static ApiException complaintNotFound() {
+        return new ApiException(HttpStatus.NOT_FOUND, CommunityErrors.COMPLAINT_NOT_FOUND, "Complaint not found");
+    }
+
+    private static ApiException resolved() {
+        return new ApiException(HttpStatus.CONFLICT, CommunityErrors.COMPLAINT_RESOLVED,
+                "The complaint is already resolved");
     }
 
     /** Cases newest first; each filter is optional. The reason is the most reported one of the case. */

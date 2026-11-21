@@ -186,6 +186,29 @@ public class CommunityComplaintRepository {
         return String.join(", ", java.util.Collections.nCopies(values.size(), "?"));
     }
 
+    /** The status of a locked case; the case is {@code answerId}'s when that is not null. */
+    public record Locked(String status, UUID questionId, UUID answerId) {
+    }
+
+    /** Locks the case until the end of the transaction, so two admins cannot decide it at once. */
+    public Optional<Locked> lock(UUID id) {
+        return jdbc.query("SELECT status, question_id, answer_id FROM community_complaints WHERE id = ? FOR UPDATE",
+                (rs, i) -> new Locked(rs.getString("status"), rs.getObject("question_id", UUID.class),
+                        rs.getObject("answer_id", UUID.class)), id).stream().findFirst();
+    }
+
+    /** Takes a new case into work. */
+    public void markInProgress(UUID id) {
+        jdbc.update("UPDATE community_complaints SET status = 'in_progress', started_at = now() WHERE id = ?", id);
+    }
+
+    /** Writes the decision; the caller has locked the case and checked that it is not resolved. */
+    public void markResolved(UUID id, UUID adminId, String action, String comment) {
+        jdbc.update("""
+                UPDATE community_complaints SET status = 'resolved', resolved_at = now(), resolved_by = ?,
+                       action = ?, comment = ? WHERE id = ?""", adminId, action, comment, id);
+    }
+
     /** Adds the report to the case; a repeat from the same user changes nothing. */
     public void addReport(UUID complaintId, UUID reporterId, String reason, String comment) {
         jdbc.update("""

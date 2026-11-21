@@ -181,6 +181,19 @@ public class CommunityQuestionRepository {
                 .isEmpty();
     }
 
+    /**
+     * Hides the question for everyone or brings it back; false when there is no such question. Hiding twice
+     * keeps the first time and admin.
+     */
+    public boolean setHidden(UUID id, UUID adminId, boolean hidden) {
+        if (hidden) {
+            return jdbc.update("""
+                    UPDATE community_questions SET hidden_at = COALESCE(hidden_at, now()),
+                           hidden_by = COALESCE(hidden_by, ?) WHERE id = ?""", adminId, id) > 0;
+        }
+        return jdbc.update("UPDATE community_questions SET hidden_at = NULL, hidden_by = NULL WHERE id = ?", id) > 0;
+    }
+
     private static Instant instant(ResultSet rs, String column) throws SQLException {
         OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();

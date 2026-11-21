@@ -12,9 +12,11 @@ import java.util.UUID;
 
 import kz.agroadvisor.TestcontainersConfiguration;
 import kz.agroadvisor.common.web.ApiException;
+import kz.agroadvisor.community.repository.CommunityAnswerRepository;
 import kz.agroadvisor.community.repository.CommunityComplaintRepository;
 import kz.agroadvisor.community.repository.CommunityQuestionRepository;
 import kz.agroadvisor.community.service.CommunityModerationService.ComplaintView;
+import kz.agroadvisor.users.service.UserAdminService;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +43,12 @@ class CommunityModerationServiceTest {
     @Autowired
     private CommunityAnswerService answers;
     @Autowired
+    private CommunityAnswerRepository answerRepository;
+    @Autowired
+    private UserAdminService userAdmin;
+    @Autowired
+    private CommunityModerationService moderation;
+    @Autowired
     private JdbcTemplate jdbc;
 
     private CommunityModerationService service;
@@ -53,7 +61,8 @@ class CommunityModerationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CommunityModerationService(repository, Clock.systemUTC());
+        service = new CommunityModerationService(repository, questions, answerRepository, userAdmin,
+                Clock.systemUTC());
         region = jdbc.queryForObject("SELECT id FROM regions ORDER BY id LIMIT 1", Long.class);
         author = user();
         answerAuthor = user();
@@ -192,7 +201,8 @@ class CommunityModerationServiceTest {
     void theNumbersAreCountedFromUtcMidnightAndTheLastSevenDays() {
         // a clock far in the future: no case of any other test falls into its windows
         Instant now = Instant.parse("2090-03-10T15:00:00Z");
-        var future = new CommunityModerationService(repository, Clock.fixed(now, ZoneOffset.UTC));
+        var future = new CommunityModerationService(repository, questions, answerRepository, userAdmin,
+                Clock.fixed(now, ZoneOffset.UTC));
 
         insertAt("new", "2090-03-10T00:00:01Z", null);          // today, new
         insertAt("new", "2090-03-09T23:59:59Z", null);          // yesterday, new
@@ -210,11 +220,143 @@ class CommunityModerationServiceTest {
 
     @Test
     void withoutDecisionsTheMeanIsEmpty() {
-        var none = new CommunityModerationService(repository,
+        var none = new CommunityModerationService(repository, questions, answerRepository, userAdmin,
                 Clock.fixed(Instant.parse("2095-01-01T00:00:00Z"), ZoneOffset.UTC));
 
         assertThat(none.stats().avgResolutionMinutes()).isNull();
         assertThat(none.stats().resolvedThisWeek()).isZero();
+    }
+
+    @Test
+    void startTakesANewCaseIntoWorkAndIsRepeatable() {
+        UUID complaint = complaint("question", question, null, "new");
+        report(complaint, "spam", null, 0);
+
+        assertThat(moderation.start(admin, complaint).status()).isEqualTo("in_progress");
+        assertThat(moderation.start(admin, complaint).status()).isEqualTo("in_progress");
+        assertThat(jdbc.queryForObject("SELECT started_at IS NOT NULL FROM community_complaints WHERE id = ?",
+                Boolean.class, complaint)).isTrue();
+        resolveKeep(complaint);
+        assertCode(() -> moderation.start(admin, complaint), "complaint_resolved");
+        assertCode(() -> moderation.start(admin, UUID.randomUUID()), "complaint_not_found");
+    }
+
+    @Test
+    void keepResolvesWithoutTouchingTheTargetAndASecondDecisionIsAConflict() {
+        UUID complaint = complaint("question", question, null, "in_progress");
+        report(complaint, "ads", null, 0);
+
+        ComplaintView view = moderation.resolve(admin, complaint, "keep", "  Looks fine ", "en");
+
+        assertThat(view.status()).isEqualTo("resolved");
+        assertThat(view.resolution().action()).isEqualTo("keep");
+        assertThat(view.resolution().comment()).isEqualTo("Looks fine");
+        assertThat(view.target().hidden()).isFalse();
+        assertCode(() -> moderation.resolve(admin, complaint, "hide", null, "en"), "complaint_resolved");
+        assertThat(questions.findVisible(question)).isPresent();
+    }
+
+    @Test
+    void hideHidesTheTargetAnswerOnly() {
+        UUID answer = answers.answer(answerAuthor, question, "Use copper").id();
+        UUID complaint = complaint("answer", question, answer, "new");
+        report(complaint, "spam", null, 0);
+
+        moderation.resolve(admin, complaint, "hide", null, "en");
+
+        assertThat(answerRepository.findVisible(question, answer, author)).isEmpty();
+        assertThat(questions.findVisible(question)).isPresent();
+        assertThat(jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, answerAuthor))
+                .isEqualTo("active");
+    }
+
+    @Test
+    void blockHidesTheTargetBlocksTheAuthorAndRevokesRefreshTokens() {
+        UUID complaint = complaint("question", question, null, "new");
+        report(complaint, "abuse", null, 0);
+        jdbc.update("""
+                INSERT INTO refresh_tokens (user_id, family_id, token_hash, expires_at)
+                VALUES (?, gen_random_uuid(), repeat('a', 64), now() + interval '1 day')""", author);
+
+        moderation.resolve(admin, complaint, "block", "Abuse", "en");
+
+        assertThat(questions.findVisible(question)).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, author))
+                .isEqualTo("blocked");
+        assertThat(jdbc.queryForObject("SELECT revoked_at IS NOT NULL FROM refresh_tokens WHERE user_id = ?",
+                Boolean.class, author)).isTrue();
+        assertThat(moderation.get(complaint).author().status()).isEqualTo("blocked");
+    }
+
+    @Test
+    void blockingAnAdminIsRefusedAndRollsEverythingBack() {
+        jdbc.update("INSERT INTO user_roles (user_id, role_code) VALUES (?, 'admin')", author);
+        UUID complaint = complaint("question", question, null, "new");
+        report(complaint, "abuse", null, 0);
+
+        assertThatThrownBy(() -> moderation.resolve(admin, complaint, "block", null, "en"))
+                .isInstanceOf(ApiException.class);
+
+        assertThat(questions.findVisible(question)).isPresent();
+        assertThat(moderation.get(complaint).status()).isEqualTo("new");
+        assertThat(jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, author))
+                .isEqualTo("active");
+        jdbc.update("DELETE FROM user_roles WHERE user_id = ? AND role_code = 'admin'", author);
+    }
+
+    @Test
+    void anInvalidActionOrLongCommentIsRejectedAndTheCaseStaysOpen() {
+        UUID complaint = complaint("question", question, null, "new");
+
+        assertCode(() -> moderation.resolve(admin, complaint, "ban", null, "en"), "validation_failed");
+        assertCode(() -> moderation.resolve(admin, complaint, null, null, "en"), "validation_failed");
+        assertCode(() -> moderation.resolve(admin, complaint, "keep", "x".repeat(501), "en"), "validation_failed");
+        assertCode(() -> moderation.resolve(admin, UUID.randomUUID(), "keep", null, "en"), "complaint_not_found");
+        assertThat(moderation.get(complaint).status()).isEqualTo("new");
+    }
+
+    @Test
+    void hidingTheBestAnswerReopensTheQuestionAndRestoringDoesNotChooseItAgain() {
+        UUID answer = answers.answer(answerAuthor, question, "Use copper").id();
+        answers.accept(author, question, answer);
+        assertThat(questions.find(question).orElseThrow().status()).isEqualTo("solved");
+
+        moderation.setAnswerHidden(admin, answer, true);
+        moderation.setAnswerHidden(admin, answer, true);
+
+        assertThat(questions.find(question).orElseThrow().status()).isEqualTo("open");
+        assertThat(answerRepository.findVisible(question, answer, author)).isEmpty();
+
+        moderation.setAnswerHidden(admin, answer, false);
+
+        assertThat(answerRepository.findVisible(question, answer, author)).isPresent();
+        assertThat(questions.find(question).orElseThrow().status()).isEqualTo("open");
+        assertCode(() -> moderation.setAnswerHidden(admin, UUID.randomUUID(), true), "answer_not_found");
+    }
+
+    @Test
+    void aHiddenQuestionLeavesTheFeedAndRestoringBringsItBack() {
+        moderation.setQuestionHidden(admin, question, true);
+        moderation.setQuestionHidden(admin, question, true);
+
+        assertThat(questions.feed(CommunityQuestionRepository.Filter.NONE, null, 500))
+                .extracting("id").doesNotContain(question);
+
+        moderation.setQuestionHidden(admin, question, false);
+        moderation.setQuestionHidden(admin, question, false);
+
+        assertThat(questions.feed(CommunityQuestionRepository.Filter.NONE, null, 500))
+                .extracting("id").contains(question);
+        assertCode(() -> moderation.setQuestionHidden(admin, UUID.randomUUID(), true), "question_not_found");
+    }
+
+    private void resolveKeep(UUID complaint) {
+        moderation.resolve(admin, complaint, "keep", null, "en");
+    }
+
+    private static void assertCode(org.assertj.core.api.ThrowableAssert.ThrowingCallable call, String code) {
+        assertThatThrownBy(call).isInstanceOfSatisfying(ApiException.class,
+                e -> assertThat(e.getCode()).isEqualTo(code));
     }
 
     private void insertAt(String status, String createdAt, String resolvedAt) {
