@@ -1,0 +1,117 @@
+# Admin community moderation API
+
+The admin's side of the reports users send about community questions and answers (the user's side, `POST /api/community/reports`, is in [`community.md`](community.md); the decisions are in [ADR 0012](../adr/0012-community-and-moderation.md)). Schemas and operation ids are in [`openapi.json`](openapi.json) (`CommunityComplaint`, `CommunityModerationStats`, `ResolveComplaintRequest`, `VisibilityRequest`).
+
+Errors are RFC 9457 problem documents with a `code` field. All endpoints are under `/api/admin/community` and need the `ADMIN` role: no token is 401, a farmer or an agrochemist is 403.
+
+## Cases
+
+All reports about one target (a question or an answer) hang under one case. A case is `new`, then `in_progress` once an admin takes it, then `resolved` once, with an action. After a case is resolved, a new report about the same target opens a new case.
+
+## Endpoints
+
+| Operation | Endpoint | Result |
+| --- | --- | --- |
+| `listAdminCommunityComplaints` | `GET /api/admin/community/complaints?status=&targetType=&reason=&page=0&size=20` | `200`, a bare array of cases, newest first. |
+| `getAdminCommunityComplaint` | `GET /api/admin/community/complaints/{id}` | `200`, one case; its target is shown even when hidden. 404 `complaint_not_found`. |
+| `startAdminCommunityComplaint` | `POST /api/admin/community/complaints/{id}/start` | `200`, the case. A `new` case becomes `in_progress`; a case already in work stays as it is. 404 `complaint_not_found`, 409 `complaint_resolved`. |
+| `resolveAdminCommunityComplaint` | `POST /api/admin/community/complaints/{id}/resolve?lang=` | `200`, the resolved case. Body `{ "action": "keep" \| "hide" \| "block", "comment": string? }`. A case can be resolved straight from `new`. |
+| `getAdminCommunityModerationStats` | `GET /api/admin/community/moderation-stats` | `200`, the numbers of the moderation page. |
+| `changeAdminCommunityQuestionStatus` | `PATCH /api/admin/community/questions/{id}/status` | `204`, no body. Body `{ "status": "visible" \| "hidden" }`. 404 `question_not_found`. |
+| `changeAdminCommunityAnswerStatus` | `PATCH /api/admin/community/answers/{id}/status` | `204`, no body. Body `{ "status": "visible" \| "hidden" }`. 404 `answer_not_found`. |
+| `getAdminCommunityQuestionPhoto` | `GET /api/admin/community/questions/{id}/photos/{photoId}` | `200`, a JPEG or PNG, also for a hidden question. 404 `question_not_found` or `photo_not_found`. |
+
+## Parameters of the list
+
+| Parameter | Rule |
+| --- | --- |
+| `status` | `new`, `in_progress` or `resolved`. Without it, all. |
+| `targetType` | `question` or `answer`. |
+| `reason` | `ads`, `misinformation`, `spam` or `abuse`; matches the most reported reason of the case (on a tie, the first in this list). |
+| `page`, `size` | 0 to 10000 and 1 to 100, default 0 and 20. The list has no total: read pages until one is shorter than `size`. |
+
+A value out of range or another word is 400 `validation_failed`.
+
+## Case
+
+```
+{ "id", "status", "reason", "reports": [{ "reason", "count" }], "comments", "createdAt",
+  "resolution": { "action", "comment", "resolvedAt" } | null,
+  "target": { "type", "questionId", "answerId", "questionTitle", "body", "cropCode",
+              "regionId", "photoCount", "photoUrls", "hidden" },
+  "author": { "id", "name", "role", "expert", "status", "hiddenCount" } }
+```
+
+- `reason` is the most reported reason; `reports` is the count per reason ("Ads, 3 reports").
+- `comments` are the latest comments of the reporters, at most 5.
+- `resolution` is null until the case is resolved; its `comment` is null when none was given.
+- `target.type` is `question` or `answer`. `questionId` is always set (for an answer, the question it belongs to); `answerId` is set only for an answer. `questionTitle` is the title of the question, `body` the text of the question or of the answer. `photoCount` counts the photos of the question; `photoUrls` lists them as ready admin URLs `/api/admin/community/questions/{questionId}/photos/{photoId}` (the photo endpoint above, a hidden question too), in order of position.
+- `target.hidden` tells whether the target is hidden now.
+- `author` is the author of the target. `hiddenCount` is the number of the author's hidden posts in total, the "history of the author". `status` is `active` or `blocked`.
+
+## Decisions
+
+`resolve` decides a case once, under a lock on the case.
+
+| `action` | Effect |
+| --- | --- |
+| `keep` | The target is left as it is. |
+| `hide` | The target is hidden: a hidden question is 404 for everyone, the author included; a hidden answer is not listed and cannot be voted on or picked. Hiding the best answer makes its question open again. |
+| `block` | Hides the target and blocks its author through the users module, in the same transaction (see [`admin-users.md`](admin-users.md)): the author's refresh tokens are revoked, a sign-in is 403 `account_blocked`. Other content of the author stays visible. |
+
+`comment` is optional, at most 500 characters, without control characters; blank is stored as null. Another `action` is 400 `validation_failed`.
+
+`block` follows the rules of the users module. When the author is an administrator it is 403 `admin_status_locked` (blocking oneself is refused the same way); then nothing changes: the target stays visible and the case stays open. An author who is already blocked is not an error. The report of a user about content of an administrator cannot happen in practice, because admins do not post.
+
+The author is not notified about a hide or a block.
+
+## Hide and restore without a case
+
+`PATCH .../questions/{id}/status` and `PATCH .../answers/{id}/status` hide or restore a post at any time, with or without a case. Both answer `204` with no body. Repeating the current status is not an error. Hiding this way does not close the open cases about the post: they stay open until an admin decides them. Restoring an answer that was the best one does not choose it again; the author of the question picks again.
+
+## Moderation stats
+
+`GET /api/admin/community/moderation-stats`:
+
+| Field | Meaning |
+| --- | --- |
+| `complaintsToday` | cases opened since 00:00 UTC of today. |
+| `avgResolutionMinutes` | mean minutes from the case creation to the decision, over cases resolved in the last 7 days; `null` when there are none. |
+| `resolvedThisWeek` | cases resolved in the last 7 days. |
+| `newComplaints` | cases still `new`, not taken into work. |
+
+The windows are UTC (ADR 0012), as the other admin figures; "the last 7 days" is a sliding window up to now, not a calendar week.
+
+## For the admin web (B12.5)
+
+The admin's mock types differ from the API in names; map them like this.
+
+| Admin web | API |
+| --- | --- |
+| `PostKind` `post` | `target.type` `question` |
+| `PostKind` `answer` | `target.type` `answer` |
+| `Complaint.postId` | `target.questionId` for a question, `target.answerId` for an answer |
+| `CommunityPost.title`, `text` | `target.questionTitle`, `target.body` |
+| `CommunityPost.crop` | `target.cropCode` |
+| `CommunityPost.district` | no district: the API gives `target.regionId` only (a region) |
+| `CommunityPost.hidden` | `target.hidden` |
+| `CommunityPost.authorId` | `author.id` |
+| `Complaint.status`, `reports`, `createdAt` | the same names and values |
+| `Complaint.resolution` | `resolution`, but it is `null` (not absent) while open, and `comment` may be `null` |
+| `ModerationAction` | `action`: `keep`, `hide`, `block` |
+
+The status of a post in the admin's mock (hidden or not) is changed with the `PATCH .../status` calls, `hidden` or `visible`.
+
+## Error codes
+
+| Status | `code` | When |
+| --- | --- | --- |
+| 400 | `validation_failed` | an unknown `status`, `targetType`, `reason`, `action` or visibility; `size` or `page` out of range; a comment over 500 characters; a malformed id or body. |
+| 401, 403 | general | no or invalid token; not an administrator. |
+| 403 | `admin_status_locked` | `block` and the author is an administrator or the caller. |
+| 404 | `complaint_not_found` | no such case. |
+| 404 | `question_not_found` | no such question (status change, photo). |
+| 404 | `answer_not_found` | no such answer (status change). |
+| 404 | `photo_not_found` | the question has no such photo, or its object is missing from the storage. |
+| 409 | `complaint_resolved` | `start` or `resolve` on a case that is already resolved, also when two admins decide at once: the second gets this. |
+| 503 | `storage_unavailable` | the photo storage did not answer. |

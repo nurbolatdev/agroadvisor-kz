@@ -88,6 +88,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/community/answers/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Hides an answer or shows it again. Hiding the best answer makes its question open; showing it does not choose it again. 404 answer_not_found. */
+        patch: operations["changeAdminCommunityAnswerStatus"];
+        trace?: never;
+    };
+    "/api/admin/community/complaints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cases newest first; every filter is optional. reason is the most reported reason of the case. */
+        get: operations["listAdminCommunityComplaints"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/community/complaints/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One case, its target shown even when hidden; 404 complaint_not_found. */
+        get: operations["getAdminCommunityComplaint"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/community/complaints/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decides a case once: keep leaves the target, hide hides it, block hides it and blocks its author (403 admin_status_locked when the author is an administrator or the caller; then nothing changes). 409 complaint_resolved, 404 complaint_not_found. */
+        post: operations["resolveAdminCommunityComplaint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/community/complaints/{id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Takes a new case into work; a case already in work stays as it is. 409 complaint_resolved, 404 complaint_not_found. */
+        post: operations["startAdminCommunityComplaint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/community/moderation-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cases today, mean time to decide, decided this week, cases still new. */
+        get: operations["getAdminCommunityModerationStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/community/questions/{id}/photos/{photoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A photo of a question, a hidden question too; 404 question_not_found, photo_not_found. */
+        get: operations["getAdminCommunityQuestionPhoto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/community/questions/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Hides a question from everyone or shows it again; repeating the status is not an error. 404 question_not_found. */
+        patch: operations["changeAdminCommunityQuestionStatus"];
+        trace?: never;
+    };
     "/api/admin/crops": {
         parameters: {
             query?: never;
@@ -702,6 +838,23 @@ export interface paths {
         get: operations["getCommunityQuestionPhoto"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/community/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Reports a visible question or answer of someone else; a repeat from the same user changes nothing. 400 validation_failed; 404 question_not_found or answer_not_found; 409 own_content; 409 complaint_resolved when the case was resolved again and again during the attempts to add the report (rare, send it once more); 429 rate_limited after 20 reports an hour. */
+        post: operations["reportCommunityContent"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1440,6 +1593,19 @@ export interface components {
             total: number;
             trainingData: components["schemas"]["TrainingView"];
         };
+        AuthorResponse: {
+            expert: boolean;
+            /**
+             * Format: int32
+             * @description Hidden posts of the author, in total
+             */
+            hiddenCount: number;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            role: string;
+            status: string;
+        };
         CalculationResponse: {
             /** @description Hectares */
             areaHa: number;
@@ -1496,6 +1662,42 @@ export interface components {
              */
             score: number;
             text: string;
+        };
+        CommunityComplaint: {
+            author: components["schemas"]["AuthorResponse"];
+            /** @description The latest comments, up to 5 */
+            comments: string[];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description The most reported reason of the case
+             * @enum {string}
+             */
+            reason: "ads" | "misinformation" | "spam" | "abuse";
+            reports: components["schemas"]["ReasonCountResponse"][];
+            /** @description Null until the case is resolved */
+            resolution?: components["schemas"]["ResolutionResponse"];
+            /** @enum {string} */
+            status: "new" | "in_progress" | "resolved";
+            target: components["schemas"]["TargetResponse"];
+        };
+        CommunityModerationStats: {
+            /**
+             * Format: double
+             * @description Mean minutes from the first report to the decision, for cases resolved in the last 7 days; null when there are none
+             */
+            avgResolutionMinutes?: number | null;
+            /** Format: int32 */
+            complaintsToday: number;
+            /**
+             * Format: int32
+             * @description Cases not taken into work yet
+             */
+            newComplaints: number;
+            /** Format: int32 */
+            resolvedThisWeek: number;
         };
         CommunityQuestion: {
             /**
@@ -1704,6 +1906,15 @@ export interface components {
             crop: string;
             location?: components["schemas"]["FieldPoint"];
             name: string;
+        };
+        CreateReportRequest: {
+            comment?: string;
+            /** @enum {string} */
+            reason: "ads" | "misinformation" | "spam" | "abuse";
+            /** Format: uuid */
+            targetId: string;
+            /** @enum {string} */
+            targetType: "question" | "answer";
         };
         CreateShopRequest: {
             /** @description What the farmer writes: the name and the address of a new shop, or what is wrong */
@@ -2136,6 +2347,11 @@ export interface components {
              */
             updatedAt: string;
         };
+        ReasonCountResponse: {
+            /** Format: int32 */
+            count: number;
+            reason: string;
+        };
         RefreshRequest: {
             refreshToken: string;
         };
@@ -2183,6 +2399,19 @@ export interface components {
         RequestDecision: {
             /** @enum {string} */
             status: "done" | "rejected";
+        };
+        ResolutionResponse: {
+            /** @enum {string} */
+            action: "keep" | "hide" | "block";
+            comment?: string | null;
+            /** Format: date-time */
+            resolvedAt: string;
+        };
+        ResolveComplaintRequest: {
+            /** @enum {string} */
+            action: "keep" | "hide" | "block";
+            /** @description Optional note, up to 500 characters */
+            comment?: string | null;
         };
         SendMessageRequest: {
             /** @description Trimmed; 1 to 2000 characters */
@@ -2258,6 +2487,28 @@ export interface components {
             submittedAt: string;
             /** Format: uuid */
             userId: string;
+        };
+        TargetResponse: {
+            /**
+             * Format: uuid
+             * @description Set when the target is an answer
+             */
+            answerId?: string | null;
+            /** @description Text of the question or the answer */
+            body: string;
+            cropCode: string;
+            hidden: boolean;
+            /** Format: int32 */
+            photoCount: number;
+            /** @description Admin URLs of the question photos, /api/admin/community/questions/{id}/photos/{photoId} */
+            photoUrls: string[];
+            /** Format: uuid */
+            questionId: string;
+            questionTitle: string;
+            /** Format: int64 */
+            regionId: number;
+            /** @enum {string} */
+            type: "question" | "answer";
         };
         TokenResponse: {
             accessToken: string;
@@ -2358,6 +2609,10 @@ export interface components {
              * @description When the profile entered the admins' queue: at registration, and again when a document is sent after a rejection or a request for documents
              */
             submittedAt: string;
+        };
+        VisibilityRequest: {
+            /** @enum {string} */
+            status: "visible" | "hidden";
         };
         VoteRequest: {
             /**
@@ -2506,6 +2761,198 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["AiQualityView"];
                 };
+            };
+        };
+    };
+    changeAdminCommunityAnswerStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisibilityRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listAdminCommunityComplaints: {
+        parameters: {
+            query?: {
+                status?: string;
+                targetType?: string;
+                reason?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityComplaint"][];
+                };
+            };
+        };
+    };
+    getAdminCommunityComplaint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityComplaint"];
+                };
+            };
+        };
+    };
+    resolveAdminCommunityComplaint: {
+        parameters: {
+            query?: {
+                lang?: string;
+            };
+            header?: {
+                "Accept-Language"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveComplaintRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityComplaint"];
+                };
+            };
+        };
+    };
+    startAdminCommunityComplaint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityComplaint"];
+                };
+            };
+        };
+    };
+    getAdminCommunityModerationStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityModerationStats"];
+                };
+            };
+        };
+    };
+    getAdminCommunityQuestionPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                photoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A JPEG or PNG photo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                };
+            };
+        };
+    };
+    changeAdminCommunityQuestionStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisibilityRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3858,6 +4305,28 @@ export interface operations {
                     "image/jpeg": string;
                     "image/png": string;
                 };
+            };
+        };
+    };
+    reportCommunityContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateReportRequest"];
+            };
+        };
+        responses: {
+            /** @description The report is accepted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

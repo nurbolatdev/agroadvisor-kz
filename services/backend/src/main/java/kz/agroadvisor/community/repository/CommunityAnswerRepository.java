@@ -87,6 +87,40 @@ public class CommunityAnswerRepository {
         jdbc.update("UPDATE community_questions SET accepted_answer_id = ? WHERE id = ?", answerId, questionId);
     }
 
+    /**
+     * Hides the answer or brings it back; empty when there is no such answer, otherwise the id of its
+     * question. Hiding the best answer makes the question open again, and bringing it back does not restore
+     * the choice. Hiding twice keeps the first time and admin.
+     */
+    public Optional<UUID> setHidden(UUID answerId, UUID adminId, boolean hidden) {
+        if (hidden) {
+            // the question is locked first, as when the best answer is chosen, so choosing and hiding cannot cross
+            List<UUID> owner = jdbc.queryForList("SELECT question_id FROM community_answers WHERE id = ?",
+                    UUID.class, answerId);
+            if (owner.isEmpty()) {
+                return Optional.empty();
+            }
+            jdbc.queryForList("SELECT 1 FROM community_questions WHERE id = ? FOR UPDATE", Integer.class,
+                    owner.get(0));
+        }
+        List<UUID> found = hidden
+                ? jdbc.queryForList("""
+                        UPDATE community_answers SET hidden_at = COALESCE(hidden_at, now()),
+                               hidden_by = COALESCE(hidden_by, ?) WHERE id = ? RETURNING question_id""",
+                        UUID.class, adminId, answerId)
+                : jdbc.queryForList("""
+                        UPDATE community_answers SET hidden_at = NULL, hidden_by = NULL
+                         WHERE id = ? RETURNING question_id""", UUID.class, answerId);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        if (hidden) {
+            jdbc.update("UPDATE community_questions SET accepted_answer_id = NULL WHERE id = ? AND accepted_answer_id = ?",
+                    found.get(0), answerId);
+        }
+        return Optional.of(found.get(0));
+    }
+
     private static final String SELECT = """
             SELECT a.id, a.question_id, a.author_id, u.full_name AS author_name,
                    COALESCE(ap.verified, false) AS author_expert, a.body, a.created_at,

@@ -6,7 +6,6 @@ In the API a post is called a question. Errors are RFC 9457 problem documents wi
 
 ## Not available yet
 
-- Reports about a question or an answer and the admin moderation (a later change of the same task).
 - Notifications about answers and new questions (a later change of the same task).
 - Editing and deleting one's own question or answer, photos in answers, votes on questions.
 
@@ -44,6 +43,7 @@ A question has 0 to 3 photos (JPEG or PNG, up to 10 MB each). They travel in the
 | New questions per user per hour | 10 (`app.rate-limit.community-questions-per-hour`); a failed attempt counts too | 429 `rate_limited` |
 | New answers per user per hour | 30 (`app.rate-limit.community-answers-per-hour`) | 429 `rate_limited` |
 | Votes per user per minute | 60 (`app.rate-limit.community-votes-per-minute`) | 429 `rate_limited` |
+| Reports per user per hour | 20 (`app.rate-limit.community-reports-per-hour`); every attempt counts | 429 `rate_limited` |
 | Answers per question | 200 | 409 `answer_limit` |
 | Question title | 3 to 120 characters after trimming | 400 `validation_failed` |
 | Question or answer text | 1 to 2000 characters after trimming | 400 `validation_failed` |
@@ -160,6 +160,10 @@ The crops the caller follows. Response: `{ "crops": [string] }`, alphabetical.
 
 Request and response: `{ "crops": [string] }`. Replaces the whole set in one transaction. Up to 20 different known crop codes; otherwise 400 `validation_failed` and the previous set stays.
 
+### `POST /api/community/reports`
+
+Reports a visible question or answer of someone else. Request: `{ "targetType": "question" | "answer", "targetId": uuid, "reason": "ads" | "misinformation" | "spam" | "abuse", "comment": string? }`; the comment is optional, up to 500 characters. Response: 204. All reports about one target hang under one open case that the admin decides once; one report per user per case, a repeat changes nothing (also 204). After the case is resolved, a new report opens a new case. Counts toward 20 reports per user per hour, every attempt included. Errors: 400 `validation_failed`; 404 `question_not_found` or `answer_not_found` (missing or hidden target); 409 `own_content` (one's own question or answer); 409 `complaint_resolved` (rare: the case was resolved again and again while the report was being added, after 3 attempts; send it once more); 429 `rate_limited`.
+
 ## Error codes
 
 | HTTP | Code | When |
@@ -176,9 +180,11 @@ Request and response: `{ "crops": [string] }`. Replaces the whole set in one tra
 | 404 | `photo_not_found` | the question has no such photo, or its object is missing from the storage |
 | 404 | `diagnosis_not_found` | no diagnosis is attached, it was deleted, or it is not the author's own |
 | 409 | `own_answer` | voting for or picking one's own answer |
+| 409 | `own_content` | reporting one's own question or answer |
+| 409 | `complaint_resolved` | a report could not be added: its case was resolved during all 3 attempts (rare; repeat) |
 | 409 | `answer_limit` | the question already has 200 answers |
 | 413 | `payload_too_large` | the request is over the upload limit (11 MB) |
 | 429 | `rate_limited` | too many questions or answers per hour, or votes per minute |
 | 503 | `storage_unavailable` | the photo storage did not answer |
 
-`own_content`, `complaint_not_found` and `complaint_resolved` are reserved for the reports and the moderation and are not returned yet.
+The admin moderation (`/api/admin/community`) has its own codes, `complaint_not_found` and `complaint_resolved` among them; see [`admin-community.md`](admin-community.md). The user's report endpoint returns only `complaint_resolved`, and only in the rare case in the table above.
