@@ -217,6 +217,24 @@ class CommunityModerationControllerTest {
                 .andExpect(jsonPath("$.target.hidden").value(true));
     }
 
+    @Test
+    void aCaseCarriesThePostTimeAndTheRegistrationDateOfTheAuthor() throws Exception {
+        String admin = token(newUser(Role.ADMIN));
+        UUID answerAuthor = newUser(Role.FARMER);
+        UUID question = newQuestion(newUser(Role.FARMER));
+        UUID answer = newAnswer(question, answerAuthor);
+        jdbc.update("UPDATE community_questions SET created_at = '2026-11-01T08:00:00Z' WHERE id = ?", question);
+        jdbc.update("UPDATE community_answers SET created_at = '2026-11-03T09:30:00Z' WHERE id = ?", answer);
+        jdbc.update("UPDATE users SET created_at = '2026-01-05T00:00:00Z' WHERE id = ?", answerAuthor);
+        UUID complaint = newComplaint(question, answer, newUser(Role.FARMER));
+
+        mvc.perform(get("/api/admin/community/complaints/" + complaint).header("Authorization", admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.target.type").value("answer"))
+                .andExpect(jsonPath("$.target.createdAt").value("2026-11-03T09:30:00Z"))
+                .andExpect(jsonPath("$.author.registeredAt").value("2026-01-05T00:00:00Z"));
+    }
+
     private static String reportBody(String targetType, UUID targetId, String reason) {
         return "{\"targetType\":\"" + targetType + "\",\"targetId\":\"" + targetId + "\",\"reason\":\"" + reason
                 + "\"}";

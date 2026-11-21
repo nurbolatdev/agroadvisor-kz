@@ -64,7 +64,9 @@ approved once, in `V25`; the notification columns come later in `V26`.
   `community_answer` and `community_answer_accepted`.
 - **Border with B12.5:** B15 gives the moderation API (cases, hide and restore, moderation figures, the counter of
   new cases). The statistics page of the admin community, "no answer for more than 24 hours" and "invite an
-  agrochemist" belong to B12.5.
+  agrochemist" belong to B12.5. The statistics live in the `analytics` module
+  (`GET /api/admin/community/stats`), not in `community`: they also read `consultations` of another module, and
+  `analytics` already holds the admin's read-only aggregates. Definitions are in `docs/api/admin-community.md`.
 
 ## Consequences
 

@@ -27,6 +27,7 @@ const complaint = (id: string, extra: Record<string, unknown> = {}, target: obje
     photoCount: 1,
     photoUrls: ['/api/admin/community/questions/q1/photos/p1'],
     hidden: false,
+    createdAt: '2026-11-18T07:00:00Z',
     ...target,
   },
   author: {
@@ -36,6 +37,7 @@ const complaint = (id: string, extra: Record<string, unknown> = {}, target: obje
     expert: false,
     status: 'active',
     hiddenCount: 2,
+    registeredAt: '2026-02-01T00:00:00Z',
     ...author,
   },
   ...extra,
@@ -88,7 +90,7 @@ describe('live moderation', () => {
         district: 'Алматинская область',
         title: 'Пятна на листьях',
         text: 'Что делать?',
-        createdAt: undefined,
+        createdAt: '2026-11-18T07:00:00Z',
         hidden: false,
       },
       author: {
@@ -98,7 +100,7 @@ describe('live moderation', () => {
         status: 'active',
         expert: false,
         hiddenCount: 2,
-        registeredAt: undefined,
+        registeredAt: '2026-02-01T00:00:00Z',
       },
     })
     expect(item.post.imageUrl).toBeUndefined()

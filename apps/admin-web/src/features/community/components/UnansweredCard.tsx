@@ -6,16 +6,22 @@ import { Button } from '@/components/ui/Button'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { InviteAgrochemistModal } from '@/features/community/components/InviteAgrochemistModal'
+import { API_MODE } from '@/services/config'
 import type { UnansweredQuestion } from '@/shared/types'
 
 interface UnansweredCardProps {
   questions: UnansweredQuestion[]
+  /** Overall number of such questions; the list itself may be shorter. */
+  total: number
   onInvited: () => void
 }
 
 const VISIBLE_BY_DEFAULT = 3
 
-export function UnansweredCard({ questions, onInvited }: UnansweredCardProps) {
+/** The invitation has no backend endpoint yet (B12.5c): only the mock API can take it. */
+const INVITE_AVAILABLE = API_MODE === 'mock'
+
+export function UnansweredCard({ questions, total, onInvited }: UnansweredCardProps) {
   const { t } = useTranslation(['community', 'common'])
   const [showAll, setShowAll] = useState(false)
   const [inviting, setInviting] = useState<UnansweredQuestion>()
@@ -28,7 +34,7 @@ export function UnansweredCard({ questions, onInvited }: UnansweredCardProps) {
         subtitle={t('unanswered.subtitle')}
         action={
           questions.length > 0 ? (
-            <Badge tone="warning">{t('unanswered.count', { count: questions.length })}</Badge>
+            <Badge tone="warning">{t('unanswered.count', { count: total })}</Badge>
           ) : null
         }
       />
@@ -58,6 +64,8 @@ export function UnansweredCard({ questions, onInvited }: UnansweredCardProps) {
                 <Button
                   size="sm"
                   variant="secondary"
+                  disabled={!INVITE_AVAILABLE}
+                  title={INVITE_AVAILABLE ? undefined : t('unanswered.inviteUnavailable')}
                   onClick={() => setInviting(question)}
                   className="border-primary text-primary"
                 >
@@ -77,7 +85,7 @@ export function UnansweredCard({ questions, onInvited }: UnansweredCardProps) {
         >
           {showAll
             ? t('common:actions.collapse')
-            : t('common:actions.showAll', { count: questions.length })}
+            : t('common:actions.showAll', { count: total })}
         </Button>
       ) : null}
 

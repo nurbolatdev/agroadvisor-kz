@@ -224,6 +224,23 @@ export interface paths {
         patch: operations["changeAdminCommunityQuestionStatus"];
         trace?: never;
     };
+    "/api/admin/community/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Statistics of the community over a period: questions, time to the first answer, share of solved questions, questions without an answer for more than 24 hours (a count and a list), activity by bucket, the most active members and consultations. Changes are against the previous period of the same length. */
+        get: operations["getAdminCommunityStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/crops": {
         parameters: {
             query?: never;
@@ -1603,6 +1620,11 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            /**
+             * Format: date-time
+             * @description When the author registered
+             */
+            registeredAt: string;
             role: string;
             status: string;
         };
@@ -1634,6 +1656,17 @@ export interface components {
             code: string;
             /** Format: double */
             confidence: number;
+        };
+        CommunityActivity: {
+            /** Format: int32 */
+            answers: number;
+            /**
+             * Format: int32
+             * @description Weekday (0 = Monday) for 7d, week from 1 for 30d, month (0 = January) for the season
+             */
+            bucket: number;
+            /** Format: int32 */
+            questions: number;
         };
         CommunityAnswer: {
             /** @description The best answer of the question */
@@ -1683,6 +1716,51 @@ export interface components {
             status: "new" | "in_progress" | "resolved";
             target: components["schemas"]["TargetResponse"];
         };
+        CommunityConsultations: {
+            /**
+             * Format: int32
+             * @description Mean minutes from request to acceptance over those accepted in the window; null when none was
+             */
+            avgResponseMinutes?: number | null;
+            /**
+             * Format: int32
+             * @description Closed in the window
+             */
+            closed: number;
+            /**
+             * Format: int32
+             * @description Requested in the window
+             */
+            requests: number;
+        };
+        CommunityCount: {
+            /**
+             * Format: int32
+             * @description Percent against the previous window; 0 when it had none
+             */
+            changePercent: number;
+            /** Format: int32 */
+            value: number;
+        };
+        CommunityFirstAnswer: {
+            /**
+             * Format: int32
+             * @description Minutes against the previous window; 0 when either window has no value
+             */
+            changeMinutes: number;
+            /**
+             * Format: int32
+             * @description Mean minutes from a question to the first visible answer of somebody else; null when no question of the window has one
+             */
+            value?: number | null;
+        };
+        CommunityMember: {
+            /** Format: int32 */
+            answers: number;
+            name: string;
+            /** @enum {string} */
+            role: "farmer" | "agrochemist";
+        };
         CommunityModerationStats: {
             /**
              * Format: double
@@ -1730,9 +1808,63 @@ export interface components {
             text: string;
             title: string;
         };
+        CommunityShare: {
+            /**
+             * Format: int32
+             * @description Percentage points against the previous window; 0 when either window had no questions
+             */
+            changePoints: number;
+            /**
+             * Format: int32
+             * @description 0–100, whole numbers
+             */
+            percent: number;
+        };
+        CommunityStats: {
+            /** @description Every bucket of the window, zeros included */
+            activity: components["schemas"]["CommunityActivity"][];
+            consultations: components["schemas"]["CommunityConsultations"];
+            firstAnswerMinutes: components["schemas"]["CommunityFirstAnswer"];
+            /** @enum {string} */
+            period: "7d" | "30d" | "season";
+            /** @description Visible questions created in the window */
+            questions: components["schemas"]["CommunityCount"];
+            /** @description Share of solved questions among the visible questions of the window */
+            resolvedShare: components["schemas"]["CommunityShare"];
+            /** @description Up to 4 members with the most visible answers in the window, admins left out */
+            topMembers: components["schemas"]["CommunityMember"][];
+            /** @description The oldest unanswered questions first, at most 50 */
+            unanswered: components["schemas"]["CommunityUnanswered"][];
+            unansweredOver24h: components["schemas"]["CommunityUnansweredTotal"];
+        };
         CommunitySubscriptions: {
             /** @description Up to 20 different crop codes */
             crops: string[];
+        };
+        CommunityUnanswered: {
+            cropCode: string;
+            /**
+             * Format: int64
+             * @description Whole hours since the question was created
+             */
+            hoursWithoutAnswer: number;
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            regionId: number;
+            title: string;
+        };
+        CommunityUnansweredTotal: {
+            /**
+             * Format: int32
+             * @description Now minus the same count at the start of the window (an approximation: current hiding flags)
+             */
+            change: number;
+            /**
+             * Format: int32
+             * @description Visible questions older than 24 hours without a visible answer of somebody else, right now
+             */
+            value: number;
         };
         CommunityVote: {
             /**
@@ -2506,6 +2638,11 @@ export interface components {
             answerId?: string | null;
             /** @description Text of the question or the answer */
             body: string;
+            /**
+             * Format: date-time
+             * @description When the question or the answer was posted
+             */
+            createdAt: string;
             cropCode: string;
             hidden: boolean;
             /** Format: int32 */
@@ -2963,6 +3100,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getAdminCommunityStats: {
+        parameters: {
+            query?: {
+                period?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityStats"];
+                };
             };
         };
     };

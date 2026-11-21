@@ -33,7 +33,7 @@ interface BackendComplaint {
     photoCount: number
     photoUrls: string[]
     hidden: boolean
-    createdAt?: IsoDateTime
+    createdAt: IsoDateTime
   }
   author: {
     id: string
@@ -42,7 +42,7 @@ interface BackendComplaint {
     expert: boolean
     status: UserStatus
     hiddenCount: number
-    registeredAt?: IsoDateTime
+    registeredAt: IsoDateTime
   }
 }
 

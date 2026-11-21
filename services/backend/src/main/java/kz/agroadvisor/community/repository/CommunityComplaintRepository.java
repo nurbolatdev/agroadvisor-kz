@@ -64,7 +64,7 @@ public class CommunityComplaintRepository {
             Instant createdAt, Instant resolvedAt, String action, String resolutionComment, String topReason,
             String questionTitle, String targetBody, String cropCode, long regionId, int photoCount,
             boolean targetHidden, UUID authorId, String authorName, String authorRole, boolean authorExpert,
-            String authorStatus, int authorHiddenCount) {
+            String authorStatus, int authorHiddenCount, Instant targetCreatedAt, Instant authorRegisteredAt) {
     }
 
     /** How many reports of one reason a case has. */
@@ -97,7 +97,9 @@ public class CommunityComplaintRepository {
                      COALESCE(ap.verified, false) AS author_expert,
                      (SELECT count(*) FROM community_questions hq WHERE hq.author_id = u.id AND hq.hidden_at IS NOT NULL)
                      + (SELECT count(*) FROM community_answers ha WHERE ha.author_id = u.id AND ha.hidden_at IS NOT NULL)
-                         AS author_hidden_count
+                         AS author_hidden_count,
+                     COALESCE(a.created_at, q.created_at) AS target_created_at,
+                     u.created_at AS author_registered_at
                 FROM community_complaints c
                 JOIN community_questions q ON q.id = c.question_id
                 LEFT JOIN community_answers a ON a.id = c.answer_id
@@ -113,7 +115,8 @@ public class CommunityComplaintRepository {
             rs.getString("crop_code"), rs.getLong("region_id"), rs.getInt("photo_count"),
             rs.getBoolean("target_hidden"), rs.getObject("author_id", UUID.class), rs.getString("author_name"),
             rs.getString("author_role"), rs.getBoolean("author_expert"), rs.getString("author_status"),
-            rs.getInt("author_hidden_count"));
+            rs.getInt("author_hidden_count"), instant(rs, "target_created_at"),
+            instant(rs, "author_registered_at"));
 
     private static Instant instant(ResultSet rs, String column) throws SQLException {
         OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);

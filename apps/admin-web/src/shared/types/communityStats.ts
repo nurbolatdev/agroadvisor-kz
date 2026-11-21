@@ -16,7 +16,8 @@ export interface UnansweredQuestion {
 export interface CommunityStats {
   period: StatsPeriod
   questions: { value: number; changePercent: number }
-  firstAnswerMinutes: { value: number; changeMinutes: number }
+  /** `value` is null when no question of the window has an answer yet. */
+  firstAnswerMinutes: { value: number | null; changeMinutes: number }
   resolvedShare: { percent: number; changePoints: number }
   /** Current number of questions without an answer for more than 24 hours. */
   unansweredOver24h: { value: number; change: number }
@@ -27,5 +28,11 @@ export interface CommunityStats {
   activity: { bucket: number; questions: number; answers: number }[]
   topMembers: { name: string; role: UserRole; answers: number }[]
   unanswered: UnansweredQuestion[]
-  consultations: { requests: number; closed: number; avgResponseMinutes: number; avgRating: number }
+  /** Averages are null when there is nothing to average (no rating source on the backend). */
+  consultations: {
+    requests: number
+    closed: number
+    avgResponseMinutes: number | null
+    avgRating: number | null
+  }
 }

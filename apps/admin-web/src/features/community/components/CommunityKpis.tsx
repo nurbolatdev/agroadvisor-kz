@@ -24,8 +24,12 @@ export function CommunityKpis({ stats }: CommunityKpisProps) {
       />
       <StatCard
         label={t('kpi.firstAnswer')}
-        value={formatDuration(firstAnswerMinutes.value)}
-        change={signedDuration(firstAnswerMinutes.changeMinutes)}
+        value={firstAnswerMinutes.value === null ? '—' : formatDuration(firstAnswerMinutes.value)}
+        change={
+          firstAnswerMinutes.value === null
+            ? undefined
+            : signedDuration(firstAnswerMinutes.changeMinutes)
+        }
         trend={firstAnswerMinutes.changeMinutes <= 0 ? 'good' : 'bad'}
       />
       <StatCard

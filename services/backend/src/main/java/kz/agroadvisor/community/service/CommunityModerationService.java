@@ -48,11 +48,13 @@ public class CommunityModerationService {
 
     /** The question or answer the case is about, shown even when hidden. */
     public record Target(String type, UUID questionId, UUID answerId, String questionTitle, String body,
-            String cropCode, long regionId, int photoCount, List<String> photoUrls, boolean hidden) {
+            String cropCode, long regionId, int photoCount, List<String> photoUrls, boolean hidden,
+            Instant createdAt) {
     }
 
     /** The author of the target; {@code hiddenCount} is the history of the author. */
-    public record Author(UUID id, String name, String role, boolean expert, String status, int hiddenCount) {
+    public record Author(UUID id, String name, String role, boolean expert, String status, int hiddenCount,
+            Instant registeredAt) {
     }
 
     /** The numbers of the moderation page; the mean is null when nothing was decided this week. */
@@ -206,9 +208,9 @@ public class CommunityModerationService {
                         ? new Resolution(row.action(), row.resolutionComment(), row.resolvedAt()) : null,
                 new Target(row.targetType(), row.questionId(), row.answerId(), row.questionTitle(),
                         row.targetBody(), row.cropCode(), row.regionId(), row.photoCount(), photoUrls.getOrDefault(row.questionId(), List.of()),
-                        row.targetHidden()),
+                        row.targetHidden(), row.targetCreatedAt()),
                 new Author(row.authorId(), row.authorName(), row.authorRole(), row.authorExpert(),
-                        row.authorStatus(), row.authorHiddenCount()))).toList();
+                        row.authorStatus(), row.authorHiddenCount(), row.authorRegisteredAt()))).toList();
     }
 
     private static ApiException validation(String detail) {

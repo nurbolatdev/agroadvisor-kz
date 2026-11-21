@@ -38,8 +38,8 @@ A value out of range or another word is 400 `validation_failed`.
 { "id", "status", "reason", "reports": [{ "reason", "count" }], "comments", "createdAt",
   "resolution": { "action", "comment", "resolvedAt" } | null,
   "target": { "type", "questionId", "answerId", "questionTitle", "body", "cropCode",
-              "regionId", "photoCount", "photoUrls", "hidden" },
-  "author": { "id", "name", "role", "expert", "status", "hiddenCount" } }
+              "regionId", "photoCount", "photoUrls", "hidden", "createdAt" },
+  "author": { "id", "name", "role", "expert", "status", "hiddenCount", "registeredAt" } }
 ```
 
 - `reason` is the most reported reason; `reports` is the count per reason ("Ads, 3 reports").
@@ -47,7 +47,8 @@ A value out of range or another word is 400 `validation_failed`.
 - `resolution` is null until the case is resolved; its `comment` is null when none was given.
 - `target.type` is `question` or `answer`. `questionId` is always set (for an answer, the question it belongs to); `answerId` is set only for an answer. `questionTitle` is the title of the question, `body` the text of the question or of the answer. `photoCount` counts the photos of the question; `photoUrls` lists them as ready admin URLs `/api/admin/community/questions/{questionId}/photos/{photoId}` (the photo endpoint above, a hidden question too), in order of position.
 - `target.hidden` tells whether the target is hidden now.
-- `author` is the author of the target. `hiddenCount` is the number of the author's hidden posts in total, the "history of the author". `status` is `active` or `blocked`.
+- `target.createdAt` is when the target was posted: the time of the answer for an answer, the time of the question for a question.
+- `author` is the author of the target. `hiddenCount` is the number of the author's hidden posts in total, the "history of the author". `status` is `active` or `blocked`. `registeredAt` is when the author registered.
 
 ## Decisions
 
@@ -102,11 +103,73 @@ The admin's mock types differ from the API in names; map them like this.
 
 The status of a post in the admin's mock (hidden or not) is changed with the `PATCH .../status` calls, `hidden` or `visible`.
 
+## Community statistics
+
+Figures for the admin's community screen (B12.5). The operation is `getAdminCommunityStats`, the schema is `CommunityStats` in [`openapi.json`](openapi.json). The code lives in the `analytics` module (`AdminCommunityStatsController`, `CommunityStatsService`, `CommunityStatsRepository`), which reads the `community_*` and `consultations` tables with plain SQL; nothing is written.
+
+| Operation | Endpoint | Result |
+| --- | --- | --- |
+| `getAdminCommunityStats` | `GET /api/admin/community/stats?period=30d` | `200`, one `CommunityStats`. |
+
+`period` is `7d`, `30d` (default) or `season`, the same windows as [admin-dashboard.md](admin-dashboard.md). Any other value is 400 `validation_failed`. Windows are UTC and half-open: `[from, now)`. Every "change" compares the window with the previous window of the same length that ends where this one starts. All figures of one call read one database snapshot (`REPEATABLE_READ`). Hidden questions and hidden answers are never counted.
+
+### Fields
+
+| Field | Meaning |
+| --- | --- |
+| `period` | the period asked for: `7d`, `30d` or `season`. |
+| `questions` | `value`: visible questions created in the window; `changePercent` against the previous window, 0 when the previous one had none. |
+| `firstAnswerMinutes` | `value`: mean minutes from a question of the window to its first visible answer of somebody else (the author's own answer does not count), whole minutes; `null` when no question of the window has such an answer. `changeMinutes`: current minus previous, 0 when either window has no value. |
+| `resolvedShare` | `percent`: share of `solved` questions among the visible questions of the window, 0–100, whole number, 0 for an empty window; `changePoints`: percentage points against the previous window, 0 when either window has no questions. |
+| `unansweredOver24h` | `value`: visible questions older than 24 hours that have no visible answer of somebody else, right now (not limited to the window); `change`: this number minus the same count at the start of the window. |
+| `activity` | questions (visible, created in the window) and answers (visible, created in the window) per bucket, in the bucket order of the table below (for `7d` the calendar weekday order, not oldest first), every bucket present with zeros. Fields: `bucket`, `questions`, `answers`. |
+| `topMembers` | up to 4 members with the most visible answers to visible questions in the window, admins left out, ties by name. `name`, `role` (`agrochemist` when the user has that role, otherwise `farmer`), `answers`. |
+| `unanswered` | the questions counted by `unansweredOver24h.value`, the oldest first, at most 50 (so its length can be less than `value`). `id`, `title`, `cropCode`, `regionId`, `hoursWithoutAnswer` (whole hours since the question was created, rounded down). |
+| `consultations` | `requests`: consultations created in the window; `closed`: those with status `closed` whose `closed_at` is in the window; `avgResponseMinutes`: mean minutes from request to acceptance over those accepted in the window, `null` when none was. |
+
+`activity.bucket` depends on the period:
+
+| Period | Bucket |
+| --- | --- |
+| `7d` | weekday in UTC, 0 = Monday ... 6 = Sunday (7 buckets). The buckets run in calendar weekday order, not oldest first: the window is the last 7 times 24 hours, so the weekday of today is the sum of the incomplete day a week ago and the incomplete day today. |
+| `30d` | week of the window from 1: `1 + floor((t - from) / 7 days)`; the last one may be partial. |
+| `season` | calendar month in UTC, 0 = January; the months from the start of the window to now. |
+
+Answers to a hidden question still count in `activity` (they were written, and the question may be shown again), but not in `topMembers` and the unanswered figures, which look at visible questions and visible answers only.
+
+### Approximation of the change
+
+`unansweredOver24h.change` is counted with the current hiding flags and the current answers set, applying the rule at the start of the window (a question at least 24 hours old then, with no visible answer of somebody else created before then). A question or an answer hidden or restored since the window started shifts the past count, so the change is an approximation. The list `unanswered` does not depend on the period.
+
+### Nulls and what is not returned
+
+`firstAnswerMinutes.value` and `consultations.avgResponseMinutes` are `null` (not 0) when there is nothing to average; the admin shows a dash. There is no consultation rating: V20 stores no rating, so the response has no `avgRating`, and the admin shows a dash there.
+
+### For the admin web
+
+The admin's `CommunityStats` type (`apps/admin-web/src/shared/types/communityStats.ts`) maps like this.
+
+| Admin web | API |
+| --- | --- |
+| `period`, `questions`, `resolvedShare`, `unansweredOver24h`, `activity` | the same names and shapes. |
+| `firstAnswerMinutes.value`, `consultations.avgResponseMinutes` | `number` or `null` in the API; the admin type must allow `null`. |
+| `consultations.avgRating` | not in the API; the adapter sets `null`. |
+| `topMembers[].role` | `role`, `farmer` or `agrochemist`. |
+| `unanswered[].crop` | `cropCode`. |
+| `unanswered[].district` | `regionId`, resolved to a region name through `/api/regions` (a dash if unknown). |
+| `unanswered[].invitedAgrochemist` | not in the API yet (the invitation arrives in B12.5c). |
+
+### Known limits and debt
+
+- There are no indexes on `consultations(created_at)`, `consultations(closed_at)`, `consultations(accepted_at)` and `community_answers(created_at)`, so the statistics scan those tables sequentially. If the response gets slow, add the indexes in a separate migration (V27 or later).
+- `unansweredOver24h.value` and `unanswered` scan all visible questions older than 24 hours on every request, with no cache.
+- The admin adapter casts `cropCode` to `CropId` without checking it; the same debt is in `liveModeration`, `liveDiseases` and `liveCommunity`.
+
 ## Error codes
 
 | Status | `code` | When |
 | --- | --- | --- |
-| 400 | `validation_failed` | an unknown `status`, `targetType`, `reason`, `action` or visibility; `size` or `page` out of range; a comment over 500 characters; a malformed id or body. |
+| 400 | `validation_failed` | `period` of the statistics other than `7d`, `30d`, `season`; an unknown `status`, `targetType`, `reason`, `action` or visibility; `size` or `page` out of range; a comment over 500 characters; a malformed id or body. |
 | 401, 403 | general | no or invalid token; not an administrator. |
 | 403 | `admin_status_locked` | `block` and the author is an administrator or the caller. |
 | 404 | `complaint_not_found` | no such case. |

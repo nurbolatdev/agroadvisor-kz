@@ -1,6 +1,7 @@
 import { httpClient } from '@/services/backend'
 import { API_MODE } from '@/services/config'
 import { createLiveAiQuality } from '@/services/liveAiQuality'
+import { createLiveCommunity } from '@/services/liveCommunity'
 import { createLiveDashboard } from '@/services/liveDashboard'
 import { createLiveDiseases } from '@/services/liveDiseases'
 import { createLiveModeration } from '@/services/liveModeration'
@@ -121,11 +122,11 @@ export interface AdminApi {
 
 /**
  * In `live` mode the pages that already use the backend (agrochemist verification, diseases, users, AI quality,
- * shops, moderation, the dashboard numbers) go through the HTTP client; everything else is still served by the mock.
+ * shops, moderation, the community statistics, the dashboard numbers) go through the HTTP client; everything else is still served by the mock.
  */
 function createLiveApi(): AdminApi {
   const verification = createLiveVerification(httpClient, mockApi)
-  // One directory: the regions are read once for the shops and the moderation.
+  // One directory: the regions are read once for the shops, the moderation and the community.
   const regions = createRegionDirectory(httpClient)
   const shops = createLiveShops(httpClient, verification, regions)
   const moderation = createLiveModeration(httpClient, regions, shops)
@@ -140,6 +141,8 @@ function createLiveApi(): AdminApi {
     // the sidebar counters of the verification, the shops and the moderation are all live: each wraps the previous
     ...shops,
     ...moderation,
+    // the community statistics are live; inviting an agrochemist stays mock until its endpoint exists
+    ...createLiveCommunity(httpClient, regions),
   }
 }
 

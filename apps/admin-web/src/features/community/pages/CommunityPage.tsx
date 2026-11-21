@@ -68,7 +68,11 @@ export function CommunityPage() {
             <TopMembersCard stats={data} />
           </div>
           <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,592fr)_minmax(0,360fr)]">
-            <UnansweredCard questions={data.unanswered} onInvited={reload} />
+            <UnansweredCard
+              questions={data.unanswered}
+              total={data.unansweredOver24h.value}
+              onInvited={reload}
+            />
             <ConsultationsCard consultations={data.consultations} />
           </div>
         </div>
