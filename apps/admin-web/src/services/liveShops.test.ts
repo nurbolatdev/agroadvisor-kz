@@ -4,6 +4,7 @@ import i18n from '@/i18n'
 
 import { ApiError, type HttpClient } from './http'
 import { createLiveShops } from './liveShops'
+import { createRegionDirectory } from './liveRegions'
 
 const row = (id: string, extra: object = {}) => ({
   id,
@@ -61,7 +62,7 @@ function setup(routes: Record<string, unknown> = {}) {
   const base = {
     getSidebarCounters: async () => ({ newComplaints: 3, pendingVerifications: 4, newShopRequests: 99 }),
   }
-  return { live: createLiveShops(client, base), calls }
+  return { live: createLiveShops(client, base, createRegionDirectory(client)), calls }
 }
 
 describe('live shops', () => {
@@ -141,7 +142,11 @@ describe('live shops', () => {
         return REGIONS
       }),
     } as unknown as HttpClient
-    const live = createLiveShops(client, { getSidebarCounters: async () => ({} as never) })
+    const live = createLiveShops(
+      client,
+      { getSidebarCounters: async () => ({} as never) },
+      createRegionDirectory(client),
+    )
 
     await expect(live.getShopAreas()).rejects.toMatchObject({ status: 503 })
 

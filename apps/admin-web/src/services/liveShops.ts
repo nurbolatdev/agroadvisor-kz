@@ -1,6 +1,6 @@
 import type { AdminApi } from '@/services/api'
 import type { HttpClient } from '@/services/http'
-import { createRegionDirectory } from '@/services/liveRegions'
+import type { RegionDirectory } from '@/services/liveRegions'
 import type {
   Shop,
   ShopCategory,
@@ -70,8 +70,8 @@ type ShopsApi = Pick<
 export function createLiveShops(
   client: HttpClient,
   base: Pick<AdminApi, 'getSidebarCounters'>,
+  regions: RegionDirectory,
 ): ShopsApi {
-  const regions = createRegionDirectory(client)
   const regionIdByName = regions.idByName
 
   const toShop = (row: BackendShop): Shop => ({

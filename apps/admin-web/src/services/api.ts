@@ -125,8 +125,10 @@ export interface AdminApi {
  */
 function createLiveApi(): AdminApi {
   const verification = createLiveVerification(httpClient, mockApi)
-  const shops = createLiveShops(httpClient, verification)
-  const moderation = createLiveModeration(httpClient, createRegionDirectory(httpClient), shops)
+  // One directory: the regions are read once for the shops and the moderation.
+  const regions = createRegionDirectory(httpClient)
+  const shops = createLiveShops(httpClient, verification, regions)
+  const moderation = createLiveModeration(httpClient, regions, shops)
   return {
     ...mockApi,
     ...verification,
