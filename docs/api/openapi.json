@@ -591,6 +591,36 @@
         "required" : [ "changeMinutes" ],
         "type" : "object"
       },
+      "CommunityInvitation" : {
+        "properties" : {
+          "agrochemist" : {
+            "$ref" : "#/components/schemas/CommunityInvitationAgrochemist"
+          },
+          "invitedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "questionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "agrochemist", "invitedAt", "questionId" ],
+        "type" : "object"
+      },
+      "CommunityInvitationAgrochemist" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "name" ],
+        "type" : "object"
+      },
       "CommunityMember" : {
         "properties" : {
           "answers" : {
@@ -1831,6 +1861,17 @@
           }
         },
         "required" : [ "precipitationMm", "sprayOk", "temperatureC", "time", "windMs" ],
+        "type" : "object"
+      },
+      "InvitationRequest" : {
+        "properties" : {
+          "agrochemistId" : {
+            "description" : "A verified, active agrochemist",
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "agrochemistId" ],
         "type" : "object"
       },
       "LoginRequest" : {
@@ -3202,6 +3243,44 @@
         },
         "summary" : "Cases today, mean time to decide, decided this week, cases still new.",
         "tags" : [ "community-moderation-controller" ]
+      }
+    },
+    "/api/admin/community/questions/{id}/invitations" : {
+      "post" : {
+        "operationId" : "inviteAdminCommunityAgrochemist",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/InvitationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommunityInvitation"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Invites a verified, active agrochemist to a question and notifies them; repeating the same pair answers 200 with the first time and notifies nobody. 404 question_not_found (also a hidden question), 404 agrochemist_not_found, 409 agrochemist_not_verified.",
+        "tags" : [ "community-invitation-controller" ]
       }
     },
     "/api/admin/community/questions/{id}/photos/{photoId}" : {

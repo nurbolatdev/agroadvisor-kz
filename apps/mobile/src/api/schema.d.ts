@@ -190,6 +190,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/community/questions/{id}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invites a verified, active agrochemist to a question and notifies them; repeating the same pair answers 200 with the first time and notifies nobody. 404 question_not_found (also a hidden question), 404 agrochemist_not_found, 409 agrochemist_not_verified. */
+        post: operations["inviteAdminCommunityAgrochemist"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/community/questions/{id}/photos/{photoId}": {
         parameters: {
             query?: never;
@@ -1754,6 +1771,18 @@ export interface components {
              */
             value?: number | null;
         };
+        CommunityInvitation: {
+            agrochemist: components["schemas"]["CommunityInvitationAgrochemist"];
+            /** Format: date-time */
+            invitedAt: string;
+            /** Format: uuid */
+            questionId: string;
+        };
+        CommunityInvitationAgrochemist: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
         CommunityMember: {
             /** Format: int32 */
             answers: number;
@@ -2357,6 +2386,13 @@ export interface components {
             weatherCode?: number | null;
             /** Format: double */
             windMs: number;
+        };
+        InvitationRequest: {
+            /**
+             * Format: uuid
+             * @description A verified, active agrochemist
+             */
+            agrochemistId: string;
         };
         LoginRequest: {
             login: string;
@@ -3051,6 +3087,32 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CommunityModerationStats"];
+                };
+            };
+        };
+    };
+    inviteAdminCommunityAgrochemist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityInvitation"];
                 };
             };
         };
