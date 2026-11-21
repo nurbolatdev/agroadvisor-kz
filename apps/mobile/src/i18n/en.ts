@@ -401,6 +401,11 @@ export const en: Translation = {
         titleMany: 'New questions about your crops: {{count}}',
         body: 'Farmers are waiting for advice in the community',
       },
+      community_invitation: {
+        title: 'You are invited to answer a question',
+        titleMany: 'You are invited to answer a question',
+        body: 'An administrator asks you to help a farmer in the community',
+      },
     },
   },
   // the requests of farmers to an agrochemist (screens 22b, 23a)

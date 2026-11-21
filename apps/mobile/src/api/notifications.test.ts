@@ -104,6 +104,16 @@ describe('mock notifications', () => {
     expect(list.filter((n) => n.type === 'community_question')).toHaveLength(1)
   })
 
+  it('keeps one row per invited question', async () => {
+    const { api, controls } = make()
+    controls.push('community_invitation', { questionId: 'q1' })
+    controls.push('community_invitation', { questionId: 'q2' })
+
+    const list = await api.list()
+    expect(list.filter((n) => n.type === 'community_invitation')).toHaveLength(2)
+    expect(() => controls.push('community_invitation')).toThrow()
+  })
+
   it('refuses community notifications without the references they point to', () => {
     const { controls } = make()
 

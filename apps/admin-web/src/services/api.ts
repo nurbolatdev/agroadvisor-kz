@@ -33,7 +33,6 @@ import type {
   PostKind,
   StatsPeriod,
   TrainingSample,
-  UnansweredQuestion,
   User,
   UserRole,
   UserStatus,
@@ -86,7 +85,7 @@ export interface AdminApi {
   getTrainingSamples(): Promise<TrainingSample[]>
 
   getCommunityStats(period: StatsPeriod): Promise<CommunityStats>
-  inviteAgrochemist(questionId: string, agrochemistId: string): Promise<UnansweredQuestion>
+  inviteAgrochemist(questionId: string, agrochemistId: string): Promise<void>
 
   getModerationStats(): Promise<ModerationStats>
   getComplaints(filters?: ComplaintFilters): Promise<ComplaintDetails[]>
@@ -141,7 +140,7 @@ function createLiveApi(): AdminApi {
     // the sidebar counters of the verification, the shops and the moderation are all live: each wraps the previous
     ...shops,
     ...moderation,
-    // the community statistics are live; inviting an agrochemist stays mock until its endpoint exists
+    // the community statistics and the invitation of an agrochemist are live
     ...createLiveCommunity(httpClient, regions),
   }
 }

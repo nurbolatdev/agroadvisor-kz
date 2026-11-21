@@ -24,7 +24,13 @@ public class CommunityStatsRepository {
     public record QuestionTotals(int questions, int solved, Double avgFirstAnswerMinutes) {
     }
 
-    public record UnansweredQuestion(UUID id, String title, String cropCode, long regionId, Instant createdAt) {
+    /** The agrochemist most recently invited to a question. */
+    public record InvitedAgrochemist(UUID id, String name) {
+    }
+
+    /** {@code invited} is the latest invitation of the question, or null when nobody was invited. */
+    public record UnansweredQuestion(UUID id, String title, String cropCode, long regionId, Instant createdAt,
+            InvitedAgrochemist invited) {
     }
 
     /** How the activity of a window is cut into buckets; the value is the SQL expression over a timestamp column. */
@@ -164,14 +170,24 @@ public class CommunityStatsRepository {
     /** The unanswered questions of {@link #unansweredCount} at {@code now}, the oldest first, at most {@code limit}. */
     public List<UnansweredQuestion> unanswered(Instant now, int limit) {
         return jdbc.query("""
-                SELECT q.id, q.title, q.crop_code, q.region_id, q.created_at FROM community_questions q
+                SELECT q.id, q.title, q.crop_code, q.region_id, q.created_at,
+                       inv.agrochemist_id AS invited_id, inv.full_name AS invited_name
+                FROM community_questions q
+                LEFT JOIN LATERAL (
+                    SELECT i.agrochemist_id, u.full_name FROM community_invitations i
+                    JOIN users u ON u.id = i.agrochemist_id
+                    WHERE i.question_id = q.id
+                    ORDER BY i.created_at DESC, i.id DESC LIMIT 1) inv ON true
                 WHERE q.hidden_at IS NULL AND q.created_at < ?
                   AND NOT EXISTS (SELECT 1 FROM community_answers a
                                   WHERE a.question_id = q.id AND a.hidden_at IS NULL
                                     AND a.author_id <> q.author_id AND a.created_at < ?)
-                ORDER BY q.created_at, q.id LIMIT ?""", (rs, i) -> new UnansweredQuestion(
-                rs.getObject("id", UUID.class), rs.getString("title"), rs.getString("crop_code"),
-                rs.getLong("region_id"), rs.getTimestamp("created_at").toInstant()),
-                Timestamp.from(now.minus(UNANSWERED_AFTER)), Timestamp.from(now), limit);
+                ORDER BY q.created_at, q.id LIMIT ?""", (rs, i) -> {
+                    UUID invitedId = rs.getObject("invited_id", UUID.class);
+                    return new UnansweredQuestion(rs.getObject("id", UUID.class), rs.getString("title"),
+                            rs.getString("crop_code"), rs.getLong("region_id"),
+                            rs.getTimestamp("created_at").toInstant(),
+                            invitedId == null ? null : new InvitedAgrochemist(invitedId, rs.getString("invited_name")));
+                }, Timestamp.from(now.minus(UNANSWERED_AFTER)), Timestamp.from(now), limit);
     }
 }

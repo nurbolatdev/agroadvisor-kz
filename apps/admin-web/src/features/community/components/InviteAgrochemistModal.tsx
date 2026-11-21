@@ -5,7 +5,9 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Loader } from '@/components/ui/Loader'
 import { Modal } from '@/components/ui/Modal'
+import i18n from '@/i18n'
 import { api } from '@/services/api'
+import { ApiError, NetworkError } from '@/services/http'
 import { useApiQuery } from '@/shared/hooks/useApiQuery'
 import type { UnansweredQuestion } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
@@ -28,6 +30,16 @@ export function InviteAgrochemistModal({
   const [error, setError] = useState<string>()
   const { data: agrochemists } = useApiQuery(() => api.getAgrochemists({ status: 'approved' }), [])
 
+  // The backend codes are translated; the mock throws plain messages, which are shown as they are.
+  const inviteErrorText = (cause: unknown): string => {
+    if (cause instanceof NetworkError) return t('inviteModal.errors.network')
+    if (cause instanceof ApiError) {
+      const key = `inviteModal.errors.${cause.code}`
+      return i18n.exists(`community:${key}`) ? t(key as never) : t('inviteModal.error')
+    }
+    return cause instanceof Error ? cause.message : t('inviteModal.error')
+  }
+
   const invite = async () => {
     if (!question || !selectedId) return
     setIsSending(true)
@@ -36,7 +48,7 @@ export function InviteAgrochemistModal({
       await api.inviteAgrochemist(question.id, selectedId)
       onInvited()
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : t('inviteModal.error'))
+      setError(inviteErrorText(reason))
     } finally {
       setIsSending(false)
     }

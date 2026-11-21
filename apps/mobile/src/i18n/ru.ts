@@ -403,6 +403,11 @@ export const ru = {
         titleMany: 'Новые вопросы по вашим культурам: {{count}}',
         body: 'Фермеры ждут совета в сообществе',
       },
+      community_invitation: {
+        title: 'Вас приглашают ответить на вопрос',
+        titleMany: 'Вас приглашают ответить на вопрос',
+        body: 'Администратор просит вас помочь фермеру в сообществе',
+      },
     },
   },
   // the requests of farmers to an agrochemist (screens 22b, 23a)
