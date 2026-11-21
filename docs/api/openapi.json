@@ -418,6 +418,25 @@
         "required" : [ "code", "confidence" ],
         "type" : "object"
       },
+      "CommunityActivity" : {
+        "properties" : {
+          "answers" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "bucket" : {
+            "description" : "Weekday (0 = Monday) for 7d, week from 1 for 30d, month (0 = January) for the season",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "questions" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "answers", "bucket", "questions" ],
+        "type" : "object"
+      },
       "CommunityAnswer" : {
         "properties" : {
           "accepted" : {
@@ -515,6 +534,75 @@
         "required" : [ "author", "comments", "createdAt", "id", "reason", "reports", "status", "target" ],
         "type" : "object"
       },
+      "CommunityConsultations" : {
+        "properties" : {
+          "avgResponseMinutes" : {
+            "description" : "Mean minutes from request to acceptance over those accepted in the window; null when none was",
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
+          "closed" : {
+            "description" : "Closed in the window",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "requests" : {
+            "description" : "Requested in the window",
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "closed", "requests" ],
+        "type" : "object"
+      },
+      "CommunityCount" : {
+        "properties" : {
+          "changePercent" : {
+            "description" : "Percent against the previous window; 0 when it had none",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "value" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "changePercent", "value" ],
+        "type" : "object"
+      },
+      "CommunityFirstAnswer" : {
+        "properties" : {
+          "changeMinutes" : {
+            "description" : "Minutes against the previous window; 0 when either window has no value",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "value" : {
+            "description" : "Mean minutes from a question to the first visible answer of somebody else; null when no question of the window has one",
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "required" : [ "changeMinutes" ],
+        "type" : "object"
+      },
+      "CommunityMember" : {
+        "properties" : {
+          "answers" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "role" : {
+            "enum" : [ "farmer", "agrochemist" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "answers", "name", "role" ],
+        "type" : "object"
+      },
       "CommunityModerationStats" : {
         "properties" : {
           "avgResolutionMinutes" : {
@@ -605,6 +693,70 @@
         "required" : [ "answerCount", "authorExpert", "authorId", "authorName", "createdAt", "cropCode", "id", "mine", "photoUrls", "regionId", "status", "text", "title" ],
         "type" : "object"
       },
+      "CommunityShare" : {
+        "properties" : {
+          "changePoints" : {
+            "description" : "Percentage points against the previous window; 0 when either window had no questions",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "percent" : {
+            "description" : "0–100, whole numbers",
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "changePoints", "percent" ],
+        "type" : "object"
+      },
+      "CommunityStats" : {
+        "properties" : {
+          "activity" : {
+            "description" : "Every bucket of the window, zeros included",
+            "items" : {
+              "$ref" : "#/components/schemas/CommunityActivity"
+            },
+            "type" : "array"
+          },
+          "consultations" : {
+            "$ref" : "#/components/schemas/CommunityConsultations"
+          },
+          "firstAnswerMinutes" : {
+            "$ref" : "#/components/schemas/CommunityFirstAnswer"
+          },
+          "period" : {
+            "enum" : [ "7d", "30d", "season" ],
+            "type" : "string"
+          },
+          "questions" : {
+            "$ref" : "#/components/schemas/CommunityCount",
+            "description" : "Visible questions created in the window"
+          },
+          "resolvedShare" : {
+            "$ref" : "#/components/schemas/CommunityShare",
+            "description" : "Share of solved questions among the visible questions of the window"
+          },
+          "topMembers" : {
+            "description" : "Up to 4 members with the most visible answers in the window, admins left out",
+            "items" : {
+              "$ref" : "#/components/schemas/CommunityMember"
+            },
+            "type" : "array"
+          },
+          "unanswered" : {
+            "description" : "The oldest unanswered questions first, at most 50",
+            "items" : {
+              "$ref" : "#/components/schemas/CommunityUnanswered"
+            },
+            "type" : "array"
+          },
+          "unansweredOver24h" : {
+            "$ref" : "#/components/schemas/CommunityUnansweredTotal"
+          }
+        },
+        "required" : [ "activity", "consultations", "firstAnswerMinutes", "period", "questions", "resolvedShare", "topMembers", "unanswered", "unansweredOver24h" ],
+        "type" : "object"
+      },
       "CommunitySubscriptions" : {
         "properties" : {
           "crops" : {
@@ -616,6 +768,47 @@
           }
         },
         "required" : [ "crops" ],
+        "type" : "object"
+      },
+      "CommunityUnanswered" : {
+        "properties" : {
+          "cropCode" : {
+            "type" : "string"
+          },
+          "hoursWithoutAnswer" : {
+            "description" : "Whole hours since the question was created",
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "regionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "cropCode", "hoursWithoutAnswer", "id", "regionId", "title" ],
+        "type" : "object"
+      },
+      "CommunityUnansweredTotal" : {
+        "properties" : {
+          "change" : {
+            "description" : "Now minus the same count at the start of the window (an approximation: current hiding flags)",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "value" : {
+            "description" : "Visible questions older than 24 hours without a visible answer of somebody else, right now",
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "change", "value" ],
         "type" : "object"
       },
       "CommunityVote" : {
@@ -3073,6 +3266,35 @@
         },
         "summary" : "Hides a question from everyone or shows it again; repeating the status is not an error. 404 question_not_found.",
         "tags" : [ "community-moderation-controller" ]
+      }
+    },
+    "/api/admin/community/stats" : {
+      "get" : {
+        "operationId" : "getAdminCommunityStats",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "period",
+          "required" : false,
+          "schema" : {
+            "default" : "30d",
+            "pattern" : "7d|30d|season",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommunityStats"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Statistics of the community over a period: questions, time to the first answer, share of solved questions, questions without an answer for more than 24 hours (a count and a list), activity by bucket, the most active members and consultations. Changes are against the previous period of the same length.",
+        "tags" : [ "admin-community-stats-controller" ]
       }
     },
     "/api/admin/crops" : {
