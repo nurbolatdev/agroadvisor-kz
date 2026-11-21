@@ -71,6 +71,10 @@ approved once, in `V25`; the notification columns come later in `V26`.
   is deleted (the same debt as in consultations); the index on `photo_key` is ready for the cleanup.
 - Notifying subscribers inside the question transaction is simple but does not scale: above about 1000
   subscribers of one crop move to a batch insert or an outbox.
+- The push relay is synchronous and runs after the commit: with a real FCM provider, sending to N subscribers delays
+  the request of the question, so it needs `@Async` or an outbox.
+- A notification keeps the latest `questionId` and `answerId`; after moderation hides that question or answer, the
+  link leads to 404.
 - A blocked author keeps their other content visible; only the target of the case is hidden.
 - Not in B15: editing and deleting one's own questions and answers, photos in answers, votes on questions,
   `users.reputation`, a notice to the author about hiding, a push provider.

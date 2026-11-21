@@ -41,6 +41,10 @@ The community writes to the [notification feed](notifications.md#types) in the t
 
 Known debt: the rows for subscribers are written inside the transaction of the question. With more than about 1000 subscribers of one crop this should move to a batch insert or an outbox.
 
+Known debt: the push relay runs synchronously after the commit. With a real FCM provider, sending to N subscribers delays the request of the question, so it needs `@Async` or an outbox.
+
+Known debt: a notification keeps the latest `questionId` and `answerId`. After moderation hides that question or answer, opening it leads to 404.
+
 ## Photos
 
 A question has 0 to 3 photos (JPEG or PNG, up to 10 MB each). They travel in the same multipart request as the question, so the whole request is limited to 11 MB (the app already compresses photos). The type is read from the first bytes, the `Content-Type` of the part is not trusted. The metadata (GPS, camera data) is removed before the photo is stored; the orientation is kept. Photos are stored under the key prefix `community/<questionId>/`.
