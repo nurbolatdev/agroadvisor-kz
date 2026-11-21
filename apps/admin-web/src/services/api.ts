@@ -133,7 +133,7 @@ function createLiveApi(): AdminApi {
     ...createLiveDiseases(httpClient),
     ...createLiveUsers(httpClient),
     ...createLiveAiQuality(httpClient),
-    // complaints, the funnel and the time to first advice stay mock: no backend source yet
+    // the funnel and the time to first advice stay mock: no backend source yet
     ...createLiveDashboard(httpClient, mockApi),
     // the sidebar counters of the verification, the shops and the moderation are all live: each wraps the previous
     ...shops,
