@@ -1,15 +1,21 @@
 import { useTranslation } from 'react-i18next'
-import { api } from '@/services/api'
-import { useApiQuery } from '@/shared/hooks/useApiQuery'
+import type { ModerationStats } from '@/shared/types'
 import { formatDuration, formatNumber } from '@/shared/utils/format'
 
-export function ModerationKpis() {
+interface ModerationKpisProps {
+  stats: ModerationStats | undefined
+}
+
+export function ModerationKpis({ stats: data }: ModerationKpisProps) {
   const { t } = useTranslation('moderation', { keyPrefix: 'kpi' })
-  const { data } = useApiQuery(() => api.getModerationStats(), [])
 
   const items = [
     { label: t('today'), value: data && formatNumber(data.complaintsToday) },
-    { label: t('avgResolution'), value: data && formatDuration(data.avgResolutionMinutes) },
+    {
+      label: t('avgResolution'),
+      value:
+        data && (data.avgResolutionMinutes === null ? '—' : formatDuration(data.avgResolutionMinutes)),
+    },
     { label: t('resolvedWeek'), value: data && formatNumber(data.resolvedThisWeek) },
   ]
 

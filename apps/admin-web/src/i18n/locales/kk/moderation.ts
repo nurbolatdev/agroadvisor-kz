@@ -45,6 +45,7 @@ const moderation: Translation<typeof ru> = {
     back: 'Тізімге',
     selectTitle: 'Шағымды таңдаңыз',
     selectDescription: 'Шағым мәліметтері мен әрекеттер осында шығады.',
+    stale: 'Шағым бұрын шешілген. Тізім жаңартылды.',
   },
   reports_one: '{{count}} шағым',
   reports_other: '{{count}} шағым',
@@ -59,9 +60,7 @@ const moderation: Translation<typeof ru> = {
     onPlatform: 'Платформада {{since}}',
     posts_one: '{{count}} жарияланым',
     posts_other: '{{count}} жарияланым',
-    warnings_one: '{{count}} ескерту',
-    warnings_other: '{{count}} ескерту',
-    noWarnings: 'Ескертусіз',
+    hiddenPosts: 'Модератор жасырған: {{count}}',
     blocked: 'Бұғатталған',
   },
   actions: {
@@ -79,6 +78,8 @@ const moderation: Translation<typeof ru> = {
       block: 'Жарияланым жасырылды, автор бұғатталды',
     },
     keep: 'Қалдыру',
+    start: 'Жұмысқа алу',
+    starting: 'Жұмысқа алынуда…',
     saving: 'Сақталуда…',
     hide: {
       post: 'Жасыру',

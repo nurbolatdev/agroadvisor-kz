@@ -15,11 +15,12 @@ const body = {
   newUsers: [{ bucket: 1, farmers: 4, agrochemists: 1 }],
 }
 
+const moderation = { complaintsToday: 4, avgResolutionMinutes: null, resolvedThisWeek: 9, newComplaints: 6 }
+
 function setup(answer: unknown | Error) {
-  const request = vi.fn(async (...args: unknown[]) => {
-    void args
+  const request = vi.fn(async (path: string) => {
     if (answer instanceof Error) throw answer
-    return answer
+    return path === '/api/admin/community/moderation-stats' ? moderation : answer
   })
   return { live: createLiveDashboard({ request } as unknown as HttpClient, mockApi), request }
 }
@@ -48,7 +49,7 @@ describe('live dashboard', () => {
     expect(stats.diagnosesByDay).toEqual(body.diagnosesByDay)
     expect(stats.newUsers).toEqual(body.newUsers)
     expect(stats.funnel).toEqual(mock.funnel)
-    expect(stats.openComplaints).toEqual(mock.openComplaints)
+    expect(stats.openComplaints).toEqual({ value: 6, changeToday: 4 })
     expect(stats.avgMinutesToFirstAdvice).toBe(mock.avgMinutesToFirstAdvice)
   })
 

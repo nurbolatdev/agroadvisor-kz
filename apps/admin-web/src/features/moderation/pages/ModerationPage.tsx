@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { LoadError } from '@/components/ui/LoadError'
 import { Loader } from '@/components/ui/Loader'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
@@ -21,41 +22,65 @@ import { cn } from '@/shared/utils/cn'
 import { notifyDataChanged } from '@/shared/utils/dataEvents'
 
 export function ModerationPage() {
-  const { t } = useTranslation('moderation')
+  const { t, i18n } = useTranslation('moderation')
   const [filters, setFilters] = useState<ComplaintFilterValue>({ status: 'new' })
   const [selectedId, setSelectedId] = useState<string>()
   // Below 1024 px the list and the details are separate screens (section 5a).
   const [showDetailsOnMobile, setShowDetailsOnMobile] = useState(false)
-  const { data: complaints, reload } = useApiQuery(
-    () => api.getComplaints({ kind: filters.kind, reason: filters.reason }),
-    [filters.kind, filters.reason],
+  // Another moderator resolved the open case: the notice outlives the reload that removes the case.
+  const [stale, setStale] = useState(false)
+  const {
+    data: complaints,
+    error,
+    isLoading,
+    reload: reloadComplaints,
+  } = useApiQuery(
+    () => api.getComplaints({ status: filters.status, kind: filters.kind, reason: filters.reason }),
+    // The backend localizes the texts of the posts it returns, so a language switch loads the list again.
+    [filters.status, filters.kind, filters.reason, i18n.language],
   )
+  const { data: stats, reload: reloadStats } = useApiQuery(() => api.getModerationStats(), [])
+  const reload = () => {
+    reloadComplaints()
+    reloadStats()
+  }
 
-  const visible = complaints?.filter((item) => item.status === filters.status) ?? []
-  const newCount = complaints?.filter((item) => item.status === 'new').length ?? 0
+  const visible = complaints ?? []
+  const newCount = stats?.newComplaints ?? 0
   const pages = usePagination(visible)
   // The first complaint of the page is open by default, as in the mockup.
   const selected = pages.pageItems.find((item) => item.id === selectedId) ?? pages.pageItems[0]
 
   return (
     <>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} actions={<ModerationKpis />} />
+      <PageHeader title={t('title')} subtitle={t('subtitle')} actions={<ModerationKpis stats={stats} />} />
       <ComplaintFilters
         value={filters}
         onChange={(value) => {
           setFilters(value)
+          setStale(false)
           pages.resetPage()
           setShowDetailsOnMobile(false)
         }}
         newCount={newCount}
       />
 
+      {stale ? (
+        <p role="alert" className="mt-4 rounded-2xl bg-primary-soft p-4 text-small text-primary-dark">
+          {t('list.stale')}
+        </p>
+      ) : null}
+
       <div className="mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,400fr)_minmax(0,552fr)]">
         <section
           aria-label={t('list.label')}
           className={cn('flex flex-col gap-3', showDetailsOnMobile && 'hidden lg:flex')}
         >
-          {!complaints ? (
+          {error ? (
+            <Card>
+              <LoadError onRetry={reloadComplaints} />
+            </Card>
+          ) : isLoading ? (
             <Loader />
           ) : visible.length === 0 ? (
             <Card>
@@ -72,6 +97,7 @@ export function ModerationPage() {
                 complaint={complaint}
                 selected={complaint.id === selected?.id}
                 onSelect={() => {
+                  setStale(false)
                   setSelectedId(complaint.id)
                   setShowDetailsOnMobile(true)
                 }}
@@ -96,13 +122,26 @@ export function ModerationPage() {
           >
             {t('list.back')}
           </Button>
-          {selected ? (
+          {selected && !error && !isLoading ? (
             <ComplaintDetailsPanel
               complaint={selected}
               onResolved={() => {
                 reload()
                 notifyDataChanged()
                 setShowDetailsOnMobile(false)
+              }}
+              onStarted={(id) => {
+                // The case moves to the "in work" tab and stays open there.
+                setFilters((current) => ({ ...current, status: 'in_progress' }))
+                setSelectedId(id)
+                pages.resetPage()
+                reload()
+                notifyDataChanged()
+              }}
+              onStale={() => {
+                setStale(true)
+                reload()
+                notifyDataChanged()
               }}
             />
           ) : (

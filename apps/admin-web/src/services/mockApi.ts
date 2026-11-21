@@ -7,7 +7,7 @@ import { mockShopRequests } from '@/mocks/shopRequests'
 import { mockShops, mockShopStatsBase } from '@/mocks/shops'
 import { mockModerationStats, mockOverviewStats, mockVerificationStats } from '@/mocks/stats'
 import { mockUsers } from '@/mocks/users'
-import type { AdminApi, ComplaintDetails } from '@/services/api'
+import type { AdminApi, ComplaintAuthor, ComplaintDetails } from '@/services/api'
 import { SHOP_DISTRICTS } from '@/shared/constants/districts'
 import type { Complaint } from '@/shared/types'
 
@@ -39,7 +39,17 @@ const mainReason = (complaint: Complaint) =>
 
 const withDetails = (complaint: Complaint): ComplaintDetails => {
   const post = db.posts.find((item) => item.id === complaint.postId)!
-  const author = db.users.find((item) => item.id === post.authorId)!
+  const user = db.users.find((item) => item.id === post.authorId)!
+  const author: ComplaintAuthor = {
+    id: user.id,
+    name: user.name,
+    role: user.role,
+    status: user.status,
+    expert: user.role === 'agrochemist',
+    hiddenCount: db.posts.filter((item) => item.authorId === user.id && item.hidden).length,
+    registeredAt: user.registeredAt,
+    postsCount: user.postsCount,
+  }
   return { ...complaint, post, author }
 }
 
@@ -93,7 +103,8 @@ export const mockApi: AdminApi = {
     return respond(question)
   },
 
-  getModerationStats: () => respond(mockModerationStats),
+  getModerationStats: () =>
+    respond({ ...mockModerationStats, newComplaints: countNewComplaints() }),
 
   getComplaints: (filters = {}) =>
     respond(
@@ -111,9 +122,20 @@ export const mockApi: AdminApi = {
 
     complaint.status = 'resolved'
     complaint.resolution = { action, comment, resolvedAt: new Date().toISOString() }
-    const details = withDetails(complaint)
-    if (action !== 'keep') details.post.hidden = true
-    if (action === 'block') details.author.status = 'blocked'
+    const post = db.posts.find((item) => item.id === complaint.postId)!
+    if (action !== 'keep') post.hidden = true
+    if (action === 'block') {
+      const author = db.users.find((item) => item.id === post.authorId)!
+      author.status = 'blocked'
+    }
+    return respond(withDetails(complaint))
+  },
+
+  startComplaint: (id) => {
+    const complaint = db.complaints.find((item) => item.id === id)
+    if (!complaint) return fail('Жалоба не найдена')
+    if (complaint.status === 'resolved') return fail('Жалоба уже решена')
+    complaint.status = 'in_progress'
     return respond(withDetails(complaint))
   },
 

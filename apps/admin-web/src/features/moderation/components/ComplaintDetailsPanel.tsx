@@ -11,9 +11,16 @@ import { formatDayAndTime, formatSince } from '@/shared/utils/format'
 interface ComplaintDetailsPanelProps {
   complaint: ComplaintDetails
   onResolved: () => void
+  onStarted: (id: string) => void
+  onStale: () => void
 }
 
-export function ComplaintDetailsPanel({ complaint, onResolved }: ComplaintDetailsPanelProps) {
+export function ComplaintDetailsPanel({
+  complaint,
+  onResolved,
+  onStarted,
+  onStale,
+}: ComplaintDetailsPanelProps) {
   const { post, author } = complaint
   const { t } = useTranslation(['moderation', 'common'])
   const reason = mainReason(complaint)
@@ -33,8 +40,8 @@ export function ComplaintDetailsPanel({ complaint, onResolved }: ComplaintDetail
           <div className="min-w-0">
             <p className="text-small font-semibold text-text">{author.name}</p>
             <p className="text-caption font-normal text-text-muted">
-              {t(`common:crops.${post.crop}`)} · {post.district} ·{' '}
-              {formatDayAndTime(post.createdAt)}
+              {t(`common:crops.${post.crop}`)} · {post.district}
+              {post.createdAt ? ` · ${formatDayAndTime(post.createdAt)}` : null}
             </p>
           </div>
           {post.hidden ? (
@@ -61,12 +68,14 @@ export function ComplaintDetailsPanel({ complaint, onResolved }: ComplaintDetail
         <section>
           <h3 className="mb-2 text-small text-text-muted">{t('details.history')}</h3>
           <ul className="flex flex-col gap-1 text-body text-text">
-            <li>{t('details.onPlatform', { since: formatSince(author.registeredAt) })}</li>
-            <li>{t('details.posts', { count: author.postsCount ?? 0 })}</li>
-            <li className={author.warningsCount > 0 ? 'text-danger' : undefined}>
-              {author.warningsCount > 0
-                ? t('details.warnings', { count: author.warningsCount })
-                : t('details.noWarnings')}
+            {author.registeredAt ? (
+              <li>{t('details.onPlatform', { since: formatSince(author.registeredAt) })}</li>
+            ) : null}
+            {author.postsCount !== undefined ? (
+              <li>{t('details.posts', { count: author.postsCount })}</li>
+            ) : null}
+            <li className={author.hiddenCount > 0 ? 'text-danger' : undefined}>
+              {t('details.hiddenPosts', { count: author.hiddenCount })}
             </li>
             {author.status === 'blocked' ? (
               <li className="text-danger">{t('details.blocked')}</li>
@@ -75,7 +84,13 @@ export function ComplaintDetailsPanel({ complaint, onResolved }: ComplaintDetail
         </section>
       </div>
 
-      <ComplaintActions key={complaint.id} complaint={complaint} onResolved={onResolved} />
+      <ComplaintActions
+        key={complaint.id}
+        complaint={complaint}
+        onResolved={onResolved}
+        onStarted={onStarted}
+        onStale={onStale}
+      />
     </Card>
   )
 }
