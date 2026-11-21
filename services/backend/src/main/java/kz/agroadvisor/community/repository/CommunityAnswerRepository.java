@@ -93,6 +93,16 @@ public class CommunityAnswerRepository {
      * the choice. Hiding twice keeps the first time and admin.
      */
     public Optional<UUID> setHidden(UUID answerId, UUID adminId, boolean hidden) {
+        if (hidden) {
+            // the question is locked first, as when the best answer is chosen, so choosing and hiding cannot cross
+            List<UUID> owner = jdbc.queryForList("SELECT question_id FROM community_answers WHERE id = ?",
+                    UUID.class, answerId);
+            if (owner.isEmpty()) {
+                return Optional.empty();
+            }
+            jdbc.queryForList("SELECT 1 FROM community_questions WHERE id = ? FOR UPDATE", Integer.class,
+                    owner.get(0));
+        }
         List<UUID> found = hidden
                 ? jdbc.queryForList("""
                         UPDATE community_answers SET hidden_at = COALESCE(hidden_at, now()),
