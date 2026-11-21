@@ -90,6 +90,20 @@ class CommunityEventsIntegrationTest {
     }
 
     @Test
+    void pickingTheSameAnswerAgainAfterClearingCollapsesIntoOneRow() {
+        Answer answer = answers.answer(helper, question, "Spray it");
+
+        answers.accept(author, question, answer.id());
+        answers.unaccept(author, question);
+        answers.accept(author, question, answer.id());
+
+        List<Notification> feed = feed(helper);
+        assertThat(feed).hasSize(1);
+        assertThat(feed.get(0).type()).isEqualTo(NotificationType.COMMUNITY_ANSWER_ACCEPTED);
+        assertThat(feed.get(0).count()).isEqualTo(2);
+    }
+
+    @Test
     void aNewQuestionNotifiesActiveSubscribersOfTheCropOnly() {
         UUID subscriber = user();
         UUID blocked = user();

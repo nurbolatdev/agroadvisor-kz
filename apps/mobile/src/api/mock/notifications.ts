@@ -78,6 +78,8 @@ export function createMockNotificationsApi({
             return n.diagnosisId === refs.diagnosisId
           case 'community_answer':
             return n.questionId === refs.questionId
+          case 'community_answer_accepted':
+            return n.answerId === refs.answerId
           case 'community_question':
             return true
           default:

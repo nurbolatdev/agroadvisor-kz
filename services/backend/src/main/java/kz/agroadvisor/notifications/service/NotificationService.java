@@ -70,8 +70,8 @@ public class NotificationService {
 
     /**
      * Adds a notification to the recipient's feed in the caller's transaction. Unread chat messages of one
-     * consultation, verdicts on one diagnosis, answers to one question and new questions of followed crops
-     * collapse into one row with a counter.
+     * consultation, verdicts on one diagnosis, answers to one question, repeated best-answer picks of one answer
+     * and new questions of followed crops collapse into one row with a counter.
      *
      * @throws IllegalArgumentException when the references do not fit the type
      */
@@ -138,6 +138,7 @@ public class NotificationService {
             case CONSULTATION_MESSAGE -> type.code() + ":" + refs.consultationId();
             case DIAGNOSIS_REVIEWED -> type.code() + ":" + refs.diagnosisId();
             case COMMUNITY_ANSWER -> type.code() + ":" + refs.questionId();
+            case COMMUNITY_ANSWER_ACCEPTED -> type.code() + ":" + refs.answerId();
             case COMMUNITY_QUESTION -> type.code();
             default -> null;
         };

@@ -79,7 +79,7 @@ describe('mock notifications', () => {
     expect(list.find((n) => n.diagnosisId === 'd1')?.count).toBe(2)
   })
 
-  it('collapses answers of one question and new questions, and keeps accepted answers apart', async () => {
+  it('collapses answers of one question, new questions and picks of one answer', async () => {
     const { api, controls } = make()
     controls.push('community_answer', { questionId: 'q1', answerId: 'a1' })
     const answers = controls.push('community_answer', { questionId: 'q1', answerId: 'a2' })
@@ -87,8 +87,13 @@ describe('mock notifications', () => {
     controls.push('community_question', { questionId: 'q3' })
     const questions = controls.push('community_question', { questionId: 'q4' })
     controls.push('community_answer_accepted', { questionId: 'q1', answerId: 'a1' })
-    controls.push('community_answer_accepted', { questionId: 'q1', answerId: 'a1' })
+    const accepted = controls.push('community_answer_accepted', {
+      questionId: 'q1',
+      answerId: 'a1',
+    })
+    controls.push('community_answer_accepted', { questionId: 'q1', answerId: 'a2' })
 
+    expect(accepted.count).toBe(2)
     expect(answers.count).toBe(2)
     expect(answers.answerId).toBe('a2')
     expect(questions.count).toBe(2)

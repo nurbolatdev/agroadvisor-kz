@@ -168,7 +168,7 @@ class NotificationServiceTest {
     }
 
     @Test
-    void acceptedAnswersDoNotCollapse() {
+    void acceptedAnswersCollapsePerAnswer() {
         UUID author = user();
         UUID answerAuthor = user();
         UUID question = question(author);
@@ -181,9 +181,16 @@ class NotificationServiceTest {
         tx.executeWithoutResult(status ->
                 service.notify(answerAuthor, NotificationType.COMMUNITY_ANSWER_ACCEPTED,
                         Refs.answer(question, second)));
+        tx.executeWithoutResult(status ->
+                service.notify(answerAuthor, NotificationType.COMMUNITY_ANSWER_ACCEPTED,
+                        Refs.answer(question, first)));
 
-        assertThat(service.list(answerAuthor, false, 0, 20)).hasSize(2)
-                .allSatisfy(n -> assertThat(n.count()).isEqualTo(1));
+        List<Notification> feed = service.list(answerAuthor, false, 0, 20);
+        assertThat(feed).hasSize(2);
+        assertThat(feed).filteredOn(n -> first.equals(n.answerId()))
+                .singleElement().satisfies(n -> assertThat(n.count()).isEqualTo(2));
+        assertThat(feed).filteredOn(n -> second.equals(n.answerId()))
+                .singleElement().satisfies(n -> assertThat(n.count()).isEqualTo(1));
     }
 
     @Test

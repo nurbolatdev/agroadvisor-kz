@@ -36,7 +36,7 @@ The community is shared: every reader sees every visible question and answer. A 
 The community writes to the [notification feed](notifications.md#types) in the transaction of the event:
 
 - a new answer: `community_answer` to the author of the question (not for an answer to one's own question);
-- a picked best answer: `community_answer_accepted` to the author of the answer (clearing the choice, repeating the same pick and picking one's own answer, which is refused anyway, send nothing);
+- a picked best answer: `community_answer_accepted` to the author of the answer (clearing the choice, repeating the same pick and picking one's own answer, which is refused anyway, send nothing; picking the same answer again after clearing the choice collapses into the unread row of that answer, `count` grows);
 - a new question: `community_question` to every user with an active account who follows its crop, except the author. Unread rows collapse into one with a counter.
 
 Known debt: the rows for subscribers are written inside the transaction of the question. With more than about 1000 subscribers of one crop this should move to a batch insert or an outbox.

@@ -54,6 +54,7 @@ Unread notifications of one recipient with the same key collapse into one row, s
 - `consultation_message` collapses per consultation: the row keeps the newest `messageId`, `count` grows, `updatedAt` moves.
 - `diagnosis_reviewed` collapses per diagnosis, so two verdicts on one diagnosis give one row with `count` 2.
 - `community_answer` collapses per question: the row keeps the newest `answerId`, `count` grows.
+- `community_answer_accepted` collapses per answer: picking, clearing and picking the same answer again while the first row is unread gives one row with `count` 2.
 - `community_question` collapses per recipient: one unread row holds the newest `questionId`, `count` is the number of new questions.
 - Other types never collapse.
 
