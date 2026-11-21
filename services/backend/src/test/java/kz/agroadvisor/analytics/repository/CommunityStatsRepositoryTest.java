@@ -201,6 +201,24 @@ class CommunityStatsRepositoryTest {
     }
 
     @Test
+    void anAnswerToAHiddenQuestionDoesNotCountForTheTop() {
+        Instant from = Instant.parse("2005-03-01T00:00:00Z");
+        Instant to = Instant.parse("2005-04-01T00:00:00Z");
+        Instant at = Instant.parse("2005-03-10T10:00:00Z");
+        UUID author = user();
+        UUID expert = user("Aaa expert", "agrochemist");
+        UUID hiddenQuestion = question(author, at, true);
+        UUID visibleQuestion = question(author, at, false);
+        answer(hiddenQuestion, expert, at, false);
+        answer(hiddenQuestion, expert, at.plusSeconds(60), false);
+        answer(visibleQuestion, expert, at, false);
+
+        List<TopAnswerer> top = stats.topAnswerers(from, to, 4);
+
+        assertThat(top).extracting(TopAnswerer::answers).containsExactly(1);
+    }
+
+    @Test
     void aDeclinedConsultationIsRequestedButNotClosed() {
         Instant from = Instant.parse("2006-01-01T00:00:00Z");
         Instant to = Instant.parse("2006-02-01T00:00:00Z");

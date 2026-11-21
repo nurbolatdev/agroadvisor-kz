@@ -123,7 +123,7 @@ Figures for the admin's community screen (B12.5). The operation is `getAdminComm
 | `resolvedShare` | `percent`: share of `solved` questions among the visible questions of the window, 0–100, whole number, 0 for an empty window; `changePoints`: percentage points against the previous window, 0 when either window has no questions. |
 | `unansweredOver24h` | `value`: visible questions older than 24 hours that have no visible answer of somebody else, right now (not limited to the window); `change`: this number minus the same count at the start of the window. |
 | `activity` | questions (visible, created in the window) and answers (visible, created in the window) per bucket, oldest first, every bucket present with zeros. Fields: `bucket`, `questions`, `answers`. |
-| `topMembers` | up to 4 members with the most visible answers in the window, admins left out, ties by name. `name`, `role` (`agrochemist` when the user has that role, otherwise `farmer`), `answers`. |
+| `topMembers` | up to 4 members with the most visible answers to visible questions in the window, admins left out, ties by name. `name`, `role` (`agrochemist` when the user has that role, otherwise `farmer`), `answers`. |
 | `unanswered` | the questions counted by `unansweredOver24h.value`, the oldest first, at most 50 (so its length can be less than `value`). `id`, `title`, `cropCode`, `regionId`, `hoursWithoutAnswer` (whole hours since the question was created, rounded down). |
 | `consultations` | `requests`: consultations created in the window; `closed`: those with status `closed` whose `closed_at` is in the window; `avgResponseMinutes`: mean minutes from request to acceptance over those accepted in the window, `null` when none was. |
 
@@ -135,7 +135,7 @@ Figures for the admin's community screen (B12.5). The operation is `getAdminComm
 | `30d` | week of the window from 1: `1 + floor((t - from) / 7 days)`; the last one may be partial. |
 | `season` | calendar month in UTC, 0 = January; the months from the start of the window to now. |
 
-Answers to a hidden question still count in `activity` (they were written, and the question may be shown again), but not in `topMembers` and the unanswered figures, which look at visible answers only.
+Answers to a hidden question still count in `activity` (they were written, and the question may be shown again), but not in `topMembers` and the unanswered figures, which look at visible questions and visible answers only.
 
 ### Approximation of the change
 

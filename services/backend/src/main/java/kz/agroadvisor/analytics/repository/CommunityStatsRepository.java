@@ -107,7 +107,7 @@ public class CommunityStatsRepository {
     }
 
     /**
-     * The members with the most visible answers created in [from, to), admins left out, the most answers first and
+     * The members with the most visible answers to visible questions created in [from, to), admins left out, the most answers first and
      * by name on a tie. The role is "agrochemist" for an agrochemist, otherwise "farmer".
      */
     public List<TopAnswerer> topAnswerers(Instant from, Instant to, int limit) {
@@ -116,6 +116,7 @@ public class CommunityStatsRepository {
                        EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id = u.id
                                AND r.role_code = 'agrochemist') AS agrochemist
                 FROM community_answers a JOIN users u ON u.id = a.author_id
+                     JOIN community_questions q ON q.id = a.question_id AND q.hidden_at IS NULL
                 WHERE a.hidden_at IS NULL AND a.created_at >= ? AND a.created_at < ?
                   AND NOT EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id = u.id AND r.role_code = 'admin')
                 GROUP BY u.id, u.full_name
