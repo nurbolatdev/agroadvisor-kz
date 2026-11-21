@@ -122,7 +122,7 @@ Figures for the admin's community screen (B12.5). The operation is `getAdminComm
 | `firstAnswerMinutes` | `value`: mean minutes from a question of the window to its first visible answer of somebody else (the author's own answer does not count), whole minutes; `null` when no question of the window has such an answer. `changeMinutes`: current minus previous, 0 when either window has no value. |
 | `resolvedShare` | `percent`: share of `solved` questions among the visible questions of the window, 0–100, whole number, 0 for an empty window; `changePoints`: percentage points against the previous window, 0 when either window has no questions. |
 | `unansweredOver24h` | `value`: visible questions older than 24 hours that have no visible answer of somebody else, right now (not limited to the window); `change`: this number minus the same count at the start of the window. |
-| `activity` | questions (visible, created in the window) and answers (visible, created in the window) per bucket, oldest first, every bucket present with zeros. Fields: `bucket`, `questions`, `answers`. |
+| `activity` | questions (visible, created in the window) and answers (visible, created in the window) per bucket, in the bucket order of the table below (for `7d` the calendar weekday order, not oldest first), every bucket present with zeros. Fields: `bucket`, `questions`, `answers`. |
 | `topMembers` | up to 4 members with the most visible answers to visible questions in the window, admins left out, ties by name. `name`, `role` (`agrochemist` when the user has that role, otherwise `farmer`), `answers`. |
 | `unanswered` | the questions counted by `unansweredOver24h.value`, the oldest first, at most 50 (so its length can be less than `value`). `id`, `title`, `cropCode`, `regionId`, `hoursWithoutAnswer` (whole hours since the question was created, rounded down). |
 | `consultations` | `requests`: consultations created in the window; `closed`: those with status `closed` whose `closed_at` is in the window; `avgResponseMinutes`: mean minutes from request to acceptance over those accepted in the window, `null` when none was. |
@@ -131,7 +131,7 @@ Figures for the admin's community screen (B12.5). The operation is `getAdminComm
 
 | Period | Bucket |
 | --- | --- |
-| `7d` | weekday in UTC, 0 = Monday ... 6 = Sunday (7 buckets). |
+| `7d` | weekday in UTC, 0 = Monday ... 6 = Sunday (7 buckets). The buckets run in calendar weekday order, not oldest first: the window is the last 7 times 24 hours, so the weekday of today is the sum of the incomplete day a week ago and the incomplete day today. |
 | `30d` | week of the window from 1: `1 + floor((t - from) / 7 days)`; the last one may be partial. |
 | `season` | calendar month in UTC, 0 = January; the months from the start of the window to now. |
 
@@ -158,6 +158,12 @@ The admin's `CommunityStats` type (`apps/admin-web/src/shared/types/communitySta
 | `unanswered[].crop` | `cropCode`. |
 | `unanswered[].district` | `regionId`, resolved to a region name through `/api/regions` (a dash if unknown). |
 | `unanswered[].invitedAgrochemist` | not in the API yet (the invitation arrives in B12.5c). |
+
+### Known limits and debt
+
+- There are no indexes on `consultations(created_at)`, `consultations(closed_at)`, `consultations(accepted_at)` and `community_answers(created_at)`, so the statistics scan those tables sequentially. If the response gets slow, add the indexes in a separate migration (V27 or later).
+- `unansweredOver24h.value` and `unanswered` scan all visible questions older than 24 hours on every request, with no cache.
+- The admin adapter casts `cropCode` to `CropId` without checking it; the same debt is in `liveModeration`, `liveDiseases` and `liveCommunity`.
 
 ## Error codes
 
