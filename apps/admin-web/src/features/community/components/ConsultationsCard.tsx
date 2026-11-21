@@ -14,19 +14,25 @@ export function ConsultationsCard({ consultations }: ConsultationsCardProps) {
     { label: t('consultations.closed'), value: formatNumber(consultations.closed) },
     {
       label: t('consultations.avgResponse'),
-      value: formatDuration(consultations.avgResponseMinutes),
+      value:
+        consultations.avgResponseMinutes === null
+          ? '—'
+          : formatDuration(consultations.avgResponseMinutes),
     },
     {
       label: t('consultations.avgRating'),
-      value: (
-        <>
-          {formatNumber(consultations.avgRating)}{' '}
-          <span aria-hidden="true" className="text-warning">
-            ★
-          </span>
-          <span className="sr-only"> {t('outOf5')}</span>
-        </>
-      ),
+      value:
+        consultations.avgRating === null ? (
+          '—'
+        ) : (
+          <>
+            {formatNumber(consultations.avgRating)}{' '}
+            <span aria-hidden="true" className="text-warning">
+              ★
+            </span>
+            <span className="sr-only"> {t('outOf5')}</span>
+          </>
+        ),
     },
   ]
 
