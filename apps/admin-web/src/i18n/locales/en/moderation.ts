@@ -77,6 +77,8 @@ const moderation: Translation<typeof ru> = {
       block: 'Publication hidden, author blocked',
     },
     keep: 'Keep',
+    start: 'Take into work',
+    starting: 'Taking into work…',
     saving: 'Saving…',
     hide: {
       post: 'Hide post',

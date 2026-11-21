@@ -26,20 +26,25 @@ export function ModerationPage() {
   const [selectedId, setSelectedId] = useState<string>()
   // Below 1024 px the list and the details are separate screens (section 5a).
   const [showDetailsOnMobile, setShowDetailsOnMobile] = useState(false)
-  const { data: complaints, reload } = useApiQuery(
-    () => api.getComplaints({ kind: filters.kind, reason: filters.reason }),
-    [filters.kind, filters.reason],
+  const { data: complaints, reload: reloadComplaints } = useApiQuery(
+    () => api.getComplaints({ status: filters.status, kind: filters.kind, reason: filters.reason }),
+    [filters.status, filters.kind, filters.reason],
   )
+  const { data: stats, reload: reloadStats } = useApiQuery(() => api.getModerationStats(), [])
+  const reload = () => {
+    reloadComplaints()
+    reloadStats()
+  }
 
-  const visible = complaints?.filter((item) => item.status === filters.status) ?? []
-  const newCount = complaints?.filter((item) => item.status === 'new').length ?? 0
+  const visible = complaints ?? []
+  const newCount = stats?.newComplaints ?? 0
   const pages = usePagination(visible)
   // The first complaint of the page is open by default, as in the mockup.
   const selected = pages.pageItems.find((item) => item.id === selectedId) ?? pages.pageItems[0]
 
   return (
     <>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} actions={<ModerationKpis />} />
+      <PageHeader title={t('title')} subtitle={t('subtitle')} actions={<ModerationKpis stats={stats} />} />
       <ComplaintFilters
         value={filters}
         onChange={(value) => {
@@ -104,6 +109,15 @@ export function ModerationPage() {
                 notifyDataChanged()
                 setShowDetailsOnMobile(false)
               }}
+              onStarted={(id) => {
+                // The case moves to the "in work" tab and stays open there.
+                setFilters((current) => ({ ...current, status: 'in_progress' }))
+                setSelectedId(id)
+                pages.resetPage()
+                reload()
+                notifyDataChanged()
+              }}
+              onStale={reload}
             />
           ) : (
             <Card>

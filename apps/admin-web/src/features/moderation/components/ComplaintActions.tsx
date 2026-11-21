@@ -1,4 +1,4 @@
-import { Ban, Check, EyeOff } from 'lucide-react'
+import { Ban, Check, EyeOff, PlayCircle } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
@@ -6,21 +6,31 @@ import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { mainReason, REASON_ORDER } from '@/features/moderation/complaints'
 import { api, type ComplaintDetails } from '@/services/api'
+import { ApiError } from '@/services/http'
 import type { ComplaintReason, ModerationAction } from '@/shared/types'
 import { formatDayAndTime } from '@/shared/utils/format'
 
 interface ComplaintActionsProps {
   complaint: ComplaintDetails
   onResolved: () => void
+  onStarted: (id: string) => void
+  /** The case was already resolved elsewhere: the list must be loaded again. */
+  onStale: () => void
 }
 
-export function ComplaintActions({ complaint, onResolved }: ComplaintActionsProps) {
+export function ComplaintActions({
+  complaint,
+  onResolved,
+  onStarted,
+  onStale,
+}: ComplaintActionsProps) {
   const { t } = useTranslation(['moderation', 'common'])
   const [decision, setDecision] = useState<ComplaintReason>(mainReason(complaint))
   const decisionText = t(`actions.decisions.${decision}`)
   const [pending, setPending] = useState<ModerationAction>()
   const [error, setError] = useState<string>()
   const [confirmBlock, setConfirmBlock] = useState(false)
+  const [starting, setStarting] = useState(false)
 
   if (complaint.resolution) {
     const { action, comment, resolvedAt } = complaint.resolution
@@ -34,6 +44,12 @@ export function ComplaintActions({ complaint, onResolved }: ComplaintActionsProp
     )
   }
 
+  const fail = (reason: unknown) => {
+    // The backend localizes its messages; a resolved case also means the list is out of date.
+    setError(reason instanceof Error ? reason.message : t('actions.saveError'))
+    if (reason instanceof ApiError && reason.code === 'complaint_resolved') onStale()
+  }
+
   const resolve = async (action: ModerationAction) => {
     setConfirmBlock(false)
     setPending(action)
@@ -44,14 +60,39 @@ export function ComplaintActions({ complaint, onResolved }: ComplaintActionsProp
       await api.resolveComplaint(complaint.id, action, comment)
       onResolved()
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : t('actions.saveError'))
+      fail(reason)
     } finally {
       setPending(undefined)
     }
   }
 
+  const start = async () => {
+    setStarting(true)
+    setError(undefined)
+    try {
+      await api.startComplaint(complaint.id)
+      onStarted(complaint.id)
+    } catch (reason) {
+      fail(reason)
+    } finally {
+      setStarting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
+      {complaint.status === 'new' ? (
+        <Button
+          size="sm"
+          variant="secondary"
+          icon={PlayCircle}
+          className="self-start"
+          disabled={starting || pending !== undefined}
+          onClick={start}
+        >
+          {starting ? t('actions.starting') : t('actions.start')}
+        </Button>
+      ) : null}
       <Select
         label={t('actions.decisionLabel')}
         value={decision}

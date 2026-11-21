@@ -11,9 +11,16 @@ import { formatDayAndTime, formatSince } from '@/shared/utils/format'
 interface ComplaintDetailsPanelProps {
   complaint: ComplaintDetails
   onResolved: () => void
+  onStarted: (id: string) => void
+  onStale: () => void
 }
 
-export function ComplaintDetailsPanel({ complaint, onResolved }: ComplaintDetailsPanelProps) {
+export function ComplaintDetailsPanel({
+  complaint,
+  onResolved,
+  onStarted,
+  onStale,
+}: ComplaintDetailsPanelProps) {
   const { post, author } = complaint
   const { t } = useTranslation(['moderation', 'common'])
   const reason = mainReason(complaint)
@@ -77,7 +84,13 @@ export function ComplaintDetailsPanel({ complaint, onResolved }: ComplaintDetail
         </section>
       </div>
 
-      <ComplaintActions key={complaint.id} complaint={complaint} onResolved={onResolved} />
+      <ComplaintActions
+        key={complaint.id}
+        complaint={complaint}
+        onResolved={onResolved}
+        onStarted={onStarted}
+        onStale={onStale}
+      />
     </Card>
   )
 }

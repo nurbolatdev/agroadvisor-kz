@@ -77,6 +77,8 @@ const moderation: Translation<typeof ru> = {
       block: 'Жарияланым жасырылды, автор бұғатталды',
     },
     keep: 'Қалдыру',
+    start: 'Жұмысқа алу',
+    starting: 'Жұмысқа алынуда…',
     saving: 'Сақталуда…',
     hide: {
       post: 'Жасыру',
