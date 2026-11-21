@@ -43,6 +43,10 @@ Known debt: the rows for subscribers are written inside the transaction of the q
 
 Known debt: the push relay runs synchronously after the commit. With a real FCM provider, sending to N subscribers delays the request of the question, so it needs `@Async` or an outbox.
 
+Known debt: a `community_answer` row keeps the latest `answerId` and is deleted by the cascade together with that answer. Answers are only hidden today, not deleted; when deleting appears, revisit this.
+
+Known debt: a blocked author of a question or an answer still receives `community_answer` and `community_answer_accepted`.
+
 Known debt: a notification keeps the latest `questionId` and `answerId`. After moderation hides that question or answer, opening it leads to 404.
 
 ## Photos
