@@ -129,7 +129,7 @@ public class NotificationService {
             case VERIFICATION_APPROVED, VERIFICATION_REJECTED, VERIFICATION_DOCUMENTS_REQUESTED ->
                     noChat && noCommunity;
             case COMMUNITY_ANSWER, COMMUNITY_ANSWER_ACCEPTED -> noChat && question && answer;
-            case COMMUNITY_QUESTION -> noChat && question && !answer;
+            case COMMUNITY_QUESTION, COMMUNITY_INVITATION -> noChat && question && !answer;
         };
         if (!fits) {
             throw new IllegalArgumentException("References do not fit notification type " + type.code());

@@ -402,6 +402,11 @@ export const kk: Translation = {
         titleMany: 'Дақылдарыңыз бойынша жаңа сұрақтар: {{count}}',
         body: 'Фермерлер қауымдастықта кеңес күтуде',
       },
+      community_invitation: {
+        title: 'Сізді сұраққа жауап беруге шақырады',
+        titleMany: 'Сізді сұраққа жауап беруге шақырады',
+        body: 'Әкімші сізден қауымдастықта фермерге көмектесуді сұрайды',
+      },
     },
   },
   // the requests of farmers to an agrochemist (screens 22b, 23a); the kk texts wait for the proofreading (#88)

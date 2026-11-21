@@ -26,7 +26,9 @@ public enum NotificationType {
     /** The author of the question marked the answer as the best (to the author of the answer). */
     COMMUNITY_ANSWER_ACCEPTED("community_answer_accepted"),
     /** A new question of a followed crop (to the subscribers). */
-    COMMUNITY_QUESTION("community_question");
+    COMMUNITY_QUESTION("community_question"),
+    /** An administrator invited the agrochemist to answer a question (to the agrochemist). */
+    COMMUNITY_INVITATION("community_invitation");
 
     private final String code;
 

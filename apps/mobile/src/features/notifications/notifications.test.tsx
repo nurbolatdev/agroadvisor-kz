@@ -117,6 +117,7 @@ describe('targetOf', () => {
       'community_answer',
       'community_answer_accepted',
       'community_question',
+      'community_invitation',
     ] as const) {
       expect(targetOf(note({ type, questionId: 'q1', answerId: 'a1' }), false)).toEqual({
         kind: 'none',

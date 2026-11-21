@@ -2444,7 +2444,7 @@ export interface components {
             /** Format: date-time */
             readAt?: string | null;
             /** @enum {string} */
-            type: "consultation_requested" | "consultation_accepted" | "consultation_declined" | "consultation_closed" | "consultation_message" | "verification_approved" | "verification_rejected" | "verification_documents_requested" | "diagnosis_reviewed" | "community_answer" | "community_answer_accepted" | "community_question";
+            type: "consultation_requested" | "consultation_accepted" | "consultation_declined" | "consultation_closed" | "consultation_message" | "verification_approved" | "verification_rejected" | "verification_documents_requested" | "diagnosis_reviewed" | "community_answer" | "community_answer_accepted" | "community_question" | "community_invitation";
             /** Format: date-time */
             updatedAt: string;
         };

@@ -11,6 +11,7 @@ import {
   MessageSquareReply,
   ShieldCheck,
   TriangleAlert,
+  UserPlus,
   type LucideIcon,
 } from 'lucide-react-native'
 
@@ -66,6 +67,7 @@ const LOOKS: Record<NotificationType, NotificationLook> = {
     background: colors.primarySoft,
   },
   community_question: { icon: CircleQuestionMark, color: colors.info, background: colors.infoSoft },
+  community_invitation: { icon: UserPlus, color: colors.info, background: colors.infoSoft },
 }
 
 export function lookOf(type: NotificationType): NotificationLook {
@@ -112,6 +114,7 @@ export function targetOf(
     case 'community_answer':
     case 'community_answer_accepted':
     case 'community_question':
+    case 'community_invitation':
       // the community screens come with M16; until then there is nowhere to go
       return { kind: 'none' }
   }

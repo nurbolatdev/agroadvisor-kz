@@ -147,6 +147,38 @@ class NotificationServiceTest {
     }
 
     @Test
+    void invitationsRejectWrongReferences() {
+        UUID user = user();
+        UUID id = UUID.randomUUID();
+        for (Refs refs : List.of(Refs.none(), Refs.answer(id, id), Refs.diagnosis(id), Refs.consultation(id))) {
+            assertThatThrownBy(() -> tx.executeWithoutResult(status ->
+                    service.notify(user, NotificationType.COMMUNITY_INVITATION, refs)))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Test
+    void invitationsToDifferentQuestionsAreSeparateRows() {
+        UUID author = user();
+        UUID agrochemist = user();
+        UUID first = question(author);
+        UUID second = question(author);
+
+        tx.executeWithoutResult(status ->
+                service.notify(agrochemist, NotificationType.COMMUNITY_INVITATION, Refs.question(first)));
+        tx.executeWithoutResult(status ->
+                service.notify(agrochemist, NotificationType.COMMUNITY_INVITATION, Refs.question(second)));
+
+        assertThat(service.list(agrochemist, false, 0, 20)).hasSize(2)
+                .allSatisfy(n -> {
+                    assertThat(n.type()).isEqualTo(NotificationType.COMMUNITY_INVITATION);
+                    assertThat(n.count()).isEqualTo(1);
+                    assertThat(n.answerId()).isNull();
+                })
+                .extracting(n -> n.questionId()).containsExactlyInAnyOrder(first, second);
+    }
+
+    @Test
     void answersToOneQuestionCollapseUntilRead() {
         UUID author = user();
         UUID other = user();
