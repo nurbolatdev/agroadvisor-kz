@@ -1,6 +1,6 @@
 package kz.agroadvisor.notifications.model;
 
-/** What a notification is about; the wire code is lower case and matches the check constraint of V21. */
+/** What a notification is about; the wire code is lower case and matches the check constraint of V26. */
 public enum NotificationType {
 
     /** A farmer asked an agrochemist for a consultation (to the agrochemist). */
@@ -20,7 +20,13 @@ public enum NotificationType {
     /** The admin asked the agrochemist for more documents. */
     VERIFICATION_DOCUMENTS_REQUESTED("verification_documents_requested"),
     /** A reviewer gave a verdict on the farmer's diagnosis. */
-    DIAGNOSIS_REVIEWED("diagnosis_reviewed");
+    DIAGNOSIS_REVIEWED("diagnosis_reviewed"),
+    /** A new answer to the farmer's question (to the author of the question). */
+    COMMUNITY_ANSWER("community_answer"),
+    /** The author of the question marked the answer as the best (to the author of the answer). */
+    COMMUNITY_ANSWER_ACCEPTED("community_answer_accepted"),
+    /** A new question of a followed crop (to the subscribers). */
+    COMMUNITY_QUESTION("community_question");
 
     private final String code;
 

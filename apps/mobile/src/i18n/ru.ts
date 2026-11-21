@@ -388,6 +388,21 @@ export const ru = {
         titleMany: 'Диагноз проверен: вердиктов {{count}}',
         body: 'Агрохимик или администратор оставил вердикт',
       },
+      community_answer: {
+        title: 'Новый ответ на ваш вопрос',
+        titleMany: 'Новые ответы на ваш вопрос: {{count}}',
+        body: 'Ответ в сообществе',
+      },
+      community_answer_accepted: {
+        title: 'Ваш ответ признан лучшим',
+        titleMany: 'Ваш ответ признан лучшим',
+        body: 'Автор вопроса отметил ваш ответ как лучший',
+      },
+      community_question: {
+        title: 'Новый вопрос по вашей культуре',
+        titleMany: 'Новые вопросы по вашим культурам: {{count}}',
+        body: 'Фермеры ждут совета в сообществе',
+      },
     },
   },
   // the requests of farmers to an agrochemist (screens 22b, 23a)

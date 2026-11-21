@@ -12,11 +12,16 @@ public record NotificationResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UUID id,
         @Schema(allowableValues = {"consultation_requested", "consultation_accepted", "consultation_declined",
                 "consultation_closed", "consultation_message", "verification_approved",
-                "verification_rejected", "verification_documents_requested", "diagnosis_reviewed"},
+                "verification_rejected", "verification_documents_requested", "diagnosis_reviewed",
+                "community_answer", "community_answer_accepted", "community_question"},
                 requiredMode = Schema.RequiredMode.REQUIRED) String type,
         @Schema(nullable = true) UUID consultationId,
         @Schema(description = "The newest message for consultation_message", nullable = true) UUID messageId,
         @Schema(nullable = true) UUID diagnosisId,
+        @Schema(description = "The question of a community notification; the newest one for community_question",
+                nullable = true) UUID questionId,
+        @Schema(description = "The answer for community_answer (the newest) and community_answer_accepted",
+                nullable = true) UUID answerId,
         @Schema(description = "How many events were collapsed into this row",
                 requiredMode = Schema.RequiredMode.REQUIRED) int count,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Instant createdAt,
@@ -25,6 +30,6 @@ public record NotificationResponse(
 
     static NotificationResponse of(Notification n) {
         return new NotificationResponse(n.id(), n.type().code(), n.consultationId(), n.messageId(),
-                n.diagnosisId(), n.count(), n.createdAt(), n.updatedAt(), n.readAt());
+                n.diagnosisId(), n.questionId(), n.answerId(), n.count(), n.createdAt(), n.updatedAt(), n.readAt());
     }
 }

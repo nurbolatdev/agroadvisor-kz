@@ -29,22 +29,30 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationService {
 
     /** Ids a notification points to; build them with the factories. */
-    public record Refs(UUID consultationId, UUID messageId, UUID diagnosisId) {
+    public record Refs(UUID consultationId, UUID messageId, UUID diagnosisId, UUID questionId, UUID answerId) {
 
         public static Refs none() {
-            return new Refs(null, null, null);
+            return new Refs(null, null, null, null, null);
         }
 
         public static Refs consultation(UUID consultationId) {
-            return new Refs(consultationId, null, null);
+            return new Refs(consultationId, null, null, null, null);
         }
 
         public static Refs message(UUID consultationId, UUID messageId) {
-            return new Refs(consultationId, messageId, null);
+            return new Refs(consultationId, messageId, null, null, null);
         }
 
         public static Refs diagnosis(UUID diagnosisId) {
-            return new Refs(null, null, diagnosisId);
+            return new Refs(null, null, diagnosisId, null, null);
+        }
+
+        public static Refs question(UUID questionId) {
+            return new Refs(null, null, null, questionId, null);
+        }
+
+        public static Refs answer(UUID questionId, UUID answerId) {
+            return new Refs(null, null, null, questionId, answerId);
         }
     }
 
@@ -62,7 +70,8 @@ public class NotificationService {
 
     /**
      * Adds a notification to the recipient's feed in the caller's transaction. Unread chat messages of one
-     * consultation, and verdicts on one diagnosis, collapse into one row with a counter.
+     * consultation, verdicts on one diagnosis, answers to one question, repeated best-answer picks of one answer
+     * and new questions of followed crops collapse into one row with a counter.
      *
      * @throws IllegalArgumentException when the references do not fit the type
      */
@@ -70,10 +79,12 @@ public class NotificationService {
     public Notification notify(UUID recipientId, NotificationType type, Refs refs) {
         String collapseKey = checkAndKey(type, refs);
         Notification row = notifications.insertOrCollapse(recipientId, type,
-                new NotificationRepository.Refs(refs.consultationId(), refs.messageId(), refs.diagnosisId()),
+                new NotificationRepository.Refs(refs.consultationId(), refs.messageId(), refs.diagnosisId(),
+                        refs.questionId(), refs.answerId()),
                 collapseKey);
         events.publishEvent(new NotificationCreated(new PushMessage(row.id(), row.recipientId(),
-                row.type().code(), row.consultationId(), row.messageId(), row.diagnosisId(), row.count())));
+                row.type().code(), row.consultationId(), row.messageId(), row.diagnosisId(), row.questionId(),
+                row.answerId(), row.count())));
         return row;
     }
 
@@ -106,13 +117,19 @@ public class NotificationService {
         boolean consultation = refs.consultationId() != null;
         boolean message = refs.messageId() != null;
         boolean diagnosis = refs.diagnosisId() != null;
+        boolean question = refs.questionId() != null;
+        boolean answer = refs.answerId() != null;
+        boolean noChat = !consultation && !message && !diagnosis;
+        boolean noCommunity = !question && !answer;
         boolean fits = switch (type) {
             case CONSULTATION_REQUESTED, CONSULTATION_ACCEPTED, CONSULTATION_DECLINED, CONSULTATION_CLOSED ->
-                    consultation && !message && !diagnosis;
-            case CONSULTATION_MESSAGE -> consultation && message && !diagnosis;
-            case DIAGNOSIS_REVIEWED -> diagnosis && !consultation && !message;
+                    consultation && !message && !diagnosis && noCommunity;
+            case CONSULTATION_MESSAGE -> consultation && message && !diagnosis && noCommunity;
+            case DIAGNOSIS_REVIEWED -> diagnosis && !consultation && !message && noCommunity;
             case VERIFICATION_APPROVED, VERIFICATION_REJECTED, VERIFICATION_DOCUMENTS_REQUESTED ->
-                    !consultation && !message && !diagnosis;
+                    noChat && noCommunity;
+            case COMMUNITY_ANSWER, COMMUNITY_ANSWER_ACCEPTED -> noChat && question && answer;
+            case COMMUNITY_QUESTION -> noChat && question && !answer;
         };
         if (!fits) {
             throw new IllegalArgumentException("References do not fit notification type " + type.code());
@@ -120,6 +137,9 @@ public class NotificationService {
         return switch (type) {
             case CONSULTATION_MESSAGE -> type.code() + ":" + refs.consultationId();
             case DIAGNOSIS_REVIEWED -> type.code() + ":" + refs.diagnosisId();
+            case COMMUNITY_ANSWER -> type.code() + ":" + refs.questionId();
+            case COMMUNITY_ANSWER_ACCEPTED -> type.code() + ":" + refs.answerId();
+            case COMMUNITY_QUESTION -> type.code();
             default -> null;
         };
     }

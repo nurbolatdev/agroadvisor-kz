@@ -1765,6 +1765,11 @@
       },
       "NotificationResponse" : {
         "properties" : {
+          "answerId" : {
+            "description" : "The answer for community_answer (the newest) and community_answer_accepted",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
           "consultationId" : {
             "format" : "uuid",
             "type" : [ "string", "null" ]
@@ -1791,12 +1796,17 @@
             "format" : "uuid",
             "type" : [ "string", "null" ]
           },
+          "questionId" : {
+            "description" : "The question of a community notification; the newest one for community_question",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
           "readAt" : {
             "format" : "date-time",
             "type" : [ "string", "null" ]
           },
           "type" : {
-            "enum" : [ "consultation_requested", "consultation_accepted", "consultation_declined", "consultation_closed", "consultation_message", "verification_approved", "verification_rejected", "verification_documents_requested", "diagnosis_reviewed" ],
+            "enum" : [ "consultation_requested", "consultation_accepted", "consultation_declined", "consultation_closed", "consultation_message", "verification_approved", "verification_rejected", "verification_documents_requested", "diagnosis_reviewed", "community_answer", "community_answer_accepted", "community_question" ],
             "type" : "string"
           },
           "updatedAt" : {

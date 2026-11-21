@@ -112,9 +112,10 @@ class NotificationControllerIntegrationTest {
 
         mvc.perform(get("/api/notifications").header("Authorization", token(me)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].*", hasSize(9)))
+                .andExpect(jsonPath("$[0].*", hasSize(11)))
                 .andExpect(jsonPath("$[0].keys()", containsInAnyOrder("id", "type", "consultationId",
-                        "messageId", "diagnosisId", "count", "createdAt", "updatedAt", "readAt")))
+                        "messageId", "diagnosisId", "questionId", "answerId", "count", "createdAt", "updatedAt",
+                        "readAt")))
                 .andExpect(jsonPath("$[0].count").value(1));
     }
 

@@ -2281,6 +2281,11 @@ export interface components {
             confirmedName: string;
         };
         NotificationResponse: {
+            /**
+             * Format: uuid
+             * @description The answer for community_answer (the newest) and community_answer_accepted
+             */
+            answerId?: string | null;
             /** Format: uuid */
             consultationId?: string | null;
             /**
@@ -2299,10 +2304,15 @@ export interface components {
              * @description The newest message for consultation_message
              */
             messageId?: string | null;
+            /**
+             * Format: uuid
+             * @description The question of a community notification; the newest one for community_question
+             */
+            questionId?: string | null;
             /** Format: date-time */
             readAt?: string | null;
             /** @enum {string} */
-            type: "consultation_requested" | "consultation_accepted" | "consultation_declined" | "consultation_closed" | "consultation_message" | "verification_approved" | "verification_rejected" | "verification_documents_requested" | "diagnosis_reviewed";
+            type: "consultation_requested" | "consultation_accepted" | "consultation_declined" | "consultation_closed" | "consultation_message" | "verification_approved" | "verification_rejected" | "verification_documents_requested" | "diagnosis_reviewed" | "community_answer" | "community_answer_accepted" | "community_question";
             /** Format: date-time */
             updatedAt: string;
         };

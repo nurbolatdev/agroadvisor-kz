@@ -58,7 +58,10 @@ approved once, in `V25`; the notification columns come later in `V26`.
 - **Notifications (B15.3):** types `community_answer` (to the author of the question, collapsed per question),
   `community_answer_accepted` (to the author of the answer) and `community_question` (to the subscribers of the
   crop, one unread row per recipient). Subscribers are notified inside the transaction that creates the question,
-  through `NotificationService.notify`.
+  through `NotificationService.notify`. Known debt: a `community_answer` row keeps the latest `answer_id` and is
+  deleted by the cascade together with that answer; answers are only hidden today, so nothing is lost, but when
+  deleting answers appears this must be reconsidered. A blocked author of a question or an answer still receives
+  `community_answer` and `community_answer_accepted`.
 - **Border with B12.5:** B15 gives the moderation API (cases, hide and restore, moderation figures, the counter of
   new cases). The statistics page of the admin community, "no answer for more than 24 hours" and "invite an
   agrochemist" belong to B12.5.
@@ -71,6 +74,10 @@ approved once, in `V25`; the notification columns come later in `V26`.
   is deleted (the same debt as in consultations); the index on `photo_key` is ready for the cleanup.
 - Notifying subscribers inside the question transaction is simple but does not scale: above about 1000
   subscribers of one crop move to a batch insert or an outbox.
+- The push relay is synchronous and runs after the commit: with a real FCM provider, sending to N subscribers delays
+  the request of the question, so it needs `@Async` or an outbox.
+- A notification keeps the latest `questionId` and `answerId`; after moderation hides that question or answer, the
+  link leads to 404.
 - A blocked author keeps their other content visible; only the target of the case is hidden.
 - Not in B15: editing and deleting one's own questions and answers, photos in answers, votes on questions,
   `users.reputation`, a notice to the author about hiding, a push provider.

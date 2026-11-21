@@ -66,24 +66,39 @@ export function createMockNotificationsApi({
 
   const controls: MockNotificationsControls = {
     push: (type, refs = {}) => {
+      // like the backend: the community types need the references they point to
+      const needsQuestion = type.startsWith('community_')
+      const needsAnswer = type === 'community_answer' || type === 'community_answer_accepted'
+      if ((needsQuestion && !refs.questionId) || (needsAnswer && !refs.answerId)) {
+        throw new Error(`References do not fit notification type ${type}`)
+      }
       const at = stamp()
-      // like the backend: unread notifications of one chat (messages) or of one diagnosis (verdicts)
-      // collapse into one row that keeps the newest reference and counts the events
-      const collapsible = type === 'consultation_message' || type === 'diagnosis_reviewed'
-      const same = collapsible
-        ? items.find(
-            (n) =>
-              n.type === type &&
-              !n.readAt &&
-              (type === 'consultation_message'
-                ? n.consultationId === refs.consultationId
-                : n.diagnosisId === refs.diagnosisId),
-          )
-        : undefined
+      // like the backend: unread notifications of one chat (messages), of one diagnosis (verdicts), of one
+      // question (answers) or the new questions of followed crops collapse into one row that keeps the
+      // newest reference and counts the events
+      const sameTarget = (n: AppNotification): boolean => {
+        switch (type) {
+          case 'consultation_message':
+            return n.consultationId === refs.consultationId
+          case 'diagnosis_reviewed':
+            return n.diagnosisId === refs.diagnosisId
+          case 'community_answer':
+            return n.questionId === refs.questionId
+          case 'community_answer_accepted':
+            return n.answerId === refs.answerId
+          case 'community_question':
+            return true
+          default:
+            return false
+        }
+      }
+      const same = items.find((n) => n.type === type && !n.readAt && sameTarget(n))
       if (same) {
         same.count += 1
         same.updatedAt = at
         if (refs.messageId) same.messageId = refs.messageId
+        if (refs.questionId) same.questionId = refs.questionId
+        if (refs.answerId) same.answerId = refs.answerId
         return { ...same }
       }
       count += 1
@@ -93,6 +108,8 @@ export function createMockNotificationsApi({
         consultationId: null,
         messageId: null,
         diagnosisId: null,
+        questionId: null,
+        answerId: null,
         count: 1,
         createdAt: at,
         updatedAt: at,

@@ -35,9 +35,11 @@ public class CommunityAnswerService {
     private final RateLimiter rateLimiter;
     private final RateLimitProperties limits;
     private final TransactionTemplate tx;
+    private final CommunityEvents events;
 
     public CommunityAnswerService(CommunityQuestionRepository questions, CommunityAnswerRepository answers,
-            RateLimiter rateLimiter, RateLimitProperties limits, TransactionTemplate tx) {
+            RateLimiter rateLimiter, RateLimitProperties limits, TransactionTemplate tx, CommunityEvents events) {
+        this.events = events;
         this.questions = questions;
         this.answers = answers;
         this.rateLimiter = rateLimiter;
@@ -59,12 +61,14 @@ public class CommunityAnswerService {
         rateLimiter.check("community-answers", me.toString(), limits.communityAnswersPerHour(),
                 Duration.ofHours(1));
         UUID id = tx.execute(status -> {
-            lockVisible(questionId);
+            Question question = lockVisible(questionId);
             if (answers.count(questionId) >= MAX_ANSWERS) {
                 throw new ApiException(HttpStatus.CONFLICT, CommunityErrors.ANSWER_LIMIT,
                         "The question already has " + MAX_ANSWERS + " answers");
             }
-            return answers.insert(questionId, me, body);
+            UUID created = answers.insert(questionId, me, body);
+            events.answered(questionId, created, question.authorId(), me);
+            return created;
         });
         return answers.findVisible(questionId, id, me).orElseThrow(CommunityAnswerService::answerNotFound);
     }
@@ -88,6 +92,7 @@ public class CommunityAnswerService {
             }
             if (!answerId.equals(question.acceptedAnswerId())) {
                 answers.setAccepted(questionId, answerId);
+                events.accepted(questionId, answerId, answer.authorId(), me);
             }
         });
     }

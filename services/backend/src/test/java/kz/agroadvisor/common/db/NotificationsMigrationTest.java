@@ -16,7 +16,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
-/** The push token and notification tables (V21); each test rolls back its data. */
+/** The push token and notification tables (V21, V26); each test rolls back its data. */
 @SpringBootTest
 @ActiveProfiles("test")
 @Import(TestcontainersConfiguration.class)
@@ -78,6 +78,81 @@ class NotificationsMigrationTest {
         insertNotification(agrochemist, "consultation_requested", consultation, null, null, null);
         insertNotification(agrochemist, "verification_approved", null, null, null, null);
         insertNotification(farmer, "diagnosis_reviewed", null, null, diagnosis, null);
+    }
+
+    @Test
+    void communityReferencesMustMatchTheType() {
+        UUID author = insertUser("+77030000014");
+        UUID other = insertUser("+77030000015");
+        UUID question = jdbc.queryForObject("""
+                INSERT INTO community_questions (author_id, crop_code, region_id, title, body)
+                VALUES (?, 'potato', (SELECT min(id) FROM regions), 'Title', 'Body') RETURNING id
+                """, UUID.class, author);
+        UUID answer = jdbc.queryForObject(
+                "INSERT INTO community_answers (question_id, author_id, body) VALUES (?, ?, 'Answer') RETURNING id",
+                UUID.class, question, other);
+        UUID diagnosis = insertDiagnosis(author);
+
+        assertRejected(() -> insertCommunity(author, "community_answer", question, null));
+        assertRejected(() -> insertCommunity(author, "community_answer", null, answer));
+        assertRejected(() -> insertCommunity(other, "community_answer_accepted", question, null));
+        assertRejected(() -> insertCommunity(author, "community_question", null, null));
+        assertRejected(() -> insertCommunity(author, "community_question", question, answer));
+        assertRejected(() -> insertCommunity(author, "verification_approved", question, null));
+        assertRejected(() -> insertCommunity(author, "consultation_requested", question, null));
+        assertRejected(() -> jdbc.update("""
+                INSERT INTO notifications (recipient_id, type, diagnosis_id, question_id)
+                VALUES (?, 'community_question', ?, ?)
+                """, author, diagnosis, question));
+
+        insertCommunity(author, "community_answer", question, answer);
+        insertCommunity(other, "community_answer_accepted", question, answer);
+        insertCommunity(other, "community_question", question, null);
+
+        jdbc.update("DELETE FROM community_questions WHERE id = ?", question);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM notifications WHERE recipient_id IN (?, ?)", Integer.class, author, other))
+                .isZero();
+    }
+
+    @Test
+    void anAnswerOfAnotherQuestionIsRejected() {
+        UUID author = insertUser("+77030000018");
+        UUID other = insertUser("+77030000019");
+        UUID question = jdbc.queryForObject("""
+                INSERT INTO community_questions (author_id, crop_code, region_id, title, body)
+                VALUES (?, 'potato', (SELECT min(id) FROM regions), 'Title', 'Body') RETURNING id
+                """, UUID.class, author);
+        UUID otherQuestion = jdbc.queryForObject("""
+                INSERT INTO community_questions (author_id, crop_code, region_id, title, body)
+                VALUES (?, 'potato', (SELECT min(id) FROM regions), 'Title', 'Body') RETURNING id
+                """, UUID.class, author);
+        UUID answer = jdbc.queryForObject(
+                "INSERT INTO community_answers (question_id, author_id, body) VALUES (?, ?, 'Answer') RETURNING id",
+                UUID.class, otherQuestion, other);
+
+        assertRejected(() -> insertCommunity(author, "community_answer", question, answer));
+
+        insertCommunity(author, "community_answer", otherQuestion, answer);
+    }
+
+    @Test
+    void deletingAnAnswerDeletesItsNotifications() {
+        UUID author = insertUser("+77030000016");
+        UUID other = insertUser("+77030000017");
+        UUID question = jdbc.queryForObject("""
+                INSERT INTO community_questions (author_id, crop_code, region_id, title, body)
+                VALUES (?, 'potato', (SELECT min(id) FROM regions), 'Title', 'Body') RETURNING id
+                """, UUID.class, author);
+        UUID answer = jdbc.queryForObject(
+                "INSERT INTO community_answers (question_id, author_id, body) VALUES (?, ?, 'Answer') RETURNING id",
+                UUID.class, question, other);
+        insertCommunity(author, "community_answer", question, answer);
+
+        jdbc.update("DELETE FROM community_answers WHERE id = ?", answer);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM notifications WHERE recipient_id = ?",
+                Integer.class, author)).isZero();
     }
 
     @Test
@@ -162,7 +237,9 @@ class NotificationsMigrationTest {
                 "notifications_collapse_idx",
                 "notifications_consultation_idx",
                 "notifications_message_idx",
-                "notifications_diagnosis_idx");
+                "notifications_diagnosis_idx",
+                "notifications_question_idx",
+                "notifications_answer_idx");
     }
 
     @Test
@@ -190,6 +267,11 @@ class NotificationsMigrationTest {
                                            collapse_key)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """, recipient, type, consultation, message, diagnosis, collapseKey);
+    }
+
+    private void insertCommunity(UUID recipient, String type, UUID question, UUID answer) {
+        jdbc.update("INSERT INTO notifications (recipient_id, type, question_id, answer_id) VALUES (?, ?, ?, ?)",
+                recipient, type, question, answer);
     }
 
     private UUID insertConsultation(UUID farmer, UUID agrochemist) {

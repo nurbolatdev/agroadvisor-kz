@@ -23,6 +23,14 @@ public class CommunitySubscriptionRepository {
                 String.class, userId);
     }
 
+    /** Ids of the users with an active account subscribed to the crop, the given user excluded. */
+    public List<UUID> activeSubscribers(String cropCode, UUID except) {
+        return jdbc.queryForList("""
+                SELECT s.user_id FROM community_crop_subscriptions s JOIN users u ON u.id = s.user_id
+                WHERE s.crop_code = ? AND u.status = 'active' AND s.user_id <> ?
+                ORDER BY s.user_id""", UUID.class, cropCode, except);
+    }
+
     /** How many of the codes are crops of the catalogue. */
     public int countKnownCrops(List<String> codes) {
         Integer count = jdbc.queryForObject("SELECT count(*) FROM crops WHERE code = ANY (?)", Integer.class,

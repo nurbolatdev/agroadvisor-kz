@@ -79,6 +79,39 @@ describe('mock notifications', () => {
     expect(list.find((n) => n.diagnosisId === 'd1')?.count).toBe(2)
   })
 
+  it('collapses answers of one question, new questions and picks of one answer', async () => {
+    const { api, controls } = make()
+    controls.push('community_answer', { questionId: 'q1', answerId: 'a1' })
+    const answers = controls.push('community_answer', { questionId: 'q1', answerId: 'a2' })
+    controls.push('community_answer', { questionId: 'q2', answerId: 'a3' })
+    controls.push('community_question', { questionId: 'q3' })
+    const questions = controls.push('community_question', { questionId: 'q4' })
+    controls.push('community_answer_accepted', { questionId: 'q1', answerId: 'a1' })
+    const accepted = controls.push('community_answer_accepted', {
+      questionId: 'q1',
+      answerId: 'a1',
+    })
+    controls.push('community_answer_accepted', { questionId: 'q1', answerId: 'a2' })
+
+    expect(accepted.count).toBe(2)
+    expect(answers.count).toBe(2)
+    expect(answers.answerId).toBe('a2')
+    expect(questions.count).toBe(2)
+    expect(questions.questionId).toBe('q4')
+    const list = await api.list()
+    expect(list).toHaveLength(5)
+    expect(list.filter((n) => n.type === 'community_answer_accepted')).toHaveLength(2)
+    expect(list.filter((n) => n.type === 'community_question')).toHaveLength(1)
+  })
+
+  it('refuses community notifications without the references they point to', () => {
+    const { controls } = make()
+
+    expect(() => controls.push('community_question')).toThrow()
+    expect(() => controls.push('community_answer', { questionId: 'q1' })).toThrow()
+    expect(() => controls.push('community_answer_accepted', { answerId: 'a1' })).toThrow()
+  })
+
   it('starts a new row after the old one was read', async () => {
     const { api, controls } = make()
     const first = controls.push('consultation_message', { consultationId: 'c1', messageId: 'm1' })

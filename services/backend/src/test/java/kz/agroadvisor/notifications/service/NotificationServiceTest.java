@@ -115,6 +115,104 @@ class NotificationServiceTest {
     }
 
     @Test
+    void communityTypesRejectWrongReferences() {
+        UUID user = user();
+        UUID id = UUID.randomUUID();
+
+        for (NotificationType type : List.of(NotificationType.COMMUNITY_ANSWER,
+                NotificationType.COMMUNITY_ANSWER_ACCEPTED)) {
+            assertThatThrownBy(() -> tx.executeWithoutResult(status ->
+                    service.notify(user, type, Refs.none()))).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> tx.executeWithoutResult(status ->
+                    service.notify(user, type, Refs.question(id)))).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> tx.executeWithoutResult(status ->
+                    service.notify(user, type, Refs.consultation(id))))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+        assertThatThrownBy(() -> tx.executeWithoutResult(status ->
+                service.notify(user, NotificationType.COMMUNITY_QUESTION, Refs.none())))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> tx.executeWithoutResult(status ->
+                service.notify(user, NotificationType.COMMUNITY_QUESTION, Refs.answer(id, id))))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> tx.executeWithoutResult(status ->
+                service.notify(user, NotificationType.COMMUNITY_QUESTION, Refs.diagnosis(id))))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> tx.executeWithoutResult(status ->
+                service.notify(user, NotificationType.VERIFICATION_APPROVED, Refs.question(id))))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> tx.executeWithoutResult(status ->
+                service.notify(user, NotificationType.CONSULTATION_MESSAGE, Refs.answer(id, id))))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void answersToOneQuestionCollapseUntilRead() {
+        UUID author = user();
+        UUID other = user();
+        UUID question = question(author);
+        UUID first = answer(question, other);
+        UUID second = answer(question, other);
+
+        tx.executeWithoutResult(status ->
+                service.notify(author, NotificationType.COMMUNITY_ANSWER, Refs.answer(question, first)));
+        tx.executeWithoutResult(status ->
+                service.notify(author, NotificationType.COMMUNITY_ANSWER, Refs.answer(question, second)));
+
+        assertThat(service.list(author, false, 0, 20)).singleElement().satisfies(n -> {
+            assertThat(n.type()).isEqualTo(NotificationType.COMMUNITY_ANSWER);
+            assertThat(n.count()).isEqualTo(2);
+            assertThat(n.questionId()).isEqualTo(question);
+            assertThat(n.answerId()).isEqualTo(second);
+        });
+    }
+
+    @Test
+    void acceptedAnswersCollapsePerAnswer() {
+        UUID author = user();
+        UUID answerAuthor = user();
+        UUID question = question(author);
+        UUID first = answer(question, answerAuthor);
+        UUID second = answer(question, answerAuthor);
+
+        tx.executeWithoutResult(status ->
+                service.notify(answerAuthor, NotificationType.COMMUNITY_ANSWER_ACCEPTED,
+                        Refs.answer(question, first)));
+        tx.executeWithoutResult(status ->
+                service.notify(answerAuthor, NotificationType.COMMUNITY_ANSWER_ACCEPTED,
+                        Refs.answer(question, second)));
+        tx.executeWithoutResult(status ->
+                service.notify(answerAuthor, NotificationType.COMMUNITY_ANSWER_ACCEPTED,
+                        Refs.answer(question, first)));
+
+        List<Notification> feed = service.list(answerAuthor, false, 0, 20);
+        assertThat(feed).hasSize(2);
+        assertThat(feed).filteredOn(n -> first.equals(n.answerId()))
+                .singleElement().satisfies(n -> assertThat(n.count()).isEqualTo(2));
+        assertThat(feed).filteredOn(n -> second.equals(n.answerId()))
+                .singleElement().satisfies(n -> assertThat(n.count()).isEqualTo(1));
+    }
+
+    @Test
+    void newQuestionsCollapseIntoOneRowWithTheNewestQuestion() {
+        UUID author = user();
+        UUID subscriber = user();
+        UUID first = question(author);
+        UUID second = question(author);
+
+        tx.executeWithoutResult(status ->
+                service.notify(subscriber, NotificationType.COMMUNITY_QUESTION, Refs.question(first)));
+        tx.executeWithoutResult(status ->
+                service.notify(subscriber, NotificationType.COMMUNITY_QUESTION, Refs.question(second)));
+
+        assertThat(service.list(subscriber, false, 0, 20)).singleElement().satisfies(n -> {
+            assertThat(n.count()).isEqualTo(2);
+            assertThat(n.questionId()).isEqualTo(second);
+            assertThat(n.answerId()).isNull();
+        });
+    }
+
+    @Test
     void markReadOfSomeoneElsesOrMissingIdIsNotFound() {
         UUID owner = user();
         UUID stranger = user();
@@ -164,6 +262,19 @@ class NotificationServiceTest {
         return jdbc.queryForObject("""
                 INSERT INTO consultation_messages (consultation_id, sender_id, body) VALUES (?, ?, 'Hi')
                 RETURNING id""", UUID.class, consultation, sender);
+    }
+
+    private UUID question(UUID author) {
+        return jdbc.queryForObject("""
+                INSERT INTO community_questions (author_id, crop_code, region_id, title, body)
+                VALUES (?, 'potato', (SELECT min(id) FROM regions), 'Title', 'Body') RETURNING id""",
+                UUID.class, author);
+    }
+
+    private UUID answer(UUID question, UUID author) {
+        return jdbc.queryForObject(
+                "INSERT INTO community_answers (question_id, author_id, body) VALUES (?, ?, 'Answer') RETURNING id",
+                UUID.class, question, author);
     }
 
     private UUID user() {
