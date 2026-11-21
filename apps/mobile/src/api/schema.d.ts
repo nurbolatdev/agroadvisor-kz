@@ -708,6 +708,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/community/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Reports a visible question or answer of someone else; a repeat from the same user changes nothing. 400 validation_failed; 404 question_not_found or answer_not_found; 409 own_content; 429 rate_limited after 20 reports an hour. */
+        post: operations["reportCommunityContent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/community/subscriptions": {
         parameters: {
             query?: never;
@@ -1704,6 +1721,15 @@ export interface components {
             crop: string;
             location?: components["schemas"]["FieldPoint"];
             name: string;
+        };
+        CreateReportRequest: {
+            comment?: string;
+            /** @enum {string} */
+            reason: "ads" | "misinformation" | "spam" | "abuse";
+            /** Format: uuid */
+            targetId: string;
+            /** @enum {string} */
+            targetType: "question" | "answer";
         };
         CreateShopRequest: {
             /** @description What the farmer writes: the name and the address of a new shop, or what is wrong */
@@ -3858,6 +3884,28 @@ export interface operations {
                     "image/jpeg": string;
                     "image/png": string;
                 };
+            };
+        };
+    };
+    reportCommunityContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateReportRequest"];
+            };
+        };
+        responses: {
+            /** @description The report is accepted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

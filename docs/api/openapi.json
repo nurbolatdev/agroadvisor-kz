@@ -853,6 +853,27 @@
         "required" : [ "area", "areaUnit", "crop", "name" ],
         "type" : "object"
       },
+      "CreateReportRequest" : {
+        "properties" : {
+          "comment" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "enum" : [ "ads", "misinformation", "spam", "abuse" ],
+            "type" : "string"
+          },
+          "targetId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "targetType" : {
+            "enum" : [ "question", "answer" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "reason", "targetId", "targetType" ],
+        "type" : "object"
+      },
       "CreateShopRequest" : {
         "properties" : {
           "comment" : {
@@ -4491,6 +4512,28 @@
           }
         },
         "tags" : [ "community-question-controller" ]
+      }
+    },
+    "/api/community/reports" : {
+      "post" : {
+        "description" : "Reports a visible question or answer of someone else; a repeat from the same user changes nothing. 400 validation_failed; 404 question_not_found or answer_not_found; 409 own_content; 429 rate_limited after 20 reports an hour.",
+        "operationId" : "reportCommunityContent",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateReportRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "The report is accepted"
+          }
+        },
+        "tags" : [ "community-report-controller" ]
       }
     },
     "/api/community/subscriptions" : {
