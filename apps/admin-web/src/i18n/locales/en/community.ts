@@ -39,7 +39,6 @@ const community: Translation<typeof ru> = {
     hours: '{{hours}} h',
     invited: 'Agrochemist invited · {{name}}',
     invite: 'Invite an agrochemist',
-    inviteUnavailable: 'Not available yet',
   },
   inviteModal: {
     title: 'Invite an agrochemist',

@@ -24,11 +24,24 @@ describe('UnansweredCard in live mode', () => {
     await i18n.changeLanguage('en')
   })
 
-  it('disables the invitation until the backend has an endpoint for it', () => {
+  it('lets the admin invite an agrochemist', () => {
     render(<UnansweredCard questions={[question]} total={1} onInvited={vi.fn()} />)
 
     const button = screen.getByRole('button', { name: 'Invite an agrochemist' })
-    expect(button).toBeDisabled()
-    expect(button).toHaveAttribute('title', 'Not available yet')
+    expect(button).toBeEnabled()
+    expect(button).not.toHaveAttribute('title')
+  })
+
+  it('shows the invited agrochemist instead of the button', () => {
+    render(
+      <UnansweredCard
+        questions={[{ ...question, invitedAgrochemist: { id: 'a1', name: 'Erlan T.' } }]}
+        total={1}
+        onInvited={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Invite an agrochemist' })).toBeNull()
+    expect(screen.getByText(/Erlan T\./)).toBeTruthy()
   })
 })

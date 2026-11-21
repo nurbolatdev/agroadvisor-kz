@@ -39,7 +39,6 @@ const community: Translation<typeof ru> = {
     hours: '{{hours}} сағ',
     invited: 'Агрохимик шақырылды · {{name}}',
     invite: 'Агрохимикті шақыру',
-    inviteUnavailable: 'Әзірше қолжетімсіз',
   },
   inviteModal: {
     title: 'Агрохимикті шақыру',

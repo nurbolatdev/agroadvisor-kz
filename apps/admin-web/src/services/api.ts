@@ -141,7 +141,7 @@ function createLiveApi(): AdminApi {
     // the sidebar counters of the verification, the shops and the moderation are all live: each wraps the previous
     ...shops,
     ...moderation,
-    // the community statistics are live; inviting an agrochemist stays mock until its endpoint exists
+    // the community statistics and the invitation of an agrochemist are live
     ...createLiveCommunity(httpClient, regions),
   }
 }

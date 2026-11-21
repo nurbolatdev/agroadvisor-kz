@@ -38,7 +38,6 @@ const community = {
     hours: '{{hours}} ч',
     invited: 'Агрохимик приглашён · {{name}}',
     invite: 'Позвать агрохимика',
-    inviteUnavailable: 'Пока недоступно',
   },
   inviteModal: {
     title: 'Пригласить агрохимика',
