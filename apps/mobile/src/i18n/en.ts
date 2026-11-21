@@ -386,6 +386,21 @@ export const en: Translation = {
         titleMany: 'Diagnosis reviewed: {{count}} verdicts',
         body: 'An agrochemist or an administrator left a verdict',
       },
+      community_answer: {
+        title: 'New answer to your question',
+        titleMany: 'New answers to your question: {{count}}',
+        body: 'Open the question to read',
+      },
+      community_answer_accepted: {
+        title: 'Your answer is the best',
+        titleMany: 'Your answer is the best',
+        body: 'The author of the question marked your answer as the best',
+      },
+      community_question: {
+        title: 'New question about your crop',
+        titleMany: 'New questions about your crops: {{count}}',
+        body: 'Farmers are waiting for advice in the community',
+      },
     },
   },
   // the requests of farmers to an agrochemist (screens 22b, 23a)

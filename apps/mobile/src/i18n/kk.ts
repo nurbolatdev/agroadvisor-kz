@@ -387,6 +387,21 @@ export const kk: Translation = {
         titleMany: 'Диагноз тексерілді: үкім саны {{count}}',
         body: 'Агрохимик немесе әкімші үкім қалдырды',
       },
+      community_answer: {
+        title: 'Сұрағыңызға жаңа жауап',
+        titleMany: 'Сұрағыңызға жаңа жауаптар: {{count}}',
+        body: 'Оқу үшін сұрақты ашыңыз',
+      },
+      community_answer_accepted: {
+        title: 'Жауабыңыз үздік деп танылды',
+        titleMany: 'Жауабыңыз үздік деп танылды',
+        body: 'Сұрақ авторы жауабыңызды үздік деп белгіледі',
+      },
+      community_question: {
+        title: 'Дақылыңыз бойынша жаңа сұрақ',
+        titleMany: 'Дақылдарыңыз бойынша жаңа сұрақтар: {{count}}',
+        body: 'Фермерлер қауымдастықта кеңес күтуде',
+      },
     },
   },
   // the requests of farmers to an agrochemist (screens 22b, 23a); the kk texts wait for the proofreading (#88)

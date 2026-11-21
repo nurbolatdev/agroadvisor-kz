@@ -7,5 +7,5 @@ import java.util.UUID;
  * to and the collapse counter. Never names, message text or tokens.
  */
 public record PushMessage(UUID notificationId, UUID recipientId, String type, UUID consultationId,
-        UUID messageId, UUID diagnosisId, int count) {
+        UUID messageId, UUID diagnosisId, UUID questionId, UUID answerId, int count) {
 }

@@ -59,7 +59,7 @@ class NotificationPushRelayTest {
         ArgumentCaptor<PushMessage> sent = ArgumentCaptor.forClass(PushMessage.class);
         verify(sender).send(sent.capture());
         assertThat(sent.getValue()).isEqualTo(new PushMessage(row.id(), user, "verification_approved",
-                null, null, null, 1));
+                null, null, null, null, null, 1));
     }
 
     @Test

@@ -1,11 +1,14 @@
 import {
+  BadgeCheck,
   ClipboardCheck,
   CircleCheck,
+  CircleQuestionMark,
   CircleX,
   FileText,
   Inbox,
   Lock,
   MessageCircle,
+  MessageSquareReply,
   ShieldCheck,
   TriangleAlert,
   type LucideIcon,
@@ -52,6 +55,17 @@ const LOOKS: Record<NotificationType, NotificationLook> = {
     color: colors.warning,
     background: colors.warningSoft,
   },
+  community_answer: {
+    icon: MessageSquareReply,
+    color: colors.primary,
+    background: colors.primarySoft,
+  },
+  community_answer_accepted: {
+    icon: BadgeCheck,
+    color: colors.primary,
+    background: colors.primarySoft,
+  },
+  community_question: { icon: CircleQuestionMark, color: colors.info, background: colors.infoSoft },
 }
 
 export function lookOf(type: NotificationType): NotificationLook {
@@ -95,5 +109,10 @@ export function targetOf(
       return asAgrochemist ? { kind: 'documents' } : { kind: 'none' }
     case 'diagnosis_reviewed':
       return diagnosisId ? { kind: 'result', id: diagnosisId } : { kind: 'none' }
+    case 'community_answer':
+    case 'community_answer_accepted':
+    case 'community_question':
+      // the community screens come with M16; until then there is nowhere to go
+      return { kind: 'none' }
   }
 }

@@ -112,6 +112,18 @@ describe('targetOf', () => {
     })
   })
 
+  it('has nowhere to go for the community notifications until the community screens exist', () => {
+    for (const type of [
+      'community_answer',
+      'community_answer_accepted',
+      'community_question',
+    ] as const) {
+      expect(targetOf(note({ type, questionId: 'q1', answerId: 'a1' }), false)).toEqual({
+        kind: 'none',
+      })
+    }
+  })
+
   it('has nowhere to go when the reference is missing', () => {
     expect(targetOf(note({ consultationId: null }), false)).toEqual({ kind: 'none' })
   })
