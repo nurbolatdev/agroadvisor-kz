@@ -20,12 +20,7 @@ public class NotificationRepository {
     /** Ids a notification points to; which of them are set depends on the type. */
     public record Refs(UUID consultationId, UUID messageId, UUID diagnosisId, UUID questionId, UUID answerId) {
 
-        public static final Refs NONE = new Refs(null, null, null);
-
-        /** References of the consultation and diagnosis notifications. */
-        public Refs(UUID consultationId, UUID messageId, UUID diagnosisId) {
-            this(consultationId, messageId, diagnosisId, null, null);
-        }
+        public static final Refs NONE = new Refs(null, null, null, null, null);
     }
 
     public record Notification(UUID id, UUID recipientId, NotificationType type, UUID consultationId,

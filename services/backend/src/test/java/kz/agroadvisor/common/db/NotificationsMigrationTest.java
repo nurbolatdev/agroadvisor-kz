@@ -116,6 +116,27 @@ class NotificationsMigrationTest {
     }
 
     @Test
+    void anAnswerOfAnotherQuestionIsRejected() {
+        UUID author = insertUser("+77030000018");
+        UUID other = insertUser("+77030000019");
+        UUID question = jdbc.queryForObject("""
+                INSERT INTO community_questions (author_id, crop_code, region_id, title, body)
+                VALUES (?, 'potato', (SELECT min(id) FROM regions), 'Title', 'Body') RETURNING id
+                """, UUID.class, author);
+        UUID otherQuestion = jdbc.queryForObject("""
+                INSERT INTO community_questions (author_id, crop_code, region_id, title, body)
+                VALUES (?, 'potato', (SELECT min(id) FROM regions), 'Title', 'Body') RETURNING id
+                """, UUID.class, author);
+        UUID answer = jdbc.queryForObject(
+                "INSERT INTO community_answers (question_id, author_id, body) VALUES (?, ?, 'Answer') RETURNING id",
+                UUID.class, otherQuestion, other);
+
+        assertRejected(() -> insertCommunity(author, "community_answer", question, answer));
+
+        insertCommunity(author, "community_answer", otherQuestion, answer);
+    }
+
+    @Test
     void deletingAnAnswerDeletesItsNotifications() {
         UUID author = insertUser("+77030000016");
         UUID other = insertUser("+77030000017");

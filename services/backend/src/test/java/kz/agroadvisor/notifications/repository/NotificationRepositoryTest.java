@@ -61,9 +61,9 @@ class NotificationRepositoryTest {
         String key = "consultation_message:" + consultation;
 
         Notification a = repository.insertOrCollapse(agrochemist, NotificationType.CONSULTATION_MESSAGE,
-                new Refs(consultation, first, null), key);
+                new Refs(consultation, first, null, null, null), key);
         Notification b = repository.insertOrCollapse(agrochemist, NotificationType.CONSULTATION_MESSAGE,
-                new Refs(consultation, second, null), key);
+                new Refs(consultation, second, null, null, null), key);
 
         assertThat(a.count()).isEqualTo(1);
         assertThat(b.id()).isEqualTo(a.id());
@@ -86,11 +86,11 @@ class NotificationRepositoryTest {
     void readRowIsNotCollapsedInto() {
         String key = "consultation_message:" + consultation;
         Notification a = repository.insertOrCollapse(agrochemist, NotificationType.CONSULTATION_MESSAGE,
-                new Refs(consultation, message(), null), key);
+                new Refs(consultation, message(), null, null, null), key);
         assertThat(repository.markRead(agrochemist, a.id())).isTrue();
 
         Notification c = repository.insertOrCollapse(agrochemist, NotificationType.CONSULTATION_MESSAGE,
-                new Refs(consultation, message(), null), key);
+                new Refs(consultation, message(), null, null, null), key);
 
         assertThat(c.id()).isNotEqualTo(a.id());
         assertThat(c.count()).isEqualTo(1);

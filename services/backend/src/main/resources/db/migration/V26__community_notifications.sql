@@ -1,9 +1,15 @@
 -- Notifications about the community: a new answer, a best answer and a new question of a followed crop.
--- They point to a question and, for answers, to the answer; like the other references they are plain ids.
+-- They point to a question and, for answers, to the answer; they are foreign keys with ON DELETE CASCADE,
+-- like the other references.
 
 ALTER TABLE notifications
     ADD COLUMN question_id uuid REFERENCES community_questions (id) ON DELETE CASCADE,
     ADD COLUMN answer_id   uuid REFERENCES community_answers (id) ON DELETE CASCADE;
+
+-- The answer must belong to the question of the notification (a null answer_id skips the check).
+ALTER TABLE notifications
+    ADD CONSTRAINT notifications_answer_of_question_fk
+        FOREIGN KEY (question_id, answer_id) REFERENCES community_answers (question_id, id) ON DELETE CASCADE;
 
 -- Foreign keys with ON DELETE CASCADE: without an index each parent delete scans the table
 CREATE INDEX notifications_question_idx ON notifications (question_id) WHERE question_id IS NOT NULL;
