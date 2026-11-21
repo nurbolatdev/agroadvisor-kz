@@ -594,7 +594,7 @@
       "CommunityInvitation" : {
         "properties" : {
           "agrochemist" : {
-            "$ref" : "#/components/schemas/CommunityInvitationAgrochemist"
+            "$ref" : "#/components/schemas/CommunityInvitedAgrochemist"
           },
           "invitedAt" : {
             "format" : "date-time",
@@ -606,19 +606,6 @@
           }
         },
         "required" : [ "agrochemist", "invitedAt", "questionId" ],
-        "type" : "object"
-      },
-      "CommunityInvitationAgrochemist" : {
-        "properties" : {
-          "id" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
-          "name" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "id", "name" ],
         "type" : "object"
       },
       "CommunityInvitedAgrochemist" : {

@@ -1772,16 +1772,11 @@ export interface components {
             value?: number | null;
         };
         CommunityInvitation: {
-            agrochemist: components["schemas"]["CommunityInvitationAgrochemist"];
+            agrochemist: components["schemas"]["CommunityInvitedAgrochemist"];
             /** Format: date-time */
             invitedAt: string;
             /** Format: uuid */
             questionId: string;
-        };
-        CommunityInvitationAgrochemist: {
-            /** Format: uuid */
-            id: string;
-            name: string;
         };
         CommunityInvitedAgrochemist: {
             /** Format: uuid */
