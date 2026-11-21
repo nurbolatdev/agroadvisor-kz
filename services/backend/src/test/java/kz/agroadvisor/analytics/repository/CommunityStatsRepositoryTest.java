@@ -18,7 +18,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import kz.agroadvisor.TestcontainersConfiguration;
+import kz.agroadvisor.analytics.repository.CommunityStatsRepository.ActivityBucket;
+import kz.agroadvisor.analytics.repository.CommunityStatsRepository.Bucket;
+import kz.agroadvisor.analytics.repository.CommunityStatsRepository.ConsultationTotals;
 import kz.agroadvisor.analytics.repository.CommunityStatsRepository.QuestionTotals;
+import kz.agroadvisor.analytics.repository.CommunityStatsRepository.TopAnswerer;
 import kz.agroadvisor.analytics.repository.CommunityStatsRepository.UnansweredQuestion;
 
 @SpringBootTest
@@ -146,6 +150,90 @@ class CommunityStatsRepositoryTest {
         assertThat(before).isPositive();
     }
 
+    @Test
+    void activityIsCutByDayOfWeekWeekAndMonthAndSkipsHiddenAnswers() {
+        Instant from = Instant.parse("2003-01-06T00:00:00Z");
+        Instant to = Instant.parse("2004-01-06T00:00:00Z");
+        UUID author = user();
+        UUID other = user();
+        Instant wednesday = Instant.parse("2003-01-08T12:00:00Z");
+        UUID q = question(author, wednesday, false);
+        question(author, Instant.parse("2003-01-09T12:00:00Z"), true);
+        answer(q, other, Instant.parse("2003-01-15T12:00:00Z"), false);
+        answer(q, other, Instant.parse("2003-01-15T13:00:00Z"), true);
+        answer(q, other, Instant.parse("2003-03-10T12:00:00Z"), false);
+
+        List<ActivityBucket> days = stats.activity(from, from.plus(Duration.ofDays(7)), Bucket.DAY_OF_WEEK);
+        List<ActivityBucket> weeks = stats.activity(from, to, Bucket.WEEK);
+        List<ActivityBucket> months = stats.activity(from, to, Bucket.MONTH);
+
+        assertThat(days).containsExactly(new ActivityBucket(2, 1, 0));
+        assertThat(weeks).containsExactly(new ActivityBucket(1, 1, 0), new ActivityBucket(2, 0, 1),
+                new ActivityBucket(10, 0, 1));
+        assertThat(months).containsExactly(new ActivityBucket(0, 1, 1), new ActivityBucket(2, 0, 1));
+    }
+
+    @Test
+    void topAnswerersCountVisibleAnswersLeaveAdminsOutAndTakeTheRoleFromTheUser() {
+        Instant from = Instant.parse("2005-01-01T00:00:00Z");
+        Instant to = Instant.parse("2005-02-01T00:00:00Z");
+        Instant at = Instant.parse("2005-01-10T10:00:00Z");
+        UUID author = user();
+        UUID expert = user("Aaa expert", "agrochemist");
+        UUID farmer = user("Bbb farmer", "farmer");
+        UUID admin = user("Ccc admin", "admin");
+        UUID q = question(author, at, false);
+        answer(q, expert, at, false);
+        answer(q, expert, at.plusSeconds(60), false);
+        answer(q, farmer, at, false);
+        answer(q, farmer, at.plusSeconds(60), false);
+        answer(q, farmer, at.plusSeconds(120), true);
+        answer(q, admin, at, false);
+        answer(q, admin, at.plusSeconds(60), false);
+        answer(q, admin, at.plusSeconds(120), false);
+
+        List<TopAnswerer> top = stats.topAnswerers(from, to, 4);
+
+        assertThat(top).extracting(TopAnswerer::userId).containsExactly(expert, farmer);
+        assertThat(top).extracting(TopAnswerer::role).containsExactly("agrochemist", "farmer");
+        assertThat(top).extracting(TopAnswerer::answers).containsExactly(2, 2);
+        assertThat(stats.topAnswerers(from, to, 1)).hasSize(1);
+    }
+
+    @Test
+    void aDeclinedConsultationIsRequestedButNotClosed() {
+        Instant from = Instant.parse("2006-01-01T00:00:00Z");
+        Instant to = Instant.parse("2006-02-01T00:00:00Z");
+        Instant at = Instant.parse("2006-01-10T10:00:00Z");
+        UUID expert = user("Expert", "agrochemist");
+        UUID farmer = user("Farmer", "farmer");
+        UUID second = user("Second", "farmer");
+        UUID third = user("Third", "farmer");
+        jdbc.update("INSERT INTO consultations (farmer_id, agrochemist_id, status, created_at, accepted_at, "
+                + "closed_at) VALUES (?, ?, 'closed', ?, ?, ?)", farmer, expert, Timestamp.from(at),
+                Timestamp.from(at.plusSeconds(600)), Timestamp.from(at.plusSeconds(3600)));
+        jdbc.update("INSERT INTO consultations (farmer_id, agrochemist_id, status, created_at, closed_at) "
+                + "VALUES (?, ?, 'declined', ?, ?)", second, expert, Timestamp.from(at),
+                Timestamp.from(at.plusSeconds(60)));
+        jdbc.update("INSERT INTO consultations (farmer_id, agrochemist_id, status, created_at, accepted_at) "
+                + "VALUES (?, ?, 'active', ?, ?)", third, expert, Timestamp.from(at),
+                Timestamp.from(at.plusSeconds(1200)));
+
+        ConsultationTotals totals = stats.consultations(from, to);
+
+        assertThat(totals.requests()).isEqualTo(3);
+        assertThat(totals.closed()).isEqualTo(1);
+        assertThat(totals.avgAcceptMinutes()).isEqualTo(15.0);
+    }
+
+    @Test
+    void consultationsWithoutAcceptedOnesHaveNoAverage() {
+        ConsultationTotals totals = stats.consultations(Instant.parse("2000-01-01T00:00:00Z"),
+                Instant.parse("2000-01-02T00:00:00Z"));
+
+        assertThat(totals).isEqualTo(new ConsultationTotals(0, 0, null));
+    }
+
     private QuestionTotals window() {
         return stats.totals(LONG_AGO.minus(Duration.ofDays(1)), LONG_AGO.plus(Duration.ofDays(1)));
     }
@@ -155,11 +243,18 @@ class CommunityStatsRepositoryTest {
     }
 
     private UUID user() {
+        return user("Test", null);
+    }
+
+    private UUID user(String name, String role) {
         UUID id = jdbc.queryForObject("""
                 INSERT INTO users (phone, password_hash, full_name, region_id)
-                VALUES (?, 'x', 'Test', (SELECT min(id) FROM regions)) RETURNING id""", UUID.class,
-                "+7705" + (1000000 + Math.abs(UUID.randomUUID().hashCode() % 9000000)));
+                VALUES (?, 'x', ?, (SELECT min(id) FROM regions)) RETURNING id""", UUID.class,
+                "+7705" + (1000000 + Math.abs(UUID.randomUUID().hashCode() % 9000000)), name);
         users.add(id);
+        if (role != null) {
+            jdbc.update("INSERT INTO user_roles (user_id, role_code) VALUES (?, ?)", id, role);
+        }
         return id;
     }
 

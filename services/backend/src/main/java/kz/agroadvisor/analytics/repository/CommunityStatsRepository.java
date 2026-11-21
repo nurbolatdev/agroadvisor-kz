@@ -27,6 +27,36 @@ public class CommunityStatsRepository {
     public record UnansweredQuestion(UUID id, String title, String cropCode, long regionId, Instant createdAt) {
     }
 
+    /** How the activity of a window is cut into buckets; the value is the SQL expression over a timestamp column. */
+    public enum Bucket {
+        /** Day of the week in UTC, 0 = Monday. */
+        DAY_OF_WEEK("extract(isodow FROM %s AT TIME ZONE 'UTC')::int - 1", false),
+        /** Week of the window counted from 1; the window start is the first bound parameter. */
+        WEEK("1 + floor(extract(epoch FROM %s - ?::timestamptz) / 604800)::int", true),
+        /** Calendar month in UTC, 0 = January. */
+        MONTH("extract(month FROM %s AT TIME ZONE 'UTC')::int - 1", false);
+
+        private final String expression;
+        private final boolean needsWindowStart;
+
+        Bucket(String expression, boolean needsWindowStart) {
+            this.expression = expression;
+            this.needsWindowStart = needsWindowStart;
+        }
+    }
+
+    /** Questions and visible answers created in one bucket; buckets without activity are absent. */
+    public record ActivityBucket(int bucket, int questions, int answers) {
+    }
+
+    /** A member with the number of visible answers in a window; {@code role} is "agrochemist" or "farmer". */
+    public record TopAnswerer(UUID userId, String name, String role, int answers) {
+    }
+
+    /** Consultations of a window: requested, closed, and the mean minutes from request to acceptance (or null). */
+    public record ConsultationTotals(int requests, int closed, Double avgAcceptMinutes) {
+    }
+
     private final JdbcTemplate jdbc;
 
     public CommunityStatsRepository(JdbcTemplate jdbc) {
@@ -52,6 +82,67 @@ public class CommunityStatsRepository {
                     double avg = rs.getDouble("avg_first");
                     return new QuestionTotals(questions, solved, rs.wasNull() ? null : avg);
                 }, Timestamp.from(from), Timestamp.from(to));
+    }
+
+    /**
+     * Visible questions and visible answers created in [from, to) per bucket, ordered by bucket. Answers to hidden
+     * questions still count: they were written, and the question may be shown again.
+     */
+    public List<ActivityBucket> activity(Instant from, Instant to, Bucket bucket) {
+        String sql = "SELECT bucket, count(*) FILTER (WHERE kind = 'q') AS questions,"
+                + " count(*) FILTER (WHERE kind = 'a') AS answers FROM ("
+                + " SELECT " + bucket.expression.formatted("q.created_at") + " AS bucket, 'q' AS kind"
+                + " FROM community_questions q WHERE q.hidden_at IS NULL AND q.created_at >= ? AND q.created_at < ?"
+                + " UNION ALL"
+                + " SELECT " + bucket.expression.formatted("a.created_at") + " AS bucket, 'a' AS kind"
+                + " FROM community_answers a WHERE a.hidden_at IS NULL AND a.created_at >= ? AND a.created_at < ?"
+                + ") t GROUP BY bucket ORDER BY bucket";
+        Timestamp start = Timestamp.from(from);
+        Timestamp end = Timestamp.from(to);
+        Object[] args = bucket.needsWindowStart
+                ? new Object[] {start, start, end, start, start, end}
+                : new Object[] {start, end, start, end};
+        return jdbc.query(sql, (rs, i) -> new ActivityBucket(rs.getInt("bucket"), rs.getInt("questions"),
+                rs.getInt("answers")), args);
+    }
+
+    /**
+     * The members with the most visible answers created in [from, to), admins left out, the most answers first and
+     * by name on a tie. The role is "agrochemist" for an agrochemist, otherwise "farmer".
+     */
+    public List<TopAnswerer> topAnswerers(Instant from, Instant to, int limit) {
+        return jdbc.query("""
+                SELECT u.id, u.full_name, count(*) AS n,
+                       EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id = u.id
+                               AND r.role_code = 'agrochemist') AS agrochemist
+                FROM community_answers a JOIN users u ON u.id = a.author_id
+                WHERE a.hidden_at IS NULL AND a.created_at >= ? AND a.created_at < ?
+                  AND NOT EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id = u.id AND r.role_code = 'admin')
+                GROUP BY u.id, u.full_name
+                ORDER BY n DESC, u.full_name, u.id LIMIT ?""", (rs, i) -> new TopAnswerer(
+                rs.getObject("id", UUID.class), rs.getString("full_name"),
+                rs.getBoolean("agrochemist") ? "agrochemist" : "farmer", rs.getInt("n")),
+                Timestamp.from(from), Timestamp.from(to), limit);
+    }
+
+    /**
+     * Consultations requested in [from, to), those closed (status closed, not declined) in it, and the mean minutes
+     * from request to acceptance over those accepted in it (null when none was).
+     */
+    public ConsultationTotals consultations(Instant from, Instant to) {
+        Timestamp start = Timestamp.from(from);
+        Timestamp end = Timestamp.from(to);
+        return jdbc.queryForObject("""
+                SELECT (SELECT count(*) FROM consultations WHERE created_at >= ? AND created_at < ?) AS requests,
+                       (SELECT count(*) FROM consultations
+                        WHERE status = 'closed' AND closed_at >= ? AND closed_at < ?) AS closed,
+                       (SELECT avg(extract(epoch FROM accepted_at - created_at) / 60) FROM consultations
+                        WHERE accepted_at >= ? AND accepted_at < ?) AS avg_accept""", (rs, i) -> {
+                    int requests = rs.getInt("requests");
+                    int closed = rs.getInt("closed");
+                    double avg = rs.getDouble("avg_accept");
+                    return new ConsultationTotals(requests, closed, rs.wasNull() ? null : avg);
+                }, start, end, start, end, start, end);
     }
 
     /**
