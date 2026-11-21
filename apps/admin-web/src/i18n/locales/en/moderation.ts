@@ -59,9 +59,7 @@ const moderation: Translation<typeof ru> = {
     onPlatform: 'On the platform {{since}}',
     posts_one: '{{count}} publication',
     posts_other: '{{count}} publications',
-    warnings_one: '{{count}} warning',
-    warnings_other: '{{count}} warnings',
-    noWarnings: 'No warnings',
+    hiddenPosts: 'Hidden by a moderator: {{count}}',
     blocked: 'Blocked',
   },
   actions: {

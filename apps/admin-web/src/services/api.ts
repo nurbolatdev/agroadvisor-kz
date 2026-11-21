@@ -17,6 +17,7 @@ import type {
   ComplaintStatus,
   CropId,
   Disease,
+  IsoDateTime,
   ModerationAction,
   ModerationStats,
   Shop,
@@ -32,6 +33,7 @@ import type {
   UnansweredQuestion,
   User,
   UserRole,
+  UserStatus,
   VerificationStats,
   VerificationStatus,
 } from '@/shared/types'
@@ -39,7 +41,20 @@ import type {
 /** Complaint joined with the reported post and its author, as the moderation screen needs it. */
 export interface ComplaintDetails extends Complaint {
   post: CommunityPost
-  author: User
+  author: ComplaintAuthor
+}
+
+/** The author of a reported post: what the API gives, not a full user profile. */
+export interface ComplaintAuthor {
+  id: string
+  name: string
+  role: UserRole
+  status: UserStatus
+  expert: boolean
+  /** Posts of the author hidden by moderators. */
+  hiddenCount: number
+  registeredAt?: IsoDateTime
+  postsCount?: number
 }
 
 export interface ComplaintFilters {
@@ -72,6 +87,8 @@ export interface AdminApi {
 
   getModerationStats(): Promise<ModerationStats>
   getComplaints(filters?: ComplaintFilters): Promise<ComplaintDetails[]>
+  /** Takes a new case into work; a case already in work is returned as it is. */
+  startComplaint(id: string): Promise<ComplaintDetails>
   resolveComplaint(id: string, action: ModerationAction, comment: string): Promise<ComplaintDetails>
 
   getVerificationStats(): Promise<VerificationStats>

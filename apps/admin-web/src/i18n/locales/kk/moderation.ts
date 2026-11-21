@@ -59,9 +59,7 @@ const moderation: Translation<typeof ru> = {
     onPlatform: 'Платформада {{since}}',
     posts_one: '{{count}} жарияланым',
     posts_other: '{{count}} жарияланым',
-    warnings_one: '{{count}} ескерту',
-    warnings_other: '{{count}} ескерту',
-    noWarnings: 'Ескертусіз',
+    hiddenPosts: 'Модератор жасырған: {{count}}',
     blocked: 'Бұғатталған',
   },
   actions: {

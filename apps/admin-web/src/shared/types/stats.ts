@@ -25,8 +25,11 @@ export interface OverviewStats {
 /** Mini KPIs on the moderation screen (admin-04). */
 export interface ModerationStats {
   complaintsToday: number
-  avgResolutionMinutes: number
+  /** `null` when no case was resolved in the window. */
+  avgResolutionMinutes: number | null
   resolvedThisWeek: number
+  /** Cases not yet taken into work. */
+  newComplaints: number
 }
 
 /** KPIs on the verification screen. */

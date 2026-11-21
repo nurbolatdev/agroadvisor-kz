@@ -9,7 +9,11 @@ export function ModerationKpis() {
 
   const items = [
     { label: t('today'), value: data && formatNumber(data.complaintsToday) },
-    { label: t('avgResolution'), value: data && formatDuration(data.avgResolutionMinutes) },
+    {
+      label: t('avgResolution'),
+      value:
+        data && (data.avgResolutionMinutes === null ? '—' : formatDuration(data.avgResolutionMinutes)),
+    },
     { label: t('resolvedWeek'), value: data && formatNumber(data.resolvedThisWeek) },
   ]
 

@@ -60,11 +60,7 @@ const moderation = {
     posts_few: '{{count}} публикации',
     posts_many: '{{count}} публикаций',
     posts_other: '{{count}} публикации',
-    warnings_one: '{{count}} предупреждение',
-    warnings_few: '{{count}} предупреждения',
-    warnings_many: '{{count}} предупреждений',
-    warnings_other: '{{count}} предупреждения',
-    noWarnings: 'Без предупреждений',
+    hiddenPosts: 'Скрыто модератором: {{count}}',
     blocked: 'Заблокирован',
   },
   actions: {
