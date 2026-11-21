@@ -163,6 +163,17 @@ public class CommunityQuestionService {
     /** The bytes of one photo of a visible question. */
     public PhotoContent photo(UUID questionId, UUID photoId) {
         visible(questionId);
+        return loadPhoto(questionId, photoId);
+    }
+
+    /** The bytes of one photo of a question for the admin; a hidden question is shown too. */
+    public PhotoContent photoForAdmin(UUID questionId, UUID photoId) {
+        questions.find(questionId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
+                CommunityErrors.QUESTION_NOT_FOUND, "Question not found"));
+        return loadPhoto(questionId, photoId);
+    }
+
+    private PhotoContent loadPhoto(UUID questionId, UUID photoId) {
         Photo photo = questions.photos(List.of(questionId)).stream().filter(p -> p.id().equals(photoId))
                 .findFirst().orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
                         CommunityErrors.PHOTO_NOT_FOUND, "Photo not found"));
