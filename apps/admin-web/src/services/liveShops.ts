@@ -1,6 +1,6 @@
-import i18n from '@/i18n'
 import type { AdminApi } from '@/services/api'
 import type { HttpClient } from '@/services/http'
+import { createRegionDirectory } from '@/services/liveRegions'
 import type {
   Shop,
   ShopCategory,
@@ -34,11 +34,6 @@ interface BackendRequest {
   shopId: string | null
   author: { name: string; region: string | null }
   createdAt: string
-}
-
-interface BackendRegion {
-  id: number
-  name: string
 }
 
 const KNOWN_CATEGORIES: readonly string[] = [
@@ -76,22 +71,8 @@ export function createLiveShops(
   client: HttpClient,
   base: Pick<AdminApi, 'getSidebarCounters'>,
 ): ShopsApi {
-  // Regions change rarely; one answer per language is enough, a failed one is not kept.
-  const regionCache = new Map<string, Promise<BackendRegion[]>>()
-  const regions = (language: string) => {
-    let cached = regionCache.get(language)
-    if (!cached) {
-      cached = client.request<BackendRegion[]>('/api/regions', { auth: false })
-      regionCache.set(language, cached)
-      cached.catch(() => regionCache.delete(language))
-    }
-    return cached
-  }
-  // The client sends the interface language itself; the cache key only has to differ between languages.
-  const currentRegions = () => regions(i18n.language)
-
-  const regionIdByName = async (name: string) =>
-    (await currentRegions()).find((region) => region.name === name)?.id
+  const regions = createRegionDirectory(client)
+  const regionIdByName = regions.idByName
 
   const toShop = (row: BackendShop): Shop => ({
     id: row.id,
@@ -167,8 +148,7 @@ export function createLiveShops(
     return rows.map(toShop)
   }
 
-  const getShopAreas: AdminApi['getShopAreas'] = async () =>
-    (await currentRegions()).map((region) => region.name)
+  const getShopAreas: AdminApi['getShopAreas'] = () => regions.names()
 
   return {
     getShopAreas,
