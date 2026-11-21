@@ -2,6 +2,7 @@ import i18n from '@/i18n'
 import type { AdminApi, ComplaintDetails } from '@/services/api'
 import type { HttpClient } from '@/services/http'
 import type { RegionDirectory } from '@/services/liveRegions'
+import { readPages } from '@/services/readPages'
 import type {
   ComplaintReason,
   ComplaintStatus,
@@ -45,9 +46,6 @@ interface BackendComplaint {
   }
 }
 
-/** The backend caps a page at 100; the cap of pages is a safety net. */
-const PAGE_SIZE = 100
-const MAX_PAGES = 10
 const NO_REGION = '—'
 
 type ModerationApi = Pick<
@@ -109,20 +107,11 @@ export function createLiveModeration(
 
   return {
     getComplaints: async (filters = {}) => {
-      const rows: BackendComplaint[] = []
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const part = await client.request<BackendComplaint[]>('/api/admin/community/complaints', {
-          query: {
-            status: filters.status || undefined,
-            targetType: filters.kind ? (filters.kind === 'post' ? 'question' : 'answer') : undefined,
-            reason: filters.reason || undefined,
-            page,
-            size: PAGE_SIZE,
-          },
-        })
-        rows.push(...part)
-        if (part.length < PAGE_SIZE) break
-      }
+      const rows = await readPages<BackendComplaint>(client, '/api/admin/community/complaints', {
+        status: filters.status || undefined,
+        targetType: filters.kind ? (filters.kind === 'post' ? 'question' : 'answer') : undefined,
+        reason: filters.reason || undefined,
+      })
       return Promise.all(rows.map(toDetails))
     },
 
