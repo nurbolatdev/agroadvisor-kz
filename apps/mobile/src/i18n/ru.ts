@@ -391,7 +391,7 @@ export const ru = {
       community_answer: {
         title: 'Новый ответ на ваш вопрос',
         titleMany: 'Новые ответы на ваш вопрос: {{count}}',
-        body: 'Откройте вопрос, чтобы прочитать',
+        body: 'Ответ в сообществе',
       },
       community_answer_accepted: {
         title: 'Ваш ответ признан лучшим',

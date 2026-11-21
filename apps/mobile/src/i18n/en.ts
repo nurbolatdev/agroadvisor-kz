@@ -389,7 +389,7 @@ export const en: Translation = {
       community_answer: {
         title: 'New answer to your question',
         titleMany: 'New answers to your question: {{count}}',
-        body: 'Open the question to read',
+        body: 'An answer in the community',
       },
       community_answer_accepted: {
         title: 'Your answer is the best',

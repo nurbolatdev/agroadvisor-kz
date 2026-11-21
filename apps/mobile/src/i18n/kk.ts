@@ -390,7 +390,7 @@ export const kk: Translation = {
       community_answer: {
         title: 'Сұрағыңызға жаңа жауап',
         titleMany: 'Сұрағыңызға жаңа жауаптар: {{count}}',
-        body: 'Оқу үшін сұрақты ашыңыз',
+        body: 'Қауымдастықтағы жауап',
       },
       community_answer_accepted: {
         title: 'Жауабыңыз үздік деп танылды',
