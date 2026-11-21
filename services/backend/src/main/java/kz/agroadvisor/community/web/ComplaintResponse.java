@@ -49,7 +49,9 @@ public record ComplaintResponse(
             @Schema(requiredMode = RequiredMode.REQUIRED) int photoCount,
             @Schema(requiredMode = RequiredMode.REQUIRED, description = "Admin URLs of the question photos, "
                     + "/api/admin/community/questions/{id}/photos/{photoId}") List<String> photoUrls,
-            @Schema(requiredMode = RequiredMode.REQUIRED) boolean hidden) {
+            @Schema(requiredMode = RequiredMode.REQUIRED) boolean hidden,
+            @Schema(requiredMode = RequiredMode.REQUIRED, description = "When the question or the answer was "
+                    + "posted") Instant createdAt) {
     }
 
     public record AuthorResponse(
@@ -59,7 +61,9 @@ public record ComplaintResponse(
             @Schema(requiredMode = RequiredMode.REQUIRED) boolean expert,
             @Schema(requiredMode = RequiredMode.REQUIRED) String status,
             @Schema(requiredMode = RequiredMode.REQUIRED, description = "Hidden posts of the author, in total")
-            int hiddenCount) {
+            int hiddenCount,
+            @Schema(requiredMode = RequiredMode.REQUIRED, description = "When the author registered")
+            Instant registeredAt) {
     }
 
     static ComplaintResponse of(ComplaintView view) {
@@ -73,8 +77,8 @@ public record ComplaintResponse(
                                 view.resolution().resolvedAt()),
                 new TargetResponse(target.type(), target.questionId(), target.answerId(), target.questionTitle(),
                         target.body(), target.cropCode(), target.regionId(), target.photoCount(),
-                        target.photoUrls(), target.hidden()),
+                        target.photoUrls(), target.hidden(), target.createdAt()),
                 new AuthorResponse(author.id(), author.name(), author.role(), author.expert(), author.status(),
-                        author.hiddenCount()));
+                        author.hiddenCount(), author.registeredAt()));
     }
 }

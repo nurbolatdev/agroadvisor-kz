@@ -345,6 +345,11 @@
           "name" : {
             "type" : "string"
           },
+          "registeredAt" : {
+            "description" : "When the author registered",
+            "format" : "date-time",
+            "type" : "string"
+          },
           "role" : {
             "type" : "string"
           },
@@ -352,7 +357,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "expert", "hiddenCount", "id", "name", "role", "status" ],
+        "required" : [ "expert", "hiddenCount", "id", "name", "registeredAt", "role", "status" ],
         "type" : "object"
       },
       "CalculationResponse" : {
@@ -2446,6 +2451,11 @@
             "description" : "Text of the question or the answer",
             "type" : "string"
           },
+          "createdAt" : {
+            "description" : "When the question or the answer was posted",
+            "format" : "date-time",
+            "type" : "string"
+          },
           "cropCode" : {
             "type" : "string"
           },
@@ -2479,7 +2489,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "body", "cropCode", "hidden", "photoCount", "photoUrls", "questionId", "questionTitle", "regionId", "type" ],
+        "required" : [ "body", "createdAt", "cropCode", "hidden", "photoCount", "photoUrls", "questionId", "questionTitle", "regionId", "type" ],
         "type" : "object"
       },
       "TokenResponse" : {

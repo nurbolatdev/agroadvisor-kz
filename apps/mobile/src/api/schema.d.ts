@@ -1620,6 +1620,11 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            /**
+             * Format: date-time
+             * @description When the author registered
+             */
+            registeredAt: string;
             role: string;
             status: string;
         };
@@ -2633,6 +2638,11 @@ export interface components {
             answerId?: string | null;
             /** @description Text of the question or the answer */
             body: string;
+            /**
+             * Format: date-time
+             * @description When the question or the answer was posted
+             */
+            createdAt: string;
             cropCode: string;
             hidden: boolean;
             /** Format: int32 */

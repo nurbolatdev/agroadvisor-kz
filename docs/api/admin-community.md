@@ -38,8 +38,8 @@ A value out of range or another word is 400 `validation_failed`.
 { "id", "status", "reason", "reports": [{ "reason", "count" }], "comments", "createdAt",
   "resolution": { "action", "comment", "resolvedAt" } | null,
   "target": { "type", "questionId", "answerId", "questionTitle", "body", "cropCode",
-              "regionId", "photoCount", "photoUrls", "hidden" },
-  "author": { "id", "name", "role", "expert", "status", "hiddenCount" } }
+              "regionId", "photoCount", "photoUrls", "hidden", "createdAt" },
+  "author": { "id", "name", "role", "expert", "status", "hiddenCount", "registeredAt" } }
 ```
 
 - `reason` is the most reported reason; `reports` is the count per reason ("Ads, 3 reports").
@@ -47,7 +47,8 @@ A value out of range or another word is 400 `validation_failed`.
 - `resolution` is null until the case is resolved; its `comment` is null when none was given.
 - `target.type` is `question` or `answer`. `questionId` is always set (for an answer, the question it belongs to); `answerId` is set only for an answer. `questionTitle` is the title of the question, `body` the text of the question or of the answer. `photoCount` counts the photos of the question; `photoUrls` lists them as ready admin URLs `/api/admin/community/questions/{questionId}/photos/{photoId}` (the photo endpoint above, a hidden question too), in order of position.
 - `target.hidden` tells whether the target is hidden now.
-- `author` is the author of the target. `hiddenCount` is the number of the author's hidden posts in total, the "history of the author". `status` is `active` or `blocked`.
+- `target.createdAt` is when the target was posted: the time of the answer for an answer, the time of the question for a question.
+- `author` is the author of the target. `hiddenCount` is the number of the author's hidden posts in total, the "history of the author". `status` is `active` or `blocked`. `registeredAt` is when the author registered.
 
 ## Decisions
 
