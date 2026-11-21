@@ -1783,6 +1783,11 @@ export interface components {
             id: string;
             name: string;
         };
+        CommunityInvitedAgrochemist: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
         CommunityMember: {
             /** Format: int32 */
             answers: number;
@@ -1879,6 +1884,8 @@ export interface components {
             hoursWithoutAnswer: number;
             /** Format: uuid */
             id: string;
+            /** @description The agrochemist most recently invited to the question; null when nobody was invited */
+            invitedAgrochemist?: components["schemas"]["CommunityInvitedAgrochemist"];
             /** Format: int64 */
             regionId: number;
             title: string;

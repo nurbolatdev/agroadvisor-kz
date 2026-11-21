@@ -24,6 +24,7 @@ import kz.agroadvisor.analytics.repository.CommunityStatsRepository.Bucket;
 import kz.agroadvisor.analytics.repository.CommunityStatsRepository.ConsultationTotals;
 import kz.agroadvisor.analytics.repository.CommunityStatsRepository.QuestionTotals;
 import kz.agroadvisor.analytics.repository.CommunityStatsRepository.TopAnswerer;
+import kz.agroadvisor.analytics.repository.CommunityStatsRepository.InvitedAgrochemist;
 import kz.agroadvisor.analytics.repository.CommunityStatsRepository.UnansweredQuestion;
 import kz.agroadvisor.analytics.service.CommunityStatsService.CommunityStats;
 import kz.agroadvisor.diagnosis.service.AiQualityService.Period;
@@ -145,8 +146,10 @@ class CommunityStatsServiceTest {
     @Test
     void theUnansweredListCarriesWholeHoursAndIsAskedForAtMostFifty() {
         UUID id = UUID.randomUUID();
+        UUID expert = UUID.randomUUID();
         when(repository.unanswered(NOW, 50)).thenReturn(List.of(
-                new UnansweredQuestion(id, "Why?", "potato", 3L, NOW.minus(Duration.ofMinutes(26 * 60 + 59)))));
+                new UnansweredQuestion(id, "Why?", "potato", 3L, NOW.minus(Duration.ofMinutes(26 * 60 + 59)),
+                        new InvitedAgrochemist(expert, "Aigerim"))));
         when(repository.topAnswerers(any(), any(), anyInt())).thenReturn(List.of(
                 new TopAnswerer(UUID.randomUUID(), "Aigerim", "agrochemist", 7)));
         when(repository.consultations(any(), any())).thenReturn(new ConsultationTotals(5, 2, 12.6));
@@ -156,6 +159,8 @@ class CommunityStatsServiceTest {
         assertThat(stats.unanswered()).hasSize(1);
         assertThat(stats.unanswered().get(0).hoursWithoutAnswer()).isEqualTo(26);
         assertThat(stats.unanswered().get(0).regionId()).isEqualTo(3L);
+        assertThat(stats.unanswered().get(0).invitedAgrochemist().id()).isEqualTo(expert);
+        assertThat(stats.unanswered().get(0).invitedAgrochemist().name()).isEqualTo("Aigerim");
         assertThat(stats.topMembers().get(0).role()).isEqualTo("agrochemist");
         assertThat(stats.consultations().requests()).isEqualTo(5);
         assertThat(stats.consultations().closed()).isEqualTo(2);

@@ -69,12 +69,18 @@ public class CommunityStatsService {
             @Schema(requiredMode = RequiredMode.REQUIRED) int answers) {
     }
 
+    public record CommunityInvitedAgrochemist(
+            @Schema(requiredMode = RequiredMode.REQUIRED) UUID id,
+            @Schema(requiredMode = RequiredMode.REQUIRED) String name) {
+    }
+
     public record CommunityUnanswered(
             @Schema(requiredMode = RequiredMode.REQUIRED) UUID id,
             @Schema(requiredMode = RequiredMode.REQUIRED) String title,
             @Schema(requiredMode = RequiredMode.REQUIRED) String cropCode,
             @Schema(requiredMode = RequiredMode.REQUIRED) long regionId,
-            @Schema(requiredMode = RequiredMode.REQUIRED, description = "Whole hours since the question was created") long hoursWithoutAnswer) {
+            @Schema(requiredMode = RequiredMode.REQUIRED, description = "Whole hours since the question was created") long hoursWithoutAnswer,
+            @Schema(requiredMode = RequiredMode.NOT_REQUIRED, nullable = true, description = "The agrochemist most recently invited to the question; null when nobody was invited") CommunityInvitedAgrochemist invitedAgrochemist) {
     }
 
     public record CommunityConsultations(
@@ -133,7 +139,9 @@ public class CommunityStatsService {
                         .map(t -> new CommunityMember(t.name(), t.role(), t.answers())).toList(),
                 repository.unanswered(now, UNANSWERED_LIMIT).stream()
                         .map(q -> new CommunityUnanswered(q.id(), q.title(), q.cropCode(), q.regionId(),
-                                Duration.between(q.createdAt(), now).toHours()))
+                                Duration.between(q.createdAt(), now).toHours(),
+                                q.invited() == null ? null
+                                        : new CommunityInvitedAgrochemist(q.invited().id(), q.invited().name())))
                         .toList(),
                 new CommunityConsultations(consultations.requests(), consultations.closed(),
                         minutes(consultations.avgAcceptMinutes())));

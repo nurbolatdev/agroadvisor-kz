@@ -621,6 +621,19 @@
         "required" : [ "id", "name" ],
         "type" : "object"
       },
+      "CommunityInvitedAgrochemist" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "name" ],
+        "type" : "object"
+      },
       "CommunityMember" : {
         "properties" : {
           "answers" : {
@@ -818,6 +831,11 @@
           "id" : {
             "format" : "uuid",
             "type" : "string"
+          },
+          "invitedAgrochemist" : {
+            "$ref" : "#/components/schemas/CommunityInvitedAgrochemist",
+            "description" : "The agrochemist most recently invited to the question; null when nobody was invited",
+            "type" : "null"
           },
           "regionId" : {
             "format" : "int64",
