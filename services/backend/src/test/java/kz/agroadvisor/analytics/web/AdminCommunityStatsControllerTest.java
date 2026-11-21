@@ -28,6 +28,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import kz.agroadvisor.TestcontainersConfiguration;
+import kz.agroadvisor.analytics.repository.CommunityStatsRepository;
 import kz.agroadvisor.auth.service.JwtService;
 import kz.agroadvisor.users.model.Login;
 import kz.agroadvisor.users.model.Role;
@@ -53,6 +54,8 @@ class AdminCommunityStatsControllerTest {
     private JdbcTemplate jdbc;
     @Autowired
     private JsonMapper json;
+    @Autowired
+    private CommunityStatsRepository statsRepository;
 
     private final List<UUID> created = new ArrayList<>();
     private String adminToken;
@@ -128,14 +131,15 @@ class AdminCommunityStatsControllerTest {
                 - before.get("unansweredOver24h").get("value").asInt()).isEqualTo(1);
         assertThat(after.get("questions").get("value").asInt() - before.get("questions").get("value").asInt())
                 .isEqualTo(2);
-        boolean listed = false;
-        for (JsonNode item : after.get("unanswered")) {
-            if (old.toString().equals(item.get("id").asString())) {
-                listed = true;
-                assertThat(item.get("hoursWithoutAnswer").asInt()).isGreaterThanOrEqualTo(30);
-                assertThat(item.get("cropCode").asString()).isEqualTo("potato");
-            }
-        }
-        assertThat(listed).isTrue();
+        assertThat(after.get("unanswered").size()).isLessThanOrEqualTo(50);
+        // the response list is capped at 50 and the database is shared, so the full list comes from the repository
+        assertThat(statsRepository.unanswered(Instant.now(), 10_000))
+                .filteredOn(item -> item.id().equals(old))
+                .singleElement()
+                .satisfies(item -> {
+                    assertThat(item.cropCode()).isEqualTo("potato");
+                    assertThat(Duration.between(item.createdAt(), Instant.now()).toHours())
+                            .isGreaterThanOrEqualTo(30);
+                });
     }
 }
