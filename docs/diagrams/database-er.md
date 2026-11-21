@@ -46,6 +46,8 @@ erDiagram
     consultations |o--o{ notifications : "refers to"
     consultation_messages |o--o{ notifications : "refers to"
     diagnoses |o--o{ notifications : "refers to"
+    community_questions |o--o{ notifications : "refers to"
+    community_answers |o--o{ notifications : "refers to"
     users ||--o{ fields : owns
     crops ||--o{ fields : grows
     users ||--o{ calculations : saves
@@ -392,10 +394,12 @@ erDiagram
     notifications {
         uuid id PK
         uuid recipient_id FK
-        varchar type "9 types, see docs/api/notifications.md"
+        varchar type "12 types, see docs/api/notifications.md"
         uuid consultation_id FK "nullable, set by type"
         uuid message_id FK "nullable, set by type"
         uuid diagnosis_id FK "nullable, set by type"
+        uuid question_id FK "nullable, set by type"
+        uuid answer_id FK "nullable, set by type"
         varchar collapse_key "nullable, for unread rows"
         int event_count "greater than 0"
         timestamptz created_at
