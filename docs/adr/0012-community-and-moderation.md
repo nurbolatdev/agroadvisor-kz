@@ -49,7 +49,8 @@ approved once, in `V25`; the notification columns come later in `V26`.
   one report per user in a case (a repeat is idempotent, 204). After a case is resolved, a new report opens a new
   case. The admin sees "Ads, 3 reports" and decides once per target.
 - **`block`** hides the target and calls `UserAdminService.changeStatus(..., "blocked")` in the same transaction,
-  so the rules of B12.1 apply (an admin or oneself cannot be blocked; refresh tokens are revoked).
+  so the rules of B12.1 apply (an admin or oneself cannot be blocked: 403 `admin_status_locked`, and the target
+  stays visible; refresh tokens are revoked). `PATCH .../status` of a question or an answer answers 204.
 - **Moderation figures** are computed in UTC: "today" from 00:00 UTC, "this week" is the last 7 days, the average
   resolution time is over the cases resolved in the last 7 days.
 - **Limits** are properties in `RateLimitProperties` like the consultations ones: 10 questions and 30 answers an

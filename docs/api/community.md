@@ -6,7 +6,6 @@ In the API a post is called a question. Errors are RFC 9457 problem documents wi
 
 ## Not available yet
 
-- The admin moderation of the reports (a later change of the same task).
 - Notifications about answers and new questions (a later change of the same task).
 - Editing and deleting one's own question or answer, photos in answers, votes on questions.
 
@@ -187,4 +186,4 @@ Reports a visible question or answer of someone else. Request: `{ "targetType": 
 | 429 | `rate_limited` | too many questions or answers per hour, or votes per minute |
 | 503 | `storage_unavailable` | the photo storage did not answer |
 
-`complaint_not_found` and `complaint_resolved` are reserved for the moderation and are not returned yet.
+The admin moderation (`/api/admin/community`) has its own codes, `complaint_not_found` and `complaint_resolved` among them; see [`admin-community.md`](admin-community.md). The user's report endpoint never returns them.
