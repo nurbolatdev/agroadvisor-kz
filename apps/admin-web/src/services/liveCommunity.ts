@@ -25,40 +25,21 @@ interface BackendCommunityStats {
 
 const NO_REGION = '—'
 
-/** Answer of `POST /api/admin/community/questions/{id}/invitations`. */
-interface BackendInvitation {
-  questionId: string
-  agrochemist: { id: string; name: string }
-  invitedAt: string
-}
-
 /**
  * The community screen on the backend's numbers. A question gets its crop and the name of its region
  * ("district"); there is no consultation rating on the backend, so it stays empty. Inviting an agrochemist
- * goes to the backend; the question is taken from the last statistics and marked with the invited one.
+ * goes to the backend; the screen reloads the statistics, which carry the mark of the invited one.
  */
 export function createLiveCommunity(
   client: HttpClient,
   regions: RegionDirectory,
 ): Pick<AdminApi, 'getCommunityStats' | 'inviteAgrochemist'> {
-  let lastUnanswered: UnansweredQuestion[] = []
   return {
     inviteAgrochemist: async (questionId, agrochemistId) => {
-      const invitation = await client.request<BackendInvitation>(
+      await client.request<unknown>(
         `/api/admin/community/questions/${encodeURIComponent(questionId)}/invitations`,
         { method: 'POST', body: { agrochemistId } },
       )
-      const known = lastUnanswered.find((question) => question.id === questionId)
-      return {
-        // the list may be gone (a reload): the mark is what the caller needs then
-        id: questionId,
-        title: '',
-        crop: '' as CropId,
-        district: NO_REGION,
-        hoursWithoutAnswer: 0,
-        ...known,
-        invitedAgrochemist: { id: invitation.agrochemist.id, name: invitation.agrochemist.name },
-      }
     },
     getCommunityStats: async (period) => {
       const body = await client.request<BackendCommunityStats>('/api/admin/community/stats', {
@@ -74,7 +55,6 @@ export function createLiveCommunity(
           ...(row.invitedAgrochemist ? { invitedAgrochemist: row.invitedAgrochemist } : {}),
         })),
       )
-      lastUnanswered = unanswered
       return {
         period: body.period,
         questions: body.questions,

@@ -114,23 +114,15 @@ describe('live community', () => {
     expect(stats.unanswered[1].invitedAgrochemist).toBeUndefined()
   })
 
-  it('posts the invitation with the agrochemist id and returns the question with the mark', async () => {
+  it('posts the invitation with the agrochemist id without reading the statistics first', async () => {
     const { live, calls } = setup(body())
-    await live.getCommunityStats('7d')
 
-    const question = await live.inviteAgrochemist('q1', 'a1')
+    await expect(live.inviteAgrochemist('q1', 'a1')).resolves.toBeUndefined()
 
-    const call = calls.find((c) => c.path === '/api/admin/community/questions/q1/invitations')
-    expect(call?.opts.method).toBe('POST')
-    expect(call?.opts.body).toEqual({ agrochemistId: 'a1' })
-    expect(question).toEqual({
-      id: 'q1',
-      title: 'Пятна на листьях',
-      crop: 'potato',
-      district: 'Алматинская область',
-      hoursWithoutAnswer: 30,
-      invitedAgrochemist: { id: 'a1', name: 'Ерлан Т.' },
-    })
+    expect(calls).toHaveLength(1)
+    expect(calls[0].path).toBe('/api/admin/community/questions/q1/invitations')
+    expect(calls[0].opts.method).toBe('POST')
+    expect(calls[0].opts.body).toEqual({ agrochemistId: 'a1' })
   })
 
   it('lets the 409 of the invitation through as an ApiError', async () => {

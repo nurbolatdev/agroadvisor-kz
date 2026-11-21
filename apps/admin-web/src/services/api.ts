@@ -33,7 +33,6 @@ import type {
   PostKind,
   StatsPeriod,
   TrainingSample,
-  UnansweredQuestion,
   User,
   UserRole,
   UserStatus,
@@ -86,7 +85,7 @@ export interface AdminApi {
   getTrainingSamples(): Promise<TrainingSample[]>
 
   getCommunityStats(period: StatsPeriod): Promise<CommunityStats>
-  inviteAgrochemist(questionId: string, agrochemistId: string): Promise<UnansweredQuestion>
+  inviteAgrochemist(questionId: string, agrochemistId: string): Promise<void>
 
   getModerationStats(): Promise<ModerationStats>
   getComplaints(filters?: ComplaintFilters): Promise<ComplaintDetails[]>

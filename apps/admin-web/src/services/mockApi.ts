@@ -100,7 +100,7 @@ export const mockApi: AdminApi = {
     )
     if (!question || !agrochemist) return fail('Вопрос или агрохимик не найдены')
     question.invitedAgrochemist = { id: agrochemist.id, name: agrochemist.name }
-    return respond(question)
+    return respond(undefined)
   },
 
   getModerationStats: () =>
