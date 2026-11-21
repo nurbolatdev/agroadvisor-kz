@@ -13,7 +13,7 @@ public record NotificationResponse(
         @Schema(allowableValues = {"consultation_requested", "consultation_accepted", "consultation_declined",
                 "consultation_closed", "consultation_message", "verification_approved",
                 "verification_rejected", "verification_documents_requested", "diagnosis_reviewed",
-                "community_answer", "community_answer_accepted", "community_question"},
+                "community_answer", "community_answer_accepted", "community_question", "community_invitation"},
                 requiredMode = Schema.RequiredMode.REQUIRED) String type,
         @Schema(nullable = true) UUID consultationId,
         @Schema(description = "The newest message for consultation_message", nullable = true) UUID messageId,

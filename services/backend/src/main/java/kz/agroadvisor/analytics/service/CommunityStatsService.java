@@ -22,6 +22,7 @@ import kz.agroadvisor.analytics.repository.CommunityStatsRepository.ActivityBuck
 import kz.agroadvisor.analytics.repository.CommunityStatsRepository.Bucket;
 import kz.agroadvisor.analytics.repository.CommunityStatsRepository.ConsultationTotals;
 import kz.agroadvisor.analytics.repository.CommunityStatsRepository.QuestionTotals;
+import kz.agroadvisor.community.service.InvitedAgrochemist;
 import kz.agroadvisor.diagnosis.service.AiQualityService;
 import kz.agroadvisor.diagnosis.service.AiQualityService.Period;
 
@@ -74,7 +75,8 @@ public class CommunityStatsService {
             @Schema(requiredMode = RequiredMode.REQUIRED) String title,
             @Schema(requiredMode = RequiredMode.REQUIRED) String cropCode,
             @Schema(requiredMode = RequiredMode.REQUIRED) long regionId,
-            @Schema(requiredMode = RequiredMode.REQUIRED, description = "Whole hours since the question was created") long hoursWithoutAnswer) {
+            @Schema(requiredMode = RequiredMode.REQUIRED, description = "Whole hours since the question was created") long hoursWithoutAnswer,
+            @Schema(requiredMode = RequiredMode.NOT_REQUIRED, nullable = true, description = "The agrochemist most recently invited to the question; null when nobody was invited") InvitedAgrochemist invitedAgrochemist) {
     }
 
     public record CommunityConsultations(
@@ -133,7 +135,9 @@ public class CommunityStatsService {
                         .map(t -> new CommunityMember(t.name(), t.role(), t.answers())).toList(),
                 repository.unanswered(now, UNANSWERED_LIMIT).stream()
                         .map(q -> new CommunityUnanswered(q.id(), q.title(), q.cropCode(), q.regionId(),
-                                Duration.between(q.createdAt(), now).toHours()))
+                                Duration.between(q.createdAt(), now).toHours(),
+                                q.invited() == null ? null
+                                        : new InvitedAgrochemist(q.invited().id(), q.invited().name())))
                         .toList(),
                 new CommunityConsultations(consultations.requests(), consultations.closed(),
                         minutes(consultations.avgAcceptMinutes())));

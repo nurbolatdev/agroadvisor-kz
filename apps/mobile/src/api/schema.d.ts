@@ -190,6 +190,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/community/questions/{id}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invites a verified, active agrochemist to a question and notifies them; repeating the same pair answers 200 with the first time and notifies nobody. 404 question_not_found (also a hidden question), 404 agrochemist_not_found, 409 agrochemist_not_verified. */
+        post: operations["inviteAdminCommunityAgrochemist"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/community/questions/{id}/photos/{photoId}": {
         parameters: {
             query?: never;
@@ -1754,6 +1771,18 @@ export interface components {
              */
             value?: number | null;
         };
+        CommunityInvitation: {
+            agrochemist: components["schemas"]["CommunityInvitedAgrochemist"];
+            /** Format: date-time */
+            invitedAt: string;
+            /** Format: uuid */
+            questionId: string;
+        };
+        CommunityInvitedAgrochemist: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
         CommunityMember: {
             /** Format: int32 */
             answers: number;
@@ -1850,6 +1879,8 @@ export interface components {
             hoursWithoutAnswer: number;
             /** Format: uuid */
             id: string;
+            /** @description The agrochemist most recently invited to the question; null when nobody was invited */
+            invitedAgrochemist?: components["schemas"]["CommunityInvitedAgrochemist"];
             /** Format: int64 */
             regionId: number;
             title: string;
@@ -2358,6 +2389,13 @@ export interface components {
             /** Format: double */
             windMs: number;
         };
+        InvitationRequest: {
+            /**
+             * Format: uuid
+             * @description A verified, active agrochemist
+             */
+            agrochemistId: string;
+        };
         LoginRequest: {
             login: string;
             password: string;
@@ -2444,7 +2482,7 @@ export interface components {
             /** Format: date-time */
             readAt?: string | null;
             /** @enum {string} */
-            type: "consultation_requested" | "consultation_accepted" | "consultation_declined" | "consultation_closed" | "consultation_message" | "verification_approved" | "verification_rejected" | "verification_documents_requested" | "diagnosis_reviewed" | "community_answer" | "community_answer_accepted" | "community_question";
+            type: "consultation_requested" | "consultation_accepted" | "consultation_declined" | "consultation_closed" | "consultation_message" | "verification_approved" | "verification_rejected" | "verification_documents_requested" | "diagnosis_reviewed" | "community_answer" | "community_answer_accepted" | "community_question" | "community_invitation";
             /** Format: date-time */
             updatedAt: string;
         };
@@ -3051,6 +3089,32 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["CommunityModerationStats"];
+                };
+            };
+        };
+    };
+    inviteAdminCommunityAgrochemist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CommunityInvitation"];
                 };
             };
         };

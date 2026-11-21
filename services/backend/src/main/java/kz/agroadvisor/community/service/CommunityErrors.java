@@ -31,6 +31,11 @@ public final class CommunityErrors {
     /** The complaint is already resolved, so it cannot be decided again (409). */
     public static final String COMPLAINT_RESOLVED = "complaint_resolved";
 
+    /** The invited user does not exist or is not an agrochemist (404). */
+    public static final String AGROCHEMIST_NOT_FOUND = "agrochemist_not_found";
+    /** The agrochemist is not verified or the account is not active, so they cannot be invited (409). */
+    public static final String AGROCHEMIST_NOT_VERIFIED = "agrochemist_not_verified";
+
     private CommunityErrors() {
     }
 }

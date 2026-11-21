@@ -78,6 +78,9 @@ erDiagram
     users |o--o{ community_complaints : "resolves"
     community_complaints ||--o{ community_reports : "collects"
     users ||--o{ community_reports : files
+    community_questions ||--o{ community_invitations : "is offered in"
+    users ||--o{ community_invitations : "is invited as agrochemist"
+    users ||--o{ community_invitations : "invites as admin"
 
     regions {
         bigint id PK
@@ -337,6 +340,14 @@ erDiagram
         timestamptz created_at
     }
 
+    community_invitations {
+        uuid id PK
+        uuid question_id FK "unique with agrochemist_id"
+        uuid agrochemist_id FK "the invited agrochemist"
+        uuid invited_by FK "the admin, NO ACTION"
+        timestamptz created_at
+    }
+
     diagnosis_reviews {
         uuid id PK
         uuid diagnosis_id FK "unique with reviewer_id"
@@ -394,7 +405,7 @@ erDiagram
     notifications {
         uuid id PK
         uuid recipient_id FK
-        varchar type "12 types, see docs/api/notifications.md"
+        varchar type "13 types, see docs/api/notifications.md"
         uuid consultation_id FK "nullable, set by type"
         uuid message_id FK "nullable, set by type"
         uuid diagnosis_id FK "nullable, set by type"
@@ -429,6 +440,7 @@ Seed data in migrations: roles `farmer`, `agrochemist`, `admin`; plan `FREE` wit
 - **Notifications and push tokens (`V21`).** `notifications` is the in-app feed of a user and `push_tokens` holds the device tokens ([docs/api/notifications.md](../api/notifications.md)). A notification has a `type` and references only (`consultation_id`, `message_id`, `diagnosis_id`), never names or text; a check constraint ties the set references to the type (a message notification has the consultation and the message, a verification notification has none). All references and the recipient are `ON DELETE CASCADE`; a composite foreign key `(question_id, answer_id)` to `community_answers (question_id, id)` (`V26`) keeps the answer of a notification inside its question. Unread rows of one recipient with the same `collapse_key` collapse into one row with `event_count` (a partial unique index on `(recipient_id, collapse_key) WHERE read_at IS NULL`), so a chat or a diagnosis with many events is one row; a read row is never reused. The feed is ordered by `(updated_at DESC, id DESC)`; a partial index on unread rows serves the counter. `push_tokens.token` is unique across users, so a device that signs in under another account moves the token. The limit of 10 tokens per user is a service rule, checked under an advisory lock.
 - **Calculations (`V22`).** `calculations` holds the saved seasons of the farm economics calculator. The formulas run on the device, so the server stores what the farmer entered (`area_ha`, `yield_c_ha` in centners per hectare, `price_t` per tonne, `costs`) and what the app calculated from it (`results`) as sent; it never recalculates, so `results` must not be trusted for analytics. `costs` and `results` are jsonb objects of name to number; their keys belong to the app and change without a migration, the service checks only the number of entries (up to 30), simple keys, the range (±10^12) and at most 4 decimal places. As in `fields`, `area_unit` is only what the farmer typed. The ER model of the documentation planned `calculation (user_id, crop_id)`; the table is plural, uses `owner_id` and `crop_code` like `fields`, and has `area_unit`. A saved season is not edited: the app saves a new one and deletes the old. The API limits a farmer to 100 seasons (a service rule, checked under an advisory lock). The feature `calculator` exists since `V4`; the API needs the role `farmer` and that feature.
 - **Community (`V25`).** Seven tables with the prefix `community_`; the decisions are in [ADR 0012](../adr/0012-community-and-moderation.md). The status of a question is a generated column (`open` without `accepted_answer_id`, `solved` with it); hiding is the pair `hidden_at`, `hidden_by` on questions and answers (both set or both empty). The composite foreign key `(id, accepted_answer_id)` to `community_answers (question_id, id)` keeps the best answer inside its question, and `ON DELETE SET NULL (accepted_answer_id)` makes the question open again when that answer is deleted. `region_id` and `district_id` are copied from the author's profile when the question is created. Photos are under the key prefix `community/`, apart from `diagnoses/` and `consultations/`, so the cleanup of orphaned diagnosis photos never sees them. A vote is `-1` or `1`, one per user and answer. `community_complaints` is a moderation case: one open case per target (partial unique indexes on the question and on the answer), the status `new`, `in_progress`, `resolved` and the resolution (`resolved_at`, `resolved_by`, `action`) set together exactly when it is resolved; `community_reports` holds one report per user in a case. Everything is deleted with its users and questions (`ON DELETE CASCADE`) except `hidden_by` and `resolved_by`, which keep `NO ACTION` (audit trail: an admin who moderated is blocked, not deleted).
+- **Community invitations (`V27`).** `community_invitations` records that an admin invited a verified agrochemist to a question: one row per `(question_id, agrochemist_id)` (unique key), `invited_by` is the admin and keeps `NO ACTION` (audit trail), the question and the agrochemist are `ON DELETE CASCADE`; an index on `agrochemist_id` serves the cascade of a deleted user. The row is kept apart from `notifications` because the feed is the recipient's, who reads and clears it, while the admin's list of unanswered questions must still show who was invited. `V27` also adds the type `community_invitation` to `notifications_type_check` (13 types) and to `notifications_refs_match_type`, where it has the same references as `community_question`: only `question_id`.
 - **`diseases.kind` (`V7`)** has `oomycete` for late blight (*Phytophthora*), which is neither a fungus nor a bacterium: the treatment and the advice differ.
 - **Feature access.** Code checks whether the user's plan includes a feature instead of checking roles, so paid plans can be added later as data. Today everyone is on `FREE` and nothing is limited; the per-minute diagnosis rate limit lives in Redis, not in the database.
 

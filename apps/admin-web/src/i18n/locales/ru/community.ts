@@ -38,7 +38,6 @@ const community = {
     hours: '{{hours}} ч',
     invited: 'Агрохимик приглашён · {{name}}',
     invite: 'Позвать агрохимика',
-    inviteUnavailable: 'Пока недоступно',
   },
   inviteModal: {
     title: 'Пригласить агрохимика',
@@ -47,6 +46,12 @@ const community = {
     submit: 'Пригласить',
     sending: 'Отправляем…',
     error: 'Не удалось отправить приглашение',
+    errors: {
+      agrochemist_not_verified: 'Агрохимик ещё не подтверждён',
+      agrochemist_not_found: 'Агрохимик не найден',
+      question_not_found: 'Вопрос не найден',
+      network: 'Нет связи с сервером',
+    },
   },
   consultations: {
     title: 'Консультации',

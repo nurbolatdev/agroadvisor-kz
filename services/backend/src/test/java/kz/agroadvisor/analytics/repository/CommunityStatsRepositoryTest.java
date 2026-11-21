@@ -137,6 +137,25 @@ class CommunityStatsRepositoryTest {
     }
 
     @Test
+    void theUnansweredListShowsTheLatestInvitationOrNone() {
+        Instant now = Instant.now();
+        UUID author = user();
+        UUID first = user("First", "agrochemist");
+        UUID second = user("Second", "agrochemist");
+        UUID invited = question(author, LONG_AGO, false);
+        UUID plain = question(author, LONG_AGO.plusSeconds(60), false);
+        invite(invited, first, now.minus(Duration.ofHours(5)), author);
+        invite(invited, second, now.minus(Duration.ofHours(1)), author);
+
+        List<UnansweredQuestion> list = stats.unanswered(now, 10_000);
+
+        UnansweredQuestion withInvitation = list.stream().filter(q -> q.id().equals(invited)).findFirst().orElseThrow();
+        assertThat(withInvitation.invited().id()).isEqualTo(second);
+        assertThat(withInvitation.invited().name()).isEqualTo("Second");
+        assertThat(list.stream().filter(q -> q.id().equals(plain)).findFirst().orElseThrow().invited()).isNull();
+    }
+
+    @Test
     void anAnswerGivenAfterTheMomentDoesNotCountForThatMoment() {
         Instant now = Instant.now();
         UUID author = user();
@@ -285,6 +304,11 @@ class CommunityStatsRepositoryTest {
                 hidden ? author : null);
         questions.add(id);
         return id;
+    }
+
+    private void invite(UUID question, UUID agrochemist, Instant createdAt, UUID invitedBy) {
+        jdbc.update("INSERT INTO community_invitations (question_id, agrochemist_id, invited_by, created_at) "
+                + "VALUES (?, ?, ?, ?)", question, agrochemist, invitedBy, Timestamp.from(createdAt));
     }
 
     private UUID answer(UUID question, UUID author, Instant createdAt, boolean hidden) {

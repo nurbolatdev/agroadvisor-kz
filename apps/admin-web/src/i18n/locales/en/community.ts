@@ -39,7 +39,6 @@ const community: Translation<typeof ru> = {
     hours: '{{hours}} h',
     invited: 'Agrochemist invited · {{name}}',
     invite: 'Invite an agrochemist',
-    inviteUnavailable: 'Not available yet',
   },
   inviteModal: {
     title: 'Invite an agrochemist',
@@ -48,6 +47,12 @@ const community: Translation<typeof ru> = {
     submit: 'Invite',
     sending: 'Sending…',
     error: 'Could not send the invitation',
+    errors: {
+      agrochemist_not_verified: 'The agrochemist is not verified yet',
+      agrochemist_not_found: 'The agrochemist was not found',
+      question_not_found: 'The question was not found',
+      network: 'Cannot reach the server',
+    },
   },
   consultations: {
     title: 'Consultations',

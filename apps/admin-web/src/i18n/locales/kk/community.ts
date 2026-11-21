@@ -39,7 +39,6 @@ const community: Translation<typeof ru> = {
     hours: '{{hours}} сағ',
     invited: 'Агрохимик шақырылды · {{name}}',
     invite: 'Агрохимикті шақыру',
-    inviteUnavailable: 'Әзірше қолжетімсіз',
   },
   inviteModal: {
     title: 'Агрохимикті шақыру',
@@ -48,6 +47,12 @@ const community: Translation<typeof ru> = {
     submit: 'Шақыру',
     sending: 'Жіберілуде…',
     error: 'Шақыруды жіберу мүмкін болмады',
+    errors: {
+      agrochemist_not_verified: 'Агрохимик әлі расталмаған',
+      agrochemist_not_found: 'Агрохимик табылмады',
+      question_not_found: 'Сұрақ табылмады',
+      network: 'Серверге қосылу мүмкін емес',
+    },
   },
   consultations: {
     title: 'Кеңестер',

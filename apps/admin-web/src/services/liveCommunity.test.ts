@@ -26,15 +26,27 @@ const body = (extra: Record<string, unknown> = {}) => ({
   ...extra,
 })
 
-type Call = { path: string; opts: { method?: string; query?: Record<string, unknown> } }
+type Call = { path: string; opts: { method?: string; query?: Record<string, unknown>; body?: unknown } }
 
-function setup(answer: unknown) {
+const INVITE = 'POST /api/admin/community/questions/q1/invitations'
+const invitation = {
+  questionId: 'q1',
+  agrochemist: { id: 'a1', name: 'Ерлан Т.' },
+  invitedAt: '2026-11-21T10:00:00Z',
+}
+
+function setup(answer: unknown, inviteAnswer: unknown = invitation) {
   const calls: Call[] = []
   const client = {
     request: vi.fn(async (path: string, opts: Call['opts'] = {}) => {
       calls.push({ path, opts })
       if (path === '/api/regions') return REGIONS
-      if (`${opts.method ?? 'GET'} ${path}` !== STATS) throw new Error(`unexpected call ${path}`)
+      const route = `${opts.method ?? 'GET'} ${path}`
+      if (route === INVITE) {
+        if (inviteAnswer instanceof Error) throw inviteAnswer
+        return inviteAnswer
+      }
+      if (route !== STATS) throw new Error(`unexpected call ${path}`)
       if (answer instanceof Error) throw answer
       return answer
     }),
@@ -88,6 +100,38 @@ describe('live community', () => {
 
     expect(stats.firstAnswerMinutes.value).toBeNull()
     expect(stats.consultations).toEqual({ requests: 0, closed: 0, avgResponseMinutes: null, avgRating: null })
+  })
+
+  it('maps the invited agrochemist of a question and leaves the others without a mark', async () => {
+    const rows = body().unanswered
+    const { live } = setup(
+      body({ unanswered: [{ ...rows[0], invitedAgrochemist: { id: 'a1', name: 'Ерлан Т.' } }, { ...rows[1], invitedAgrochemist: null }] }),
+    )
+
+    const stats = await live.getCommunityStats('7d')
+
+    expect(stats.unanswered[0].invitedAgrochemist).toEqual({ id: 'a1', name: 'Ерлан Т.' })
+    expect(stats.unanswered[1].invitedAgrochemist).toBeUndefined()
+  })
+
+  it('posts the invitation with the agrochemist id without reading the statistics first', async () => {
+    const { live, calls } = setup(body())
+
+    await expect(live.inviteAgrochemist('q1', 'a1')).resolves.toBeUndefined()
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0].path).toBe('/api/admin/community/questions/q1/invitations')
+    expect(calls[0].opts.method).toBe('POST')
+    expect(calls[0].opts.body).toEqual({ agrochemistId: 'a1' })
+  })
+
+  it('lets the 409 of the invitation through as an ApiError', async () => {
+    const { live } = setup(body(), new ApiError(409, 'agrochemist_not_verified', 'Агрохимик не подтверждён'))
+
+    await expect(live.inviteAgrochemist('q1', 'a1')).rejects.toMatchObject({
+      status: 409,
+      code: 'agrochemist_not_verified',
+    })
   })
 
   it('lets the error of the backend through', async () => {

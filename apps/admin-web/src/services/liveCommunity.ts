@@ -18,6 +18,7 @@ interface BackendCommunityStats {
     cropCode: string
     regionId: number
     hoursWithoutAnswer: number
+    invitedAgrochemist?: { id: string; name: string } | null
   }[]
   consultations: { requests: number; closed: number; avgResponseMinutes: number | null }
 }
@@ -27,13 +28,19 @@ const NO_REGION = '—'
 /**
  * The community screen on the backend's numbers. A question gets its crop and the name of its region
  * ("district"); there is no consultation rating on the backend, so it stays empty. Inviting an agrochemist
- * is not here yet.
+ * goes to the backend; the screen reloads the statistics, which carry the mark of the invited one.
  */
 export function createLiveCommunity(
   client: HttpClient,
   regions: RegionDirectory,
-): Pick<AdminApi, 'getCommunityStats'> {
+): Pick<AdminApi, 'getCommunityStats' | 'inviteAgrochemist'> {
   return {
+    inviteAgrochemist: async (questionId, agrochemistId) => {
+      await client.request<unknown>(
+        `/api/admin/community/questions/${encodeURIComponent(questionId)}/invitations`,
+        { method: 'POST', body: { agrochemistId } },
+      )
+    },
     getCommunityStats: async (period) => {
       const body = await client.request<BackendCommunityStats>('/api/admin/community/stats', {
         query: { period },
@@ -45,6 +52,7 @@ export function createLiveCommunity(
           crop: row.cropCode as CropId,
           district: (await regions.nameById(row.regionId)) ?? NO_REGION,
           hoursWithoutAnswer: row.hoursWithoutAnswer,
+          ...(row.invitedAgrochemist ? { invitedAgrochemist: row.invitedAgrochemist } : {}),
         })),
       )
       return {

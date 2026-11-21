@@ -44,6 +44,7 @@ The references that are set depend on the `type` (enforced by a check constraint
 | `community_answer` | the author of the question | a new answer (not when the author answers their own question) | `questionId`, `answerId` (the newest answer) |
 | `community_answer_accepted` | the author of the answer | the question author picked it as the best answer (clearing the choice, picking the same answer again or picking one's own is silent) | `questionId`, `answerId` |
 | `community_question` | users following the crop of the question | a new question (active accounts only, the author excluded) | `questionId` (the newest question) |
+| `community_invitation` | the invited agrochemist | an admin invited them to answer a question (once per question and agrochemist; repeating the invitation is silent) | `questionId` |
 
 The reason of a verification decision and the verdict itself are not in the notification: the client reads the reason from the verification status.
 
@@ -56,6 +57,7 @@ Unread notifications of one recipient with the same key collapse into one row, s
 - `community_answer` collapses per question: the row keeps the newest `answerId`, `count` grows.
 - `community_answer_accepted` collapses per answer: picking, clearing and picking the same answer again while the first row is unread gives one row with `count` 2.
 - `community_question` collapses per recipient: one unread row holds the newest `questionId`, `count` is the number of new questions.
+- `community_invitation` never collapses: every invitation is its own row and carries only the question, no answer.
 - Other types never collapse.
 
 After a row is read, the next event starts a new row with `count` 1.
