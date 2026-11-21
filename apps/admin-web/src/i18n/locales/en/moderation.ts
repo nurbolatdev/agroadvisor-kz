@@ -45,6 +45,7 @@ const moderation: Translation<typeof ru> = {
     back: 'Back to list',
     selectTitle: 'Select a complaint',
     selectDescription: 'Complaint details and actions will appear here.',
+    stale: 'The complaint is already resolved. The list has been refreshed.',
   },
   reports_one: '{{count}} complaint',
   reports_other: '{{count}} complaints',

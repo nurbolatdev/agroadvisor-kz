@@ -26,6 +26,8 @@ export function ModerationPage() {
   const [selectedId, setSelectedId] = useState<string>()
   // Below 1024 px the list and the details are separate screens (section 5a).
   const [showDetailsOnMobile, setShowDetailsOnMobile] = useState(false)
+  // Another moderator resolved the open case: the notice outlives the reload that removes the case.
+  const [stale, setStale] = useState(false)
   const { data: complaints, reload: reloadComplaints } = useApiQuery(
     () => api.getComplaints({ status: filters.status, kind: filters.kind, reason: filters.reason }),
     [filters.status, filters.kind, filters.reason],
@@ -49,11 +51,18 @@ export function ModerationPage() {
         value={filters}
         onChange={(value) => {
           setFilters(value)
+          setStale(false)
           pages.resetPage()
           setShowDetailsOnMobile(false)
         }}
         newCount={newCount}
       />
+
+      {stale ? (
+        <p role="alert" className="mt-4 rounded-2xl bg-primary-soft p-4 text-small text-primary-dark">
+          {t('list.stale')}
+        </p>
+      ) : null}
 
       <div className="mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,400fr)_minmax(0,552fr)]">
         <section
@@ -77,6 +86,7 @@ export function ModerationPage() {
                 complaint={complaint}
                 selected={complaint.id === selected?.id}
                 onSelect={() => {
+                  setStale(false)
                   setSelectedId(complaint.id)
                   setShowDetailsOnMobile(true)
                 }}
@@ -117,7 +127,11 @@ export function ModerationPage() {
                 reload()
                 notifyDataChanged()
               }}
-              onStale={reload}
+              onStale={() => {
+                setStale(true)
+                reload()
+                notifyDataChanged()
+              }}
             />
           ) : (
             <Card>

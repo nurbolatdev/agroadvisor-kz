@@ -45,6 +45,7 @@ const moderation: Translation<typeof ru> = {
     back: 'Тізімге',
     selectTitle: 'Шағымды таңдаңыз',
     selectDescription: 'Шағым мәліметтері мен әрекеттер осында шығады.',
+    stale: 'Шағым бұрын шешілген. Тізім жаңартылды.',
   },
   reports_one: '{{count}} шағым',
   reports_other: '{{count}} шағым',

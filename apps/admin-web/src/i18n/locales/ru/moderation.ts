@@ -42,6 +42,7 @@ const moderation = {
     back: 'К списку',
     selectTitle: 'Выберите жалобу',
     selectDescription: 'Детали жалобы и действия появятся здесь.',
+    stale: 'Жалоба уже решена. Список обновлён.',
   },
   reports_one: '{{count}} жалоба',
   reports_few: '{{count}} жалобы',
