@@ -67,7 +67,7 @@ The author is not notified about a hide or a block.
 
 ## Hide and restore without a case
 
-`PATCH .../questions/{id}/status` and `PATCH .../answers/{id}/status` hide or restore a post at any time, with or without a case. Both answer `204` with no body. Repeating the current status is not an error. Restoring an answer that was the best one does not choose it again; the author of the question picks again.
+`PATCH .../questions/{id}/status` and `PATCH .../answers/{id}/status` hide or restore a post at any time, with or without a case. Both answer `204` with no body. Repeating the current status is not an error. Hiding this way does not close the open cases about the post: they stay open until an admin decides them. Restoring an answer that was the best one does not choose it again; the author of the question picks again.
 
 ## Moderation stats
 

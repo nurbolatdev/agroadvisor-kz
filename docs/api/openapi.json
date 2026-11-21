@@ -2037,8 +2037,6 @@
           },
           "comment" : {
             "description" : "Optional note, up to 500 characters",
-            "maxLength" : 500,
-            "minLength" : 0,
             "type" : [ "string", "null" ]
           }
         },
@@ -2942,7 +2940,7 @@
             "description" : "OK"
           }
         },
-        "summary" : "Decides a case once: keep leaves the target, hide hides it, block hides it and blocks its author (403 admin_status_locked when the author is an administrator, 409 for oneself; then nothing changes). 409 complaint_resolved, 404 complaint_not_found.",
+        "summary" : "Decides a case once: keep leaves the target, hide hides it, block hides it and blocks its author (403 admin_status_locked when the author is an administrator or the caller; then nothing changes). 409 complaint_resolved, 404 complaint_not_found.",
         "tags" : [ "community-moderation-controller" ]
       }
     },
@@ -5020,7 +5018,7 @@
     },
     "/api/community/reports" : {
       "post" : {
-        "description" : "Reports a visible question or answer of someone else; a repeat from the same user changes nothing. 400 validation_failed; 404 question_not_found or answer_not_found; 409 own_content; 429 rate_limited after 20 reports an hour.",
+        "description" : "Reports a visible question or answer of someone else; a repeat from the same user changes nothing. 400 validation_failed; 404 question_not_found or answer_not_found; 409 own_content; 409 complaint_resolved when the case was resolved again and again during the attempts to add the report (rare, send it once more); 429 rate_limited after 20 reports an hour.",
         "operationId" : "reportCommunityContent",
         "requestBody" : {
           "content" : {

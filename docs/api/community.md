@@ -162,7 +162,7 @@ Request and response: `{ "crops": [string] }`. Replaces the whole set in one tra
 
 ### `POST /api/community/reports`
 
-Reports a visible question or answer of someone else. Request: `{ "targetType": "question" | "answer", "targetId": uuid, "reason": "ads" | "misinformation" | "spam" | "abuse", "comment": string? }`; the comment is optional, up to 500 characters. Response: 204. All reports about one target hang under one open case that the admin decides once; one report per user per case, a repeat changes nothing (also 204). After the case is resolved, a new report opens a new case. Counts toward 20 reports per user per hour, every attempt included. Errors: 400 `validation_failed`; 404 `question_not_found` or `answer_not_found` (missing or hidden target); 409 `own_content` (one's own question or answer); 429 `rate_limited`.
+Reports a visible question or answer of someone else. Request: `{ "targetType": "question" | "answer", "targetId": uuid, "reason": "ads" | "misinformation" | "spam" | "abuse", "comment": string? }`; the comment is optional, up to 500 characters. Response: 204. All reports about one target hang under one open case that the admin decides once; one report per user per case, a repeat changes nothing (also 204). After the case is resolved, a new report opens a new case. Counts toward 20 reports per user per hour, every attempt included. Errors: 400 `validation_failed`; 404 `question_not_found` or `answer_not_found` (missing or hidden target); 409 `own_content` (one's own question or answer); 409 `complaint_resolved` (rare: the case was resolved again and again while the report was being added, after 3 attempts; send it once more); 429 `rate_limited`.
 
 ## Error codes
 
@@ -181,9 +181,10 @@ Reports a visible question or answer of someone else. Request: `{ "targetType": 
 | 404 | `diagnosis_not_found` | no diagnosis is attached, it was deleted, or it is not the author's own |
 | 409 | `own_answer` | voting for or picking one's own answer |
 | 409 | `own_content` | reporting one's own question or answer |
+| 409 | `complaint_resolved` | a report could not be added: its case was resolved during all 3 attempts (rare; repeat) |
 | 409 | `answer_limit` | the question already has 200 answers |
 | 413 | `payload_too_large` | the request is over the upload limit (11 MB) |
 | 429 | `rate_limited` | too many questions or answers per hour, or votes per minute |
 | 503 | `storage_unavailable` | the photo storage did not answer |
 
-The admin moderation (`/api/admin/community`) has its own codes, `complaint_not_found` and `complaint_resolved` among them; see [`admin-community.md`](admin-community.md). The user's report endpoint never returns them.
+The admin moderation (`/api/admin/community`) has its own codes, `complaint_not_found` and `complaint_resolved` among them; see [`admin-community.md`](admin-community.md). The user's report endpoint returns only `complaint_resolved`, and only in the rare case in the table above.

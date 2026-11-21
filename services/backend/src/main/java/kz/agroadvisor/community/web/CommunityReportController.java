@@ -34,7 +34,8 @@ public class CommunityReportController {
     @Operation(operationId = "reportCommunityContent",
             description = "Reports a visible question or answer of someone else; a repeat from the same user "
                     + "changes nothing. 400 validation_failed; 404 question_not_found or answer_not_found; 409 "
-                    + "own_content; 429 rate_limited after 20 reports an hour.")
+                    + "own_content; 409 complaint_resolved when the case was resolved again and again during the attempts "
+                    + "to add the report (rare, send it once more); 429 rate_limited after 20 reports an hour.")
     @ApiResponse(responseCode = "204", description = "The report is accepted")
     public void report(@Valid @RequestBody CreateReportRequest request, Authentication authentication) {
         reports.report(UUID.fromString(authentication.getName()), request.targetType(), request.targetId(),

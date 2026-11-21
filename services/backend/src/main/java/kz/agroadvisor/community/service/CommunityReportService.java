@@ -33,7 +33,10 @@ public class CommunityReportService {
     public static final Set<String> REASONS = Set.of("ads", "misinformation", "spam", "abuse");
     public static final int MAX_COMMENT = 500;
 
-    /** The case can be resolved between the insert and the lock; one more attempt is enough. */
+    /**
+     * The open case can be resolved between the insert and the lock, then the next attempt opens a new one. After
+     * this many attempts in a row the report fails with 409 {@code complaint_resolved} and the user may repeat it.
+     */
     private static final int ATTEMPTS = 3;
 
     private final CommunityQuestionRepository questions;

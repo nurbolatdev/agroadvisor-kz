@@ -217,6 +217,44 @@ class CommunityModerationControllerTest {
                 .andExpect(jsonPath("$.target.hidden").value(true));
     }
 
+    private static String reportBody(String targetType, UUID targetId, String reason) {
+        return "{\"targetType\":\"" + targetType + "\",\"targetId\":\"" + targetId + "\",\"reason\":\"" + reason
+                + "\"}";
+    }
+
+    @Test
+    void theReportPathIsClosedToAnonymousCallsAndAdministrators() throws Exception {
+        String body = reportBody("question", UUID.randomUUID(), "spam");
+
+        mvc.perform(post("/api/community/reports").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized());
+        json(post("/api/community/reports"), token(newUser(Role.ADMIN)), body).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aReportWithAnUnknownTargetTypeOrReasonIsRefused() throws Exception {
+        String farmer = token(newUser(Role.FARMER));
+        UUID question = newQuestion(newUser(Role.FARMER));
+
+        json(post("/api/community/reports"), farmer, reportBody("comment", question, "spam"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("validation_failed"));
+        json(post("/api/community/reports"), farmer, reportBody("question", question, "boring"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("validation_failed"));
+    }
+
+    @Test
+    void aUserCannotReportTheirOwnQuestionOrAnswer() throws Exception {
+        UUID authorId = newUser(Role.FARMER);
+        String author = token(authorId);
+        UUID question = newQuestion(authorId);
+        UUID answer = newAnswer(question, authorId);
+
+        json(post("/api/community/reports"), author, reportBody("question", question, "spam"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("own_content"));
+        json(post("/api/community/reports"), author, reportBody("answer", answer, "spam"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("own_content"));
+    }
+
     @Test
     void theAdminSeesAPhotoOfAHiddenQuestion() throws Exception {
         String admin = token(newUser(Role.ADMIN));

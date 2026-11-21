@@ -80,7 +80,7 @@ public class CommunityModerationController {
     @PostMapping("/complaints/{id}/resolve")
     @Operation(operationId = "resolveAdminCommunityComplaint", summary = "Decides a case once: keep leaves the "
             + "target, hide hides it, block hides it and blocks its author (403 admin_status_locked when the "
-            + "author is an administrator, 409 for oneself; then nothing changes). 409 complaint_resolved, "
+            + "author is an administrator or the caller; then nothing changes). 409 complaint_resolved, "
             + "404 complaint_not_found.")
     public ComplaintResponse resolve(@PathVariable UUID id, @Valid @RequestBody ResolveComplaintRequest body,
             @RequestParam(required = false) String lang,
