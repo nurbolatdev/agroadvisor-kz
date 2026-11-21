@@ -1,9 +1,13 @@
 package kz.agroadvisor.community.web;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -20,6 +24,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -205,5 +210,39 @@ class CommunityModerationIntegrationTest {
         mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"login\":\"" + phone + "\",\"password\":\"" + PASSWORD + "\"}"))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("account_blocked"));
+    }
+
+    @Test
+    void thePhotoUrlOfACaseServesThePhotoOfAHiddenQuestionToTheAdmin() throws Exception {
+        byte[] jpeg = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xDB, 0, 2, (byte) 0xFF, (byte) 0xD9};
+        when(storage.store(any(), any(), anyString())).thenAnswer(
+                call -> "community/" + call.getArgument(0) + "/" + UUID.randomUUID() + ".jpg");
+        when(storage.load(anyString())).thenReturn(jpeg);
+        String author = token(newUser(Role.FARMER));
+        String reporter = token(newUser(Role.FARMER));
+        String admin = token(newUser(Role.ADMIN));
+        String questionId = JsonPath.read(mvc.perform(multipart("/api/community/questions")
+                .file(new MockMultipartFile("photos", "leaf.jpg", "image/jpeg", jpeg))
+                .part(CommunityQuestionControllerIntegrationTest.textPart("title", "Late blight?"),
+                        CommunityQuestionControllerIntegrationTest.textPart("text", "Spots on the leaves"),
+                        CommunityQuestionControllerIntegrationTest.textPart("cropCode", "potato"))
+                .header("Authorization", author)).andExpect(status().isCreated()).andReturn().getResponse()
+                .getContentAsString(), "$.id");
+        report(reporter, questionId, "spam").andExpect(status().isNoContent());
+        String complaintId = complaintOf(admin, questionId);
+        json(post("/api/admin/community/complaints/" + complaintId + "/resolve"), admin, "{\"action\":\"hide\"}")
+                .andExpect(status().isOk());
+
+        String body = mvc.perform(get("/api/admin/community/complaints/" + complaintId)
+                .header("Authorization", admin)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.target.hidden").value(true))
+                .andExpect(jsonPath("$.target.photoUrls.length()").value(1)).andReturn().getResponse()
+                .getContentAsString();
+        String photoUrl = JsonPath.read(body, "$.target.photoUrls[0]");
+
+        mvc.perform(get(photoUrl).header("Authorization", admin)).andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/jpeg"));
+        mvc.perform(get("/api/community/questions/" + questionId).header("Authorization", reporter))
+                .andExpect(status().isNotFound());
     }
 }

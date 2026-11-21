@@ -2255,6 +2255,13 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "photoUrls" : {
+            "description" : "Admin URLs of the question photos, /api/admin/community/questions/{id}/photos/{photoId}",
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "questionId" : {
             "format" : "uuid",
             "type" : "string"
@@ -2271,7 +2278,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "body", "cropCode", "hidden", "photoCount", "questionId", "questionTitle", "regionId", "type" ],
+        "required" : [ "body", "cropCode", "hidden", "photoCount", "photoUrls", "questionId", "questionTitle", "regionId", "type" ],
         "type" : "object"
       },
       "TokenResponse" : {

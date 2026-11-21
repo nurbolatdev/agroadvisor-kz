@@ -2500,6 +2500,8 @@ export interface components {
             hidden: boolean;
             /** Format: int32 */
             photoCount: number;
+            /** @description Admin URLs of the question photos, /api/admin/community/questions/{id}/photos/{photoId} */
+            photoUrls: string[];
             /** Format: uuid */
             questionId: string;
             questionTitle: string;

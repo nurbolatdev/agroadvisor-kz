@@ -47,6 +47,8 @@ public record ComplaintResponse(
             @Schema(requiredMode = RequiredMode.REQUIRED) String cropCode,
             @Schema(requiredMode = RequiredMode.REQUIRED) long regionId,
             @Schema(requiredMode = RequiredMode.REQUIRED) int photoCount,
+            @Schema(requiredMode = RequiredMode.REQUIRED, description = "Admin URLs of the question photos, "
+                    + "/api/admin/community/questions/{id}/photos/{photoId}") List<String> photoUrls,
             @Schema(requiredMode = RequiredMode.REQUIRED) boolean hidden) {
     }
 
@@ -71,7 +73,7 @@ public record ComplaintResponse(
                                 view.resolution().resolvedAt()),
                 new TargetResponse(target.type(), target.questionId(), target.answerId(), target.questionTitle(),
                         target.body(), target.cropCode(), target.regionId(), target.photoCount(),
-                        target.hidden()),
+                        target.photoUrls(), target.hidden()),
                 new AuthorResponse(author.id(), author.name(), author.role(), author.expert(), author.status(),
                         author.hiddenCount()));
     }

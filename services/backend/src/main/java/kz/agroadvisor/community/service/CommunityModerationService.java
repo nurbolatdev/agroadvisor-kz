@@ -48,7 +48,7 @@ public class CommunityModerationService {
 
     /** The question or answer the case is about, shown even when hidden. */
     public record Target(String type, UUID questionId, UUID answerId, String questionTitle, String body,
-            String cropCode, long regionId, int photoCount, boolean hidden) {
+            String cropCode, long regionId, int photoCount, List<String> photoUrls, boolean hidden) {
     }
 
     /** The author of the target; {@code hiddenCount} is the history of the author. */
@@ -195,13 +195,18 @@ public class CommunityModerationService {
         Map<UUID, List<String>> comments = complaints.latestComments(ids, MAX_COMMENTS).stream()
                 .collect(Collectors.groupingBy(ReportComment::complaintId,
                         Collectors.mapping(ReportComment::comment, Collectors.toList())));
+        Map<UUID, List<String>> photoUrls = questions.photos(rows.stream().map(Row::questionId).distinct().toList())
+                .stream().collect(Collectors.groupingBy(CommunityQuestionRepository.Photo::questionId,
+                        Collectors.mapping(p -> "/api/admin/community/questions/" + p.questionId() + "/photos/"
+                                + p.id(), Collectors.toList())));
         return rows.stream().map(row -> new ComplaintView(row.id(), row.status(), row.topReason(),
                 reasons.getOrDefault(row.id(), List.of()), comments.getOrDefault(row.id(), List.of()),
                 row.createdAt(),
                 "resolved".equals(row.status())
                         ? new Resolution(row.action(), row.resolutionComment(), row.resolvedAt()) : null,
                 new Target(row.targetType(), row.questionId(), row.answerId(), row.questionTitle(),
-                        row.targetBody(), row.cropCode(), row.regionId(), row.photoCount(), row.targetHidden()),
+                        row.targetBody(), row.cropCode(), row.regionId(), row.photoCount(), photoUrls.getOrDefault(row.questionId(), List.of()),
+                        row.targetHidden()),
                 new Author(row.authorId(), row.authorName(), row.authorRole(), row.authorExpert(),
                         row.authorStatus(), row.authorHiddenCount()))).toList();
     }
