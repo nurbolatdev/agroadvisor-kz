@@ -46,6 +46,12 @@ const community = {
     submit: 'Пригласить',
     sending: 'Отправляем…',
     error: 'Не удалось отправить приглашение',
+    errors: {
+      agrochemist_not_verified: 'Агрохимик ещё не подтверждён',
+      agrochemist_not_found: 'Агрохимик не найден',
+      question_not_found: 'Вопрос не найден',
+      network: 'Нет связи с сервером',
+    },
   },
   consultations: {
     title: 'Консультации',

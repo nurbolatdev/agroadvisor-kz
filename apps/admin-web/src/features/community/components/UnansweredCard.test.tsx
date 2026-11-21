@@ -4,7 +4,6 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import i18n from '@/i18n'
 
-vi.mock('@/services/config', () => ({ API_MODE: 'live', API_BASE_URL: '' }))
 vi.mock('@/services/api', () => ({
   api: { getAgrochemists: vi.fn().mockResolvedValue([]), inviteAgrochemist: vi.fn() },
 }))
@@ -19,7 +18,7 @@ const question = {
   hoursWithoutAnswer: 30,
 }
 
-describe('UnansweredCard in live mode', () => {
+describe('UnansweredCard', () => {
   beforeAll(async () => {
     await i18n.changeLanguage('en')
   })
