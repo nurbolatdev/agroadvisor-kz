@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { InviteAgrochemistModal } from '@/features/community/components/InviteAgrochemistModal'
+import { API_MODE } from '@/services/config'
 import type { UnansweredQuestion } from '@/shared/types'
 
 interface UnansweredCardProps {
@@ -16,6 +17,9 @@ interface UnansweredCardProps {
 }
 
 const VISIBLE_BY_DEFAULT = 3
+
+/** The invitation has no backend endpoint yet (B12.5c): only the mock API can take it. */
+const INVITE_AVAILABLE = API_MODE === 'mock'
 
 export function UnansweredCard({ questions, total, onInvited }: UnansweredCardProps) {
   const { t } = useTranslation(['community', 'common'])
@@ -60,6 +64,8 @@ export function UnansweredCard({ questions, total, onInvited }: UnansweredCardPr
                 <Button
                   size="sm"
                   variant="secondary"
+                  disabled={!INVITE_AVAILABLE}
+                  title={INVITE_AVAILABLE ? undefined : t('unanswered.inviteUnavailable')}
                   onClick={() => setInviting(question)}
                   className="border-primary text-primary"
                 >
