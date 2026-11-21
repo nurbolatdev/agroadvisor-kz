@@ -104,6 +104,14 @@ describe('mock notifications', () => {
     expect(list.filter((n) => n.type === 'community_question')).toHaveLength(1)
   })
 
+  it('refuses community notifications without the references they point to', () => {
+    const { controls } = make()
+
+    expect(() => controls.push('community_question')).toThrow()
+    expect(() => controls.push('community_answer', { questionId: 'q1' })).toThrow()
+    expect(() => controls.push('community_answer_accepted', { answerId: 'a1' })).toThrow()
+  })
+
   it('starts a new row after the old one was read', async () => {
     const { api, controls } = make()
     const first = controls.push('consultation_message', { consultationId: 'c1', messageId: 'm1' })

@@ -66,6 +66,12 @@ export function createMockNotificationsApi({
 
   const controls: MockNotificationsControls = {
     push: (type, refs = {}) => {
+      // like the backend: the community types need the references they point to
+      const needsQuestion = type.startsWith('community_')
+      const needsAnswer = type === 'community_answer' || type === 'community_answer_accepted'
+      if ((needsQuestion && !refs.questionId) || (needsAnswer && !refs.answerId)) {
+        throw new Error(`References do not fit notification type ${type}`)
+      }
       const at = stamp()
       // like the backend: unread notifications of one chat (messages), of one diagnosis (verdicts), of one
       // question (answers) or the new questions of followed crops collapse into one row that keeps the
