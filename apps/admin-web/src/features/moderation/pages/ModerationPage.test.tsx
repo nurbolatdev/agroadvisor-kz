@@ -50,6 +50,22 @@ describe('ModerationPage', () => {
     mocks.api.getModerationStats.mockResolvedValue(stats)
   })
 
+  it('shows a load error and loads the list again on retry', async () => {
+    mocks.api.getComplaints
+      .mockRejectedValueOnce(new ApiError(503, 'unavailable', 'down'))
+      .mockResolvedValue([complaint])
+    render(
+      <MemoryRouter>
+        <ModerationPage />
+      </MemoryRouter>,
+    )
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('Cheap seeds')).toBeTruthy()
+    expect(mocks.api.getComplaints).toHaveBeenCalledTimes(2)
+  })
+
   it('keeps a notice after the reload when the complaint was already resolved', async () => {
     mocks.api.getComplaints.mockResolvedValueOnce([complaint]).mockResolvedValue([])
     mocks.api.resolveComplaint.mockRejectedValue(
