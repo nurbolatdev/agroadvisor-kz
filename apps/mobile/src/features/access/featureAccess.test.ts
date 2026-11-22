@@ -1,13 +1,13 @@
 import { FEATURE_FLAGS, isFeatureEnabled } from './featureAccess'
 
 describe('feature access', () => {
-  it('has consultations and fields on (they are built) and community off for now', () => {
+  it('has consultations, community and fields on (they are built)', () => {
     expect(isFeatureEnabled('consultations')).toBe(true)
     expect(isFeatureEnabled('fields')).toBe(true)
-    expect(isFeatureEnabled('community')).toBe(false)
+    expect(isFeatureEnabled('community')).toBe(true)
     expect(FEATURE_FLAGS).toEqual({
       consultations: true,
-      community: false,
+      community: true,
       fields: true,
       weather: true,
       calculator: true,

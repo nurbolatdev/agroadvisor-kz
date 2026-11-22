@@ -16,6 +16,7 @@ import {
 } from 'lucide-react-native'
 
 import type { AppNotification, NotificationType } from '@/api/notifications'
+import { FEATURE_FLAGS, isFeatureEnabled, type FeatureFlags } from '@/features/access/featureAccess'
 import { colors } from '@/theme/tokens'
 
 export type NotificationLook = { icon: LucideIcon; color: string; background: string }
@@ -86,13 +87,15 @@ export type NotificationTarget =
   | { kind: 'result'; id: string }
   | { kind: 'requests' }
   | { kind: 'documents' }
+  | { kind: 'question'; id: string }
   | { kind: 'none' }
 
 export function targetOf(
   notification: AppNotification,
   asAgrochemist: boolean,
+  flags: FeatureFlags = FEATURE_FLAGS,
 ): NotificationTarget {
-  const { type, consultationId, diagnosisId } = notification
+  const { type, consultationId, diagnosisId, questionId } = notification
   switch (type) {
     case 'consultation_requested':
       // a request is answered on its own screen; a stale one leads to the chat that came out of it
@@ -115,7 +118,8 @@ export function targetOf(
     case 'community_answer_accepted':
     case 'community_question':
     case 'community_invitation':
-      // the community screens come with M16; until then there is nowhere to go
-      return { kind: 'none' }
+      return questionId && isFeatureEnabled('community', flags)
+        ? { kind: 'question', id: questionId }
+        : { kind: 'none' }
   }
 }

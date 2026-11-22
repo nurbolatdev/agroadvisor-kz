@@ -2,6 +2,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-li
 
 import { NetworkError } from '@/api/errors'
 import type { AppNotification } from '@/api/notifications'
+import { FEATURE_FLAGS } from '@/features/access/featureAccess'
 import { initI18n } from '@/i18n'
 
 import { targetOf } from './helpers'
@@ -112,16 +113,29 @@ describe('targetOf', () => {
     })
   })
 
-  it('has nowhere to go for the community notifications until the community screens exist', () => {
-    for (const type of [
-      'community_answer',
-      'community_answer_accepted',
-      'community_question',
-      'community_invitation',
-    ] as const) {
-      expect(targetOf(note({ type, questionId: 'q1', answerId: 'a1' }), false)).toEqual({
-        kind: 'none',
+  const communityTypes = [
+    'community_answer',
+    'community_answer_accepted',
+    'community_question',
+    'community_invitation',
+  ] as const
+  const on = { ...FEATURE_FLAGS, community: true }
+  const off = { ...FEATURE_FLAGS, community: false }
+
+  it('leads the community notifications to the question', () => {
+    for (const type of communityTypes) {
+      expect(targetOf(note({ type, questionId: 'q1', answerId: 'a1' }), false, on)).toEqual({
+        kind: 'question',
+        id: 'q1',
       })
+    }
+  })
+
+  it('has nowhere to go for a community notification when the feature is off or the question is missing', () => {
+    for (const type of communityTypes) {
+      expect(targetOf(note({ type, questionId: 'q1' }), false, off)).toEqual({ kind: 'none' })
+      expect(targetOf(note({ type, questionId: null }), false, on)).toEqual({ kind: 'none' })
+      expect(targetOf(note({ type }), false, on)).toEqual({ kind: 'none' })
     }
   })
 
@@ -152,6 +166,23 @@ describe('notifications screen', () => {
 
     expect(mockApi.markRead).toHaveBeenCalledWith('n1')
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/chat/[id]', params: { id: 'c1' } })
+  })
+
+  it('opens the question on press of a community notification', async () => {
+    mockApi.list.mockResolvedValue([
+      note({
+        id: 'n3',
+        type: 'community_answer',
+        consultationId: null,
+        questionId: 'q1',
+        answerId: 'a1',
+      }),
+    ])
+    await render(<NotificationsScreen />)
+    await fireEvent.press(await screen.findByText('New answer to your question'))
+
+    expect(mockApi.markRead).toHaveBeenCalledWith('n3')
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/question/[id]', params: { id: 'q1' } })
   })
 
   it('does not ask the server again for a notification that is already read', async () => {

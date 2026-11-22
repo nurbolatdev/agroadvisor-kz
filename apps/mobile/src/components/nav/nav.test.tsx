@@ -24,9 +24,10 @@ describe('the places of an agrochemist', () => {
     ])
   })
 
-  it('show only what is built: Requests, Chats and Profile for now', () => {
+  it('show everything that is built: Requests, Community, Chats and Profile', () => {
     expect(visibleSlots(AGROCHEMIST_SLOTS).map((s) => s.id)).toEqual([
       'requests',
+      'community',
       'chats',
       'profile',
     ])
@@ -54,8 +55,14 @@ describe('the places of the bottom bar', () => {
     expect(TAB_SLOTS.map((s) => s.id)).toEqual(['home', 'community', 'camera', 'chats', 'profile'])
   })
 
-  it('show only what is built: Home, the camera button, Chats and Profile for now, no stubs', () => {
-    expect(visibleSlots().map((s) => s.id)).toEqual(['home', 'camera', 'chats', 'profile'])
+  it('show everything that is built, in the order of the design (screen 24), no stubs', () => {
+    expect(visibleSlots().map((s) => s.id)).toEqual([
+      'home',
+      'community',
+      'camera',
+      'chats',
+      'profile',
+    ])
   })
 
   it('keep the order of the design when more sections get ready', () => {
@@ -87,7 +94,7 @@ describe('BottomBar', () => {
     expect(screen.getByRole('button', { name: 'Diagnose by photo' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Profile' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Chats' })).toBeTruthy()
-    expect(screen.queryByText('Community')).toBeNull()
+    expect(screen.getByRole('tab', { name: 'Community' })).toBeTruthy()
     expect(screen.queryByText(/soon/i)).toBeNull()
   })
 

@@ -7,6 +7,7 @@ import type { DiagnosisResult } from '@/api/diagnosis'
 import { AppText, Button, Chip } from '@/components/ui'
 import { FEATURE_FLAGS } from '@/features/access/featureAccess'
 import { agrochemistsRoute } from '@/features/agrochemists/route'
+import { askRoute } from '@/features/community/route'
 import { useDiseaseDetail } from '@/features/diseases/useDiseaseDetail'
 import { shortSymptoms } from '@/features/diseases/symptoms'
 import { useDiagnosis } from '@/services'
@@ -70,12 +71,12 @@ export function UncertainBody({
       case 'chooseCrop':
         setChoosing(true)
         return
-      // These buttons appear only behind their flags; the community comes later.
+      // These buttons appear only behind their flags.
       case 'askAgronomist':
         router.push(agrochemistsRoute({ diagnosisId: view.id, crop: view.crop }))
         return
       case 'askCommunity':
-        router.push('/community')
+        router.push(askRoute({ diagnosisId: view.id, crop: view.crop }))
         return
       case 'offlineHint':
         return

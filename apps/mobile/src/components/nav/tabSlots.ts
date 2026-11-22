@@ -39,7 +39,7 @@ export const TAB_SLOTS: readonly TabSlot[] = [
     route: 'community',
     icon: Users,
     label: 'tabs.community',
-    implemented: false, // M16
+    implemented: isFeatureEnabled('community'),
   },
   { id: 'camera', kind: 'action', icon: Camera, label: 'tabs.camera', implemented: true },
   {
@@ -77,7 +77,7 @@ export const AGROCHEMIST_SLOTS: readonly TabSlot[] = [
     route: 'community',
     icon: Users,
     label: 'tabs.community',
-    implemented: false, // M16
+    implemented: isFeatureEnabled('community'),
   },
   {
     id: 'chats',

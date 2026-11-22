@@ -1,4 +1,4 @@
-import { Search, X } from 'lucide-react-native'
+import { Search, SlidersHorizontal, X } from 'lucide-react-native'
 import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 
 import { colors, radii, sizes, spacing, typography } from '@/theme/tokens'
@@ -8,11 +8,21 @@ type Props = {
   onChangeText: (text: string) => void
   placeholder: string
   clearLabel: string
+  // an optional filter button on the right (screen 24); both props are needed to show it
+  onFilter?: () => void
+  filterLabel?: string
 }
 
 // A search field of a list (screen 29): a magnifier on the left, a clear button once there is text.
 // The placeholder is also the accessibility label, as there is no caption above the field.
-export function SearchField({ value, onChangeText, placeholder, clearLabel }: Props) {
+export function SearchField({
+  value,
+  onChangeText,
+  placeholder,
+  clearLabel,
+  onFilter,
+  filterLabel,
+}: Props) {
   return (
     <View style={styles.field}>
       <Search size={sizes.iconMd} color={colors.textMuted} />
@@ -34,6 +44,16 @@ export function SearchField({ value, onChangeText, placeholder, clearLabel }: Pr
           style={styles.clear}
         >
           <X size={sizes.iconMd} color={colors.textMuted} />
+        </Pressable>
+      ) : null}
+      {onFilter && filterLabel ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={filterLabel}
+          onPress={onFilter}
+          style={styles.clear}
+        >
+          <SlidersHorizontal size={sizes.iconMd} color={colors.textMuted} />
         </Pressable>
       ) : null}
     </View>

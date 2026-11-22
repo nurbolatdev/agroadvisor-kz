@@ -10,6 +10,7 @@ import { Chip } from './Chip'
 import { Input } from './Input'
 import { clampProgress, ProgressBar } from './ProgressBar'
 import { EmptyState, ErrorState } from './StateView'
+import { SearchField } from './SearchField'
 import { StatusBadge } from './StatusBadge'
 
 beforeAll(() => {
@@ -123,6 +124,28 @@ describe('StatusBadge', () => {
     await render(<StatusBadge variant="undetermined" label="U" />)
     expect(screen.getByText('U')).toHaveStyle({ color: colors.textMuted })
     expect(screen.getByText('U')).not.toHaveStyle({ color: colors.danger })
+  })
+})
+
+describe('SearchField', () => {
+  const base = { value: '', onChangeText: jest.fn(), placeholder: 'Search', clearLabel: 'Clear' }
+
+  it('has no filter button unless asked for', async () => {
+    await render(<SearchField {...base} />)
+    expect(screen.queryByRole('button', { name: 'Filter' })).toBeNull()
+  })
+
+  it('shows a filter button that calls back', async () => {
+    const onFilter = jest.fn()
+    await render(<SearchField {...base} onFilter={onFilter} filterLabel="Filter" />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Filter' }))
+    expect(onFilter).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the clear button next to the filter button', async () => {
+    await render(<SearchField {...base} value="x" onFilter={jest.fn()} filterLabel="Filter" />)
+    expect(screen.getByRole('button', { name: 'Clear' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Filter' })).toBeTruthy()
   })
 })
 

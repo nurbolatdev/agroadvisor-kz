@@ -1,6 +1,8 @@
 import { createAgrochemistApi } from '@/api/agrochemist'
 import { createAgrochemistDirectoryApi } from '@/api/agrochemistDirectory'
+import { createCommunityApi } from '@/api/community'
 import { createConsultationsApi } from '@/api/consultations'
+import { createMockCommunityApi } from '@/api/mock/community'
 import { createAuthApi } from '@/api/auth'
 import { createApiClient } from '@/api/client'
 import { API_MODE, API_URL } from '@/api/config'
@@ -108,6 +110,19 @@ export const consultationsApi =
         },
       })
     : createConsultationsApi(apiClient)
+
+// The community feed and questions (screens 24-26, docs/api/community.md). The mock has no region in its
+// profile, so it answers for region 1; a diagnosis attached to a question is one the mock diagnosis made.
+export const communityApi =
+  API_MODE === 'mock'
+    ? createMockCommunityApi({
+        viewer: () => ({
+          ...mockAccount.current(),
+          regionId: useProfile.getState().me?.regionId ?? 1,
+        }),
+        diagnosisOf: (id) => mockDiagnosis?.lookup(id),
+      })
+    : createCommunityApi(apiClient)
 
 // The fields of a farmer (screens 06, 07).
 export const fieldsApi = API_MODE === 'mock' ? createMockFieldsApi() : createFieldsApi(apiClient)

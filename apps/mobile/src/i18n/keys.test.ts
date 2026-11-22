@@ -2,6 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { allUploadProblems, problemKey } from '@/features/agrochemist/errors'
+import type { CommunityProblem } from '@/features/community/helpers'
+import type { ReportReason } from '@/api/community'
 
 import { en } from './en'
 import { kk } from './kk'
@@ -79,6 +81,54 @@ describe('translation keys', () => {
     ]
     for (const lang of ['ru', 'kk', 'en'] as const) {
       expect(families.filter((key) => !(key in flat[lang]))).toEqual([])
+    }
+  })
+
+  it('exist for every community status, filter, reason, problem, form error and age built from a variable', () => {
+    const problems: CommunityProblem[] = [
+      'offline',
+      'region_required',
+      'invalid_image',
+      'payload_too_large',
+      'rate_limited',
+      'storage_unavailable',
+      'not_found',
+      'complaint_resolved',
+      'server',
+    ]
+    const reasons: ReportReason[] = ['ads', 'misinformation', 'spam', 'abuse']
+    const families = [
+      ...['open', 'solved'].map((s) => `community.status.${s}`),
+      ...['open', 'solved', 'unanswered'].map((s) => `community.filters.${s}`),
+      ...['mine', 'myQuestions'].map((s) => `community.filters.${s}`),
+      ...reasons.map((r) => `community.report.reasons.${r}`),
+      ...problems.map((p) => `community.problems.${p}`),
+      ...['offline', 'rate_limited', 'not_found', 'server'].map(
+        (p) => `community.answer.problems.${p}`,
+      ),
+      ...['offline', 'server'].flatMap((r) => [
+        `community.feed.errors.${r}`,
+        `community.question.errors.${r}`,
+      ]),
+      ...['required', 'tooShort', 'tooLong'].map((e) => `community.ask.errors.title.${e}`),
+      ...['required', 'tooLong'].map((e) => `community.ask.errors.text.${e}`),
+      ...['tooMany', 'tooLarge'].map((e) => `community.ask.errors.photos.${e}`),
+      ...['badPhoto', 'denied'].map((e) => `community.ask.photoProblems.${e}`),
+      ...['minutes', 'hours', 'yesterday'].map((a) => `community.ago.${a}`),
+    ]
+    for (const lang of ['ru', 'kk', 'en'] as const) {
+      expect(families.filter((key) => !(key in flat[lang]))).toEqual([])
+    }
+  })
+
+  it('have every plural form of the community counters in every language', () => {
+    const forms = ['one', 'few', 'many', 'other']
+    const counters = ['community.card.answers', 'community.question.helpful']
+    for (const lang of ['ru', 'kk', 'en'] as const) {
+      const missing = counters.flatMap((key) =>
+        forms.map((form) => `${key}_${form}`).filter((full) => !(full in flat[lang])),
+      )
+      expect(missing).toEqual([])
     }
   })
 })

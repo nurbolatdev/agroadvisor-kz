@@ -67,6 +67,10 @@ function RoleTabs({ agrochemist }: { agrochemist: boolean }) {
       {agrochemist ? <Tabs.Screen name="requests" /> : <Tabs.Screen name="home" />}
       {/* with the flag off the route is closed too, not only its button in the bar */}
       <Tabs.Screen
+        name="community"
+        options={isFeatureEnabled('community') ? undefined : { href: null }}
+      />
+      <Tabs.Screen
         name="chats"
         options={isFeatureEnabled('consultations') ? undefined : { href: null }}
       />

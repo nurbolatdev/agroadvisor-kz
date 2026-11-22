@@ -58,6 +58,8 @@ export function NotificationsScreen() {
         return router.dismissTo('/requests')
       case 'documents':
         return router.push('/documents')
+      case 'question':
+        return router.push({ pathname: '/question/[id]', params: { id: target.id } })
       case 'none':
         return undefined
     }
