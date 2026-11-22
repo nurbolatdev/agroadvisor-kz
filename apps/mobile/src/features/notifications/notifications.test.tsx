@@ -168,6 +168,23 @@ describe('notifications screen', () => {
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/chat/[id]', params: { id: 'c1' } })
   })
 
+  it('opens the question on press of a community notification', async () => {
+    mockApi.list.mockResolvedValue([
+      note({
+        id: 'n3',
+        type: 'community_answer',
+        consultationId: null,
+        questionId: 'q1',
+        answerId: 'a1',
+      }),
+    ])
+    await render(<NotificationsScreen />)
+    await fireEvent.press(await screen.findByText('New answer to your question'))
+
+    expect(mockApi.markRead).toHaveBeenCalledWith('n3')
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/question/[id]', params: { id: 'q1' } })
+  })
+
   it('does not ask the server again for a notification that is already read', async () => {
     mockApi.list.mockResolvedValue([note({ readAt: '2026-11-16T09:00:00Z' })])
     await render(<NotificationsScreen />)

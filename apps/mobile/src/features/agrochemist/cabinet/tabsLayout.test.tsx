@@ -102,10 +102,8 @@ describe('the tabs by role', () => {
       'profile',
       'requests',
     ])
-    // the community is closed while its flag is off
-    expect(mockCaptured.screens.find((s) => s.name === 'community')?.options).toEqual({
-      href: null,
-    })
+    // the community tab is open: its flag is on
+    expect(mockCaptured.screens.find((s) => s.name === 'community')?.options).toBeUndefined()
     expect(mockCaptured.screens.find((s) => s.name === 'requests')?.options).toEqual({ href: null })
     expect(mockCaptured.screens.find((s) => s.name === 'home')?.options).toBeUndefined()
   })

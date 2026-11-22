@@ -25,8 +25,8 @@ const mismatch = (detectedCrop: 'potato' | null): ResultScreen => ({
   detectedCrop,
 })
 
-describe('with the real flags (consultations on, community off now)', () => {
-  it('no result has an "ask the community" button, whatever its kind or photo', () => {
+describe('with the real flags (consultations and community on)', () => {
+  it('only an unknown result offers "ask the community", whatever its photo', () => {
     const screens: ResultScreen[] = [
       { kind: 'ok' },
       low,
@@ -39,7 +39,8 @@ describe('with the real flags (consultations on, community off now)', () => {
         const types = resultActions(screen, { hasPhoto, features: FEATURE_FLAGS }).map(
           (action) => action.type,
         )
-        expect(types).not.toContain('askCommunity')
+        if (screen.kind === 'unknown') expect(types).toContain('askCommunity')
+        else expect(types).not.toContain('askCommunity')
       }
     }
   })
