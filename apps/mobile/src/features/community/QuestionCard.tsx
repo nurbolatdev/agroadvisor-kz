@@ -11,7 +11,8 @@ import { useSession } from '@/services'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
 import { AuthorRow } from './AuthorRow'
-import { agoLabel, communityPhotoSource, thumbnailOf } from './helpers'
+import { communityPhotoSource, thumbnailOf } from './helpers'
+import { useAgeLabel } from './useAgeLabel'
 
 type Props = {
   question: Question
@@ -30,22 +31,15 @@ export const QuestionCard = memo(function QuestionCard({
   now = new Date(),
   onPress,
 }: Props) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
+  const ageOf = useAgeLabel()
   const accessToken = useSession((s) => s.accessToken)
   const photo = communityPhotoSource(thumbnailOf(question), API_URL, accessToken)
   // a photo that failed is not asked for again on every render, but it is asked for again with a renewed token
   const [failedAttempt, setFailedAttempt] = useState<string | null>(null)
   const showPhoto = photo !== null && failedAttempt !== photoAttempt(photo)
 
-  const ago = agoLabel(question.createdAt, now, i18n.language)
-  const age =
-    ago.kind === 'minutes'
-      ? t('community.ago.minutes', { count: ago.value })
-      : ago.kind === 'hours'
-        ? t('community.ago.hours', { count: ago.value })
-        : ago.kind === 'yesterday'
-          ? t('community.ago.yesterday')
-          : ago.value
+  const age = ageOf(question.createdAt, now)
   const subtitle = [regionName, age].filter(Boolean).join(' · ')
   const status = t(`community.status.${question.status}`)
   const answers = t('community.card.answers', { count: question.answerCount })
