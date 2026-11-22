@@ -166,6 +166,22 @@ export const ru = {
       answers_many: '{{count}} ответов',
       answers_other: '{{count}} ответа',
     },
+    // one question (screen 25)
+    question: {
+      title: 'Вопрос',
+      notFound: 'Вопрос удалён или скрыт',
+      aiResult: 'Результат ИИ:',
+      bestAnswer: 'Лучший ответ',
+      helpful_one: 'Полезно: {{count}} человеку',
+      helpful_few: 'Полезно: {{count}} людям',
+      helpful_many: 'Полезно: {{count}} людям',
+      helpful_other: 'Полезно: {{count}} людям',
+      photoAlt: 'Фото к вопросу',
+      errors: {
+        offline: 'Нет связи с сервером. Проверьте интернет',
+        server: 'Сервер не ответил. Попробуйте ещё раз',
+      },
+    },
   },
   // the chats tab (screens 17b, 17c)
   chats: {

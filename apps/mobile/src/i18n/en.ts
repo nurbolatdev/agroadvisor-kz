@@ -165,6 +165,21 @@ export const en: Translation = {
       answers_many: '{{count}} answers',
       answers_other: '{{count}} answers',
     },
+    question: {
+      title: 'Question',
+      notFound: 'The question was deleted or hidden',
+      aiResult: 'Model result:',
+      bestAnswer: 'Best answer',
+      helpful_one: 'Found helpful by {{count}} person',
+      helpful_few: 'Found helpful by {{count}} people',
+      helpful_many: 'Found helpful by {{count}} people',
+      helpful_other: 'Found helpful by {{count}} people',
+      photoAlt: 'Photo of the question',
+      errors: {
+        offline: 'No connection to the server. Check the internet',
+        server: 'The server did not answer. Try again',
+      },
+    },
   },
   // the chats tab (screens 17b, 17c)
   chats: {

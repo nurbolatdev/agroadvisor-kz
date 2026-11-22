@@ -166,6 +166,21 @@ export const kk: Translation = {
       answers_many: '{{count}} жауап',
       answers_other: '{{count}} жауап',
     },
+    question: {
+      title: 'Сұрақ',
+      notFound: 'Сұрақ жойылған немесе жасырылған',
+      aiResult: 'ЖИ нәтижесі:',
+      bestAnswer: 'Үздік жауап',
+      helpful_one: 'Пайдалы: {{count}}',
+      helpful_few: 'Пайдалы: {{count}}',
+      helpful_many: 'Пайдалы: {{count}}',
+      helpful_other: 'Пайдалы: {{count}}',
+      photoAlt: 'Сұрақтың суреті',
+      errors: {
+        offline: 'Серверге қосылу жоқ. Интернетті тексеріңіз',
+        server: 'Сервер жауап бермеді. Қайталап көріңіз',
+      },
+    },
   },
   // the chats tab (screens 17b, 17c); the kk texts wait for the proofreading (#88)
   chats: {
