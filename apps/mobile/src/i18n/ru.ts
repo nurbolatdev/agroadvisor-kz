@@ -134,7 +134,29 @@ export const ru = {
   },
   // the community: the feed and the question (screens 24, 24a, 25, 26)
   community: {
-    feed: { search: 'Поиск по вопросам', searchClear: 'Очистить поиск', filter: 'Мои культуры' },
+    feed: {
+      title: 'Сообщество',
+      search: 'Поиск по вопросам',
+      searchClear: 'Очистить поиск',
+      filter: 'Мои культуры',
+      ask: 'Задать вопрос',
+      none: 'Вопросов пока нет',
+      noneHint: 'Задайте первый вопрос или смените фильтры',
+      noneHintAgrochemist: 'Попробуйте сменить фильтры',
+      noMatches: 'Ничего не найдено среди загруженных вопросов',
+      refreshFailed: 'Не удалось обновить ленту',
+      errors: {
+        offline: 'Нет связи с сервером. Проверьте интернет',
+        server: 'Сервер не ответил. Попробуйте ещё раз',
+      },
+    },
+    filters: {
+      mine: 'Мои культуры',
+      open: 'Открытые',
+      solved: 'Решённые',
+      unanswered: 'Без ответа',
+      myQuestions: 'Мои вопросы',
+    },
     status: { open: 'Открыт', solved: 'Решён' },
     ago: { minutes: '{{count}} мин назад', hours: '{{count}} ч назад', yesterday: 'вчера' },
     card: {

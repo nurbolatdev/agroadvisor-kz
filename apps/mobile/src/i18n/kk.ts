@@ -135,9 +135,27 @@ export const kk: Translation = {
   // the community: the feed and the question (screens 24, 24a, 25, 26); the kk texts wait for the proofreading (#88)
   community: {
     feed: {
+      title: 'Қауымдастық',
       search: 'Сұрақтар бойынша іздеу',
       searchClear: 'Іздеуді тазалау',
       filter: 'Менің дақылдарым',
+      ask: 'Сұрақ қою',
+      none: 'Әзірге сұрақтар жоқ',
+      noneHint: 'Алғашқы сұрақты қойыңыз немесе сүзгілерді өзгертіңіз',
+      noneHintAgrochemist: 'Сүзгілерді өзгертіп көріңіз',
+      noMatches: 'Жүктелген сұрақтардан ештеңе табылмады',
+      refreshFailed: 'Лентаны жаңарту мүмкін болмады',
+      errors: {
+        offline: 'Серверге қосылу жоқ. Интернетті тексеріңіз',
+        server: 'Сервер жауап бермеді. Қайталап көріңіз',
+      },
+    },
+    filters: {
+      mine: 'Менің дақылдарым',
+      open: 'Ашық',
+      solved: 'Шешілген',
+      unanswered: 'Жауапсыз',
+      myQuestions: 'Менің сұрақтарым',
     },
     status: { open: 'Ашық', solved: 'Шешілді' },
     ago: { minutes: '{{count}} мин бұрын', hours: '{{count}} сағ бұрын', yesterday: 'кеше' },

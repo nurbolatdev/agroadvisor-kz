@@ -133,7 +133,29 @@ export const en: Translation = {
   },
   // the community: the feed and the question (screens 24, 24a, 25, 26)
   community: {
-    feed: { search: 'Search questions', searchClear: 'Clear search', filter: 'My crops' },
+    feed: {
+      title: 'Community',
+      search: 'Search questions',
+      searchClear: 'Clear search',
+      filter: 'My crops',
+      ask: 'Ask a question',
+      none: 'No questions yet',
+      noneHint: 'Ask the first question or change the filters',
+      noneHintAgrochemist: 'Try changing the filters',
+      noMatches: 'Nothing found among the loaded questions',
+      refreshFailed: 'Could not refresh the feed',
+      errors: {
+        offline: 'No connection to the server. Check the internet',
+        server: 'The server did not answer. Try again',
+      },
+    },
+    filters: {
+      mine: 'My crops',
+      open: 'Open',
+      solved: 'Solved',
+      unanswered: 'Unanswered',
+      myQuestions: 'My questions',
+    },
     status: { open: 'Open', solved: 'Solved' },
     ago: { minutes: '{{count}} min ago', hours: '{{count}} h ago', yesterday: 'yesterday' },
     card: {
