@@ -134,6 +134,7 @@ export const ru = {
   },
   // the community: the feed and the question (screens 24, 24a, 25, 26)
   community: {
+    feed: { search: 'Поиск по вопросам', searchClear: 'Очистить поиск', filter: 'Мои культуры' },
     status: { open: 'Открыт', solved: 'Решён' },
     ago: { minutes: '{{count}} мин назад', hours: '{{count}} ч назад', yesterday: 'вчера' },
     card: {

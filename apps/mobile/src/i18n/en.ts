@@ -133,6 +133,7 @@ export const en: Translation = {
   },
   // the community: the feed and the question (screens 24, 24a, 25, 26)
   community: {
+    feed: { search: 'Search questions', searchClear: 'Clear search', filter: 'My crops' },
     status: { open: 'Open', solved: 'Solved' },
     ago: { minutes: '{{count}} min ago', hours: '{{count}} h ago', yesterday: 'yesterday' },
     card: {

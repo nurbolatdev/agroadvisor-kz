@@ -134,6 +134,11 @@ export const kk: Translation = {
   },
   // the community: the feed and the question (screens 24, 24a, 25, 26); the kk texts wait for the proofreading (#88)
   community: {
+    feed: {
+      search: 'Сұрақтар бойынша іздеу',
+      searchClear: 'Іздеуді тазалау',
+      filter: 'Менің дақылдарым',
+    },
     status: { open: 'Ашық', solved: 'Шешілді' },
     ago: { minutes: '{{count}} мин бұрын', hours: '{{count}} сағ бұрын', yesterday: 'кеше' },
     card: {
