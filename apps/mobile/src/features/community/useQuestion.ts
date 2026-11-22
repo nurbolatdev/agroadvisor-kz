@@ -95,6 +95,8 @@ export function useQuestion(id: string): {
       setProblem(null)
       try {
         const answer = await communityApi.answer(id, text)
+        // a read that started earlier does not hold this answer: it must not replace the list
+        latest.current += 1
         setState((current) =>
           current.status === 'ready'
             ? {
@@ -150,16 +152,27 @@ export function useQuestion(id: string): {
       setAccepting(true)
       setProblem(null)
       try {
-        await action()
-        const [question, answers] = await Promise.all([
-          communityApi.question(id),
-          communityApi.answers(id),
-        ])
-        setState((current) =>
-          current.status === 'ready' ? { ...current, question, answers } : current,
-        )
-      } catch (error) {
-        setProblem(communityProblemOf(error))
+        try {
+          await action()
+        } catch (error) {
+          setProblem(communityProblemOf(error))
+          return
+        }
+        // the action worked: a refresh that fails keeps the screen as it is and is not a problem
+        const request = (latest.current += 1)
+        try {
+          const [question, answers] = await Promise.all([
+            communityApi.question(id),
+            communityApi.answers(id),
+          ])
+          if (latest.current === request) {
+            setState((current) =>
+              current.status === 'ready' ? { ...current, question, answers } : current,
+            )
+          }
+        } catch {
+          // the next reload brings the server's order
+        }
       } finally {
         acceptingRef.current = false
         setAccepting(false)

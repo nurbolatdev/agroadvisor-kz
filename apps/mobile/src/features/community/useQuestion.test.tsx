@@ -155,6 +155,30 @@ describe('useQuestion', () => {
     expect(result.current.state).toMatchObject({ question: { status: 'open' } })
   })
 
+  it('does not call a worked action a problem when the read after it fails', async () => {
+    const { result } = await ready()
+    mockApi.accept.mockResolvedValueOnce(undefined)
+    mockApi.question.mockRejectedValue(new ApiError(500, 'server_error', 'down'))
+    await act(async () => result.current.accept('a1'))
+    expect(result.current.problem).toBeNull()
+    expect(result.current.state.status).toBe('ready')
+    expect(result.current.accepting).toBe(false)
+  })
+
+  it('keeps the state of an action when an earlier read ends after it', async () => {
+    const { result } = await ready()
+    let finishOld: (value: Question) => void = () => undefined
+    mockApi.question.mockReturnValueOnce(new Promise<Question>((resolve) => (finishOld = resolve)))
+    mockApi.answers.mockResolvedValueOnce([answer('a1')])
+    await act(async () => result.current.reload())
+    mockApi.accept.mockResolvedValueOnce(undefined)
+    mockApi.question.mockResolvedValue(question({ status: 'solved' }))
+    mockApi.answers.mockResolvedValue([answer('a1', { accepted: true })])
+    await act(async () => result.current.accept('a1'))
+    await act(async () => finishOld(question({ status: 'open' })))
+    expect(result.current.state).toMatchObject({ question: { status: 'solved' } })
+  })
+
   it('reports why the mark was refused', async () => {
     const { result } = await ready()
     mockApi.accept.mockRejectedValueOnce(new ApiError(409, 'own_answer', 'own'))
