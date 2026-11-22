@@ -166,13 +166,27 @@ function QuestionView({ id }: { id: string }) {
   )
 }
 
-type ProblemKey = 'offline' | 'rate_limited' | 'not_found' | 'server'
+type ProblemKey =
+  | 'offline'
+  | 'rate_limited'
+  | 'not_found'
+  | 'answer_limit'
+  | 'validation_failed'
+  | 'forbidden'
+  | 'server'
+
+const SCREEN_PROBLEMS: readonly CommunityProblem[] = [
+  'offline',
+  'rate_limited',
+  'not_found',
+  'answer_limit',
+  'validation_failed',
+  'forbidden',
+]
 
 // the texts for the actions of this screen; the problems of other forms do not happen here
 function problemKey(problem: CommunityProblem): ProblemKey {
-  return problem === 'offline' || problem === 'rate_limited' || problem === 'not_found'
-    ? problem
-    : 'server'
+  return SCREEN_PROBLEMS.includes(problem) ? (problem as ProblemKey) : 'server'
 }
 
 const QuestionBody = memo(function QuestionBody({

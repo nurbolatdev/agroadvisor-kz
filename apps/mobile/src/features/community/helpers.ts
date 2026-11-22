@@ -117,6 +117,11 @@ export type CommunityProblem =
   | 'rate_limited'
   | 'storage_unavailable'
   | 'not_found'
+  | 'diagnosis_not_found'
+  | 'answer_limit'
+  | 'own_content'
+  | 'validation_failed'
+  | 'forbidden'
   | 'complaint_resolved'
   | 'server'
 
@@ -131,15 +136,20 @@ export function communityProblemOf(error: unknown): CommunityProblem {
       case 'rate_limited':
       case 'storage_unavailable':
       case 'complaint_resolved':
+      case 'diagnosis_not_found':
+      case 'answer_limit':
+      case 'own_content':
+      case 'validation_failed':
+      case 'forbidden':
         return error.code
       case 'not_found':
       case 'question_not_found':
       case 'answer_not_found':
-      case 'diagnosis_not_found':
         return 'not_found'
       default:
         if (error.status === 429) return 'rate_limited'
         if (error.status === 404) return 'not_found'
+        if (error.status === 403) return 'forbidden'
     }
   }
   return 'server'

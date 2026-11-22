@@ -209,4 +209,14 @@ describe('QuestionScreen actions', () => {
 
     expect(await screen.findByText('Слишком много действий. Подождите немного')).toBeOnTheScreen()
   })
+
+  it('says that the question has the most answers instead of a general failure', async () => {
+    mockApi.vote.mockRejectedValue(new ApiError(409, 'answer_limit', 'x'))
+    await render(<QuestionScreen />)
+    await screen.findByText('У меня было в прошлом году.')
+
+    await fireEvent.press(screen.getByLabelText('Полезно: 0 людям'))
+
+    expect(await screen.findByText('К вопросу добавлено максимум ответов')).toBeOnTheScreen()
+  })
 })

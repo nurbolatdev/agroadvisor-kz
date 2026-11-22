@@ -136,8 +136,16 @@ describe('communityProblemOf', () => {
     expect(communityProblemOf(api(429, 'rate_limited'))).toBe('rate_limited')
     expect(communityProblemOf(api(503, 'storage_unavailable'))).toBe('storage_unavailable')
     expect(communityProblemOf(api(404, 'question_not_found'))).toBe('not_found')
-    expect(communityProblemOf(api(400, 'diagnosis_not_found'))).toBe('not_found')
+    expect(communityProblemOf(api(404, 'diagnosis_not_found'))).toBe('diagnosis_not_found')
     expect(communityProblemOf(api(409, 'complaint_resolved'))).toBe('complaint_resolved')
+  })
+
+  it('tells the limit of answers, own content, a refused text and a forbidden action apart', () => {
+    expect(communityProblemOf(api(409, 'answer_limit'))).toBe('answer_limit')
+    expect(communityProblemOf(api(409, 'own_content'))).toBe('own_content')
+    expect(communityProblemOf(api(400, 'validation_failed'))).toBe('validation_failed')
+    expect(communityProblemOf(api(403, 'forbidden'))).toBe('forbidden')
+    expect(communityProblemOf(api(403, 'unknown'))).toBe('forbidden')
   })
 
   it('falls back to the status and then to server', () => {
