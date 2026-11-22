@@ -182,6 +182,19 @@ export const ru = {
         server: 'Сервер не ответил. Попробуйте ещё раз',
       },
     },
+    // the answer line and the actions under an answer (screen 25)
+    answer: {
+      placeholder: 'Ваш ответ…',
+      send: 'Отправить ответ',
+      accept: 'Отметить лучшим',
+      clearAccepted: 'Снять отметку',
+      problems: {
+        offline: 'Нет связи с сервером. Проверьте интернет',
+        rate_limited: 'Слишком много действий. Подождите немного',
+        not_found: 'Вопрос или ответ уже удалён',
+        server: 'Не получилось. Попробуйте ещё раз',
+      },
+    },
   },
   // the chats tab (screens 17b, 17c)
   chats: {

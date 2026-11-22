@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react-native'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
 import type { Answer, Question } from '@/api/community'
 import type { DiagnosisResult } from '@/api/diagnosis'
@@ -7,7 +7,16 @@ import { initI18n } from '@/i18n'
 
 import { QuestionScreen } from './QuestionScreen'
 
-const mockApi = { question: jest.fn(), answers: jest.fn(), diagnosis: jest.fn() }
+const mockApi = {
+  question: jest.fn(),
+  answers: jest.fn(),
+  diagnosis: jest.fn(),
+  answer: jest.fn(),
+  vote: jest.fn(),
+  unvote: jest.fn(),
+  accept: jest.fn(),
+  clearAccepted: jest.fn(),
+}
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: 'q1' }),
@@ -30,6 +39,11 @@ jest.mock('@/services', () => ({
     question: (...a: unknown[]) => mockApi.question(...a),
     answers: (...a: unknown[]) => mockApi.answers(...a),
     diagnosis: (...a: unknown[]) => mockApi.diagnosis(...a),
+    answer: (...a: unknown[]) => mockApi.answer(...a),
+    vote: (...a: unknown[]) => mockApi.vote(...a),
+    unvote: (...a: unknown[]) => mockApi.unvote(...a),
+    accept: (...a: unknown[]) => mockApi.accept(...a),
+    clearAccepted: (...a: unknown[]) => mockApi.clearAccepted(...a),
   },
   useSession: (select: (s: { accessToken: string | null }) => unknown) =>
     select({ accessToken: 'token-1' }),
@@ -122,5 +136,77 @@ describe('QuestionScreen', () => {
     await render(<QuestionScreen />)
 
     await waitFor(() => expect(screen.getByText('Вопрос удалён или скрыт')).toBeOnTheScreen())
+  })
+})
+
+describe('QuestionScreen actions', () => {
+  it('adds the answer and clears the field', async () => {
+    mockApi.answer.mockResolvedValue(
+      answer('a3', { authorName: 'Я', mine: true, text: 'Попробуйте фунгицид.' }),
+    )
+    await render(<QuestionScreen />)
+    await screen.findByText('Жёлтые полосы на листьях')
+
+    const field = screen.getByPlaceholderText('Ваш ответ…')
+    await fireEvent.changeText(field, 'Попробуйте фунгицид.')
+    await fireEvent.press(screen.getByLabelText('Отправить ответ'))
+
+    expect(await screen.findByText('3 ответа')).toBeOnTheScreen()
+    expect(screen.getAllByText('Попробуйте фунгицид.')).toHaveLength(1)
+    expect(mockApi.answer).toHaveBeenCalledWith('q1', 'Попробуйте фунгицид.')
+    expect(field.props.value).toBe('')
+    expect(screen.queryByLabelText('Прикрепить фото')).not.toBeOnTheScreen()
+  })
+
+  it('changes the score with the thumb', async () => {
+    mockApi.vote.mockResolvedValue({ score: 1, myVote: 1 })
+    await render(<QuestionScreen />)
+    await screen.findByText('У меня было в прошлом году.')
+
+    await fireEvent.press(screen.getByLabelText('Полезно: 0 людям'))
+
+    await waitFor(() => expect(screen.getByLabelText('Полезно: 1 человеку')).toBeOnTheScreen())
+    expect(screen.getByLabelText('Полезно: 1 человеку')).toBeSelected()
+    expect(mockApi.vote).toHaveBeenCalledWith('a2')
+  })
+
+  it('lets the author of the question mark the best answer', async () => {
+    mockApi.question
+      .mockResolvedValueOnce({ ...question, mine: true })
+      .mockResolvedValue({ ...question, mine: true, status: 'solved' })
+    mockApi.answers
+      .mockResolvedValueOnce([answer('a2', { authorName: 'Ерлан Т.', text: 'Совет.' })])
+      .mockResolvedValue([answer('a2', { authorName: 'Ерлан Т.', text: 'Совет.', accepted: true })])
+    mockApi.accept.mockResolvedValue(undefined)
+    await render(<QuestionScreen />)
+    await screen.findByText('Совет.')
+    expect(screen.getByText('Открыт')).toBeOnTheScreen()
+
+    await fireEvent.press(screen.getByLabelText('Отметить лучшим'))
+
+    expect(await screen.findByText('Решён')).toBeOnTheScreen()
+    expect(screen.getByText('Лучший ответ')).toBeOnTheScreen()
+    expect(mockApi.accept).toHaveBeenCalledWith('q1', 'a2')
+    expect(screen.getByLabelText('Снять отметку')).toBeOnTheScreen()
+  })
+
+  it('has no thumb action and no mark button on the own answer', async () => {
+    mockApi.question.mockResolvedValue({ ...question, mine: true })
+    mockApi.answers.mockResolvedValue([answer('a2', { mine: true, text: 'Мой ответ.' })])
+    await render(<QuestionScreen />)
+    await screen.findByText('Мой ответ.')
+
+    expect(screen.queryByLabelText('Отметить лучшим')).not.toBeOnTheScreen()
+    expect(screen.getByLabelText('Полезно: 0 людям')).toBeDisabled()
+  })
+
+  it('shows the problem of a refused action under the answers', async () => {
+    mockApi.vote.mockRejectedValue(new ApiError(429, 'rate_limited', 'x'))
+    await render(<QuestionScreen />)
+    await screen.findByText('У меня было в прошлом году.')
+
+    await fireEvent.press(screen.getByLabelText('Полезно: 0 людям'))
+
+    expect(await screen.findByText('Слишком много действий. Подождите немного')).toBeOnTheScreen()
   })
 })

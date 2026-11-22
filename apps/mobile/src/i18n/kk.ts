@@ -181,6 +181,19 @@ export const kk: Translation = {
         server: 'Сервер жауап бермеді. Қайталап көріңіз',
       },
     },
+    // the answer line and the actions under an answer (screen 25)
+    answer: {
+      placeholder: 'Сіздің жауабыңыз…',
+      send: 'Жауап жіберу',
+      accept: 'Үздік деп белгілеу',
+      clearAccepted: 'Белгіні алу',
+      problems: {
+        offline: 'Серверге қосылу жоқ. Интернетті тексеріңіз',
+        rate_limited: 'Әрекет тым көп. Сәл күте тұрыңыз',
+        not_found: 'Сұрақ немесе жауап жойылған',
+        server: 'Болмады. Қайталап көріңіз',
+      },
+    },
   },
   // the chats tab (screens 17b, 17c); the kk texts wait for the proofreading (#88)
   chats: {

@@ -1,14 +1,24 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { memo, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, FlatList, Image, StyleSheet, View } from 'react-native'
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  View,
+} from 'react-native'
 
+import { COMMUNITY_TEXT_MAX } from '@/api/community'
+import type { Question } from '@/api/community'
 import { API_URL } from '@/api/config'
 import type { DiagnosisResult } from '@/api/diagnosis'
-import type { Question } from '@/api/community'
 import { AppText, BackHeader, Badge, EmptyState, ErrorState, Screen } from '@/components/ui'
 import { useRegionName } from '@/features/agrochemists/useRegionName'
 import { useDiseaseDetail } from '@/features/diseases/useDiseaseDetail'
+import { Composer } from '@/features/chats/Composer'
 import { photoAttempt } from '@/features/history/photoSource'
 import { useSession } from '@/services'
 import { colors, fonts, radii, sizes, spacing } from '@/theme/tokens'
@@ -16,6 +26,7 @@ import { colors, fonts, radii, sizes, spacing } from '@/theme/tokens'
 import { AnswerCard } from './AnswerCard'
 import { AuthorRow } from './AuthorRow'
 import { communityPhotoSource } from './helpers'
+import type { CommunityProblem } from './helpers'
 import { useAgeLabel } from './useAgeLabel'
 import { useQuestion } from './useQuestion'
 
@@ -30,7 +41,21 @@ export function QuestionScreen() {
 function QuestionView({ id }: { id: string }) {
   const { t } = useTranslation()
   const router = useRouter()
-  const { state, reload } = useQuestion(id)
+  const {
+    state,
+    problem,
+    sending,
+    accepting,
+    votingIds,
+    reload,
+    sendAnswer,
+    toggleVote,
+    accept,
+    clearAccepted,
+  } = useQuestion(id)
+  // an old error about the last action is dropped when the person starts typing
+  const [dismissed, setDismissed] = useState(false)
+  const shownProblem = dismissed ? null : problem
   // read when the screen opens
   useEffect(() => {
     reload()
@@ -38,32 +63,97 @@ function QuestionView({ id }: { id: string }) {
 
   return (
     <Screen>
-      <BackHeader
-        title={t('community.question.title')}
-        backLabel={t('common.back')}
-        onBack={() => router.back()}
-      />
-      {state.status === 'loading' ? (
-        <ActivityIndicator color={colors.primary} style={styles.loading} />
-      ) : state.status === 'notFound' ? (
-        <EmptyState title={t('community.question.notFound')} />
-      ) : state.status === 'error' ? (
-        <ErrorState message={t(`community.question.errors.${state.reason}`)} onRetry={reload} />
-      ) : (
-        <FlatList
-          testID="question-answers"
-          data={state.answers}
-          keyExtractor={(answer) => answer.id}
-          renderItem={({ item }) => <AnswerCard answer={item} />}
-          ItemSeparatorComponent={Gap}
-          ListHeaderComponent={
-            <QuestionBody question={state.question} diagnosis={state.diagnosis} />
-          }
-          contentContainerStyle={styles.content}
+      <KeyboardAvoidingView
+        style={styles.fill}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <BackHeader
+          title={t('community.question.title')}
+          backLabel={t('common.back')}
+          onBack={() => router.back()}
         />
-      )}
+        {state.status === 'loading' ? (
+          <ActivityIndicator color={colors.primary} style={styles.loading} />
+        ) : state.status === 'notFound' ? (
+          <EmptyState title={t('community.question.notFound')} />
+        ) : state.status === 'error' ? (
+          <ErrorState message={t(`community.question.errors.${state.reason}`)} onRetry={reload} />
+        ) : (
+          <>
+            <FlatList
+              style={styles.fill}
+              testID="question-answers"
+              data={state.answers}
+              extraData={[votingIds, accepting]}
+              keyExtractor={(answer) => answer.id}
+              renderItem={({ item }) => (
+                <AnswerCard
+                  answer={item}
+                  voting={votingIds.includes(item.id)}
+                  onVote={(answer) => {
+                    setDismissed(false)
+                    void toggleVote(answer)
+                  }}
+                  accepting={accepting}
+                  // only the author of the question marks the best answer
+                  onAccept={
+                    state.question.mine
+                      ? (answerId) => {
+                          setDismissed(false)
+                          void accept(answerId)
+                        }
+                      : undefined
+                  }
+                  onClearAccepted={
+                    state.question.mine
+                      ? () => {
+                          setDismissed(false)
+                          void clearAccepted()
+                        }
+                      : undefined
+                  }
+                />
+              )}
+              ItemSeparatorComponent={Gap}
+              ListHeaderComponent={
+                <QuestionBody question={state.question} diagnosis={state.diagnosis} />
+              }
+              ListFooterComponent={
+                shownProblem ? (
+                  <AppText color={colors.danger} style={styles.problem} accessibilityRole="alert">
+                    {t(`community.answer.problems.${problemKey(shownProblem)}`)}
+                  </AppText>
+                ) : undefined
+              }
+              contentContainerStyle={styles.content}
+              keyboardShouldPersistTaps="handled"
+            />
+            <Composer
+              disabled={false}
+              sending={sending}
+              placeholder={t('community.answer.placeholder')}
+              sendLabel={t('community.answer.send')}
+              maxLength={COMMUNITY_TEXT_MAX}
+              onSend={(text) => {
+                setDismissed(false)
+                return sendAnswer(text.trim())
+              }}
+              onEdit={() => setDismissed(true)}
+            />
+          </>
+        )}
+      </KeyboardAvoidingView>
     </Screen>
   )
+}
+
+type ProblemKey = 'offline' | 'rate_limited' | 'not_found' | 'server'
+
+// the texts for the actions of this screen; the problems of other forms do not happen here
+function problemKey(problem: CommunityProblem): ProblemKey {
+  return problem === 'offline' || problem === 'rate_limited' || problem === 'not_found'
+    ? problem
+    : 'server'
 }
 
 const QuestionBody = memo(function QuestionBody({
@@ -158,6 +248,8 @@ function Gap() {
 }
 
 const styles = StyleSheet.create({
+  fill: { flex: 1 },
+  problem: { paddingTop: spacing.md },
   loading: { marginTop: spacing.xl },
   content: { paddingTop: spacing.sm, paddingBottom: spacing.xl },
   card: {

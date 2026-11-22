@@ -180,6 +180,19 @@ export const en: Translation = {
         server: 'The server did not answer. Try again',
       },
     },
+    // the answer line and the actions under an answer (screen 25)
+    answer: {
+      placeholder: 'Your answer…',
+      send: 'Send answer',
+      accept: 'Mark as best',
+      clearAccepted: 'Remove the mark',
+      problems: {
+        offline: 'No connection to the server. Check the internet',
+        rate_limited: 'Too many actions. Wait a little',
+        not_found: 'The question or the answer is already deleted',
+        server: 'It did not work. Try again',
+      },
+    },
   },
   // the chats tab (screens 17b, 17c)
   chats: {
