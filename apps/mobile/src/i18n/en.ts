@@ -246,6 +246,26 @@ export const en: Translation = {
         server: 'It did not work. Try again',
       },
     },
+    report: {
+      flag: 'Report',
+      title: 'Report',
+      hint: 'Pick a reason. A moderator will look at the report',
+      reason: 'Reason',
+      reasons: {
+        ads: 'Advertising',
+        misinformation: 'Wrong information',
+        spam: 'Spam',
+        abuse: 'Abuse',
+      },
+      comment: 'Comment',
+      commentPlaceholder: 'What is wrong (optional)',
+      submit: 'Send',
+      sending: 'Sending…',
+      cancel: 'Cancel',
+      sent: 'Report sent',
+      sentHint: 'Thank you, a moderator will look at it',
+      done: 'Done',
+    },
   },
   // the chats tab (screens 17b, 17c)
   chats: {

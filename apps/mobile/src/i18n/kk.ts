@@ -247,6 +247,26 @@ export const kk: Translation = {
         server: 'Болмады. Қайталап көріңіз',
       },
     },
+    report: {
+      flag: 'Шағымдану',
+      title: 'Шағымдану',
+      hint: 'Себепті таңдаңыз. Модератор шағымды қарайды',
+      reason: 'Себеп',
+      reasons: {
+        ads: 'Жарнама',
+        misinformation: 'Қате ақпарат',
+        spam: 'Спам',
+        abuse: 'Қорлау',
+      },
+      comment: 'Пікір',
+      commentPlaceholder: 'Не дұрыс емес (міндетті емес)',
+      submit: 'Жіберу',
+      sending: 'Жіберілуде…',
+      cancel: 'Болдырмау',
+      sent: 'Шағым жіберілді',
+      sentHint: 'Рахмет, модератор оны қарайды',
+      done: 'Дайын',
+    },
   },
   // the chats tab (screens 17b, 17c); the kk texts wait for the proofreading (#88)
   chats: {
