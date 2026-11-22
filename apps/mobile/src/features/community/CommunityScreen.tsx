@@ -7,6 +7,7 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'r
 import { AppText, Button, EmptyState, ErrorState, Screen, SearchField } from '@/components/ui'
 import { hasAgrochemistRole } from '@/features/access/roles'
 import { useRegionName } from '@/features/agrochemists/useRegionName'
+import { CROPS } from '@/features/diagnosis/crops'
 import { NotificationsBell } from '@/features/notifications/NotificationsBell'
 import { useProfile } from '@/services'
 import { colors, sizes, spacing } from '@/theme/tokens'
@@ -29,7 +30,8 @@ export function CommunityScreen() {
   const agrochemist = roles ? hasAgrochemistRole(roles) : false
 
   const subscriptions = useSubscriptions()
-  const subscribed = subscriptions.crops.length > 0
+  // only the crops of the model count: a follower of other crops has nothing to filter by
+  const subscribed = subscriptions.crops.some((code) => (CROPS as readonly string[]).includes(code))
   // the crop chosen by hand; until then "My crops" is on when the caller follows some
   const [chosen, setChosen] = useState<Filters['crop'] | undefined>(undefined)
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
@@ -161,7 +163,7 @@ export function CommunityScreen() {
         />
       )}
 
-      {agrochemist ? null : (
+      {roles === null || agrochemist ? null : (
         <View style={styles.fab} pointerEvents="box-none">
           <Button
             label={t('community.feed.ask')}

@@ -191,6 +191,8 @@ export const en: Translation = {
       region: 'Region',
       regionHint: 'The exact location of the field is not shown to other users',
       regionMissing: 'Set your region in the profile to ask a question',
+      farmersOnly: 'Farmers ask the questions',
+      farmersOnlyHint: 'Agrochemists answer the questions in the community feed',
       titleLabel: 'Title',
       text: 'Description',
       photos: 'Photos (up to {{max}})',

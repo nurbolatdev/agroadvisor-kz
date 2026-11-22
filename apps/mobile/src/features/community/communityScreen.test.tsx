@@ -133,6 +133,25 @@ describe('CommunityScreen', () => {
     expect(screen.queryByText('Задать вопрос')).not.toBeOnTheScreen()
   })
 
+  it('has no ask button until the role is known', async () => {
+    mockRoles = null
+    await render(<CommunityScreen />)
+
+    expect(await screen.findByText('Жёлтые пятна на листьях пшеницы')).toBeOnTheScreen()
+    expect(screen.queryByText('Задать вопрос')).not.toBeOnTheScreen()
+  })
+
+  it('does not filter by crop when the caller follows no crop of the model', async () => {
+    mockApi = {
+      ...mockApi,
+      subscriptions: async () => ({ crops: ['banana'] }),
+    } as CommunityApi
+    await render(<CommunityScreen />)
+    await screen.findByText('Жёлтые пятна на листьях пшеницы')
+
+    expect(mockFeed.mock.calls.every(([query]) => query.crop === undefined)).toBe(true)
+  })
+
   it('reads the next page at the end of the list', async () => {
     const first = Array.from({ length: COMMUNITY_PAGE_SIZE }, (_, i) => question(i))
     mockFeed.mockResolvedValueOnce(first).mockResolvedValueOnce([question(99)])

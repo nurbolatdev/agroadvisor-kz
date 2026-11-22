@@ -6,7 +6,8 @@ import { Alert, Image, StyleSheet, View } from 'react-native'
 import { COMMUNITY_TEXT_MAX, QUESTION_PHOTOS_MAX, QUESTION_TITLE_MAX } from '@/api/community'
 import { API_URL } from '@/api/config'
 import type { DiagnosisResult } from '@/api/diagnosis'
-import { AppText, BackHeader, Button, Chip, Input, Screen } from '@/components/ui'
+import { AppText, BackHeader, Button, Chip, EmptyState, Input, Screen } from '@/components/ui'
+import { hasAgrochemistRole } from '@/features/access/roles'
 import { chooseDocument, type DocumentSource } from '@/features/agrochemist/chooseDocument'
 import { useRegionName } from '@/features/agrochemists/useRegionName'
 import { CROPS } from '@/features/diagnosis/crops'
@@ -14,7 +15,7 @@ import { useDiseaseDetail } from '@/features/diseases/useDiseaseDetail'
 import { formatDiagnosisDate } from '@/features/history/dates'
 import { photoSource } from '@/features/history/photoSource'
 import type { Language } from '@/i18n'
-import { useSession } from '@/services'
+import { useProfile, useSession } from '@/services'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
 import { AskPhotos } from './AskPhotos'
@@ -24,6 +25,29 @@ import { useAskForm } from './useAskForm'
 // changed, the region is the one of the profile (shown, not chosen), up to 3 photos of the farmer are added
 // to the one of the diagnosis.
 export function AskScreen() {
+  const { t } = useTranslation()
+  const router = useRouter()
+  const roles = useProfile((s) => s.roles)
+  // the backend refuses the questions of an agrochemist, so he gets no form to fill in
+  if (hasAgrochemistRole(roles)) {
+    return (
+      <Screen>
+        <BackHeader
+          title={t('community.ask.title')}
+          backLabel={t('common.back')}
+          onBack={() => router.back()}
+        />
+        <EmptyState
+          title={t('community.ask.farmersOnly')}
+          message={t('community.ask.farmersOnlyHint')}
+        />
+      </Screen>
+    )
+  }
+  return <AskForm />
+}
+
+function AskForm() {
   const { t } = useTranslation()
   const router = useRouter()
   const params = useLocalSearchParams<{ diagnosisId?: string; crop?: string }>()

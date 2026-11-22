@@ -10,6 +10,7 @@ const mockReplace = jest.fn()
 let mockParams: { diagnosisId?: string; crop?: string } = {}
 let mockResults: Record<string, unknown> = {}
 let mockMe: { regionId: number | null } | null = { regionId: 1 }
+let mockRoles: string[] | null = ['farmer']
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockParams,
@@ -32,7 +33,8 @@ jest.mock('@/services', () => ({
   communityApi: { ask: (...a: unknown[]) => mockAsk(...a) },
   diagnosisApi: { get: jest.fn() },
   useDiagnosis: { getState: () => ({ results: mockResults }) },
-  useProfile: (select: (state: { me: unknown }) => unknown) => select({ me: mockMe }),
+  useProfile: (select: (state: { me: unknown; roles: string[] | null }) => unknown) =>
+    select({ me: mockMe, roles: mockRoles }),
   useSession: (select: (s: { accessToken: string | null }) => unknown) =>
     select({ accessToken: 'token-1' }),
 }))
@@ -54,9 +56,18 @@ beforeEach(() => {
   mockParams = {}
   mockResults = {}
   mockMe = { regionId: 1 }
+  mockRoles = ['farmer']
 })
 
 describe('AskScreen', () => {
+  it('shows an agrochemist a note instead of the form', async () => {
+    mockRoles = ['agrochemist']
+    await render(<AskScreen />)
+    expect(screen.getByText('Вопросы задают фермеры')).toBeTruthy()
+    expect(screen.queryByText('Опубликовать')).toBeNull()
+    expect(screen.queryByText('Пшеница')).toBeNull()
+  })
+
   it('has no diagnosis card without a diagnosis and leaves the crop free', async () => {
     await render(<AskScreen />)
     expect(screen.queryByTestId('ask-diagnosis')).toBeNull()
