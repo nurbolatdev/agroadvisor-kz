@@ -11,13 +11,15 @@ const mockPush = jest.fn()
 let mockRoles: string[] | null = ['farmer']
 let mockApi: CommunityApi
 const mockFeed = jest.fn()
+let mockFocusCount = 0
 
 jest.mock('expo-router', () => {
   const { useEffect } = require('react')
   return {
     useRouter: () => ({ push: mockPush }),
     // runs the effect once, as the first show of the tab does
-    useFocusEffect: (effect: () => void) => useEffect(effect, [effect]),
+    // `mockFocusCount` stands for coming back to the tab: a render after it runs the effect again
+    useFocusEffect: (effect: () => void) => useEffect(effect, [effect, mockFocusCount]),
   }
 })
 jest.mock(
@@ -58,6 +60,7 @@ const question = (id: number): Question =>
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockFocusCount = 0
   mockRoles = ['farmer']
   mockApi = createMockCommunityApi({
     viewer: () => ({ id: 'viewer', roles: ['farmer'], regionId: 1 }),
@@ -143,6 +146,31 @@ describe('CommunityScreen', () => {
         expect.objectContaining({ before: `q${COMMUNITY_PAGE_SIZE - 1}` }),
       ),
     )
+  })
+
+  it('keeps the list when the tab is shown again with the same filters', async () => {
+    const first = Array.from({ length: COMMUNITY_PAGE_SIZE }, (_, i) => question(i))
+    mockFeed.mockResolvedValueOnce(first).mockResolvedValueOnce([question(99)])
+    const view = await render(<CommunityScreen />)
+    await screen.findByText('Вопрос 0')
+    await fireEvent(screen.getByTestId('community-feed'), 'endReached')
+    await waitFor(() => expect(mockFeed).toHaveBeenCalledTimes(2))
+
+    mockFocusCount += 1
+    await view.rerender(<CommunityScreen />)
+
+    expect(mockFeed).toHaveBeenCalledTimes(2)
+    expect(screen.getByText('Вопрос 0')).toBeOnTheScreen()
+  })
+
+  it('reads the first page again when the filters changed', async () => {
+    await render(<CommunityScreen />)
+    await screen.findByText('Жёлтые пятна на листьях пшеницы')
+    const reads = mockFeed.mock.calls.length
+
+    await fireEvent.press(screen.getByText('Решённые'))
+
+    await waitFor(() => expect(mockFeed.mock.calls.length).toBe(reads + 1))
   })
 
   it('offers to retry when the feed cannot be read', async () => {

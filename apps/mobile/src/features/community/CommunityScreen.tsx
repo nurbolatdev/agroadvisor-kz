@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router'
 import { Plus } from 'lucide-react-native'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native'
 
@@ -38,9 +38,8 @@ export function CommunityScreen() {
     crop: chosen !== undefined ? chosen : subscribed ? 'mine' : null,
   }
   // the feed takes the query by value, so a new object every render is fine
-  const { state, load, loadMore, refresh } = useFeed(
-    feedQuery(effective, subscriptions.crops, regionId),
-  )
+  const query = feedQuery(effective, subscriptions.crops, regionId)
+  const { state, load, loadMore, refresh } = useFeed(query)
   const [search, setSearch] = useState('')
   const [refreshFrom, setRefreshFrom] = useState<typeof state | null>(null)
   const followedKnown = subscriptions.state.status !== 'loading'
@@ -53,10 +52,16 @@ export function CommunityScreen() {
       loadSubscriptions()
     }, [loadSubscriptions]),
   )
+  // coming back from a question with the same query keeps the list as it is (the pages read by scrolling stay);
+  // the first show and another query read the first page
+  const shownKey = useRef<string | null>(null)
+  const queryKey = JSON.stringify(query)
   useFocusEffect(
     useCallback(() => {
-      if (followedKnown) load()
-    }, [followedKnown, load]),
+      if (!followedKnown || shownKey.current === queryKey) return
+      shownKey.current = queryKey
+      load()
+    }, [followedKnown, load, queryKey]),
   )
   // the spinner of the pull stays until the feed answers: the state it was started from is replaced then
   const refreshing = refreshFrom !== null && refreshFrom === state
