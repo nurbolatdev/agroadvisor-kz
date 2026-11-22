@@ -12,7 +12,7 @@ import {
 } from 'react-native'
 
 import { COMMUNITY_TEXT_MAX } from '@/api/community'
-import type { Question } from '@/api/community'
+import type { Question, ReportTarget } from '@/api/community'
 import { API_URL } from '@/api/config'
 import type { DiagnosisResult } from '@/api/diagnosis'
 import { AppText, BackHeader, Badge, EmptyState, ErrorState, Screen } from '@/components/ui'
@@ -27,6 +27,7 @@ import { AnswerCard } from './AnswerCard'
 import { AuthorRow } from './AuthorRow'
 import { communityPhotoSource } from './helpers'
 import type { CommunityProblem } from './helpers'
+import { ReportFlag, ReportSheet } from './ReportSheet'
 import { useAgeLabel } from './useAgeLabel'
 import { useQuestion } from './useQuestion'
 
@@ -56,6 +57,8 @@ function QuestionView({ id }: { id: string }) {
   // an old error about the last action is dropped when the person starts typing
   const [dismissed, setDismissed] = useState(false)
   const shownProblem = dismissed ? null : problem
+  // the question or the answer the open report sheet is about
+  const [reporting, setReporting] = useState<{ type: ReportTarget; id: string } | null>(null)
   // read when the screen opens
   useEffect(() => {
     reload()
@@ -71,6 +74,14 @@ function QuestionView({ id }: { id: string }) {
           title={t('community.question.title')}
           backLabel={t('common.back')}
           onBack={() => router.back()}
+          right={
+            // nobody reports their own question
+            state.status === 'ready' && !state.question.mine ? (
+              <ReportFlag
+                onPress={() => setReporting({ type: 'question', id: state.question.id })}
+              />
+            ) : undefined
+          }
         />
         {state.status === 'loading' ? (
           <ActivityIndicator color={colors.primary} style={styles.loading} />
@@ -95,6 +106,7 @@ function QuestionView({ id }: { id: string }) {
                     void toggleVote(answer)
                   }}
                   accepting={accepting}
+                  onReport={(answerId) => setReporting({ type: 'answer', id: answerId })}
                   // only the author of the question marks the best answer
                   onAccept={
                     state.question.mine
@@ -143,6 +155,13 @@ function QuestionView({ id }: { id: string }) {
           </>
         )}
       </KeyboardAvoidingView>
+      {reporting ? (
+        <ReportSheet
+          targetType={reporting.type}
+          targetId={reporting.id}
+          onClose={() => setReporting(null)}
+        />
+      ) : null}
     </Screen>
   )
 }

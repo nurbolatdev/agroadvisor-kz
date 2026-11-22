@@ -8,6 +8,7 @@ import { AppText, Badge, Button } from '@/components/ui'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
 import { AuthorRow } from './AuthorRow'
+import { ReportFlag } from './ReportSheet'
 import { useAgeLabel } from './useAgeLabel'
 
 type Props = {
@@ -20,6 +21,8 @@ type Props = {
   accepting?: boolean
   onAccept?: (answerId: string) => void
   onClearAccepted?: () => void
+  // the flag of a report on the answers of other people
+  onReport?: (answerId: string) => void
 }
 
 // An answer under a question (screen 25): the author with the "Agrochemist" mark and the age, the text and
@@ -32,6 +35,7 @@ export const AnswerCard = memo(function AnswerCard({
   accepting = false,
   onAccept,
   onClearAccepted,
+  onReport,
 }: Props) {
   const { t } = useTranslation()
   const ageOf = useAgeLabel()
@@ -46,6 +50,9 @@ export const AnswerCard = memo(function AnswerCard({
         name={answer.authorName}
         subtitle={ageOf(answer.createdAt, now)}
         expert={answer.authorExpert}
+        right={
+          onReport && !answer.mine ? <ReportFlag onPress={() => onReport(answer.id)} /> : undefined
+        }
       />
       <AppText>{answer.text}</AppText>
       <View style={styles.footer}>
