@@ -66,6 +66,10 @@ export const sizes = {
   logoIcon: 32,
   // the round avatar with the initials on the profile card
   avatar: 56,
+  // the small round avatar with the initials of the author of a question or an answer
+  avatarSm: 40,
+  // the picture of a question on a card of the community feed
+  thumbLg: 64,
   // the big round avatar on the profile of an agrochemist
   avatarLg: 96,
   // the big round mark on the "application sent" screen (frame 03b), and the check in it
