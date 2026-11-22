@@ -97,10 +97,15 @@ describe('the tabs by role', () => {
 
     expect(mockCaptured.screens.map((s) => s.name)).toEqual([
       'home',
+      'community',
       'chats',
       'profile',
       'requests',
     ])
+    // the community is closed while its flag is off
+    expect(mockCaptured.screens.find((s) => s.name === 'community')?.options).toEqual({
+      href: null,
+    })
     expect(mockCaptured.screens.find((s) => s.name === 'requests')?.options).toEqual({ href: null })
     expect(mockCaptured.screens.find((s) => s.name === 'home')?.options).toBeUndefined()
   })
@@ -112,6 +117,7 @@ describe('the tabs by role', () => {
 
     expect(mockCaptured.screens.map((s) => s.name)).toEqual([
       'requests',
+      'community',
       'chats',
       'profile',
       'home',
@@ -127,6 +133,7 @@ describe('the tabs by role', () => {
 
     expect(mockCaptured.screens.map((s) => s.name)).toEqual([
       'requests',
+      'community',
       'chats',
       'profile',
       'home',
@@ -160,6 +167,7 @@ describe('the tabs by role', () => {
     expect(mockCaptured.mounts).toBe(2)
     expect(mockCaptured.screens.map((s) => s.name)).toEqual([
       'requests',
+      'community',
       'chats',
       'profile',
       'home',
