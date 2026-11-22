@@ -77,6 +77,23 @@ describe('useFeed', () => {
     expect(mockApi.feed).toHaveBeenCalledTimes(2)
   })
 
+  it('reads no page while the first page is on its way', async () => {
+    mockApi.feed.mockResolvedValueOnce(page(0, COMMUNITY_PAGE_SIZE))
+    let refreshed: (value: Question[]) => void = () => undefined
+    mockApi.feed.mockReturnValueOnce(new Promise<Question[]>((resolve) => (refreshed = resolve)))
+    const { result } = await renderHook(() => useFeed({}))
+    await act(async () => result.current.load())
+    await waitFor(() => expect(result.current.state.status).toBe('ready'))
+    await act(async () => result.current.refresh())
+    await act(async () => result.current.loadMore())
+    expect(mockApi.feed).toHaveBeenCalledTimes(2)
+    await act(async () => refreshed(page(100, COMMUNITY_PAGE_SIZE)))
+    await act(async () => result.current.loadMore())
+    expect(mockApi.feed).toHaveBeenLastCalledWith(
+      expect.objectContaining({ before: `q${100 + COMMUNITY_PAGE_SIZE - 1}` }),
+    )
+  })
+
   it('drops a late answer of an earlier start', async () => {
     let first: (value: Question[]) => void = () => undefined
     mockApi.feed.mockReturnValueOnce(new Promise<Question[]>((resolve) => (first = resolve)))

@@ -26,11 +26,13 @@ export function useFeed(query: FeedQuery): {
   const latest = useRef(0)
   const loadedKey = useRef<string | null>(null)
   const paging = useRef(false)
+  const firstPage = useRef(false)
   const items = useRef<Question[]>([])
 
   const load = useCallback(() => {
     const id = (latest.current += 1)
     paging.current = false
+    firstPage.current = true
     const parsed = JSON.parse(key) as FeedQuery
     // another query shows the spinner, a refresh of the same one keeps the list on screen
     if (loadedKey.current !== key) {
@@ -43,6 +45,7 @@ export function useFeed(query: FeedQuery): {
     communityApi.feed({ ...parsed, limit: COMMUNITY_PAGE_SIZE, before: undefined }).then(
       (page) => {
         if (latest.current !== id) return
+        firstPage.current = false
         items.current = page
         setState({
           status: 'ready',
@@ -54,6 +57,7 @@ export function useFeed(query: FeedQuery): {
       },
       (error: unknown) => {
         if (latest.current !== id) return
+        firstPage.current = false
         const reason = error instanceof NetworkError ? 'offline' : 'server'
         setState((current) =>
           current.status === 'ready'
@@ -66,7 +70,8 @@ export function useFeed(query: FeedQuery): {
 
   const loadMore = useCallback(() => {
     const last = items.current[items.current.length - 1]
-    if (paging.current || !last) return
+    // while the first page is on its way the cursor is the old one: a page of it would be glued to the wrong list
+    if (paging.current || firstPage.current || !last) return
     paging.current = true
     const id = latest.current
     const parsed = JSON.parse(key) as FeedQuery
