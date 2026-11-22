@@ -16,6 +16,7 @@ import {
 } from '@/components/ui'
 import { isFeatureEnabled } from '@/features/access/featureAccess'
 import { agrochemistsRoute } from '@/features/agrochemists/route'
+import { askRoute } from '@/features/community/route'
 import { isCrop } from '@/features/diagnosis/crops'
 import { hasTreatment, resolveResultScreen } from '@/features/diagnosis/resultScreen'
 import { UncertainBody } from '@/features/diagnosis/UncertainBody'
@@ -159,6 +160,13 @@ function OkBody({ view }: { view: DiagnosisResult }) {
               }),
             )
           }
+        />
+      ) : null}
+      {isFeatureEnabled('community') ? (
+        <Button
+          label={t('diagnosis.result.actions.askCommunity')}
+          variant="secondary"
+          onPress={() => router.push(askRoute({ diagnosisId: view.id, crop: view.crop }))}
         />
       ) : null}
     </View>
