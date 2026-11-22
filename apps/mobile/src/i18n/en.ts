@@ -217,6 +217,12 @@ export const en: Translation = {
         denied: 'No access to the camera. Allow it in the settings',
       },
     },
+    crops: {
+      title: 'My crops',
+      hint: 'We will show questions about these crops and notify you about new ones',
+      save: 'Save',
+      loadFailed: 'Could not load the subscriptions',
+    },
     problems: {
       offline: 'No connection to the server. Check the internet',
       region_required: 'Set your region in the profile to ask a question',
