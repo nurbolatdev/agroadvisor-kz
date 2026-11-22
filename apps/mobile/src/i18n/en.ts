@@ -131,6 +131,18 @@ export const en: Translation = {
     chats: 'Chats',
     profile: 'Profile',
   },
+  // the community: the feed and the question (screens 24, 24a, 25, 26)
+  community: {
+    status: { open: 'Open', solved: 'Solved' },
+    ago: { minutes: '{{count}} min ago', hours: '{{count}} h ago', yesterday: 'yesterday' },
+    card: {
+      expert: 'Agrochemist',
+      answers_one: '{{count}} answer',
+      answers_few: '{{count}} answers',
+      answers_many: '{{count}} answers',
+      answers_other: '{{count}} answers',
+    },
+  },
   // the chats tab (screens 17b, 17c)
   chats: {
     title: 'Chats',

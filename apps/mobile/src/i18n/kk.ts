@@ -132,6 +132,18 @@ export const kk: Translation = {
     chats: 'Чаттар',
     profile: 'Профиль',
   },
+  // the community: the feed and the question (screens 24, 24a, 25, 26); the kk texts wait for the proofreading (#88)
+  community: {
+    status: { open: 'Ашық', solved: 'Шешілді' },
+    ago: { minutes: '{{count}} мин бұрын', hours: '{{count}} сағ бұрын', yesterday: 'кеше' },
+    card: {
+      expert: 'Агрохимик',
+      answers_one: '{{count}} жауап',
+      answers_few: '{{count}} жауап',
+      answers_many: '{{count}} жауап',
+      answers_other: '{{count}} жауап',
+    },
+  },
   // the chats tab (screens 17b, 17c); the kk texts wait for the proofreading (#88)
   chats: {
     title: 'Чаттар',

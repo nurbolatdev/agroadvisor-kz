@@ -132,6 +132,18 @@ export const ru = {
     chats: 'Чаты',
     profile: 'Профиль',
   },
+  // the community: the feed and the question (screens 24, 24a, 25, 26)
+  community: {
+    status: { open: 'Открыт', solved: 'Решён' },
+    ago: { minutes: '{{count}} мин назад', hours: '{{count}} ч назад', yesterday: 'вчера' },
+    card: {
+      expert: 'Агрохимик',
+      answers_one: '{{count}} ответ',
+      answers_few: '{{count}} ответа',
+      answers_many: '{{count}} ответов',
+      answers_other: '{{count}} ответа',
+    },
+  },
   // the chats tab (screens 17b, 17c)
   chats: {
     title: 'Чаты',
