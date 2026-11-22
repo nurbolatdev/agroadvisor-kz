@@ -16,7 +16,7 @@ type Viewer = { id: string; roles: string[]; regionId: number | null }
 type Options = {
   // who the mock answers for; asked on every call, so a change of account is seen at once
   viewer: () => Viewer
-  // what GET .../diagnosis answers for an attached diagnosis; an id it does not know is 400 diagnosis_not_found
+  // what GET .../diagnosis answers for an attached diagnosis; an id it does not know is 404 diagnosis_not_found
   diagnosisOf?: (id: string) => DiagnosisResult | undefined
   delayMs?: number
   now?: () => number
@@ -236,7 +236,7 @@ export function createMockCommunityApi({
       let diagnosisUrl: string | null = null
       if (body.diagnosisId) {
         const diagnosis = diagnosisOf(body.diagnosisId)
-        if (!diagnosis) throw new ApiError(400, 'diagnosis_not_found', 'Diagnosis not found')
+        if (!diagnosis) throw new ApiError(404, 'diagnosis_not_found', 'Diagnosis not found')
         if (diagnosis.crop !== body.cropCode) {
           throw invalid('cropCode', 'the diagnosis is of another crop')
         }
@@ -354,7 +354,11 @@ export function createMockCommunityApi({
         body.targetType === 'question'
           ? questions.find((q) => q.id === body.targetId)
           : answers.find((a) => a.id === body.targetId)
-      if (!target) throw new ApiError(404, 'not_found', 'Nothing to report')
+      if (!target) {
+        throw body.targetType === 'question'
+          ? new ApiError(404, 'question_not_found', 'Question not found')
+          : new ApiError(404, 'answer_not_found', 'Answer not found')
+      }
       if (target.authorId === viewer().id) {
         throw new ApiError(409, 'own_content', 'You cannot report your own content')
       }

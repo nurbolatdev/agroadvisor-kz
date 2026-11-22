@@ -132,9 +132,8 @@ describe('mock community: asking', () => {
     expect(asked.diagnosisUrl).toBe(`/api/community/questions/${asked.id}/diagnosis`)
     await expect(api.diagnosis(asked.id)).resolves.toBe(diagnosis)
     expect((await failure(api.diagnosis(WHEAT))).code).toBe('diagnosis_not_found')
-    expect((await failure(api.ask({ ...draft, diagnosisId: 'other' }))).code).toBe(
-      'diagnosis_not_found',
-    )
+    const unknown = await failure(api.ask({ ...draft, diagnosisId: 'other' }))
+    expect([unknown.status, unknown.code]).toEqual([404, 'diagnosis_not_found'])
     expect(
       (await failure(api.ask({ ...draft, cropCode: 'tomato', diagnosisId: 'diag-1' }))).code,
     ).toBe('validation_failed')
@@ -212,7 +211,7 @@ describe('mock community: answers, votes and the best answer', () => {
     expect((await failure(api.accept(asked.id, REPLY))).code).toBe('answer_not_found')
   })
 
-  it('reports another person content and answers 404 not_found for a missing one', async () => {
+  it('reports another person content and answers 404 for a missing one', async () => {
     const api = setup()
     await expect(
       api.report({ targetType: 'question', targetId: WHEAT, reason: 'ads', comment: 'реклама' }),
@@ -220,7 +219,11 @@ describe('mock community: answers, votes and the best answer', () => {
     const missing = await failure(
       api.report({ targetType: 'answer', targetId: 'nope', reason: 'ads' }),
     )
-    expect([missing.status, missing.code]).toEqual([404, 'not_found'])
+    expect([missing.status, missing.code]).toEqual([404, 'answer_not_found'])
+    const noQuestion = await failure(
+      api.report({ targetType: 'question', targetId: 'nope', reason: 'ads' }),
+    )
+    expect([noQuestion.status, noQuestion.code]).toEqual([404, 'question_not_found'])
   })
 })
 

@@ -50,7 +50,7 @@ export type CommunityApi = {
   // 404 question_not_found (also for a hidden question)
   question: (id: string) => Promise<Question>
   // a farmer only (403 forbidden for an agrochemist). 400 region_required / validation_failed /
-  // invalid_image / diagnosis_not_found, 413 payload_too_large, 429 rate_limited, 503 storage_unavailable
+  // invalid_image, 404 diagnosis_not_found, 413 payload_too_large, 429 rate_limited, 503 storage_unavailable
   ask: (body: NewQuestion) => Promise<Question>
   // the accepted answer first, then by score
   answers: (questionId: string) => Promise<Answer[]>
@@ -67,7 +67,7 @@ export type CommunityApi = {
   subscriptions: () => Promise<Subscriptions>
   // replaces the whole set, up to 20 crops; 400 validation_failed
   saveSubscriptions: (crops: string[]) => Promise<Subscriptions>
-  // 404 not_found, 409 own_content / complaint_resolved, 429 rate_limited
+  // 404 question_not_found / answer_not_found, 409 own_content / complaint_resolved, 429 rate_limited
   report: (body: CreateReport) => Promise<void>
 }
 
