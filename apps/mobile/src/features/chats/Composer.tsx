@@ -10,17 +10,32 @@ type Props = {
   disabled: boolean
   sending: boolean
   onSend: (text: string) => Promise<boolean>
-  onAttach: () => void
+  // no handler, no attach button (the answer line of the community has none)
+  onAttach?: () => void
   // the person changed the text: an old error about the last send is no longer true
   onEdit: () => void
+  // the defaults are the texts and the limit of the chat
+  placeholder?: string
+  sendLabel?: string
+  maxLength?: number
 }
 
 // The line at the bottom of the chat (screens 17, 17a): the attach button, the field and the send button.
 // The text is cleared only when the message went, so a failed send does not lose what was typed.
-export function Composer({ disabled, sending, onSend, onAttach, onEdit }: Props) {
+export function Composer({
+  disabled,
+  sending,
+  onSend,
+  onAttach,
+  onEdit,
+  placeholder,
+  sendLabel,
+  maxLength = CONSULTATION_TEXT_MAX,
+}: Props) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
   const blocked = disabled || sending
+  const hint = placeholder ?? t('chats.chat.placeholder')
 
   const send = async () => {
     if (blocked || text.trim() === '') return
@@ -31,18 +46,20 @@ export function Composer({ disabled, sending, onSend, onAttach, onEdit }: Props)
 
   return (
     <View style={styles.bar}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('chats.chat.attach')}
-        disabled={blocked}
-        hitSlop={spacing.sm}
-        onPress={onAttach}
-        style={styles.side}
-      >
-        <Paperclip size={sizes.icon} color={blocked ? colors.border : colors.textMuted} />
-      </Pressable>
+      {onAttach ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('chats.chat.attach')}
+          disabled={blocked}
+          hitSlop={spacing.sm}
+          onPress={onAttach}
+          style={styles.side}
+        >
+          <Paperclip size={sizes.icon} color={blocked ? colors.border : colors.textMuted} />
+        </Pressable>
+      ) : null}
       <TextInput
-        accessibilityLabel={t('chats.chat.placeholder')}
+        accessibilityLabel={hint}
         value={text}
         onChangeText={(next) => {
           setText(next)
@@ -50,14 +67,14 @@ export function Composer({ disabled, sending, onSend, onAttach, onEdit }: Props)
         }}
         editable={!disabled}
         multiline
-        maxLength={CONSULTATION_TEXT_MAX}
-        placeholder={t('chats.chat.placeholder')}
+        maxLength={maxLength}
+        placeholder={hint}
         placeholderTextColor={colors.textMuted}
         style={styles.input}
       />
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={t('chats.chat.send')}
+        accessibilityLabel={sendLabel ?? t('chats.chat.send')}
         accessibilityState={{ disabled: blocked }}
         disabled={blocked}
         onPress={() => void send()}
