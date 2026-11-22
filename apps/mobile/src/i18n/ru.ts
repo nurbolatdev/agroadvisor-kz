@@ -182,6 +182,55 @@ export const ru = {
         server: 'Сервер не ответил. Попробуйте ещё раз',
       },
     },
+    // a new question (screen 26)
+    ask: {
+      title: 'Новый вопрос',
+      fromDiagnosis: 'Из диагноза · {{date}}',
+      diagnosisLine: '{{name}} · {{percent}}%',
+      diagnosisAdded: 'Фото и результат ИИ добавлены',
+      diagnosisFailed: 'Не удалось прочитать диагноз. Вернитесь и попробуйте ещё раз',
+      crop: 'Культура',
+      region: 'Регион',
+      regionHint: 'Точное расположение поля не показывается другим пользователям',
+      regionMissing: 'Укажите регион в профиле, чтобы задать вопрос',
+      titleLabel: 'Заголовок',
+      text: 'Описание',
+      photos: 'Фото (до {{max}})',
+      addPhoto: 'Добавить фото',
+      removePhoto: 'Убрать фото',
+      publish: 'Опубликовать',
+      errors: {
+        title: {
+          required: 'Введите заголовок',
+          tooShort: 'Заголовок слишком короткий: от 3 символов',
+          tooLong: 'Заголовок слишком длинный: до 120 символов',
+        },
+        text: {
+          required: 'Опишите проблему',
+          tooLong: 'Описание слишком длинное: до 2000 символов',
+        },
+        photos: {
+          tooMany: 'Можно добавить не больше 3 фото',
+          tooLarge: 'Фото слишком большие: всего до 11 МБ',
+        },
+      },
+      photoProblems: {
+        badPhoto: 'Фото не подошло: нужен JPEG или PNG до 10 МБ',
+        denied: 'Нет доступа к камере. Разрешите его в настройках',
+      },
+    },
+    // what went wrong with an action of the community
+    problems: {
+      offline: 'Нет связи с сервером. Проверьте интернет',
+      region_required: 'Укажите регион в профиле, чтобы задать вопрос',
+      invalid_image: 'Фото не подошло: нужен JPEG или PNG',
+      payload_too_large: 'Фото слишком большие. Уберите одно или выберите меньше',
+      rate_limited: 'Слишком много действий. Подождите немного',
+      storage_unavailable: 'Не удалось сохранить фото. Попробуйте ещё раз',
+      not_found: 'Материал уже удалён',
+      complaint_resolved: 'Попробуйте ещё раз',
+      server: 'Не получилось. Попробуйте ещё раз',
+    },
     // the answer line and the actions under an answer (screen 25)
     answer: {
       placeholder: 'Ваш ответ…',

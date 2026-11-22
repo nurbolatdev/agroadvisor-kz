@@ -181,6 +181,53 @@ export const en: Translation = {
       },
     },
     // the answer line and the actions under an answer (screen 25)
+    ask: {
+      title: 'New question',
+      fromDiagnosis: 'From the diagnosis · {{date}}',
+      diagnosisLine: '{{name}} · {{percent}}%',
+      diagnosisAdded: 'The photo and the model result are added',
+      diagnosisFailed: 'Could not read the diagnosis. Go back and try again',
+      crop: 'Crop',
+      region: 'Region',
+      regionHint: 'The exact location of the field is not shown to other users',
+      regionMissing: 'Set your region in the profile to ask a question',
+      titleLabel: 'Title',
+      text: 'Description',
+      photos: 'Photos (up to {{max}})',
+      addPhoto: 'Add a photo',
+      removePhoto: 'Remove the photo',
+      publish: 'Publish',
+      errors: {
+        title: {
+          required: 'Enter a title',
+          tooShort: 'The title is too short: at least 3 characters',
+          tooLong: 'The title is too long: up to 120 characters',
+        },
+        text: {
+          required: 'Describe the problem',
+          tooLong: 'The description is too long: up to 2000 characters',
+        },
+        photos: {
+          tooMany: 'You can add no more than 3 photos',
+          tooLarge: 'The photos are too big: 11 MB in total',
+        },
+      },
+      photoProblems: {
+        badPhoto: 'The photo did not fit: a JPEG or PNG up to 10 MB is needed',
+        denied: 'No access to the camera. Allow it in the settings',
+      },
+    },
+    problems: {
+      offline: 'No connection to the server. Check the internet',
+      region_required: 'Set your region in the profile to ask a question',
+      invalid_image: 'The photo did not fit: a JPEG or PNG is needed',
+      payload_too_large: 'The photos are too big. Remove one or pick smaller ones',
+      rate_limited: 'Too many actions. Wait a little',
+      storage_unavailable: 'Could not save the photo. Try again',
+      not_found: 'The material is already deleted',
+      complaint_resolved: 'Try again',
+      server: 'It did not work. Try again',
+    },
     answer: {
       placeholder: 'Your answer…',
       send: 'Send answer',

@@ -182,6 +182,53 @@ export const kk: Translation = {
       },
     },
     // the answer line and the actions under an answer (screen 25)
+    ask: {
+      title: 'Жаңа сұрақ',
+      fromDiagnosis: 'Диагноздан · {{date}}',
+      diagnosisLine: '{{name}} · {{percent}}%',
+      diagnosisAdded: 'Сурет пен ЖИ нәтижесі қосылды',
+      diagnosisFailed: 'Диагнозды оқу мүмкін болмады. Оралып, қайталап көріңіз',
+      crop: 'Дақыл',
+      region: 'Аймақ',
+      regionHint: 'Алқаптың нақты орны басқа пайдаланушыларға көрсетілмейді',
+      regionMissing: 'Сұрақ қою үшін профильде аймақты көрсетіңіз',
+      titleLabel: 'Тақырып',
+      text: 'Сипаттама',
+      photos: 'Сурет ({{max}}-ге дейін)',
+      addPhoto: 'Сурет қосу',
+      removePhoto: 'Суретті алып тастау',
+      publish: 'Жариялау',
+      errors: {
+        title: {
+          required: 'Тақырыпты енгізіңіз',
+          tooShort: 'Тақырып тым қысқа: кемінде 3 таңба',
+          tooLong: 'Тақырып тым ұзын: 120 таңбаға дейін',
+        },
+        text: {
+          required: 'Мәселені сипаттаңыз',
+          tooLong: 'Сипаттама тым ұзын: 2000 таңбаға дейін',
+        },
+        photos: {
+          tooMany: 'Үш суреттен артық қосуға болмайды',
+          tooLarge: 'Суреттер тым үлкен: барлығы 11 МБ-қа дейін',
+        },
+      },
+      photoProblems: {
+        badPhoto: 'Сурет жарамады: 10 МБ-қа дейінгі JPEG немесе PNG керек',
+        denied: 'Камераға рұқсат жоқ. Оны параметрлерде қосыңыз',
+      },
+    },
+    problems: {
+      offline: 'Серверге қосылу жоқ. Интернетті тексеріңіз',
+      region_required: 'Сұрақ қою үшін профильде аймақты көрсетіңіз',
+      invalid_image: 'Сурет жарамады: JPEG немесе PNG керек',
+      payload_too_large: 'Суреттер тым үлкен. Біреуін алып тастаңыз немесе кішірегін таңдаңыз',
+      rate_limited: 'Әрекет тым көп. Біраз күте тұрыңыз',
+      storage_unavailable: 'Суретті сақтау мүмкін болмады. Қайталап көріңіз',
+      not_found: 'Материал бұрын жойылған',
+      complaint_resolved: 'Қайталап көріңіз',
+      server: 'Болмады. Қайталап көріңіз',
+    },
     answer: {
       placeholder: 'Сіздің жауабыңыз…',
       send: 'Жауап жіберу',
