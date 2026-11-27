@@ -18,10 +18,12 @@ type Props = {
   onShowList: () => void
   onNavigate: (shop: Shop) => void
   onChooseNavigator: (shop: Shop) => void
+  onReport: (shop: Shop) => void
+  // offers a missing shop; absent without a GPS point
+  onSuggest?: () => void
 }
 
-// The bottom panel of screen 18: the grip, "N shops nearby" and the card of the selected shop. The reports
-// are wired by a later step, so the report link does nothing yet.
+// The bottom panel of screen 18: the grip, "N shops nearby" and the card of the selected shop.
 export function ShopsPanel({
   total,
   filtered,
@@ -33,6 +35,8 @@ export function ShopsPanel({
   onShowList,
   onNavigate,
   onChooseNavigator,
+  onReport,
+  onSuggest,
 }: Props) {
   const { t } = useTranslation()
   return (
@@ -47,13 +51,16 @@ export function ShopsPanel({
           shop={selected}
           onNavigate={() => onNavigate(selected)}
           onLongPressNavigate={() => onChooseNavigator(selected)}
-          onReport={() => undefined}
+          onReport={() => onReport(selected)}
         />
       ) : total === 0 ? (
         <View style={styles.empty}>
           <AppText color={colors.textMuted}>{t('shops.empty', { km: radiusKm })}</AppText>
           {near ? (
             <Button label={t('shops.searchWider')} variant="secondary" onPress={onSearchWider} />
+          ) : null}
+          {onSuggest ? (
+            <Button label={t('shops.suggest')} variant="ghost" onPress={onSuggest} />
           ) : null}
         </View>
       ) : (

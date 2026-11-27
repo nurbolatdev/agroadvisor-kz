@@ -14,11 +14,21 @@ type Props = {
   bottomInset: number
   onSelect: (id: string) => void
   onShowMap: () => void
+  // offers a missing shop; absent without a GPS point
+  onSuggest?: () => void
 }
 
 // The list mode of screen 18: the shops in the order of the distance, the way back to the map and the
 // message for an empty result. The header with the chips stays above, owned by the screen.
-export function ShopList({ shops, total, radiusKm, bottomInset, onSelect, onShowMap }: Props) {
+export function ShopList({
+  shops,
+  total,
+  radiusKm,
+  bottomInset,
+  onSelect,
+  onShowMap,
+  onSuggest,
+}: Props) {
   const { t } = useTranslation()
   return (
     <FlatList
@@ -39,6 +49,13 @@ export function ShopList({ shops, total, radiusKm, bottomInset, onSelect, onShow
           {total === 0 ? t('shops.empty', { km: radiusKm }) : t('shops.nothingFound')}
         </AppText>
       }
+      ListFooterComponent={
+        onSuggest ? (
+          <View style={styles.foot}>
+            <Button label={t('shops.suggest')} variant="ghost" onPress={onSuggest} />
+          </View>
+        ) : undefined
+      }
     />
   )
 }
@@ -50,5 +67,6 @@ function Separator() {
 const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   head: { gap: spacing.md, marginBottom: spacing.md },
+  foot: { marginTop: spacing.md },
   separator: { height: spacing.sm },
 })

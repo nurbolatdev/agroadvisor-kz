@@ -1,10 +1,10 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { AppText, BackHeader, Button, EmptyState, ErrorState, Screen } from '@/components/ui'
+import { AppText, Button } from '@/components/ui'
 import { isFeatureEnabled } from '@/features/access/featureAccess'
 import { colors, radii, spacing } from '@/theme/tokens'
 
@@ -18,8 +18,10 @@ import {
 import { ShopList } from './ShopList'
 import { NavigatorSheet } from './NavigatorSheet'
 import { ShopMap } from './ShopMap'
+import { ShopReportSheet, type ReportTarget } from './ShopReportSheet'
 import { ShopsHeader } from './ShopsHeader'
 import { ShopsPanel } from './ShopsPanel'
+import { ShopsStatus } from './ShopsStatus'
 import { useNearbyShops } from './useNearbyShops'
 import { useShopRoute } from './useShopRoute'
 
@@ -38,56 +40,17 @@ export function ShopsScreen() {
   const [listMode, setListMode] = useState(false)
   const { state, reload, askPermission } = useNearbyShops(near)
   const route = useShopRoute()
+  const [reporting, setReporting] = useState<ReportTarget | null>(null)
 
-  const back = (
-    <BackHeader
-      title={t('shops.title')}
-      backLabel={t('common.back')}
-      onBack={() => router.back()}
-    />
-  )
-
-  if (!enabled || (state.status === 'error' && state.reason === 'forbidden')) {
+  if (!enabled || state.status !== 'ready') {
     return (
-      <Screen>
-        {back}
-        <EmptyState title={t('shops.unavailable')} />
-      </Screen>
+      <ShopsStatus enabled={enabled} state={state} reload={reload} askPermission={askPermission} />
     )
   }
 
-  if (state.status === 'locating' || state.status === 'loading') {
-    return (
-      <Screen>
-        {back}
-        <ActivityIndicator color={colors.primary} style={styles.loading} />
-      </Screen>
-    )
-  }
-
-  if (state.status === 'noLocation') {
-    const blocked = state.permission === 'blocked'
-    return (
-      <Screen>
-        {back}
-        <EmptyState
-          title={t('shops.noLocation.title')}
-          message={t('shops.noLocation.hint')}
-          actionLabel={t(blocked ? 'shops.noLocation.openSettings' : 'shops.noLocation.allow')}
-          onAction={blocked ? () => void Linking.openSettings() : askPermission}
-        />
-      </Screen>
-    )
-  }
-
-  if (state.status === 'error') {
-    return (
-      <Screen>
-        {back}
-        <ErrorState message={t(`shops.errors.${state.reason}`)} onRetry={reload} />
-      </Screen>
-    )
-  }
+  // a new shop is reported with the farmer's own point, so only a GPS point offers it
+  const suggest =
+    state.source === 'gps' ? () => setReporting({ kind: 'new', point: state.point }) : undefined
 
   const radiusKm = near
     ? NEAR_RADIUS_KM
@@ -127,6 +90,10 @@ export function ShopsScreen() {
     </View>
   )
 
+  const sheet = reporting ? (
+    <ShopReportSheet target={reporting} onClose={() => setReporting(null)} />
+  ) : null
+
   if (listMode) {
     return (
       <View style={styles.screen}>
@@ -141,7 +108,9 @@ export function ShopsScreen() {
             setListMode(false)
           }}
           onShowMap={() => setListMode(false)}
+          onSuggest={suggest}
         />
+        {sheet}
       </View>
     )
   }
@@ -169,15 +138,17 @@ export function ShopsScreen() {
           onShowList={() => setListMode(true)}
           onNavigate={route.navigate}
           onChooseNavigator={route.choose}
+          onReport={(shop) => setReporting({ kind: 'shop', shopId: shop.id })}
+          onSuggest={suggest}
         />
       </View>
       {route.chooseFor ? <NavigatorSheet shop={route.chooseFor} onClose={route.close} /> : null}
+      {sheet}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  loading: { marginTop: spacing.xl },
   screen: { flex: 1, backgroundColor: colors.bg },
   top: { gap: spacing.sm },
   topOverMap: { position: 'absolute', top: 0, left: 0, right: 0 },

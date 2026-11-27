@@ -236,5 +236,34 @@ describe('ShopsScreen', () => {
       await fireEvent.press(screen.getByText('Search up to 50 km'))
       expect(mockNear.at(-1)).toBe(false)
     })
+
+    it('opens the report sheet from the card', async () => {
+      mockState = ready()
+      await render(<ShopsScreen />)
+      await fireEvent.press(screen.getByText('Report a mistake'))
+      expect(screen.getByText('Shop is closed')).toBeTruthy()
+    })
+
+    it('offers a missing shop in the list with a GPS point', async () => {
+      mockState = ready()
+      await render(<ShopsScreen />)
+      await fireEvent.press(screen.getByText('List'))
+      await fireEvent.press(screen.getByText('Suggest a shop'))
+      expect(screen.getByText('The shop is reported with your current location')).toBeTruthy()
+    })
+
+    it('offers a missing shop when nothing is near, with a GPS point', async () => {
+      mockState = { ...ready(), shops: [] }
+      await render(<ShopsScreen />)
+      expect(screen.getByText('Suggest a shop')).toBeTruthy()
+    })
+
+    it('does not offer a missing shop around the centre of a region', async () => {
+      mockState = { ...ready('region'), shops: [] }
+      await render(<ShopsScreen />)
+      expect(screen.queryByText('Suggest a shop')).toBeNull()
+      await fireEvent.press(screen.getByText('List'))
+      expect(screen.queryByText('Suggest a shop')).toBeNull()
+    })
   })
 })
