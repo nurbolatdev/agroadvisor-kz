@@ -124,6 +124,7 @@ describe('ShopsScreen', () => {
       status: 'ready',
       point: { latitude: 43.2, longitude: 76.9 },
       source,
+      permission: source === 'gps' ? 'granted' : 'denied',
       failed: null,
       refreshing: false,
       shops: [
@@ -212,6 +213,24 @@ describe('ShopsScreen', () => {
       mockState = ready('gps')
       await render(<ShopsScreen />)
       expect(screen.queryByText('Shops around the centre of your region are shown')).toBeNull()
+    })
+
+    it('opens the settings from the region notice when the permission is blocked', async () => {
+      const open = jest.spyOn(Linking, 'openSettings').mockResolvedValue(undefined)
+      mockState = { ...ready('region'), permission: 'blocked' }
+      await render(<ShopsScreen />)
+      await fireEvent.press(screen.getByText('Open settings'))
+      expect(open).toHaveBeenCalledTimes(1)
+      expect(mockAsk).not.toHaveBeenCalled()
+      open.mockRestore()
+    })
+
+    it('retries from the region notice when the permission is given but there is no position', async () => {
+      mockState = { ...ready('region'), permission: 'granted' }
+      await render(<ShopsScreen />)
+      expect(screen.queryByText('Allow location')).toBeNull()
+      await fireEvent.press(screen.getByText('Try again'))
+      expect(mockReload).toHaveBeenCalledTimes(1)
     })
 
     it('switches to the list and back to the map', async () => {

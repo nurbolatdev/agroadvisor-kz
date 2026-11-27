@@ -20,6 +20,8 @@ export type NearbyShopsState =
       status: 'ready'
       point: ShopPoint
       source: 'gps' | 'region'
+      // why a region stands in for the GPS point; 'granted' for GPS itself
+      permission: 'granted' | 'denied' | 'blocked'
       shops: Shop[]
       // a new radius or a reload is on its way while the last list is shown
       refreshing: boolean
@@ -92,6 +94,7 @@ export function useNearbyShops(near: boolean): {
               status: 'ready',
               point: point.point,
               source: point.kind,
+              permission: point.kind === 'gps' ? 'granted' : point.permission,
               shops,
               refreshing: false,
               failed: null,

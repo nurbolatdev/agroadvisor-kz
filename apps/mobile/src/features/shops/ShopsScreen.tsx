@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { StyleSheet, View } from 'react-native'
+import { Linking, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AppText, Button } from '@/components/ui'
@@ -61,6 +61,21 @@ export function ShopsScreen() {
   // the first shop (the nearest) is selected until the farmer taps another one
   const selected = filtered.find((shop) => shop.id === selectedId) ?? filtered[0] ?? null
 
+  // the banner button follows why there is no GPS point: the system will not ask again, the position did
+  // not come though the permission is given, or the farmer has not allowed it yet
+  const locationLabel =
+    state.permission === 'blocked'
+      ? t('shops.noLocation.openSettings')
+      : state.permission === 'granted'
+        ? t('common.retry')
+        : t('shops.allowLocation')
+  const locationAction =
+    state.permission === 'blocked'
+      ? () => void Linking.openSettings()
+      : state.permission === 'granted'
+        ? reload
+        : askPermission
+
   const top = (
     <View
       style={[
@@ -84,7 +99,7 @@ export function ShopsScreen() {
           <AppText variant="small" style={styles.bannerText}>
             {t('shops.regionBanner')}
           </AppText>
-          <Button label={t('shops.allowLocation')} variant="secondary" onPress={askPermission} />
+          <Button label={locationLabel} variant="secondary" onPress={locationAction} />
         </View>
       ) : null}
     </View>

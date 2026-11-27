@@ -30,7 +30,17 @@ describe('resolvePoint', () => {
 
   it('falls back to the region centre after a refusal', async () => {
     const result = await resolvePoint(deps({ permission: async () => 'denied' }))
-    expect(result).toEqual({ kind: 'region', point: REGION_CENTERS.karaganda, regionId: 6 })
+    expect(result).toEqual({
+      kind: 'region',
+      point: REGION_CENTERS.karaganda,
+      regionId: 6,
+      permission: 'denied',
+    })
+  })
+
+  it('remembers that the permission is blocked next to the region', async () => {
+    const result = await resolvePoint(deps({ permission: async () => 'blocked' }))
+    expect(result).toMatchObject({ kind: 'region', permission: 'blocked' })
   })
 
   it('falls back to the region when the position does not come in time', async () => {
@@ -38,7 +48,7 @@ describe('resolvePoint', () => {
     try {
       const pending = resolvePoint(deps({ position: () => new Promise(() => {}) }))
       await jest.advanceTimersByTimeAsync(POSITION_TIMEOUT_MS)
-      expect((await pending).kind).toBe('region')
+      expect(await pending).toMatchObject({ kind: 'region', permission: 'granted' })
     } finally {
       jest.useRealTimers()
     }

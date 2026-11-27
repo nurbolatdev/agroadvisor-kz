@@ -9,8 +9,11 @@ export type LocationPermission = 'granted' | 'denied' | 'blocked' | 'undetermine
 
 export type ResolvedPoint =
   | { kind: 'gps'; point: ShopPoint }
-  | { kind: 'region'; point: ShopPoint; regionId: number }
-  | { kind: 'none'; permission: 'granted' | 'denied' | 'blocked' }
+  // `permission` says why there is no GPS point: refused, never to be asked again, or given but no position
+  | { kind: 'region'; point: ShopPoint; regionId: number; permission: KnownPermission }
+  | { kind: 'none'; permission: KnownPermission }
+
+export type KnownPermission = 'granted' | 'denied' | 'blocked'
 
 export type ResolveDeps = {
   // current permission, without a prompt
@@ -32,13 +35,16 @@ function withTimeout<T>(task: Promise<T>, ms: number): Promise<T | null> {
   return Promise.race([task, timeout]).finally(() => clearTimeout(timer))
 }
 
-async function regionPoint(deps: ResolveDeps): Promise<ResolvedPoint | null> {
+async function regionPoint(
+  deps: ResolveDeps,
+  permission: KnownPermission,
+): Promise<ResolvedPoint | null> {
   try {
     const id = await deps.regionId()
     if (id === null) return null
     const code = await deps.regionCode(id)
     const point = code === null ? undefined : REGION_CENTERS[code]
-    return point ? { kind: 'region', point, regionId: id } : null
+    return point ? { kind: 'region', point, regionId: id, permission } : null
   } catch {
     return null
   }
@@ -63,7 +69,8 @@ export async function resolvePoint(deps: ResolveDeps): Promise<ResolvedPoint> {
     }
   }
 
-  const region = await regionPoint(deps)
+  const known = permission === 'undetermined' ? 'denied' : permission
+  const region = await regionPoint(deps, known)
   if (region) return region
-  return { kind: 'none', permission: permission === 'undetermined' ? 'denied' : permission }
+  return { kind: 'none', permission: known }
 }
