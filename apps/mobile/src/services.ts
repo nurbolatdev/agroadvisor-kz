@@ -25,7 +25,9 @@ import { createMockUsersApi } from '@/api/mock/users'
 import { createUsersApi } from '@/api/users'
 import { createCalculationsApi } from '@/api/calculations'
 import { createMockCalculationsApi } from '@/api/mock/calculations'
+import { createMockShopsApi } from '@/api/mock/shops'
 import { createMockWeatherApi } from '@/api/mock/weather'
+import { createShopsApi } from '@/api/shops'
 import { createWeatherApi } from '@/api/weather'
 import { createApplicationStore } from '@/features/agrochemist/application'
 import { shouldResetApplication } from '@/features/agrochemist/applicationLifecycle'
@@ -139,6 +141,9 @@ if (API_MODE === 'mock') {
 
 // The weather and the spraying hours for the point of a field (screen 28, docs/api/weather.md).
 export const weatherApi = API_MODE === 'mock' ? createMockWeatherApi() : createWeatherApi(apiClient)
+
+// The agricultural shops around a farmer and their reports (screen 18, docs/adr/0011-shops-directory.md).
+export const shopsApi = API_MODE === 'mock' ? createMockShopsApi() : createShopsApi(apiClient)
 
 // The saved seasons of the farm calculator (screens 30, 31); the formulas run on the phone.
 export const calculationsApi =
