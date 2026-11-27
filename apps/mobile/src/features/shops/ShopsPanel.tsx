@@ -5,6 +5,8 @@ import type { Shop } from '@/api/shops'
 import { AppText, Button } from '@/components/ui'
 import { colors, radii, sizes, spacing } from '@/theme/tokens'
 
+import type { ShopsProblem } from './helpers'
+import { RefreshNotice } from './RefreshNotice'
 import { ShopCard } from './ShopCard'
 
 type Props = {
@@ -14,6 +16,9 @@ type Props = {
   near: boolean
   radiusKm: number
   bottomInset: number
+  refreshing: boolean
+  failed: ShopsProblem | null
+  onRetry: () => void
   onSearchWider: () => void
   onShowList: () => void
   onNavigate: (shop: Shop) => void
@@ -31,6 +36,9 @@ export function ShopsPanel({
   near,
   radiusKm,
   bottomInset,
+  refreshing,
+  failed,
+  onRetry,
   onSearchWider,
   onShowList,
   onNavigate,
@@ -46,6 +54,7 @@ export function ShopsPanel({
         <AppText variant="h2">{t('shops.count', { count: filtered.length })}</AppText>
         <Button label={t('shops.showList')} variant="secondary" onPress={onShowList} />
       </View>
+      <RefreshNotice refreshing={refreshing} failed={failed} onRetry={onRetry} />
       {selected ? (
         <ShopCard
           shop={selected}

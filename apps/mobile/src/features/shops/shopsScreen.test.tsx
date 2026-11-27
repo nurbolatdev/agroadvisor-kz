@@ -125,6 +125,7 @@ describe('ShopsScreen', () => {
       point: { latitude: 43.2, longitude: 76.9 },
       source,
       failed: null,
+      refreshing: false,
       shops: [
         shop('s1', 'Bereke', 'Tole bi 45', ['fungicides']),
         shop('s2', 'Dala', 'Abay 10', ['seeds']),
@@ -136,6 +137,22 @@ describe('ShopsScreen', () => {
       await render(<ShopsScreen />)
       expect(screen.getByText('map:2:s1')).toBeTruthy()
       expect(screen.getByText('2 shops nearby')).toBeTruthy()
+      expect(screen.getByText('Bereke')).toBeTruthy()
+    })
+
+    it('says why a refresh failed and retries on request', async () => {
+      mockState = { ...ready(), failed: 'network' }
+      await render(<ShopsScreen />)
+      expect(screen.getByText('No connection to the server. Check your internet')).toBeTruthy()
+      expect(screen.getByText('Bereke')).toBeTruthy()
+      await fireEvent.press(screen.getByText('Try again'))
+      expect(mockReload).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows no error while the list is refreshing', async () => {
+      mockState = { ...ready(), refreshing: true }
+      await render(<ShopsScreen />)
+      expect(screen.queryByText('Try again')).toBeNull()
       expect(screen.getByText('Bereke')).toBeTruthy()
     })
 

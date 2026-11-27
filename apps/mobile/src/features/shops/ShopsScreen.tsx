@@ -103,6 +103,9 @@ export function ShopsScreen() {
           total={state.shops.length}
           radiusKm={radiusKm}
           bottomInset={insets.bottom}
+          refreshing={state.refreshing}
+          failed={state.failed}
+          onRetry={reload}
           onSelect={(id) => {
             setSelectedId(id)
             setListMode(false)
@@ -134,6 +137,9 @@ export function ShopsScreen() {
           near={near}
           radiusKm={radiusKm}
           bottomInset={insets.bottom}
+          refreshing={state.refreshing}
+          failed={state.failed}
+          onRetry={reload}
           onSearchWider={() => setNear(false)}
           onShowList={() => setListMode(true)}
           onNavigate={route.navigate}

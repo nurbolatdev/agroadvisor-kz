@@ -5,6 +5,8 @@ import type { Shop } from '@/api/shops'
 import { AppText, Button } from '@/components/ui'
 import { colors, spacing } from '@/theme/tokens'
 
+import type { ShopsProblem } from './helpers'
+import { RefreshNotice } from './RefreshNotice'
 import { ShopRow } from './ShopRow'
 
 type Props = {
@@ -12,6 +14,9 @@ type Props = {
   total: number
   radiusKm: number
   bottomInset: number
+  refreshing: boolean
+  failed: ShopsProblem | null
+  onRetry: () => void
   onSelect: (id: string) => void
   onShowMap: () => void
   // offers a missing shop; absent without a GPS point
@@ -25,6 +30,9 @@ export function ShopList({
   total,
   radiusKm,
   bottomInset,
+  refreshing,
+  failed,
+  onRetry,
   onSelect,
   onShowMap,
   onSuggest,
@@ -42,6 +50,7 @@ export function ShopList({
         <View style={styles.head}>
           <AppText variant="h2">{t('shops.count', { count: shops.length })}</AppText>
           <Button label={t('shops.showMap')} variant="secondary" onPress={onShowMap} />
+          <RefreshNotice refreshing={refreshing} failed={failed} onRetry={onRetry} />
         </View>
       }
       ListEmptyComponent={

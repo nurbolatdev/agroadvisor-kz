@@ -52,7 +52,11 @@ describe('useNearbyShops', () => {
 
     await waitFor(() => expect(result.current.state.status).toBe('ready'))
     expect(mockNearby).toHaveBeenLastCalledWith({ ...POINT, radiusKm: 50, limit: 50 })
-    expect(result.current.state).toMatchObject({ source: 'gps', failed: null })
+    expect(result.current.state).toMatchObject({
+      source: 'gps',
+      failed: null,
+      refreshing: false,
+    })
 
     await rerender({ near: true })
 

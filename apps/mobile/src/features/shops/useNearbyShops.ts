@@ -21,6 +21,8 @@ export type NearbyShopsState =
       point: ShopPoint
       source: 'gps' | 'region'
       shops: Shop[]
+      // a new radius or a reload is on its way while the last list is shown
+      refreshing: boolean
       // a failed refresh keeps the last list and says why
       failed: ShopsProblem | null
     }
@@ -78,7 +80,7 @@ export function useNearbyShops(near: boolean): {
           }
           found.current = point = resolved
         }
-        setState((s) => (s.status === 'ready' ? s : { status: 'loading' }))
+        setState((s) => (s.status === 'ready' ? { ...s, refreshing: true } : { status: 'loading' }))
         try {
           const shops = await shopsApi.nearby({
             ...point.point,
@@ -91,6 +93,7 @@ export function useNearbyShops(near: boolean): {
               point: point.point,
               source: point.kind,
               shops,
+              refreshing: false,
               failed: null,
             })
           }
@@ -98,7 +101,9 @@ export function useNearbyShops(near: boolean): {
           if (!current()) return
           const reason = shopsProblemOf(error)
           setState((s) =>
-            s.status === 'ready' ? { ...s, failed: reason } : { status: 'error', reason },
+            s.status === 'ready'
+              ? { ...s, refreshing: false, failed: reason }
+              : { status: 'error', reason },
           )
         }
       })()
