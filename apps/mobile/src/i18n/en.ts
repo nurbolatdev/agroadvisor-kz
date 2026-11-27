@@ -494,6 +494,13 @@ export const en: Translation = {
     nearChip: 'Up to 10 km',
     regionBanner: 'Shops around the centre of your region are shown',
     allowLocation: 'Allow location',
+    navigator: {
+      title: 'Open the route in…',
+      apps: { '2gis': '2GIS', yandex: 'Yandex Maps', google: 'Google Maps' },
+      remember: 'Remember my choice',
+      cancel: 'Cancel',
+      failed: 'Could not open the navigator',
+    },
     empty: 'No shops within {{km}} km',
     searchWider: 'Search up to 50 km',
     nothingFound: 'Nothing found',

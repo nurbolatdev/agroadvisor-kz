@@ -16,10 +16,12 @@ type Props = {
   bottomInset: number
   onSearchWider: () => void
   onShowList: () => void
+  onNavigate: (shop: Shop) => void
+  onChooseNavigator: (shop: Shop) => void
 }
 
-// The bottom panel of screen 18: the grip, "N shops nearby" and the card of the selected shop. The routes
-// and the reports are wired by the next steps, so the card's actions do nothing yet.
+// The bottom panel of screen 18: the grip, "N shops nearby" and the card of the selected shop. The reports
+// are wired by a later step, so the report link does nothing yet.
 export function ShopsPanel({
   total,
   filtered,
@@ -29,6 +31,8 @@ export function ShopsPanel({
   bottomInset,
   onSearchWider,
   onShowList,
+  onNavigate,
+  onChooseNavigator,
 }: Props) {
   const { t } = useTranslation()
   return (
@@ -41,8 +45,8 @@ export function ShopsPanel({
       {selected ? (
         <ShopCard
           shop={selected}
-          onNavigate={() => undefined}
-          onLongPressNavigate={() => undefined}
+          onNavigate={() => onNavigate(selected)}
+          onLongPressNavigate={() => onChooseNavigator(selected)}
           onReport={() => undefined}
         />
       ) : total === 0 ? (

@@ -499,6 +499,13 @@ export const ru = {
     nearChip: 'До 10 км',
     regionBanner: 'Показаны магазины около центра области',
     allowLocation: 'Разрешить геолокацию',
+    navigator: {
+      title: 'Открыть маршрут в…',
+      apps: { '2gis': '2GIS', yandex: 'Яндекс Карты', google: 'Google Maps' },
+      remember: 'Запомнить выбор',
+      cancel: 'Отмена',
+      failed: 'Не удалось открыть навигатор',
+    },
     empty: 'Рядом нет магазинов в радиусе {{km}} км',
     searchWider: 'Искать до 50 км',
     nothingFound: 'Ничего не найдено',

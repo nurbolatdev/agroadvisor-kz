@@ -13,6 +13,9 @@ let mockState: NearbyShopsState = { status: 'locating' }
 let mockEnabled = true
 const mockNear: boolean[] = []
 
+jest.mock('@/lib/storage', () => ({
+  storage: { getString: () => undefined, set: () => undefined, remove: () => undefined },
+}))
 jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack }) }))
 jest.mock(
   'react-native-safe-area-context',

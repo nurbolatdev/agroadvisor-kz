@@ -16,10 +16,12 @@ import {
   WIDE_RADIUS_KM,
 } from './helpers'
 import { ShopList } from './ShopList'
+import { NavigatorSheet } from './NavigatorSheet'
 import { ShopMap } from './ShopMap'
 import { ShopsHeader } from './ShopsHeader'
 import { ShopsPanel } from './ShopsPanel'
 import { useNearbyShops } from './useNearbyShops'
+import { useShopRoute } from './useShopRoute'
 
 // The map of agro shops (screen 18): the map with the header over it, the bottom panel with the card of the
 // selected shop, and the states outside the map (the point is being found, there is no point, the shops
@@ -35,6 +37,7 @@ export function ShopsScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [listMode, setListMode] = useState(false)
   const { state, reload, askPermission } = useNearbyShops(near)
+  const route = useShopRoute()
 
   const back = (
     <BackHeader
@@ -164,8 +167,11 @@ export function ShopsScreen() {
           bottomInset={insets.bottom}
           onSearchWider={() => setNear(false)}
           onShowList={() => setListMode(true)}
+          onNavigate={route.navigate}
+          onChooseNavigator={route.choose}
         />
       </View>
+      {route.chooseFor ? <NavigatorSheet shop={route.chooseFor} onClose={route.close} /> : null}
     </View>
   )
 }

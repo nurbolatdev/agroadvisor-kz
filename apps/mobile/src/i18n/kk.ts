@@ -495,6 +495,13 @@ export const kk: Translation = {
     nearChip: '10 км-ге дейін',
     regionBanner: 'Облыс орталығының маңындағы дүкендер көрсетілген',
     allowLocation: 'Геолокацияға рұқсат беру',
+    navigator: {
+      title: 'Маршрутты мына жерде ашу…',
+      apps: { '2gis': '2GIS', yandex: 'Яндекс Карталар', google: 'Google Maps' },
+      remember: 'Таңдауды есте сақтау',
+      cancel: 'Бас тарту',
+      failed: 'Навигаторды ашу мүмкін болмады',
+    },
     empty: '{{km}} км радиуста дүкен жоқ',
     searchWider: '50 км-ге дейін іздеу',
     nothingFound: 'Ештеңе табылмады',
