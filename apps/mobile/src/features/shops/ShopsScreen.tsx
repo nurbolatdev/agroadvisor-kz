@@ -151,6 +151,7 @@ export function ShopsScreen() {
           selected={selected}
           near={near}
           radiusKm={radiusKm}
+          widerKm={state.source === 'gps' ? WIDE_RADIUS_KM : REGION_RADIUS_KM}
           bottomInset={insets.bottom}
           refreshing={state.refreshing}
           failed={state.failed}

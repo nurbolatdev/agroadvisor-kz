@@ -15,6 +15,8 @@ type Props = {
   selected: Shop | null
   near: boolean
   radiusKm: number
+  // the radius "search wider" goes to
+  widerKm: number
   bottomInset: number
   refreshing: boolean
   failed: ShopsProblem | null
@@ -35,6 +37,7 @@ export function ShopsPanel({
   selected,
   near,
   radiusKm,
+  widerKm,
   bottomInset,
   refreshing,
   failed,
@@ -66,7 +69,11 @@ export function ShopsPanel({
         <View style={styles.empty}>
           <AppText color={colors.textMuted}>{t('shops.empty', { km: radiusKm })}</AppText>
           {near ? (
-            <Button label={t('shops.searchWider')} variant="secondary" onPress={onSearchWider} />
+            <Button
+              label={t('shops.searchWider', { km: widerKm })}
+              variant="secondary"
+              onPress={onSearchWider}
+            />
           ) : null}
           {onSuggest ? (
             <Button label={t('shops.suggest')} variant="ghost" onPress={onSuggest} />

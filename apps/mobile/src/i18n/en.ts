@@ -527,7 +527,7 @@ export const en: Translation = {
     },
     suggest: 'Suggest a shop',
     empty: 'No shops within {{km}} km',
-    searchWider: 'Search up to 50 km',
+    searchWider: 'Search up to {{km}} km',
     nothingFound: 'Nothing found',
     showList: 'List',
     showMap: 'On the map',
@@ -537,7 +537,7 @@ export const en: Translation = {
     count_other: '{{count}} shops nearby',
     noLocation: {
       title: 'Location is needed',
-      hint: 'Allow access to your location or set a region in your profile to find shops nearby',
+      hint: 'Allow access to your location to find shops nearby',
       allow: 'Allow',
       openSettings: 'Open settings',
     },
