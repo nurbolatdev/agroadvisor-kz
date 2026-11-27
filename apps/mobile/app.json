@@ -57,6 +57,14 @@
           "cameraPermission": "AgroAdvisor использует камеру, чтобы сфотографировать больной лист для диагностики, а агрохимик — снять диплом или сертификат для проверки.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "AgroAdvisor использует ваше местоположение, чтобы показать ближайшие агромагазины.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
+        }
       ]
     ]
   }

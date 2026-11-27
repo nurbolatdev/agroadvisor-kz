@@ -14,10 +14,14 @@ function pluginOptions(name: string): PluginOptions {
 }
 
 const locales = { ru, kk, en }
-const KEYS = ['NSCameraUsageDescription', 'NSPhotoLibraryUsageDescription']
+const KEYS = [
+  'NSCameraUsageDescription',
+  'NSLocationWhenInUseUsageDescription',
+  'NSPhotoLibraryUsageDescription',
+]
 
 describe('iOS permission texts', () => {
-  it.each(Object.entries(locales))('%s has the two non-empty ios texts', (_name, file) => {
+  it.each(Object.entries(locales))('%s has the three non-empty ios texts', (_name, file) => {
     expect(Object.keys(file)).toEqual(['ios'])
     expect(Object.keys(file.ios).sort()).toEqual(KEYS)
     for (const key of KEYS) {
@@ -38,5 +42,17 @@ describe('iOS permission texts', () => {
     expect(ru.ios.NSPhotoLibraryUsageDescription).toBe(
       pluginOptions('expo-image-picker').photosPermission,
     )
+  })
+
+  it('ru location text equals the app.json location text', () => {
+    expect(ru.ios.NSLocationWhenInUseUsageDescription).toBe(
+      pluginOptions('expo-location').locationWhenInUsePermission,
+    )
+  })
+
+  it('background location is disabled', () => {
+    const options = pluginOptions('expo-location')
+    expect(options.isAndroidBackgroundLocationEnabled).toBe(false)
+    expect(options.isIosBackgroundLocationEnabled).toBe(false)
   })
 })
