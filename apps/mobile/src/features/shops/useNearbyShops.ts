@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { AppState } from 'react-native'
 
 import { type Shop, type ShopPoint, SHOPS_LIMIT } from '@/api/shops'
 import { regionsApi, shopsApi, useProfile } from '@/services'
@@ -123,6 +124,17 @@ export function useNearbyShops(near: boolean): {
   }, [load])
 
   const reload = useCallback(() => load(true), [load])
+
+  // the farmer may allow the location in the system settings: coming back to the app looks for the point again
+  const blocked =
+    (state.status === 'noLocation' || state.status === 'ready') && state.permission === 'blocked'
+  useEffect(() => {
+    if (!blocked) return
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next === 'active') reload()
+    })
+    return () => subscription.remove()
+  }, [blocked, reload])
 
   const askPermission = useCallback(() => {
     void requestPermission()

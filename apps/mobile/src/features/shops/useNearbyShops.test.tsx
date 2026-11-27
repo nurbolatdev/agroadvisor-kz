@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native'
+import { AppState, type AppStateStatus } from 'react-native'
 
 import { NetworkError } from '@/api/errors'
 import type { Shop } from '@/api/shops'
@@ -128,5 +129,37 @@ describe('useNearbyShops', () => {
     await waitFor(() =>
       expect(result.current.state).toEqual({ status: 'error', reason: 'network' }),
     )
+  })
+
+  it('looks for the point again on return to the app while the permission is blocked', async () => {
+    mockPermission.mockResolvedValue('blocked')
+    const handlers: ((state: AppStateStatus) => void)[] = []
+    const spy = jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, handler) => {
+      handlers.push(handler)
+      return { remove: jest.fn() }
+    })
+
+    const { result } = await renderHook(() => useNearbyShops(false))
+    await waitFor(() => expect(result.current.state.status).toBe('noLocation'))
+    expect(mockPermission).toHaveBeenCalledTimes(1)
+
+    // the farmer allowed the location in the settings
+    mockPermission.mockResolvedValue('granted')
+    await act(async () => handlers.at(-1)?.('active'))
+
+    await waitFor(() =>
+      expect(result.current.state).toMatchObject({ status: 'ready', source: 'gps' }),
+    )
+    spy.mockRestore()
+  })
+
+  it('does not listen to the app state while the permission is not blocked', async () => {
+    const spy = jest.spyOn(AppState, 'addEventListener')
+
+    const { result } = await renderHook(() => useNearbyShops(false))
+    await waitFor(() => expect(result.current.state.status).toBe('ready'))
+
+    expect(spy).not.toHaveBeenCalled()
+    spy.mockRestore()
   })
 })
