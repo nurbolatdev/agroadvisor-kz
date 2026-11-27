@@ -11,6 +11,7 @@ describe('feature access', () => {
       fields: true,
       weather: true,
       calculator: true,
+      shops: false,
     })
   })
 
@@ -21,6 +22,7 @@ describe('feature access', () => {
       fields: false,
       weather: false,
       calculator: false,
+      shops: false,
     }
     expect(isFeatureEnabled('fields', flags)).toBe(false)
     expect(isFeatureEnabled('consultations', flags)).toBe(true)

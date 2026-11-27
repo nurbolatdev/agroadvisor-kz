@@ -488,6 +488,26 @@ export const kk: Translation = {
       seeds: 'Тұқымдар',
       equipment: 'Техника',
     },
+    title: 'Агродүкендер',
+    unavailable: 'Бөлім қолжетімсіз',
+    count_one: 'Жақын маңда {{count}} дүкен',
+    count_few: 'Жақын маңда {{count}} дүкен',
+    count_many: 'Жақын маңда {{count}} дүкен',
+    count_other: 'Жақын маңда {{count}} дүкен',
+    noLocation: {
+      title: 'Геолокация қажет',
+      hint: 'Жақын дүкендерді табу үшін орналасқан жерге рұқсат беріңіз немесе профильде облысты көрсетіңіз',
+      allow: 'Рұқсат беру',
+      openSettings: 'Баптауларды ашу',
+    },
+    errors: {
+      network: 'Сервермен байланыс жоқ. Интернетті тексеріңіз',
+      rateLimited: 'Сұраныс тым көп. Бір минут күте тұрыңыз',
+      notFound: 'Дүкен енді көрсетілмейді',
+      forbidden: 'Бөлім тек фермерлерге қолжетімді',
+      invalid: 'Сұранысты орындау мүмкін болмады. Деректерді тексеріңіз',
+      server: 'Сервер жауап бермеді. Қайталап көріңіз',
+    },
   },
   // the notifications (screen 20); the kk texts wait for the proofreading (#88)
   notifications: {

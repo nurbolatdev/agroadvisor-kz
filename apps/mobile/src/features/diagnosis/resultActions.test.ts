@@ -9,6 +9,7 @@ const off: FeatureFlags = {
   fields: false,
   weather: false,
   calculator: false,
+  shops: false,
 }
 const on: FeatureFlags = {
   consultations: true,
@@ -16,6 +17,7 @@ const on: FeatureFlags = {
   fields: true,
   weather: true,
   calculator: true,
+  shops: false,
 }
 
 const low: ResultScreen = { kind: 'lowConfidence', candidates: [] }
@@ -102,6 +104,7 @@ describe('what to do next', () => {
             fields: true,
             weather: true,
             calculator: true,
+            shops: false,
           },
         }),
       ).toEqual([{ type: 'retake' }, { type: 'askAgronomist' }, { type: 'offlineHint' }])

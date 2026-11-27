@@ -1,7 +1,7 @@
 // Which parts of the app are switched on. Screens ask `isFeatureEnabled` instead of checking a role, so a
 // part can later be made paid or limited to some users by changing this one place (the plan for
 // monetization: access checks go through a feature-access layer, not through hard-coded roles).
-export type Feature = 'consultations' | 'community' | 'fields' | 'weather' | 'calculator'
+export type Feature = 'consultations' | 'community' | 'fields' | 'weather' | 'calculator' | 'shops'
 
 export type FeatureFlags = Record<Feature, boolean>
 
@@ -18,6 +18,8 @@ export const FEATURE_FLAGS: FeatureFlags = {
   weather: true,
   // the farm calculator (/calculator, M20); the backend closes it by the same flag
   calculator: true,
+  // the map of agro shops (/shops, M17); off until the screen is finished, the backend closes it by the same flag
+  shops: false,
 }
 
 export function isFeatureEnabled(feature: Feature, flags: FeatureFlags = FEATURE_FLAGS): boolean {

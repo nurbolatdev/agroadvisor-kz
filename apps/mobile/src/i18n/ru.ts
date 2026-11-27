@@ -492,6 +492,26 @@ export const ru = {
       seeds: 'Семена',
       equipment: 'Техника',
     },
+    title: 'Агромагазины',
+    unavailable: 'Раздел недоступен',
+    count_one: '{{count}} магазин рядом',
+    count_few: '{{count}} магазина рядом',
+    count_many: '{{count}} магазинов рядом',
+    count_other: '{{count}} магазина рядом',
+    noLocation: {
+      title: 'Нужна геолокация',
+      hint: 'Разрешите доступ к местоположению или укажите область в профиле, чтобы найти магазины рядом',
+      allow: 'Разрешить',
+      openSettings: 'Открыть настройки',
+    },
+    errors: {
+      network: 'Нет связи с сервером. Проверьте интернет',
+      rateLimited: 'Слишком много запросов. Подождите минуту',
+      notFound: 'Магазин больше не показывается',
+      forbidden: 'Раздел доступен только фермеру',
+      invalid: 'Не удалось выполнить запрос. Проверьте данные',
+      server: 'Сервер не ответил. Попробуйте ещё раз',
+    },
   },
   // the notifications (screen 20). A notification has a type and ids, no text: a line says what happened.
   notifications: {

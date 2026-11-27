@@ -487,6 +487,26 @@ export const en: Translation = {
       seeds: 'Seeds',
       equipment: 'Equipment',
     },
+    title: 'Agro shops',
+    unavailable: 'This section is not available',
+    count_one: '{{count}} shop nearby',
+    count_few: '{{count}} shops nearby',
+    count_many: '{{count}} shops nearby',
+    count_other: '{{count}} shops nearby',
+    noLocation: {
+      title: 'Location is needed',
+      hint: 'Allow access to your location or set a region in your profile to find shops nearby',
+      allow: 'Allow',
+      openSettings: 'Open settings',
+    },
+    errors: {
+      network: 'No connection to the server. Check your internet',
+      rateLimited: 'Too many requests. Wait a minute',
+      notFound: 'The shop is no longer shown',
+      forbidden: 'This section is for farmers only',
+      invalid: 'The request failed. Check the data',
+      server: 'The server did not answer. Try again',
+    },
   },
   // the notifications (screen 20). A notification has a type and ids, no text: a line says what happened.
   notifications: {
