@@ -109,6 +109,7 @@ export const ru = {
     catalog: 'Справочник',
     fields: 'Мои поля',
     calculator: 'Калькулятор',
+    shops: 'Агромагазины рядом',
     // the green card (screen 04)
     hero: {
       title: 'Сфотографируйте растение',

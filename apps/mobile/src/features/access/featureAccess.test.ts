@@ -11,7 +11,7 @@ describe('feature access', () => {
       fields: true,
       weather: true,
       calculator: true,
-      shops: false,
+      shops: true,
     })
   })
 

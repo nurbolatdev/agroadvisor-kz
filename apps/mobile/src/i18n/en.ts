@@ -111,6 +111,7 @@ export const en: Translation = {
     catalog: 'Catalog',
     fields: 'My fields',
     calculator: 'Calculator',
+    shops: 'Agro shops nearby',
     hero: {
       title: 'Photograph the plant',
       subtitle: 'We will find the disease in 10 seconds',

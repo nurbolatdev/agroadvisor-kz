@@ -112,6 +112,7 @@ export const kk: Translation = {
     catalog: 'Анықтамалық',
     fields: 'Менің егістіктерім',
     calculator: 'Калькулятор',
+    shops: 'Жақын агродүкендер',
     hero: {
       title: 'Өсімдікті суретке түсіріңіз',
       subtitle: 'Ауруды 10 секундта анықтаймыз',

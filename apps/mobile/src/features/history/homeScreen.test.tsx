@@ -24,6 +24,16 @@ jest.mock(
   'react-native-safe-area-context',
   () => require('react-native-safe-area-context/jest/mock').default,
 )
+// the shops flag is switched per test; the others keep their real values
+const mockFlags = { shops: true }
+jest.mock('@/features/access/featureAccess', () => {
+  const actual = jest.requireActual('@/features/access/featureAccess')
+  return {
+    ...actual,
+    isFeatureEnabled: (feature: string) =>
+      feature === 'shops' ? mockFlags.shops : actual.isFeatureEnabled(feature),
+  }
+})
 jest.mock('@/store/settings', () => ({
   useSettings: (select: (s: object) => unknown) =>
     select({ language: 'en', setLanguage: jest.fn() }),
@@ -118,6 +128,25 @@ describe('home screen', () => {
 
     expect(mockPush).toHaveBeenCalledWith('/catalog')
     expect(mockReset).not.toHaveBeenCalled()
+  })
+
+  it('opens the shop map with its button when the flag is on', async () => {
+    mockFlags.shops = true
+    mockApi.list.mockResolvedValue([])
+    await render(<HomeScreen />)
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Agro shops nearby' }))
+
+    expect(mockPush).toHaveBeenCalledWith('/shops')
+  })
+
+  it('has no shop button when the flag is off', async () => {
+    mockFlags.shops = false
+    mockApi.list.mockResolvedValue([])
+    await render(<HomeScreen />)
+
+    expect(screen.queryByRole('button', { name: 'Agro shops nearby' })).toBeNull()
+    mockFlags.shops = true
   })
 
   it('shows only the latest three diagnoses and leads to the whole history', async () => {

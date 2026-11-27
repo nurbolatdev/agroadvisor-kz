@@ -18,8 +18,8 @@ export const FEATURE_FLAGS: FeatureFlags = {
   weather: true,
   // the farm calculator (/calculator, M20); the backend closes it by the same flag
   calculator: true,
-  // the map of agro shops (/shops, M17); off until the screen is finished, the backend closes it by the same flag
-  shops: false,
+  // the map of agro shops (/shops, M17); the backend closes it by the same flag
+  shops: true,
 }
 
 export function isFeatureEnabled(feature: Feature, flags: FeatureFlags = FEATURE_FLAGS): boolean {
