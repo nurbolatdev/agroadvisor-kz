@@ -15,7 +15,7 @@ type Props = {
   children: ReactNode
 }
 
-// The sheet over a blurred screen (frames 18b and the reports): the scrim, the handle, the white sheet above
+// The sheet over a light blurred screen (frames 18b and the reports): the white veil, the handle, the white sheet above
 // the keyboard and the bottom safe area. Mounted only while open, so every opening starts clean.
 export function BottomSheetModal({ onClose, children }: Props) {
   const { t } = useTranslation()
@@ -39,7 +39,7 @@ export function BottomSheetModal({ onClose, children }: Props) {
           style={styles.backdrop}
           onPress={onClose}
         >
-          <BlurView intensity={BLUR_INTENSITY} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={BLUR_INTENSITY} tint="light" style={StyleSheet.absoluteFill} />
         </Pressable>
         <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
           <View style={styles.handle} />
@@ -52,7 +52,7 @@ export function BottomSheetModal({ onClose, children }: Props) {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  backdrop: { flex: 1, backgroundColor: colors.glassScrim },
+  backdrop: { flex: 1, backgroundColor: colors.glassFill },
   sheet: {
     gap: spacing.md,
     paddingTop: spacing.sm,
