@@ -17,7 +17,10 @@ type Props = {
   center: ShopPoint
   radiusKm: number
   shops: Shop[]
+  // the pin that is highlighted (the nearest shop until the farmer taps another one)
   selectedId: string | null
+  // the shop the farmer chose: the camera flies to it; null while the farmer has chosen nothing
+  focusId: string | null
   onSelect: (id: string) => void
   // the farmer's own point; null when only the centre of a region is known
   userPoint: ShopPoint | null
@@ -27,44 +30,47 @@ const lngLat = (point: ShopPoint): [number, number] => [point.longitude, point.l
 
 // The map of screen 18: a pin per shop (the selected one filled), the farmer's blue dot, the camera over the
 // search centre and a flight to the shop that gets selected. The only file that imports MapLibre.
-export function ShopMap({ center, radiusKm, shops, selectedId, onSelect, userPoint }: Props) {
+export function ShopMap({
+  center,
+  radiusKm,
+  shops,
+  selectedId,
+  focusId,
+  onSelect,
+  userPoint,
+}: Props) {
   const { i18n } = useTranslation()
   const camera = useRef<CameraRef>(null)
 
   const shown = useRef(shops)
-  const previousId = useRef(selectedId)
+  const { latitude, longitude } = center
+  const seen = useRef({ latitude, longitude, radiusKm, focusId })
 
   useEffect(() => {
     shown.current = shops
   }, [shops])
 
-  // a new search centre (the GPS point after the permission) or radius moves the camera over it
-  const { latitude, longitude } = center
-  const first = useRef(true)
+  // The camera moves on a new search centre or radius (the GPS point after the permission), or on a shop
+  // the farmer chose. The default (nearest) shop and a new list do not move it, and when the centre and
+  // the chosen shop change together the centre wins.
   useEffect(() => {
-    if (first.current) {
-      first.current = false
+    const before = seen.current
+    seen.current = { latitude, longitude, radiusKm, focusId }
+    const moved =
+      before.latitude !== latitude || before.longitude !== longitude || before.radiusKm !== radiusKm
+    if (moved) {
+      camera.current?.flyTo({
+        center: [longitude, latitude],
+        zoom: zoomForRadius(radiusKm),
+        duration: FLY_DURATION_MS,
+      })
       return
     }
-    camera.current?.flyTo({
-      center: [longitude, latitude],
-      zoom: zoomForRadius(radiusKm),
-      duration: FLY_DURATION_MS,
-    })
-  }, [latitude, longitude, radiusKm])
-
-  // the camera follows a changed selection only; the default (nearest) shop does not move it, and a new
-  // list does not either
-  useEffect(() => {
-    if (previousId.current === selectedId) return
-    previousId.current = selectedId
-    const target = shown.current.find((shop) => shop.id === selectedId)
+    if (before.focusId === focusId) return
+    const target = shown.current.find((shop) => shop.id === focusId)
     if (!target) return
-    camera.current?.flyTo({
-      center: lngLat(target),
-      duration: FLY_DURATION_MS,
-    })
-  }, [selectedId])
+    camera.current?.flyTo({ center: lngLat(target), duration: FLY_DURATION_MS })
+  }, [latitude, longitude, radiusKm, focusId])
 
   return (
     <Map style={styles.map} mapStyle={MAP_STYLE} attribution logo>

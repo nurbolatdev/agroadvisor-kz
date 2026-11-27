@@ -140,6 +140,7 @@ export function ShopsScreen() {
         radiusKm={radiusKm}
         shops={filtered}
         selectedId={selected?.id ?? null}
+        focusId={selectedId}
         onSelect={setSelectedId}
         userPoint={state.source === 'gps' ? state.point : null}
       />

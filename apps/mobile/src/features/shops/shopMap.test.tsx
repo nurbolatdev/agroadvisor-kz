@@ -45,12 +45,18 @@ const shop = (id: string, name: string, distanceM?: number): Shop => ({
 const shops = [shop('a', 'Агро Плюс', 850), shop('b', 'Семена', 2100)]
 const center = { latitude: 43.2, longitude: 76.9 }
 
-const map = (selectedId: string | null, userPoint: ShopPoint | null, onSelect = jest.fn()) => (
+const map = (
+  selectedId: string | null,
+  userPoint: ShopPoint | null,
+  onSelect = jest.fn(),
+  focusId: string | null = null,
+) => (
   <ShopMap
     center={center}
     radiusKm={10}
     shops={shops}
     selectedId={selectedId}
+    focusId={focusId}
     onSelect={onSelect}
     userPoint={userPoint}
   />
@@ -90,11 +96,17 @@ describe('ShopMap', () => {
     expect(mockFlyTo).not.toHaveBeenCalled()
   })
 
-  it('flies to the shop the farmer selects', async () => {
+  it('flies to the shop the farmer chose', async () => {
     const view = await render(map('a', null))
-    await view.rerender(map('b', null))
+    await view.rerender(map('b', null, jest.fn(), 'b'))
     expect(mockFlyTo).toHaveBeenCalledTimes(1)
     expect(mockFlyTo).toHaveBeenCalledWith(expect.objectContaining({ center: [76.9, 43.2] }))
+  })
+
+  it('does not fly when only the highlighted pin changes', async () => {
+    const view = await render(map('a', null))
+    await view.rerender(map('b', null))
+    expect(mockFlyTo).not.toHaveBeenCalled()
   })
 
   it('moves the camera when the centre or the radius changes', async () => {
@@ -106,6 +118,7 @@ describe('ShopMap', () => {
         radiusKm={50}
         shops={shops}
         selectedId={null}
+        focusId={null}
         onSelect={jest.fn()}
         userPoint={null}
       />,
