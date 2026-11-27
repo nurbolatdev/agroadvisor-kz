@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Linking, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AppText, Button } from '@/components/ui'
@@ -15,6 +15,7 @@ import {
   type ShopCategory,
   WIDE_RADIUS_KM,
 } from './helpers'
+import { useLocationAction } from './locationAction'
 import { ShopList } from './ShopList'
 import { NavigatorSheet } from './NavigatorSheet'
 import { ShopMap } from './ShopMap'
@@ -42,6 +43,12 @@ export function ShopsScreen() {
   const route = useShopRoute()
   const [reporting, setReporting] = useState<ReportTarget | null>(null)
 
+  const location = useLocationAction(
+    state.status === 'ready' || state.status === 'noLocation' ? state.permission : 'denied',
+    { reload, askPermission },
+    'shops.allowLocation',
+  )
+
   if (!enabled || state.status !== 'ready') {
     return (
       <ShopsStatus enabled={enabled} state={state} reload={reload} askPermission={askPermission} />
@@ -60,21 +67,6 @@ export function ShopsScreen() {
   const filtered = filterShops(state.shops, { query, category })
   // the first shop (the nearest) is selected until the farmer taps another one
   const selected = filtered.find((shop) => shop.id === selectedId) ?? filtered[0] ?? null
-
-  // the banner button follows why there is no GPS point: the system will not ask again, the position did
-  // not come though the permission is given, or the farmer has not allowed it yet
-  const locationLabel =
-    state.permission === 'blocked'
-      ? t('shops.noLocation.openSettings')
-      : state.permission === 'granted'
-        ? t('common.retry')
-        : t('shops.allowLocation')
-  const locationAction =
-    state.permission === 'blocked'
-      ? () => void Linking.openSettings()
-      : state.permission === 'granted'
-        ? reload
-        : askPermission
 
   const top = (
     <View
@@ -99,7 +91,7 @@ export function ShopsScreen() {
           <AppText variant="small" style={styles.bannerText}>
             {t('shops.regionBanner')}
           </AppText>
-          <Button label={locationLabel} variant="secondary" onPress={locationAction} />
+          <Button label={location.label} variant="secondary" onPress={location.onPress} />
         </View>
       ) : null}
     </View>

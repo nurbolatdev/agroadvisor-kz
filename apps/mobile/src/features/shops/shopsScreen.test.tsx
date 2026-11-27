@@ -89,6 +89,14 @@ describe('ShopsScreen', () => {
     open.mockRestore()
   })
 
+  it('offers to retry when the permission is given but there is no position', async () => {
+    mockState = { status: 'noLocation', permission: 'granted' }
+    await render(<ShopsScreen />)
+    expect(screen.queryByText('Allow')).toBeNull()
+    await fireEvent.press(screen.getByText('Try again'))
+    expect(mockReload).toHaveBeenCalledTimes(1)
+  })
+
   it('offers to retry when the shops did not load', async () => {
     mockState = { status: 'error', reason: 'network' }
     await render(<ShopsScreen />)

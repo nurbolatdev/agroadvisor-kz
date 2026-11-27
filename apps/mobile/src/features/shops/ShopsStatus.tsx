@@ -1,9 +1,11 @@
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Linking, StyleSheet } from 'react-native'
+import { ActivityIndicator, StyleSheet } from 'react-native'
 
 import { BackHeader, EmptyState, ErrorState, Screen } from '@/components/ui'
 import { colors, spacing } from '@/theme/tokens'
+
+import { useLocationAction } from './locationAction'
 
 import type { NearbyShopsState } from './useNearbyShops'
 
@@ -19,6 +21,11 @@ type Props = {
 export function ShopsStatus({ enabled, state, reload, askPermission }: Props) {
   const { t } = useTranslation()
   const router = useRouter()
+  const location = useLocationAction(
+    state.status === 'noLocation' ? state.permission : 'denied',
+    { reload, askPermission },
+    'shops.noLocation.allow',
+  )
 
   const back = (
     <BackHeader
@@ -38,15 +45,14 @@ export function ShopsStatus({ enabled, state, reload, askPermission }: Props) {
   }
 
   if (state.status === 'noLocation') {
-    const blocked = state.permission === 'blocked'
     return (
       <Screen>
         {back}
         <EmptyState
           title={t('shops.noLocation.title')}
           message={t('shops.noLocation.hint')}
-          actionLabel={t(blocked ? 'shops.noLocation.openSettings' : 'shops.noLocation.allow')}
-          onAction={blocked ? () => void Linking.openSettings() : askPermission}
+          actionLabel={location.label}
+          onAction={location.onPress}
         />
       </Screen>
     )
