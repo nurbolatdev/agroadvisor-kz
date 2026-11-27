@@ -31,14 +31,25 @@ export function ShopMap({ center, radiusKm, shops, selectedId, onSelect, userPoi
   const { i18n } = useTranslation()
   const camera = useRef<CameraRef>(null)
 
+  const shown = useRef(shops)
+  const previousId = useRef(selectedId)
+
   useEffect(() => {
-    const target = shops.find((shop) => shop.id === selectedId)
+    shown.current = shops
+  }, [shops])
+
+  // the camera follows a changed selection only; the default (nearest) shop does not move it, and a new
+  // list does not either
+  useEffect(() => {
+    if (previousId.current === selectedId) return
+    previousId.current = selectedId
+    const target = shown.current.find((shop) => shop.id === selectedId)
     if (!target) return
     camera.current?.flyTo({
       center: lngLat(target),
       duration: FLY_DURATION_MS,
     })
-  }, [selectedId, shops])
+  }, [selectedId])
 
   return (
     <Map style={styles.map} mapStyle={MAP_STYLE} attribution logo>

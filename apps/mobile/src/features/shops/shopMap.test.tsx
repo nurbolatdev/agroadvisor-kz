@@ -75,7 +75,7 @@ describe('ShopMap', () => {
     expect(onSelect).toHaveBeenCalledWith('b')
   })
 
-  it('marks the selected shop and flies the camera to it', async () => {
+  it('marks the selected shop', async () => {
     await render(map('a', null))
     expect(screen.getByLabelText('Агро Плюс, 850 м').props.accessibilityState).toEqual({
       selected: true,
@@ -83,6 +83,17 @@ describe('ShopMap', () => {
     expect(screen.getByLabelText('Семена, 2,1 км').props.accessibilityState).toEqual({
       selected: false,
     })
+  })
+
+  it('does not fly to the shop selected by default', async () => {
+    await render(map('a', null))
+    expect(mockFlyTo).not.toHaveBeenCalled()
+  })
+
+  it('flies to the shop the farmer selects', async () => {
+    const view = await render(map('a', null))
+    await view.rerender(map('b', null))
+    expect(mockFlyTo).toHaveBeenCalledTimes(1)
     expect(mockFlyTo).toHaveBeenCalledWith(expect.objectContaining({ center: [76.9, 43.2] }))
   })
 
