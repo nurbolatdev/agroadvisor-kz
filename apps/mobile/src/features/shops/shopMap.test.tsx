@@ -97,6 +97,24 @@ describe('ShopMap', () => {
     expect(mockFlyTo).toHaveBeenCalledWith(expect.objectContaining({ center: [76.9, 43.2] }))
   })
 
+  it('moves the camera when the centre or the radius changes', async () => {
+    const view = await render(map(null, null))
+    expect(mockFlyTo).not.toHaveBeenCalled()
+    await view.rerender(
+      <ShopMap
+        center={{ latitude: 51.1, longitude: 71.4 }}
+        radiusKm={50}
+        shops={shops}
+        selectedId={null}
+        onSelect={jest.fn()}
+        userPoint={null}
+      />,
+    )
+    expect(mockFlyTo).toHaveBeenCalledWith(
+      expect.objectContaining({ center: [71.4, 51.1], zoom: 9 }),
+    )
+  })
+
   it('shows the farmer only when the point is known', async () => {
     const view = await render(map(null, null))
     expect(screen.queryByTestId('marker-user')).toBeNull()

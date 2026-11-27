@@ -38,6 +38,21 @@ export function ShopMap({ center, radiusKm, shops, selectedId, onSelect, userPoi
     shown.current = shops
   }, [shops])
 
+  // a new search centre (the GPS point after the permission) or radius moves the camera over it
+  const { latitude, longitude } = center
+  const first = useRef(true)
+  useEffect(() => {
+    if (first.current) {
+      first.current = false
+      return
+    }
+    camera.current?.flyTo({
+      center: [longitude, latitude],
+      zoom: zoomForRadius(radiusKm),
+      duration: FLY_DURATION_MS,
+    })
+  }, [latitude, longitude, radiusKm])
+
   // the camera follows a changed selection only; the default (nearest) shop does not move it, and a new
   // list does not either
   useEffect(() => {
