@@ -237,7 +237,7 @@ describe('ShopsScreen', () => {
       mockState = ready()
       await render(<ShopsScreen />)
       await fireEvent.press(screen.getByText('List'))
-      expect(screen.queryByText(/map:/)).toBeNull()
+      expect(screen.queryByText('List')).toBeNull()
       expect(screen.getByText('Bereke')).toBeTruthy()
       expect(screen.getByText('Dala')).toBeTruthy()
       await fireEvent.press(screen.getByText('On the map'))

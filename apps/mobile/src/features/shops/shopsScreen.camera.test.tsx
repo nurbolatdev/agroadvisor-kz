@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native'
+import { fireEvent, render, screen } from '@testing-library/react-native'
 
 import { initI18n } from '@/i18n'
 
@@ -6,6 +6,7 @@ import { ShopsScreen } from './ShopsScreen'
 import type { NearbyShopsState } from './useNearbyShops'
 
 const mockFlyTo = jest.fn()
+const mockCameraMounts: number[] = []
 let mockState: NearbyShopsState = { status: 'locating' }
 
 jest.mock('@/lib/storage', () => ({
@@ -24,6 +25,9 @@ jest.mock('@maplibre/maplibre-react-native', () => {
     Map: ({ children }: { children: unknown }) => <View>{children as never}</View>,
     Camera: function Camera({ ref }: { ref?: React.Ref<unknown> }) {
       React.useImperativeHandle(ref, () => ({ flyTo: (...a: unknown[]) => mockFlyTo(...a) }))
+      React.useEffect(() => {
+        mockCameraMounts.push(1)
+      }, [])
       return null
     },
     Marker: ({ children }: { children: unknown }) => <View>{children as never}</View>,
@@ -48,6 +52,25 @@ const shop = (id: string, latitude: number, longitude: number) => ({
 })
 
 describe('ShopsScreen camera', () => {
+  it('keeps the map mounted in the list and flies to the shop of a tapped row', async () => {
+    mockState = {
+      status: 'ready',
+      point: { latitude: 43.25, longitude: 76.95 },
+      source: 'gps',
+      permission: 'granted',
+      failed: null,
+      refreshing: false,
+      shops: [shop('s1', 43.2, 76.9), shop('s2', 43.4, 77.1)],
+    }
+    await render(<ShopsScreen />)
+    const mounts = mockCameraMounts.length
+    await fireEvent.press(screen.getByText('List'))
+    await fireEvent.press(screen.getByRole('button', { name: /^Shop s2/ }))
+    expect(mockCameraMounts).toHaveLength(mounts)
+    expect(mockFlyTo).toHaveBeenCalledTimes(1)
+    expect(mockFlyTo).toHaveBeenCalledWith(expect.objectContaining({ center: [77.1, 43.4] }))
+  })
+
   it('flies once, over the new point, when the point and the nearest shop change together', async () => {
     mockState = {
       status: 'ready',

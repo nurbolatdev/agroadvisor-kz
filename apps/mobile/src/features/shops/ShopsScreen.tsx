@@ -109,63 +109,69 @@ export function ShopsScreen() {
     <ShopReportSheet target={reporting} onClose={() => setReporting(null)} />
   ) : null
 
-  if (listMode) {
-    return (
-      <View style={styles.screen}>
-        {top}
-        <ShopList
-          shops={filtered}
-          total={state.shops.length}
-          radiusKm={radiusKm}
-          bottomInset={insets.bottom}
-          refreshing={state.refreshing}
-          failed={state.failed}
-          onRetry={reload}
-          onSelect={(id) => {
-            setSelectedId(id)
-            setListMode(false)
-          }}
-          onShowMap={() => setListMode(false)}
-          onSuggest={suggest}
-        />
-        {sheet}
-      </View>
-    )
-  }
-
+  // the map stays mounted under the list, so its camera and tiles survive the switch
   return (
     <View style={styles.screen}>
-      <ShopMap
-        center={state.point}
-        radiusKm={radiusKm}
-        shops={filtered}
-        selectedId={selected?.id ?? null}
-        focusId={selectedId}
-        onSelect={setSelectedId}
-        userPoint={state.source === 'gps' ? state.point : null}
-      />
-      {top}
-      <View style={styles.bottom} pointerEvents="box-none">
-        <ShopsPanel
-          total={state.shops.length}
-          filtered={filtered}
-          selected={selected}
-          near={near}
+      <View
+        style={StyleSheet.absoluteFill}
+        importantForAccessibility={listMode ? 'no-hide-descendants' : 'auto'}
+        accessibilityElementsHidden={listMode}
+      >
+        <ShopMap
+          center={state.point}
           radiusKm={radiusKm}
-          widerKm={state.source === 'gps' ? WIDE_RADIUS_KM : REGION_RADIUS_KM}
-          bottomInset={insets.bottom}
-          refreshing={state.refreshing}
-          failed={state.failed}
-          onRetry={reload}
-          onSearchWider={() => setNear(false)}
-          onShowList={() => setListMode(true)}
-          onNavigate={route.navigate}
-          onChooseNavigator={route.choose}
-          onReport={(shop) => setReporting({ kind: 'shop', shopId: shop.id })}
-          onSuggest={suggest}
+          shops={filtered}
+          selectedId={selected?.id ?? null}
+          focusId={selectedId}
+          onSelect={setSelectedId}
+          userPoint={state.source === 'gps' ? state.point : null}
         />
       </View>
-      {route.chooseFor ? <NavigatorSheet shop={route.chooseFor} onClose={route.close} /> : null}
+      {listMode ? (
+        <View style={styles.listLayer}>
+          {top}
+          <ShopList
+            shops={filtered}
+            total={state.shops.length}
+            radiusKm={radiusKm}
+            bottomInset={insets.bottom}
+            refreshing={state.refreshing}
+            failed={state.failed}
+            onRetry={reload}
+            onSelect={(id) => {
+              setSelectedId(id)
+              setListMode(false)
+            }}
+            onShowMap={() => setListMode(false)}
+            onSuggest={suggest}
+          />
+        </View>
+      ) : (
+        <>
+          {top}
+          <View style={styles.bottom} pointerEvents="box-none">
+            <ShopsPanel
+              total={state.shops.length}
+              filtered={filtered}
+              selected={selected}
+              near={near}
+              radiusKm={radiusKm}
+              widerKm={state.source === 'gps' ? WIDE_RADIUS_KM : REGION_RADIUS_KM}
+              bottomInset={insets.bottom}
+              refreshing={state.refreshing}
+              failed={state.failed}
+              onRetry={reload}
+              onSearchWider={() => setNear(false)}
+              onShowList={() => setListMode(true)}
+              onNavigate={route.navigate}
+              onChooseNavigator={route.choose}
+              onReport={(shop) => setReporting({ kind: 'shop', shopId: shop.id })}
+              onSuggest={suggest}
+            />
+          </View>
+          {route.chooseFor ? <NavigatorSheet shop={route.chooseFor} onClose={route.close} /> : null}
+        </>
+      )}
       {sheet}
     </View>
   )
@@ -176,6 +182,7 @@ const styles = StyleSheet.create({
   top: { gap: spacing.sm },
   topOverMap: { position: 'absolute', top: 0, left: 0, right: 0 },
   topInFlow: { backgroundColor: colors.bg },
+  listLayer: { ...StyleSheet.absoluteFill, backgroundColor: colors.bg },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   banner: {
     gap: spacing.sm,
