@@ -15,6 +15,7 @@ type Props = {
   radiusKm: number
   bottomInset: number
   onSearchWider: () => void
+  onShowList: () => void
 }
 
 // The bottom panel of screen 18: the grip, "N shops nearby" and the card of the selected shop. The routes
@@ -27,12 +28,16 @@ export function ShopsPanel({
   radiusKm,
   bottomInset,
   onSearchWider,
+  onShowList,
 }: Props) {
   const { t } = useTranslation()
   return (
     <View style={[styles.panel, { paddingBottom: bottomInset + spacing.lg }]}>
       <View style={styles.handle} />
-      <AppText variant="h2">{t('shops.count', { count: filtered.length })}</AppText>
+      <View style={styles.head}>
+        <AppText variant="h2">{t('shops.count', { count: filtered.length })}</AppText>
+        <Button label={t('shops.showList')} variant="secondary" onPress={onShowList} />
+      </View>
       {selected ? (
         <ShopCard
           shop={selected}
@@ -69,6 +74,12 @@ const styles = StyleSheet.create({
     height: sizes.sheetHandleHeight,
     borderRadius: radii.pill,
     backgroundColor: colors.border,
+  },
+  head: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
   },
   empty: { gap: spacing.md },
 })

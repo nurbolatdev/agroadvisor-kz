@@ -15,6 +15,7 @@ import {
   type ShopCategory,
   WIDE_RADIUS_KM,
 } from './helpers'
+import { ShopList } from './ShopList'
 import { ShopMap } from './ShopMap'
 import { ShopsHeader } from './ShopsHeader'
 import { ShopsPanel } from './ShopsPanel'
@@ -32,6 +33,7 @@ export function ShopsScreen() {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<ShopCategory | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [listMode, setListMode] = useState(false)
   const { state, reload, askPermission } = useNearbyShops(near)
 
   const back = (
@@ -93,6 +95,54 @@ export function ShopsScreen() {
   // the first shop (the nearest) is selected until the farmer taps another one
   const selected = filtered.find((shop) => shop.id === selectedId) ?? filtered[0] ?? null
 
+  const top = (
+    <View
+      style={[
+        styles.top,
+        listMode ? styles.topInFlow : styles.topOverMap,
+        { paddingTop: insets.top + spacing.sm },
+      ]}
+      pointerEvents="box-none"
+    >
+      <ShopsHeader
+        query={query}
+        onQueryChange={setQuery}
+        near={near}
+        onToggleNear={() => setNear(!near)}
+        category={category}
+        onCategoryChange={setCategory}
+        onBack={() => router.back()}
+      />
+      {state.source === 'region' ? (
+        <View style={styles.banner}>
+          <AppText variant="small" style={styles.bannerText}>
+            {t('shops.regionBanner')}
+          </AppText>
+          <Button label={t('shops.allowLocation')} variant="secondary" onPress={askPermission} />
+        </View>
+      ) : null}
+    </View>
+  )
+
+  if (listMode) {
+    return (
+      <View style={styles.screen}>
+        {top}
+        <ShopList
+          shops={filtered}
+          total={state.shops.length}
+          radiusKm={radiusKm}
+          bottomInset={insets.bottom}
+          onSelect={(id) => {
+            setSelectedId(id)
+            setListMode(false)
+          }}
+          onShowMap={() => setListMode(false)}
+        />
+      </View>
+    )
+  }
+
   return (
     <View style={styles.screen}>
       <ShopMap
@@ -103,25 +153,7 @@ export function ShopsScreen() {
         onSelect={setSelectedId}
         userPoint={state.source === 'gps' ? state.point : null}
       />
-      <View style={[styles.top, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
-        <ShopsHeader
-          query={query}
-          onQueryChange={setQuery}
-          near={near}
-          onToggleNear={() => setNear(!near)}
-          category={category}
-          onCategoryChange={setCategory}
-          onBack={() => router.back()}
-        />
-        {state.source === 'region' ? (
-          <View style={styles.banner}>
-            <AppText variant="small" style={styles.bannerText}>
-              {t('shops.regionBanner')}
-            </AppText>
-            <Button label={t('shops.allowLocation')} variant="secondary" onPress={askPermission} />
-          </View>
-        ) : null}
-      </View>
+      {top}
       <View style={styles.bottom} pointerEvents="box-none">
         <ShopsPanel
           total={state.shops.length}
@@ -131,6 +163,7 @@ export function ShopsScreen() {
           radiusKm={radiusKm}
           bottomInset={insets.bottom}
           onSearchWider={() => setNear(false)}
+          onShowList={() => setListMode(true)}
         />
       </View>
     </View>
@@ -140,7 +173,9 @@ export function ShopsScreen() {
 const styles = StyleSheet.create({
   loading: { marginTop: spacing.xl },
   screen: { flex: 1, backgroundColor: colors.bg },
-  top: { position: 'absolute', top: 0, left: 0, right: 0, gap: spacing.sm },
+  top: { gap: spacing.sm },
+  topOverMap: { position: 'absolute', top: 0, left: 0, right: 0 },
+  topInFlow: { backgroundColor: colors.bg },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   banner: {
     gap: spacing.sm,

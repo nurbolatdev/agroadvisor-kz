@@ -498,6 +498,8 @@ export const kk: Translation = {
     empty: '{{km}} км радиуста дүкен жоқ',
     searchWider: '50 км-ге дейін іздеу',
     nothingFound: 'Ештеңе табылмады',
+    showList: 'Тізіммен',
+    showMap: 'Картада',
     count_one: 'Жақын маңда {{count}} дүкен',
     count_few: 'Жақын маңда {{count}} дүкен',
     count_many: 'Жақын маңда {{count}} дүкен',

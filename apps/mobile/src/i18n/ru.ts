@@ -502,6 +502,8 @@ export const ru = {
     empty: 'Рядом нет магазинов в радиусе {{km}} км',
     searchWider: 'Искать до 50 км',
     nothingFound: 'Ничего не найдено',
+    showList: 'Списком',
+    showMap: 'На карте',
     count_one: '{{count}} магазин рядом',
     count_few: '{{count}} магазина рядом',
     count_many: '{{count}} магазинов рядом',

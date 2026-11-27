@@ -497,6 +497,8 @@ export const en: Translation = {
     empty: 'No shops within {{km}} km',
     searchWider: 'Search up to 50 km',
     nothingFound: 'Nothing found',
+    showList: 'List',
+    showMap: 'On the map',
     count_one: '{{count}} shop nearby',
     count_few: '{{count}} shops nearby',
     count_many: '{{count}} shops nearby',

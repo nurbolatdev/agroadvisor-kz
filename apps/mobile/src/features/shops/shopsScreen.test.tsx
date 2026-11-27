@@ -194,6 +194,37 @@ describe('ShopsScreen', () => {
       expect(screen.queryByText('Shops around the centre of your region are shown')).toBeNull()
     })
 
+    it('switches to the list and back to the map', async () => {
+      mockState = ready()
+      await render(<ShopsScreen />)
+      await fireEvent.press(screen.getByText('List'))
+      expect(screen.queryByText(/map:/)).toBeNull()
+      expect(screen.getByText('Bereke')).toBeTruthy()
+      expect(screen.getByText('Dala')).toBeTruthy()
+      await fireEvent.press(screen.getByText('On the map'))
+      expect(screen.getByText('map:2:s1')).toBeTruthy()
+    })
+
+    it('selects the shop of a tapped row on the map', async () => {
+      mockState = ready()
+      await render(<ShopsScreen />)
+      await fireEvent.press(screen.getByText('List'))
+      await fireEvent.press(screen.getByRole('button', { name: /^Dala/ }))
+      expect(screen.getByText('map:2:s2')).toBeTruthy()
+      expect(screen.queryByText('Bereke')).toBeNull()
+    })
+
+    it('applies the filters in the list too', async () => {
+      mockState = ready()
+      await render(<ShopsScreen />)
+      await fireEvent.press(screen.getByText('List'))
+      await fireEvent.changeText(screen.getByPlaceholderText('Shop or address'), 'abay')
+      expect(screen.getByText('1 shop nearby')).toBeTruthy()
+      expect(screen.queryByText('Bereke')).toBeNull()
+      await fireEvent.changeText(screen.getByPlaceholderText('Shop or address'), 'zzz')
+      expect(screen.getByText('Nothing found')).toBeTruthy()
+    })
+
     it('offers a wider search when nothing is near', async () => {
       mockState = { ...ready(), shops: [] }
       await render(<ShopsScreen />)
