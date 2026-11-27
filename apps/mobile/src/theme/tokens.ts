@@ -20,6 +20,9 @@ export const colors = {
   glassBorder: 'rgba(255, 255, 255, 0.6)',
   // the dimming behind a sheet that slides over a screen
   glassScrim: 'rgba(0, 0, 0, 0.4)',
+  // brand colors of the navigator tiles in the route choice sheet (frame 18b); not part of the palette
+  brand2gis: '#1BA136',
+  brandYandex: '#FC3F1D',
 } as const
 
 export const spacing = {
@@ -78,6 +81,12 @@ export const sizes = {
   // the grip on top of a sheet that slides over a screen
   sheetHandleWidth: 40,
   sheetHandleHeight: 4,
+  // the shop pin on the map and the store icon in it (frame 18)
+  mapPin: 48,
+  mapPinIcon: 24,
+  // the blue dot of the farmer on the map and the translucent circle around it (frame 18)
+  userDot: 20,
+  userHalo: 96,
 } as const
 
 export const fonts = {

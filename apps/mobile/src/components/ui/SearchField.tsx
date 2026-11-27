@@ -1,5 +1,12 @@
 import { Search, SlidersHorizontal, X } from 'lucide-react-native'
-import { Pressable, StyleSheet, TextInput, View } from 'react-native'
+import {
+  Pressable,
+  StyleSheet,
+  type StyleProp,
+  TextInput,
+  View,
+  type ViewStyle,
+} from 'react-native'
 
 import { colors, radii, sizes, spacing, typography } from '@/theme/tokens'
 
@@ -11,6 +18,8 @@ type Props = {
   // an optional filter button on the right (screen 24); both props are needed to show it
   onFilter?: () => void
   filterLabel?: string
+  // overrides the look of the field, e.g. the pill over the map
+  style?: StyleProp<ViewStyle>
 }
 
 // A search field of a list (screen 29): a magnifier on the left, a clear button once there is text.
@@ -22,9 +31,10 @@ export function SearchField({
   clearLabel,
   onFilter,
   filterLabel,
+  style,
 }: Props) {
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, style]}>
       <Search size={sizes.iconMd} color={colors.textMuted} />
       <TextInput
         accessibilityLabel={placeholder}
