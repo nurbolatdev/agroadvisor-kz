@@ -90,7 +90,7 @@ export function ShopMap({ center, radiusKm, shops, selectedId, onSelect, userPoi
             key={shop.id}
             id={shop.id}
             lngLat={lngLat(shop)}
-            anchor="center"
+            anchor="bottom"
             selected={selected}
             onPress={() => onSelect(shop.id)}
           >
@@ -99,13 +99,17 @@ export function ShopMap({ center, radiusKm, shops, selectedId, onSelect, userPoi
               accessibilityRole="button"
               accessibilityLabel={label}
               accessibilityState={{ selected }}
-              style={[styles.pin, selected && styles.pinSelected]}
+              style={styles.pinBox}
             >
-              <Store
-                size={sizes.mapPinIcon}
-                color={selected ? colors.white : colors.primary}
-                importantForAccessibility="no"
-              />
+              <View style={[styles.pin, selected && styles.pinSelected]}>
+                <View style={styles.pinIcon}>
+                  <Store
+                    size={sizes.mapPinIcon}
+                    color={selected ? colors.white : colors.primary}
+                    importantForAccessibility="no"
+                  />
+                </View>
+              </View>
             </View>
           </Marker>
         )
@@ -116,16 +120,22 @@ export function ShopMap({ center, radiusKm, shops, selectedId, onSelect, userPoi
 
 const styles = StyleSheet.create({
   map: { flex: 1 },
+  // the drop of frame 18: a circle with one sharp corner turned down, so the tip sits on the shop's point
+  // (a square rotated by 45 degrees reaches 0.7 of its side below the centre)
+  pinBox: { width: sizes.mapPin, height: Math.round(sizes.mapPin * 1.2) },
   pin: {
     width: sizes.mapPin,
     height: sizes.mapPin,
     borderRadius: sizes.mapPin / 2,
+    borderBottomRightRadius: 0,
+    transform: [{ rotate: '45deg' }],
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.white,
     borderWidth: spacing.xs / 2,
     borderColor: colors.primary,
   },
+  pinIcon: { transform: [{ rotate: '-45deg' }] },
   pinSelected: { backgroundColor: colors.primary },
   userHalo: {
     width: sizes.userHalo,

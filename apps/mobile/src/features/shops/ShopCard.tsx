@@ -43,19 +43,19 @@ export function ShopCard({ shop, onNavigate, onLongPressNavigate, onReport }: Pr
               {t('shops.card.phone', { phone: shop.phone })}
             </AppText>
           ) : null}
+          {category || shop.hours ? (
+            <View style={styles.badges}>
+              {category ? (
+                <Badge
+                  label={t(`shops.categories.${category}`, { defaultValue: category })}
+                  tone="success"
+                />
+              ) : null}
+              {shop.hours ? <Badge label={shop.hours} tone="neutral" /> : null}
+            </View>
+          ) : null}
         </View>
       </View>
-      {category || shop.hours ? (
-        <View style={styles.badges}>
-          {category ? (
-            <Badge
-              label={t(`shops.categories.${category}`, { defaultValue: category })}
-              tone="success"
-            />
-          ) : null}
-          {shop.hours ? <Badge label={shop.hours} tone="neutral" /> : null}
-        </View>
-      ) : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={navigate}

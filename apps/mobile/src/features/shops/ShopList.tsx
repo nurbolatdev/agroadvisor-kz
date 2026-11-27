@@ -49,7 +49,7 @@ export function ShopList({
       ListHeaderComponent={
         <View style={styles.head}>
           <AppText variant="h2">{t('shops.count', { count: shops.length })}</AppText>
-          <Button label={t('shops.showMap')} variant="secondary" onPress={onShowMap} />
+          <Button label={t('shops.showMap')} variant="ghost" compact onPress={onShowMap} />
           <RefreshNotice refreshing={refreshing} failed={failed} onRetry={onRetry} />
         </View>
       }

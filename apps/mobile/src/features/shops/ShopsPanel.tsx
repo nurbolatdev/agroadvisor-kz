@@ -52,7 +52,7 @@ export function ShopsPanel({
       <View style={styles.handle} />
       <View style={styles.head}>
         <AppText variant="h2">{t('shops.count', { count: filtered.length })}</AppText>
-        <Button label={t('shops.showList')} variant="secondary" onPress={onShowList} />
+        <Button label={t('shops.showList')} variant="ghost" compact onPress={onShowList} />
       </View>
       <RefreshNotice refreshing={refreshing} failed={failed} onRetry={onRetry} />
       {selected ? (

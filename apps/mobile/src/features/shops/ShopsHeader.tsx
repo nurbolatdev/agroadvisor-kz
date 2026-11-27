@@ -46,6 +46,7 @@ export function ShopsHeader({
             onChangeText={onQueryChange}
             placeholder={t('shops.search')}
             clearLabel={t('shops.searchClear')}
+            style={styles.pill}
           />
         </View>
       </View>
@@ -86,5 +87,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   search: { flex: 1 },
+  pill: { borderRadius: radii.pill },
   chips: { gap: spacing.sm, paddingHorizontal: spacing.lg },
 })

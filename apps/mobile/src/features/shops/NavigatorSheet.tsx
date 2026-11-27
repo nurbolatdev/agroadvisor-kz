@@ -19,7 +19,7 @@ const BLUR_INTENSITY = 30
 
 // The mark on the tile of every navigator (frame 18b): the brand colour and a letter; Google is white
 const TILES: Record<Navigator, { background: string; mark: string; markColor: string }> = {
-  '2gis': { background: colors.brand2gis, mark: '2', markColor: colors.white },
+  '2gis': { background: colors.brand2gis, mark: '2GIS', markColor: colors.white },
   yandex: { background: colors.brandYandex, mark: 'Я', markColor: colors.white },
   google: { background: colors.white, mark: 'G', markColor: colors.text },
 }
@@ -93,13 +93,15 @@ export function NavigatorSheet({ shop, onClose }: Props) {
                 style={[styles.row, index > 0 && styles.rowBorder]}
               >
                 <View
+                  importantForAccessibility="no-hide-descendants"
+                  accessibilityElementsHidden
                   style={[
                     styles.tile,
                     { backgroundColor: TILES[app].background },
                     app === 'google' && styles.tileOutlined,
                   ]}
                 >
-                  <AppText variant="h2" color={TILES[app].markColor}>
+                  <AppText variant={app === '2gis' ? 'caption' : 'h2'} color={TILES[app].markColor}>
                     {TILES[app].mark}
                   </AppText>
                 </View>
