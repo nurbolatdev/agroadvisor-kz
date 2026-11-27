@@ -1,0 +1,74 @@
+import { useTranslation } from 'react-i18next'
+import { StyleSheet, View } from 'react-native'
+
+import type { Shop } from '@/api/shops'
+import { AppText, Button } from '@/components/ui'
+import { colors, radii, sizes, spacing } from '@/theme/tokens'
+
+import { ShopCard } from './ShopCard'
+
+type Props = {
+  total: number
+  filtered: Shop[]
+  selected: Shop | null
+  near: boolean
+  radiusKm: number
+  bottomInset: number
+  onSearchWider: () => void
+}
+
+// The bottom panel of screen 18: the grip, "N shops nearby" and the card of the selected shop. The routes
+// and the reports are wired by the next steps, so the card's actions do nothing yet.
+export function ShopsPanel({
+  total,
+  filtered,
+  selected,
+  near,
+  radiusKm,
+  bottomInset,
+  onSearchWider,
+}: Props) {
+  const { t } = useTranslation()
+  return (
+    <View style={[styles.panel, { paddingBottom: bottomInset + spacing.lg }]}>
+      <View style={styles.handle} />
+      <AppText variant="h2">{t('shops.count', { count: filtered.length })}</AppText>
+      {selected ? (
+        <ShopCard
+          shop={selected}
+          onNavigate={() => undefined}
+          onLongPressNavigate={() => undefined}
+          onReport={() => undefined}
+        />
+      ) : total === 0 ? (
+        <View style={styles.empty}>
+          <AppText color={colors.textMuted}>{t('shops.empty', { km: radiusKm })}</AppText>
+          {near ? (
+            <Button label={t('shops.searchWider')} variant="secondary" onPress={onSearchWider} />
+          ) : null}
+        </View>
+      ) : (
+        <AppText color={colors.textMuted}>{t('shops.nothingFound')}</AppText>
+      )}
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  panel: {
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+    backgroundColor: colors.white,
+  },
+  handle: {
+    alignSelf: 'center',
+    width: sizes.sheetHandleWidth,
+    height: sizes.sheetHandleHeight,
+    borderRadius: radii.pill,
+    backgroundColor: colors.border,
+  },
+  empty: { gap: spacing.md },
+})
