@@ -476,6 +476,23 @@ export const ru = {
       server: 'Сервер не ответил. Попробуйте ещё раз',
     },
   },
+  // the map of agro shops (screens 18, 18b)
+  shops: {
+    card: {
+      navigate: 'Открыть в навигаторе',
+      chooseNavigator: 'Выбрать другой навигатор',
+      report: 'Сообщить об ошибке',
+      phone: 'Телефон: {{phone}}',
+    },
+    categories: {
+      fungicides: 'Фунгициды',
+      insecticides: 'Инсектициды',
+      herbicides: 'Гербициды',
+      fertilizers: 'Удобрения',
+      seeds: 'Семена',
+      equipment: 'Техника',
+    },
+  },
   // the notifications (screen 20). A notification has a type and ids, no text: a line says what happened.
   notifications: {
     title: 'Уведомления',

@@ -471,6 +471,23 @@ export const en: Translation = {
       server: 'The server did not answer. Try again',
     },
   },
+  // the map of agro shops (screens 18, 18b)
+  shops: {
+    card: {
+      navigate: 'Open in navigator',
+      chooseNavigator: 'Choose another navigator',
+      report: 'Report a mistake',
+      phone: 'Phone: {{phone}}',
+    },
+    categories: {
+      fungicides: 'Fungicides',
+      insecticides: 'Insecticides',
+      herbicides: 'Herbicides',
+      fertilizers: 'Fertilizers',
+      seeds: 'Seeds',
+      equipment: 'Equipment',
+    },
+  },
   // the notifications (screen 20). A notification has a type and ids, no text: a line says what happened.
   notifications: {
     title: 'Notifications',

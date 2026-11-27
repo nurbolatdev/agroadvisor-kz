@@ -472,6 +472,23 @@ export const kk: Translation = {
       server: 'Сервер жауап бермеді. Қайталап көріңіз',
     },
   },
+  // the map of agro shops (screens 18, 18b); the kk texts wait for the proofreading (#88)
+  shops: {
+    card: {
+      navigate: 'Навигаторда ашу',
+      chooseNavigator: 'Басқа навигаторды таңдау',
+      report: 'Қате туралы хабарлау',
+      phone: 'Телефон: {{phone}}',
+    },
+    categories: {
+      fungicides: 'Фунгицидтер',
+      insecticides: 'Инсектицидтер',
+      herbicides: 'Гербицидтер',
+      fertilizers: 'Тыңайтқыштар',
+      seeds: 'Тұқымдар',
+      equipment: 'Техника',
+    },
+  },
   // the notifications (screen 20); the kk texts wait for the proofreading (#88)
   notifications: {
     title: 'Хабарландырулар',
